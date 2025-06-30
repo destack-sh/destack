@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.INPUT_VIEW)
+@builtin_node(NodeType.INPUT_VIEW, is_abstract=True)
 class InputView(View):
     """An input View."""
 

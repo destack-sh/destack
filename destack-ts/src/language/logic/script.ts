@@ -12,7 +12,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Value } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
@@ -28,80 +27,10 @@ import { Temporal } from "temporal-polyfill";
  * A Script.
  */
 export class Script
-  extends Node
-  implements IsSpatial, HasName, IsOrdered, IsDeletable, IsRunnable, IsExtensible, Entity
+  extends Entity
+  implements IsSpatial, HasName, IsOrdered, IsDeletable, IsRunnable, IsExtensible
 {
   static metatype: NodeType = NodeType.SCRIPT;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.EXTENSIBLE,
-    TraitType.ORDERED,
-    TraitType.RUNNABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.VIEW,
-    NodeType.SHAPE,
-    NodeType.CONTAINER_VIEW,
-    NodeType.INPUT_VIEW,
-    NodeType.LINE_SHAPE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.POLYGON_SHAPE,
-    NodeType.SCRIPT,
-    NodeType.SCENE,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.ARROW_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.SERVICE,
-    NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.LAYER,
-    NodeType.CONTENT_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.LABEL_VIEW,
-    NodeType.FOLDER,
-    NodeType.INTERNAL_VIEW,
-    NodeType.TEXT_VIEW,
-    NodeType.AGENT,
-    NodeType.SPLIT_VIEW,
-    NodeType.CANVAS,
-  ];
-  static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.SCRIPT];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.SHAPE,
-    NodeType.VIEW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.LINE_SHAPE,
-    NodeType.INPUT_VIEW,
-    NodeType.WINDOW,
-    NodeType.POLYGON_SHAPE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SCRIPT,
-    NodeType.SCENE,
-    NodeType.ARROW_SHAPE,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.SERVICE,
-    NodeType.FRAME_VIEW,
-    NodeType.LAYER,
-    NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.CONTENT_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.LABEL_VIEW,
-    NodeType.FOLDER,
-    NodeType.INTERNAL_VIEW,
-    NodeType.AGENT,
-    NodeType.TEXT_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.CANVAS,
-  ];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.SCRIPT,
-    NodeType.CUSTOM_OPTION,
-    NodeType.TAGGING,
-    NodeType.CUSTOM_PROPERTY,
-  ];
 
   /**
    * Script.parent
@@ -128,12 +57,12 @@ export class Script
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -145,12 +74,12 @@ export class Script
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

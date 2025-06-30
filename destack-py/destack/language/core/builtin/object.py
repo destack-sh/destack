@@ -82,6 +82,7 @@ def _generate_init[ObjectT: BuiltinObjectBase](
     is_root_node: bool,
     is_frozen: bool,
     traits: tuple[TraitType, ...],
+    extends: tuple[NodeType, ...],
     properties: dict[str, PropertyDeclaration],
 ) -> tuple[str, dict[str, Any]]:
     """Generates an __init__ for a BuiltinObject class."""
@@ -155,9 +156,13 @@ def _generate_init[ObjectT: BuiltinObjectBase](
     if is_node:
         # node setup
         body_properties.pop("id")
-        if TraitType.TRACKED in traits:
+        if NodeType.ENTITY in extends:
             body_properties.pop("created_at")
             body_properties.pop("updated_at")
+        elif NodeType.EVENT in extends:
+            body_properties.pop("created_at")
+        else:
+            raise NotImplementedError(f"unexpected node {cls.__name__} extends {extends}")
         body_properties.pop("_session")
         body_properties.pop("_graph")
         body_properties.pop("_connection")
@@ -180,12 +185,19 @@ if _supergraph is None:
 if id is None:
     id = uuid4()
     """)
-        if TraitType.TRACKED in traits:
+        if NodeType.ENTITY in extends:
             method_body_lines.append("""\
     now = self._session.oracle.utc()
     created_at = now
     updated_at = now
 """)
+        elif NodeType.EVENT in extends:
+            method_body_lines.append("""\
+    now = self._session.oracle.utc()
+    created_at = now
+""")
+        else:
+            raise NotImplementedError(f"unexpected node {cls.__name__} extends {extends}")
         method_body_lines.append(f"""\
     _is_new = True
     _is_attached = {"True" if is_root_node else "_graph is not None"}
@@ -195,11 +207,17 @@ else:
 {set_template_str.format("id", "id")}
 """)
 
-        if TraitType.TRACKED in traits:
+        if NodeType.ENTITY in extends:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 {set_template_str.format("updated_at", "updated_at")}
 """)
+        elif NodeType.EVENT in extends:
+            method_body_lines.append(f"""\
+{set_template_str.format("created_at", "created_at")}
+""")
+        else:
+            raise NotImplementedError(f"unexpected node {cls.__name__} extends {extends}")
         method_body_lines.append(f"""\
 {set_template_str.format("_ref", "None")}
 {set_template_str.format("_is_new", "_is_new")}
@@ -862,6 +880,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     is_abstract: bool = False,
     base_type: NodeType | None = None,
     traits: tuple[TraitType, ...] = (),
+    extends: tuple[NodeType, ...] = (),
 ) -> tuple[type[ObjectT], dict[str, "PropertyDeclaration"]]:
     """Process a BuiltinObject base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
@@ -1004,27 +1023,29 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             "EMPTY_DICT": frozendict(),
             "uuid4": uuid4,
         }
-        init_str, init_glbls = _generate_init(
-            cls,
-            is_node=is_node,
-            is_frozen=is_frozen,
-            is_root_node=is_root_node,
-            traits=traits,
-            properties=properties,
-        )
-        exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
-        # __repr__
-        repr_str, repr_glbls = _generate_repr(cls)
-        exec_(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
-        # equals
-        equals_str, equals_glbls = _generate_equals(cls, is_node=is_node)
-        exec_(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
-        # hash
-        hash_str, hash_glbls = _generate_hash(cls)
-        exec_(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}:hash")
-        # validate
-        validate_str, validate_glbls = _generate_validate(cls)
-        exec_(validate_str, {**glbls, **validate_glbls}, cls_dict, f"{cls.__name__}:validate")
+        if not is_abstract:
+            init_str, init_glbls = _generate_init(
+                cls,
+                is_node=is_node,
+                is_frozen=is_frozen,
+                is_root_node=is_root_node,
+                properties=properties,
+                traits=traits,
+                extends=extends,
+            )
+            exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
+            # __repr__
+            repr_str, repr_glbls = _generate_repr(cls)
+            exec_(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
+            # equals
+            equals_str, equals_glbls = _generate_equals(cls, is_node=is_node)
+            exec_(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
+            # hash
+            hash_str, hash_glbls = _generate_hash(cls)
+            exec_(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}:hash")
+            # validate
+            validate_str, validate_glbls = _generate_validate(cls)
+            exec_(validate_str, {**glbls, **validate_glbls}, cls_dict, f"{cls.__name__}:validate")
         if is_node:
             # __to_ref__
             ref_str, ref_glbls = _generate_ref(cast(type["Node"], cls), NodeType(object_type))

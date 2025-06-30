@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.VIEW)
+@builtin_node(NodeType.VIEW, is_abstract=True)
 class View(
     IsSpatial,
     Entity,

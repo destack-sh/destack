@@ -1,4 +1,11 @@
-import { Graph, PropertyDefinition, QueryConnection, Session } from "@destack/language/core";
+import {
+  Graph,
+  NodeDefinition,
+  PropertyDefinition,
+  QueryConnection,
+  Session,
+  StructDefinition,
+} from "@destack/language/core";
 import { AnyNodeProto, AnyStructProto } from "@destack/proto";
 import { Casing, toCasing } from "@destack/utils";
 import { Supergraph } from "../runtime/graph";
@@ -9,6 +16,7 @@ export abstract class BuiltinObject {
   static readonly __isStruct__: boolean;
   static readonly __isNode__: boolean;
   static readonly __isTrait__: boolean;
+  static readonly __definition__: NodeDefinition | StructDefinition;
   static readonly __properties__: Record<string, PropertyDefinition>;
   static readonly __propertiesById__: Record<number, PropertyDefinition>;
 
@@ -130,8 +138,6 @@ export type BuiltinObjectClass<
   ObjectT extends BuiltinObject,
   ProtoT extends AnyStructProto | AnyNodeProto,
 > = {
-  new (...args: any[]): ObjectT;
-} & {
   __properties__: Record<string, PropertyDefinition>;
   __propertiesById__: Record<number, PropertyDefinition>;
 

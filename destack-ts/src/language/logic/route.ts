@@ -12,7 +12,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
@@ -29,23 +28,10 @@ import { Temporal } from "temporal-polyfill";
  * A Route is a path to a Scene.
  */
 export class Route
-  extends Node
-  implements IsSpatial, HasName, IsDeletable, IsOrdered, IsOwnable, IsTaggable, Entity
+  extends Entity
+  implements IsSpatial, HasName, IsDeletable, IsOrdered, IsOwnable, IsTaggable
 {
   static metatype: NodeType = NodeType.ROUTE;
-  static __traits__: TraitType[] = [
-    TraitType.TAGGABLE,
-    TraitType.SPATIAL,
-    TraitType.OWNABLE,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.ORDERED,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.FOLDER];
-  static __childTypes__: NodeType[] = [NodeType.TAGGING];
-  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
   /**
    * Route.parent
@@ -72,12 +58,12 @@ export class Route
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -89,12 +75,12 @@ export class Route
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

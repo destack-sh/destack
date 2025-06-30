@@ -15,14 +15,12 @@ import {
   NodeType,
   RoleType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Event, Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   RoleAssignedEventProto,
-  RoleEventProto,
   RoleProto,
   RoleTypeProto,
   RoleUnassignedEventProto,
@@ -35,14 +33,8 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Event regarding a Role.
  */
-export class RoleAssignedEvent extends Node implements RoleEvent {
+export class RoleAssignedEvent extends RoleEvent {
   static metatype: NodeType = NodeType.ROLE_ASSIGNED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -67,6 +59,23 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -106,6 +115,8 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     subject: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -166,13 +177,9 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -180,13 +187,6 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -211,6 +211,10 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.subjectPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -274,6 +278,10 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -288,6 +296,11 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RoleAssignedEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -311,6 +324,8 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
         _graph,
         _connection,
       ),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -350,6 +365,10 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -372,6 +391,17 @@ export class RoleAssignedEvent extends Node implements RoleEvent {
         _graph,
         _connection,
       ),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -442,14 +472,8 @@ registerNodeClass(NodeType.ROLE_ASSIGNED_EVENT, RoleAssignedEvent);
 /**
  * A Event regarding a Role.
  */
-export class RoleUnassignedEvent extends Node implements RoleEvent {
+export class RoleUnassignedEvent extends RoleEvent {
   static metatype: NodeType = NodeType.ROLE_UNASSIGNED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -474,6 +498,23 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -513,6 +554,8 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     subject: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -573,13 +616,9 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -587,13 +626,6 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -618,6 +650,10 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.subjectPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -681,6 +717,10 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -695,6 +735,11 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RoleUnassignedEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -718,6 +763,8 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
         _graph,
         _connection,
       ),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -757,6 +804,10 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -779,6 +830,17 @@ export class RoleUnassignedEvent extends Node implements RoleEvent {
         _graph,
         _connection,
       ),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -850,35 +912,10 @@ registerNodeClass(NodeType.ROLE_UNASSIGNED_EVENT, RoleUnassignedEvent);
  * A Role for Subjects to take.
  */
 export class Role
-  extends Node
-  implements IsGlobal, IsSpatial, HasSlug, HasIcon, HasName, IsOwner, IsOrdered, IsDeletable, Entity
+  extends Entity
+  implements IsGlobal, IsSpatial, HasSlug, HasIcon, HasName, IsOwner, IsOrdered, IsDeletable
 {
   static metatype: NodeType = NodeType.ROLE;
-  static __traits__: TraitType[] = [
-    TraitType.GLOBAL,
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.ORDERED,
-    TraitType.OWNER,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.ORGANIZATION,
-    NodeType.FOLDER,
-    NodeType.TEAM,
-    NodeType.THREAD,
-  ];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.ORGANIZATION,
-    NodeType.FOLDER,
-    NodeType.TEAM,
-    NodeType.THREAD,
-  ];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * Role.parent
@@ -905,12 +942,12 @@ export class Role
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -922,12 +959,12 @@ export class Role
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1412,14 +1449,8 @@ registerNodeClass(NodeType.ROLE, Role);
 /**
  * A Event regarding a Role.
  */
-export class RoleEvent extends Node implements Event {
+export abstract class RoleEvent extends Event {
   static metatype: NodeType = NodeType.ROLE_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -1431,7 +1462,7 @@ export class RoleEvent extends Node implements Event {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -1443,7 +1474,24 @@ export class RoleEvent extends Node implements Event {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -1462,7 +1510,7 @@ export class RoleEvent extends Node implements Event {
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
+  declare nodePtr: NodeReference | null;
 
   /**
    * RoleEvent.subject
@@ -1477,324 +1525,7 @@ export class RoleEvent extends Node implements Event {
   set subject(node: Node & IsSubject) {
     this.subjectPtr = node.toRef();
   }
-  subjectPtr: NodeReference;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node?: Node | NodeReference | null;
-    subject: (Node & IsSubject) | NodeReference;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    this.nodePtr = _node;
-    let _subject = options.subject;
-    if (_subject != null && _subject instanceof Node) {
-      _subject = _subject.toRef();
-    }
-    if (_subject === null) {
-      throw new Error(`RoleEvent.subject is required`);
-    }
-    this.subjectPtr = _subject;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.subjectPtr.id === other.subjectPtr.id)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.subjectPtr.id)) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.ROLE_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "RoleEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<RoleEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return RoleEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: RoleEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 541;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    objectValue["40"] = object.subjectPtr.toValue();
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RoleEvent {
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new RoleEvent({
-      subject: NodeReference.fromValue(
-        objectValue["40"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RoleEvent {
-    return RoleEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): RoleEventProto {
-    return RoleEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RoleEvent): RoleEventProto {
-    const objectProto: Partial<RoleEventProto> = { metatype: 541 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.subjectPtr = object.subjectPtr.toProto();
-    return objectProto as RoleEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RoleEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RoleEvent {
-    return new RoleEvent({
-      subject: NodeReference.fromProto(
-        objectProto.subjectPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RoleEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RoleEvent {
-    return RoleEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RoleEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RoleEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare subjectPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

@@ -1,3 +1,4 @@
+import { NodeClass } from "@destack/language";
 import { Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
@@ -18,6 +19,7 @@ import {
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   NodeDefinitionReferenceProto,
+  NodeDefinitionTypeProto,
   NodeReferenceProto,
   NodeTypeProto,
   ObjectDefinitionReferenceProto,
@@ -25,19 +27,18 @@ import {
   PropertyReferenceProto,
   PropertyReferenceTypeProto,
   RegionProto,
-  RelationTypeProto,
   ScopeProto,
   StructTypeProto,
   TraitTypeProto,
 } from "@destack/proto";
-import { base64Decode } from "@destack/utils";
+import { assertNever, base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
 /**
- * RelationType
+ * NodeDefinitionType
  */
-export enum RelationType {
+export enum NodeDefinitionType {
   BUILTIN_NODE = 1,
   CUSTOM_NODE = 2,
   BUILTIN_TRAIT = 3,
@@ -47,7 +48,7 @@ export enum RelationType {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.RELATION_TYPE, RelationType);
+registerEnumClass(EnumType.NODE_DEFINITION_TYPE, NodeDefinitionType);
 /* ==== DESTACK_GENERATED_END:ENUM:50010 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50011 ==== */
@@ -309,7 +310,7 @@ export class NodeDefinitionReference extends StructFrozen {
   /**
    * NodeDefinitionReference.type
    */
-  readonly type: RelationType;
+  readonly type: NodeDefinitionType;
 
   /**
    * NodeDefinitionReference.nodeType
@@ -341,7 +342,7 @@ export class NodeDefinitionReference extends StructFrozen {
   readonly definitionPtr: NodeReference | null;
 
   constructor(options: {
-    type: RelationType;
+    type: NodeDefinitionType;
     nodeType?: NodeType | null;
     traitType?: TraitType | null;
     definition?:
@@ -413,7 +414,7 @@ export class NodeDefinitionReference extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${RelationType[this.type]}`);
+      propertyReprs.push(`type=${NodeDefinitionType[this.type]}`);
       if (this.nodeType !== null) {
         propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
       }
@@ -532,7 +533,7 @@ export class NodeDefinitionReference extends StructFrozen {
 
   static __packProto__(object: NodeDefinitionReference): NodeDefinitionReferenceProto {
     const objectProto: Partial<NodeDefinitionReferenceProto> = { metatype: 50107 };
-    objectProto.type = Number(object.type) as RelationTypeProto;
+    objectProto.type = Number(object.type) as NodeDefinitionTypeProto;
     if (object.nodeType != null) {
       objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
     }
@@ -553,7 +554,7 @@ export class NodeDefinitionReference extends StructFrozen {
     _connection?: any | null,
   ): NodeDefinitionReference {
     return new NodeDefinitionReference({
-      type: Number(objectProto.type) as RelationType,
+      type: Number(objectProto.type) as NodeDefinitionType,
       nodeType:
         objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
       traitType:
@@ -596,7 +597,23 @@ export class NodeDefinitionReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  static of(base: NodeType | NodeClass | CustomEventDefinition | CustomEntityDefinition) {
+    if (typeof base == "number") {
+      return new NodeDefinitionReference({ type: NodeDefinitionType.BUILTIN_NODE, nodeType: base });
+    } else if (base instanceof CustomEventDefinition || base instanceof CustomEntityDefinition) {
+      return new NodeDefinitionReference({
+        type: NodeDefinitionType.CUSTOM_NODE,
+        definition: base,
+      });
+    } else {
+      return new NodeDefinitionReference({
+        type: NodeDefinitionType.BUILTIN_NODE,
+        nodeType: base.metatype,
+      });
+    }
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_DEFINITION_REFERENCE, NodeDefinitionReference);
@@ -935,7 +952,26 @@ export class ObjectDefinitionReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  static of(base: NodeType | NodeClass | CustomEventDefinition | CustomEntityDefinition) {
+    if (typeof base == "number") {
+      return new ObjectDefinitionReference({
+        type: ObjectDefinitionType.BUILTIN_NODE,
+        nodeType: base,
+      });
+    } else if (base instanceof CustomEventDefinition || base instanceof CustomEntityDefinition) {
+      return new ObjectDefinitionReference({
+        type: ObjectDefinitionType.CUSTOM_NODE,
+        definition: base,
+      });
+    } else {
+      return new ObjectDefinitionReference({
+        type: ObjectDefinitionType.BUILTIN_NODE,
+        nodeType: base.metatype,
+      });
+    }
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.OBJECT_DEFINITION_REFERENCE, ObjectDefinitionReference);
@@ -1291,7 +1327,21 @@ export class PropertyReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  static of(attribute: CustomProperty | PropertyReference): PropertyReference {
+    if (attribute instanceof PropertyReference) {
+      return attribute;
+    } else if (attribute instanceof CustomProperty) {
+      return new PropertyReference({
+        type: PropertyReferenceType.CUSTOM,
+        nodeType: NodeType.CUSTOM_ENTITY,
+        customProperty: attribute,
+      });
+    } else {
+      assertNever(attribute);
+    }
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);

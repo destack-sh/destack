@@ -1,4 +1,4 @@
-import { NodeClass, RelationReference, toValue } from "@destack/language";
+import { NodeClass, toValue } from "@destack/language";
 import { Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
@@ -1779,9 +1779,9 @@ export class Join extends StructFrozen {
   readonly type: JoinType;
 
   /**
-   * Join.relation
+   * Join.definition
    */
-  readonly relation: NodeDefinitionReference | null;
+  readonly definition: NodeDefinitionReference | null;
 
   /**
    * Join.recursive
@@ -1800,7 +1800,7 @@ export class Join extends StructFrozen {
 
   constructor(options: {
     type: JoinType;
-    relation?: NodeDefinitionReference | null;
+    definition?: NodeDefinitionReference | null;
     recursive?: boolean;
     depth?: number | null;
     on?: Condition | null;
@@ -1824,8 +1824,8 @@ export class Join extends StructFrozen {
       throw new Error(`Join.type is required`);
     }
     this.type = _type;
-    let _relation = options.relation ?? null;
-    this.relation = _relation;
+    let _definition = options.definition ?? null;
+    this.definition = _definition;
     let _recursive = options.recursive ?? null;
     if (_recursive === null) {
       _recursive = false;
@@ -1858,8 +1858,8 @@ export class Join extends StructFrozen {
       return false;
     }
     if (
-      (this.relation == null) !== (other.relation == null) ||
-      (this.relation != null && !this.relation.equals(other.relation))
+      (this.definition == null) !== (other.definition == null) ||
+      (this.definition != null && !this.definition.equals(other.definition))
     ) {
       return false;
     }
@@ -1882,8 +1882,8 @@ export class Join extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${JoinType[this.type]}`);
-      if (this.relation !== null) {
-        propertyReprs.push(`relation=${this.relation.repr()}`);
+      if (this.definition !== null) {
+        propertyReprs.push(`definition=${this.definition.repr()}`);
       }
       propertyReprs.push(`recursive=${this.recursive}`);
       if (this.depth !== null) {
@@ -1906,8 +1906,8 @@ export class Join extends StructFrozen {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.relation !== null) {
-      h = (h * 31 + this.relation.hash()) & 0xffffffff;
+    if (this.definition !== null) {
+      h = (h * 31 + this.definition.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.recursive)) & 0xffffffff;
     if (this.depth !== null) {
@@ -1938,8 +1938,8 @@ export class Join extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50102;
     objectValue["30"] = object.type;
-    if (object.relation != null) {
-      objectValue["31"] = object.relation.toValue();
+    if (object.definition != null) {
+      objectValue["31"] = object.definition.toValue();
     }
     objectValue["33"] = object.recursive;
     if (object.depth != null) {
@@ -1958,11 +1958,11 @@ export class Join extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Join {
-    const relationValue = objectValue["31"];
-    const unpackedRelation =
-      relationValue != undefined
+    const definitionValue = objectValue["31"];
+    const unpackedDefinition =
+      definitionValue != undefined
         ? NodeDefinitionReference.fromValue(
-            relationValue,
+            definitionValue,
             _session,
             _supergraph,
             _graph,
@@ -1978,7 +1978,7 @@ export class Join extends StructFrozen {
         : null;
     return new Join({
       type: Number(objectValue["30"]),
-      relation: unpackedRelation,
+      definition: unpackedDefinition,
       recursive: objectValue["33"],
       depth: unpackedDepth,
       on: unpackedOn,
@@ -2008,8 +2008,8 @@ export class Join extends StructFrozen {
   static __packProto__(object: Join): JoinProto {
     const objectProto: Partial<JoinProto> = { metatype: 50102 };
     objectProto.type = Number(object.type) as JoinTypeProto;
-    if (object.relation != null) {
-      objectProto.relation = object.relation.toProto();
+    if (object.definition != null) {
+      objectProto.definition = object.definition.toProto();
     }
     objectProto.recursive = object.recursive;
     if (object.depth != null) {
@@ -2030,10 +2030,10 @@ export class Join extends StructFrozen {
   ): Join {
     return new Join({
       type: Number(objectProto.type) as JoinType,
-      relation:
-        objectProto.relation != undefined
+      definition:
+        objectProto.definition != undefined
           ? NodeDefinitionReference.fromProto(
-              objectProto.relation!,
+              objectProto.definition!,
               _session,
               _supergraph,
               _graph,
@@ -2073,7 +2073,7 @@ export class Join extends StructFrozen {
   static of(
     joinType: JoinType | Join,
     options?: {
-      relation?: NodeType | NodeClass | CustomEntityDefinition;
+      definition?: NodeType | NodeClass | CustomEntityDefinition;
       recursive?: boolean;
       depth?: number | null;
       on?: Condition | null;
@@ -2084,7 +2084,7 @@ export class Join extends StructFrozen {
     }
     return new Join({
       type: joinType,
-      relation: options?.relation ? RelationReference.of(options.relation) : null,
+      definition: options?.definition ? NodeDefinitionReference.of(options.definition) : null,
       recursive: options?.recursive ?? false,
       depth: options?.depth ?? null,
       on: options?.on ?? null,
@@ -2120,9 +2120,9 @@ export class Query extends StructFrozen {
   readonly name: string;
 
   /**
-   * Query.relation
+   * Query.definition
    */
-  readonly relation: NodeDefinitionReference;
+  readonly definition: NodeDefinitionReference;
 
   /**
    * Relative to parent Query.
@@ -2178,7 +2178,7 @@ export class Query extends StructFrozen {
     id?: string;
     type: QueryType;
     name: string;
-    relation: NodeDefinitionReference;
+    definition: NodeDefinitionReference;
     join?: Join | null;
     select?: Select | null;
     subqueries?: Array<Query>;
@@ -2222,11 +2222,11 @@ export class Query extends StructFrozen {
       throw new Error(`Query.name is required`);
     }
     this.name = _name;
-    let _relation = options.relation;
-    if (_relation === null) {
-      throw new Error(`Query.relation is required`);
+    let _definition = options.definition;
+    if (_definition === null) {
+      throw new Error(`Query.definition is required`);
     }
-    this.relation = _relation;
+    this.definition = _definition;
     let _join = options.join ?? null;
     this.join = _join;
     let _select = options.select ?? null;
@@ -2281,7 +2281,7 @@ export class Query extends StructFrozen {
     if (!(this.name === other.name)) {
       return false;
     }
-    if (!this.relation.equals(other.relation)) {
+    if (!this.definition.equals(other.definition)) {
       return false;
     }
     if (
@@ -2352,7 +2352,7 @@ export class Query extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${QueryType[this.type]}`);
       propertyReprs.push(`name=${this.name}`);
-      propertyReprs.push(`relation=${this.relation.repr()}`);
+      propertyReprs.push(`definition=${this.definition.repr()}`);
       if (this.join !== null) {
         propertyReprs.push(`join=${this.join.repr()}`);
       }
@@ -2399,7 +2399,7 @@ export class Query extends StructFrozen {
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    h = (h * 31 + this.relation.hash()) & 0xffffffff;
+    h = (h * 31 + this.definition.hash()) & 0xffffffff;
     if (this.join !== null) {
       h = (h * 31 + this.join.hash()) & 0xffffffff;
     }
@@ -2460,7 +2460,7 @@ export class Query extends StructFrozen {
     objectValue["2"] = String(object.id);
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    objectValue["32"] = object.relation.toValue();
+    objectValue["32"] = object.definition.toValue();
     if (object.join != null) {
       objectValue["33"] = object.join.toValue();
     }
@@ -2566,7 +2566,7 @@ export class Query extends StructFrozen {
       id: String(objectValue["2"]),
       type: Number(objectValue["30"]),
       name: objectValue["31"],
-      relation: NodeDefinitionReference.fromValue(
+      definition: NodeDefinitionReference.fromValue(
         objectValue["32"],
         _session,
         _supergraph,
@@ -2611,7 +2611,7 @@ export class Query extends StructFrozen {
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
     objectProto.name = object.name;
-    objectProto.relation = object.relation.toProto();
+    objectProto.definition = object.definition.toProto();
     if (object.join != null) {
       objectProto.join = object.join.toProto();
     }
@@ -2688,8 +2688,8 @@ export class Query extends StructFrozen {
       id: String(objectProto.id),
       type: Number(objectProto.type) as QueryType,
       name: objectProto.name,
-      relation: NodeDefinitionReference.fromProto(
-        objectProto.relation!,
+      definition: NodeDefinitionReference.fromProto(
+        objectProto.definition!,
         _session,
         _supergraph,
         _graph,

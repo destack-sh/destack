@@ -14,20 +14,20 @@ from destack.language import (
     DatabaseType,
     Edit,
     NodeDefinitionReference,
+    NodeDefinitionType,
     NodeReference,
     NodeType,
     Query,
     QueryResult,
     QueryUpdate,
-    RelationType,
     Store,
     StoreImplementation,
     StoreType,
 )
 from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
+    NODE_DEFINITION_REFERENCE_BY_CLASS,
     NODE_TYPES_BY_TRAIT_TYPE,
-    RELATION_REF_BY_CLASS,
 )
 from destack.utils.uuid import UUID
 
@@ -164,22 +164,23 @@ class PostgresStoreContext(PostgresContext):
 
     @override
     def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
-        if definition.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE):
+        if definition.type in (NodeDefinitionType.BUILTIN_NODE, NodeDefinitionType.CUSTOM_NODE):
             return (definition,)
-        elif definition.type == RelationType.BUILTIN_TRAIT:
+        elif definition.type == NodeDefinitionType.BUILTIN_TRAIT:
             assert definition.trait_type is not None, f"no trait_type for {definition!r}"
             node_types = NODE_TYPES_BY_TRAIT_TYPE.get(definition.trait_type, ())
             return tuple(
-                RELATION_REF_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]] for node_type in node_types
+                NODE_DEFINITION_REFERENCE_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]]
+                for node_type in node_types
             )
-        elif definition.type == RelationType.CUSTOM_TRAIT:
+        elif definition.type == NodeDefinitionType.CUSTOM_TRAIT:
             raise NotImplementedError(f"cannot resolve {definition!r}")
         else:
             assert_never(definition.type)
 
     @override
     def get(self, definition: NodeDefinitionReference | NodeReference) -> PostgresTable:
-        # map relations to table names
+        # map definitions to table names
         if isinstance(definition, NodeReference):
             if definition.node_type != NodeType.CUSTOM_ENTITY:
                 table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.node_type.name.lower()}"
@@ -187,17 +188,17 @@ class PostgresStoreContext(PostgresContext):
                 assert definition.definition_id is not None, f"no definition_id for {definition!r}"
                 table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{definition.definition_id}"
         elif isinstance(definition, NodeDefinitionReference):
-            if definition.type == RelationType.BUILTIN_NODE:
+            if definition.type == NodeDefinitionType.BUILTIN_NODE:
                 assert definition.node_type is not None, f"no node_type for {definition!r}"
                 table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.node_type.name.lower()}"
-            elif definition.type == RelationType.CUSTOM_NODE:
+            elif definition.type == NodeDefinitionType.CUSTOM_NODE:
                 assert definition.definition_ptr is not None, (
                     f"no definition_ptr for {definition!r}"
                 )
                 table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{definition.definition_ptr.id}"
             elif (
-                definition.type == RelationType.BUILTIN_TRAIT
-                or definition.type == RelationType.CUSTOM_TRAIT
+                definition.type == NodeDefinitionType.BUILTIN_TRAIT
+                or definition.type == NodeDefinitionType.CUSTOM_TRAIT
             ):
                 raise RuntimeError(f"cannot get {definition!r}")
             else:

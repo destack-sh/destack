@@ -14,7 +14,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Event, Value } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
@@ -22,7 +21,6 @@ import { Interruption } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
 import {
   RunCompletedEventProto,
-  RunEventProto,
   RunFailedEventProto,
   RunPauseRequestedEventProto,
   RunPausedEventProto,
@@ -62,24 +60,8 @@ registerEnumClass(EnumType.RUN_STATUS, RunStatus);
 /**
  * Run something somewhere, somehow.
  */
-export class Run extends Node implements IsSpatial, IsExtensible, Entity {
+export class Run extends Entity implements IsSpatial, IsExtensible {
   static metatype: NodeType = NodeType.RUN;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.EXTENSIBLE];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.INTERRUPTION,
-    NodeType.SPAN_EVENT,
-  ];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.CUSTOM_OPTION,
-    NodeType.INTERRUPTION,
-    NodeType.TAGGING,
-    NodeType.SPAN_EVENT,
-    NodeType.CUSTOM_PROPERTY,
-  ];
 
   /**
    * Run.parent
@@ -106,12 +88,12 @@ export class Run extends Node implements IsSpatial, IsExtensible, Entity {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -123,12 +105,12 @@ export class Run extends Node implements IsSpatial, IsExtensible, Entity {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -837,14 +819,8 @@ registerNodeClass(NodeType.RUN, Run);
 /**
  * A Run was started.
  */
-export class RunStartedEvent extends Node implements RunEvent {
+export class RunStartedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_STARTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -869,6 +845,23 @@ export class RunStartedEvent extends Node implements RunEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * RunEvent.node
@@ -908,6 +901,8 @@ export class RunStartedEvent extends Node implements RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -968,13 +963,9 @@ export class RunStartedEvent extends Node implements RunEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -982,13 +973,6 @@ export class RunStartedEvent extends Node implements RunEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -1015,6 +999,10 @@ export class RunStartedEvent extends Node implements RunEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -1076,6 +1064,10 @@ export class RunStartedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     objectValue["35"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["40"] = object.targetPtr.toValue();
@@ -1095,6 +1087,11 @@ export class RunStartedEvent extends Node implements RunEvent {
       targetPtrValue != undefined
         ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1108,6 +1105,8 @@ export class RunStartedEvent extends Node implements RunEvent {
     return new RunStartedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1140,6 +1139,10 @@ export class RunStartedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -1166,6 +1169,17 @@ export class RunStartedEvent extends Node implements RunEvent {
         objectProto.targetPtr != undefined
           ? NodeReference.fromProto(
               objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1226,14 +1240,8 @@ registerNodeClass(NodeType.RUN_STARTED_EVENT, RunStartedEvent);
 /**
  * A Run was paused.
  */
-export class RunPauseRequestedEvent extends Node implements RunEvent {
+export class RunPauseRequestedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_PAUSE_REQUESTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -1258,6 +1266,23 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * RunEvent.node
@@ -1297,6 +1322,8 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -1357,13 +1384,9 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1371,13 +1394,6 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -1404,6 +1420,10 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -1465,6 +1485,10 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     objectValue["35"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["40"] = object.targetPtr.toValue();
@@ -1484,6 +1508,11 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
       targetPtrValue != undefined
         ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1497,6 +1526,8 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
     return new RunPauseRequestedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1535,6 +1566,10 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -1561,6 +1596,17 @@ export class RunPauseRequestedEvent extends Node implements RunEvent {
         objectProto.targetPtr != undefined
           ? NodeReference.fromProto(
               objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1627,14 +1673,8 @@ registerNodeClass(NodeType.RUN_PAUSE_REQUESTED_EVENT, RunPauseRequestedEvent);
 /**
  * A Run was paused.
  */
-export class RunPausedEvent extends Node implements RunEvent {
+export class RunPausedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_PAUSED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -1659,6 +1699,23 @@ export class RunPausedEvent extends Node implements RunEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * RunEvent.node
@@ -1698,6 +1755,8 @@ export class RunPausedEvent extends Node implements RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -1758,13 +1817,9 @@ export class RunPausedEvent extends Node implements RunEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1772,13 +1827,6 @@ export class RunPausedEvent extends Node implements RunEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -1805,6 +1853,10 @@ export class RunPausedEvent extends Node implements RunEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -1866,6 +1918,10 @@ export class RunPausedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     objectValue["35"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["40"] = object.targetPtr.toValue();
@@ -1885,6 +1941,11 @@ export class RunPausedEvent extends Node implements RunEvent {
       targetPtrValue != undefined
         ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1898,6 +1959,8 @@ export class RunPausedEvent extends Node implements RunEvent {
     return new RunPausedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1930,6 +1993,10 @@ export class RunPausedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -1956,6 +2023,17 @@ export class RunPausedEvent extends Node implements RunEvent {
         objectProto.targetPtr != undefined
           ? NodeReference.fromProto(
               objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2016,14 +2094,8 @@ registerNodeClass(NodeType.RUN_PAUSED_EVENT, RunPausedEvent);
 /**
  * A Run was resumed.
  */
-export class RunResumeRequestedEvent extends Node implements RunEvent {
+export class RunResumeRequestedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_RESUME_REQUESTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -2048,6 +2120,23 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * RunEvent.node
@@ -2087,6 +2176,8 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -2147,13 +2238,9 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2161,13 +2248,6 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -2194,6 +2274,10 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -2255,6 +2339,10 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     objectValue["35"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["40"] = object.targetPtr.toValue();
@@ -2274,6 +2362,11 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
       targetPtrValue != undefined
         ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -2287,6 +2380,8 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
     return new RunResumeRequestedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2325,6 +2420,10 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -2351,6 +2450,17 @@ export class RunResumeRequestedEvent extends Node implements RunEvent {
         objectProto.targetPtr != undefined
           ? NodeReference.fromProto(
               objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2417,14 +2527,8 @@ registerNodeClass(NodeType.RUN_RESUME_REQUESTED_EVENT, RunResumeRequestedEvent);
 /**
  * A Run was resumed.
  */
-export class RunResumedEvent extends Node implements RunEvent {
+export class RunResumedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_RESUMED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -2449,6 +2553,23 @@ export class RunResumedEvent extends Node implements RunEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * RunEvent.node
@@ -2488,6 +2609,8 @@ export class RunResumedEvent extends Node implements RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -2548,13 +2671,9 @@ export class RunResumedEvent extends Node implements RunEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2562,13 +2681,6 @@ export class RunResumedEvent extends Node implements RunEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -2595,6 +2707,10 @@ export class RunResumedEvent extends Node implements RunEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -2656,6 +2772,10 @@ export class RunResumedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     objectValue["35"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["40"] = object.targetPtr.toValue();
@@ -2675,6 +2795,11 @@ export class RunResumedEvent extends Node implements RunEvent {
       targetPtrValue != undefined
         ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -2688,6 +2813,8 @@ export class RunResumedEvent extends Node implements RunEvent {
     return new RunResumedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2720,6 +2847,10 @@ export class RunResumedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -2746,6 +2877,17 @@ export class RunResumedEvent extends Node implements RunEvent {
         objectProto.targetPtr != undefined
           ? NodeReference.fromProto(
               objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2806,14 +2948,8 @@ registerNodeClass(NodeType.RUN_RESUMED_EVENT, RunResumedEvent);
 /**
  * A Run was stopped.
  */
-export class RunStopRequestedEvent extends Node implements RunEvent {
+export class RunStopRequestedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_STOP_REQUESTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -2838,6 +2974,23 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * RunEvent.node
@@ -2877,6 +3030,8 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -2937,13 +3092,9 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2951,13 +3102,6 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -2984,6 +3128,10 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -3045,6 +3193,10 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     objectValue["35"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["40"] = object.targetPtr.toValue();
@@ -3064,6 +3216,11 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
       targetPtrValue != undefined
         ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -3077,6 +3234,8 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
     return new RunStopRequestedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -3115,6 +3274,10 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -3141,6 +3304,17 @@ export class RunStopRequestedEvent extends Node implements RunEvent {
         objectProto.targetPtr != undefined
           ? NodeReference.fromProto(
               objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3207,14 +3381,8 @@ registerNodeClass(NodeType.RUN_STOP_REQUESTED_EVENT, RunStopRequestedEvent);
 /**
  * A Run failed.
  */
-export class RunFailedEvent extends Node implements RunEvent {
+export class RunFailedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_FAILED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -3239,6 +3407,23 @@ export class RunFailedEvent extends Node implements RunEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * RunEvent.node
@@ -3278,6 +3463,8 @@ export class RunFailedEvent extends Node implements RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -3338,13 +3525,9 @@ export class RunFailedEvent extends Node implements RunEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -3352,13 +3535,6 @@ export class RunFailedEvent extends Node implements RunEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -3385,6 +3561,10 @@ export class RunFailedEvent extends Node implements RunEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -3446,6 +3626,10 @@ export class RunFailedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     objectValue["35"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["40"] = object.targetPtr.toValue();
@@ -3465,6 +3649,11 @@ export class RunFailedEvent extends Node implements RunEvent {
       targetPtrValue != undefined
         ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -3478,6 +3667,8 @@ export class RunFailedEvent extends Node implements RunEvent {
     return new RunFailedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -3510,6 +3701,10 @@ export class RunFailedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -3536,6 +3731,17 @@ export class RunFailedEvent extends Node implements RunEvent {
         objectProto.targetPtr != undefined
           ? NodeReference.fromProto(
               objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3596,14 +3802,8 @@ registerNodeClass(NodeType.RUN_FAILED_EVENT, RunFailedEvent);
 /**
  * A Run completed.
  */
-export class RunCompletedEvent extends Node implements RunEvent {
+export class RunCompletedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_COMPLETED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -3628,6 +3828,23 @@ export class RunCompletedEvent extends Node implements RunEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * RunEvent.node
@@ -3667,6 +3884,8 @@ export class RunCompletedEvent extends Node implements RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -3727,13 +3946,9 @@ export class RunCompletedEvent extends Node implements RunEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -3741,13 +3956,6 @@ export class RunCompletedEvent extends Node implements RunEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -3774,6 +3982,10 @@ export class RunCompletedEvent extends Node implements RunEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -3835,6 +4047,10 @@ export class RunCompletedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     objectValue["35"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["40"] = object.targetPtr.toValue();
@@ -3854,6 +4070,11 @@ export class RunCompletedEvent extends Node implements RunEvent {
       targetPtrValue != undefined
         ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -3867,6 +4088,8 @@ export class RunCompletedEvent extends Node implements RunEvent {
     return new RunCompletedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -3905,6 +4128,10 @@ export class RunCompletedEvent extends Node implements RunEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -3931,6 +4158,17 @@ export class RunCompletedEvent extends Node implements RunEvent {
         objectProto.targetPtr != undefined
           ? NodeReference.fromProto(
               objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3997,14 +4235,8 @@ registerNodeClass(NodeType.RUN_COMPLETED_EVENT, RunCompletedEvent);
 /**
  * An Event regarding a Run.
  */
-export class RunEvent extends Node implements Event {
+export abstract class RunEvent extends Event {
   static metatype: NodeType = NodeType.RUN_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -4016,7 +4248,7 @@ export class RunEvent extends Node implements Event {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -4028,7 +4260,24 @@ export class RunEvent extends Node implements Event {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * RunEvent.node
@@ -4043,7 +4292,7 @@ export class RunEvent extends Node implements Event {
   set node(node: Run) {
     this.nodePtr = node.toRef();
   }
-  nodePtr: NodeReference;
+  declare nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -4062,318 +4311,7 @@ export class RunEvent extends Node implements Event {
       this.targetPtr = node.toRef();
     }
   }
-  targetPtr: NodeReference | null;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node: Run | NodeReference;
-    target?: (Node & IsRunnable) | NodeReference | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    if (_node === null) {
-      throw new Error(`RunEvent.node is required`);
-    }
-    this.nodePtr = _node;
-    let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
-    }
-    this.targetPtr = _target;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.nodePtr.id === other.nodePtr.id)) {
-      return false;
-    }
-    if (!(this.targetPtr?.id === other.targetPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    if (this.targetPtr !== null) {
-      h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.RUN_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "RunEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<RunEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return RunEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: RunEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4001;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    objectValue["35"] = object.nodePtr.toValue();
-    if (object.targetPtr != null) {
-      objectValue["40"] = object.targetPtr.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RunEvent {
-    const targetPtrValue = objectValue["40"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new RunEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      target: unpackedTargetPtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RunEvent {
-    return RunEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): RunEventProto {
-    return RunEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RunEvent): RunEventProto {
-    const objectProto: Partial<RunEventProto> = { metatype: 4001 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    return objectProto as RunEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RunEvent {
-    return new RunEvent({
-      node: NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      target:
-        objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RunEvent {
-    return RunEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RunEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare targetPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

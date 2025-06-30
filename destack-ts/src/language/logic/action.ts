@@ -3,10 +3,10 @@ import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@des
 import {
   EnumType,
   HasName,
-  IsActionable,
   IsDeletable,
   IsExtensible,
   IsRunnable,
+  IsScriptable,
   IsSourceable,
   IsSpatial,
   IsSubject,
@@ -14,7 +14,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Text, Value } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
@@ -45,50 +44,18 @@ registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
  * May defer to a builtin or some other service in a separate system.
  */
 export class Action
-  extends Node
-  implements
-    IsSpatial,
-    HasName,
-    IsTaggable,
-    IsSourceable,
-    IsExtensible,
-    IsDeletable,
-    IsRunnable,
-    Entity
+  extends Entity
+  implements IsSpatial, HasName, IsTaggable, IsSourceable, IsExtensible, IsDeletable, IsRunnable
 {
   static metatype: NodeType = NodeType.ACTION;
-  static __traits__: TraitType[] = [
-    TraitType.TAGGABLE,
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.EXTENSIBLE,
-    TraitType.ORDERED,
-    TraitType.RUNNABLE,
-    TraitType.SOURCEABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.SERVICE];
-  static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.TAGGING];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.SPACE,
-    NodeType.SERVICE,
-    NodeType.FOLDER,
-  ];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.CUSTOM_OPTION,
-    NodeType.TAGGING,
-  ];
 
   /**
    * Action.parent
    */
-  get parent(): (Node & IsActionable) | null {
+  get parent(): (Node & IsScriptable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsActionable) | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsScriptable) | null;
     }
     return null;
   }
@@ -107,12 +74,12 @@ export class Action
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -124,12 +91,12 @@ export class Action
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -184,7 +151,7 @@ export class Action
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsActionable) | NodeReference | null;
+    parent?: (Node & IsScriptable) | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;

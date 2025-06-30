@@ -12,7 +12,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Icon } from "@destack/language/core/common";
 import { Cursor } from "@destack/language/logic";
@@ -43,32 +42,10 @@ registerEnumClass(EnumType.USER_STATUS, UserStatus);
  * A User is a human using Destack.
  */
 export class User
-  extends Node
-  implements IsGlobal, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject, Entity
+  extends Entity
+  implements IsGlobal, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject
 {
   static metatype: NodeType = NodeType.USER;
-  static __traits__: TraitType[] = [
-    TraitType.GLOBAL,
-    TraitType.TRACKED,
-    TraitType.SUBJECT,
-    TraitType.OWNER,
-    TraitType.FOLLOWABLE,
-  ];
-  static __rootType__: NodeType | null = null;
-  static __parentTypes__: NodeType[] = [];
-  static __childTypes__: NodeType[] = [
-    NodeType.ENTITLEMENT,
-    NodeType.SANCTION,
-    NodeType.FOLLOW,
-    NodeType.CLIENT,
-  ];
-  static __ancestorTypes__: NodeType[] = [];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.CLIENT,
-    NodeType.ENTITLEMENT,
-    NodeType.FOLLOW,
-    NodeType.SANCTION,
-  ];
 
   /**
    * Trait.parent
@@ -83,12 +60,12 @@ export class User
   readonly parentPtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -100,12 +77,12 @@ export class User
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

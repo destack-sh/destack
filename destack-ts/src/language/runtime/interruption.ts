@@ -13,7 +13,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
@@ -81,14 +80,8 @@ registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
 /**
  * An Interruption in run of something.
  */
-export class Interruption extends Node implements IsSpatial, Entity {
+export class Interruption extends Entity implements IsSpatial {
   static metatype: NodeType = NodeType.INTERRUPTION;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.RUN];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.RUN, NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * Interruption.parent
@@ -115,12 +108,12 @@ export class Interruption extends Node implements IsSpatial, Entity {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -132,12 +125,12 @@ export class Interruption extends Node implements IsSpatial, Entity {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

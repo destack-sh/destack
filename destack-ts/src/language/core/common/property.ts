@@ -18,7 +18,6 @@ import {
   PrimitiveType,
   ScalarType,
   StructType,
-  TraitType,
   TypeCardinality,
 } from "@destack/language/core/builtin";
 import {
@@ -77,85 +76,10 @@ registerEnumClass(EnumType.CUSTOM_PROPERTY_TYPE, CustomPropertyType);
  * A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.
  */
 export class CustomProperty
-  extends Node
-  implements IsSpatial, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable, Entity
+  extends Entity
+  implements IsSpatial, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable
 {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
-  static __traits__: TraitType[] = [
-    TraitType.TAGGABLE,
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.ORDERED,
-    TraitType.SOURCEABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.SHAPE,
-    NodeType.CONTAINER_VIEW,
-    NodeType.LINE_SHAPE,
-    NodeType.RUN,
-    NodeType.POLYGON_SHAPE,
-    NodeType.SCRIPT,
-    NodeType.SCENE,
-    NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.ARROW_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.SERVICE,
-    NodeType.CUSTOM_ENUM_DEFINITION,
-    NodeType.LAYER,
-    NodeType.CUSTOM_ENTITY,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.LABEL_VIEW,
-    NodeType.ACTION,
-    NodeType.SPLIT_VIEW,
-    NodeType.CANVAS,
-  ];
-  static __childTypes__: NodeType[] = [
-    NodeType.CUSTOM_OPTION,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.TAGGING,
-  ];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.SHAPE,
-    NodeType.VIEW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.LINE_SHAPE,
-    NodeType.INPUT_VIEW,
-    NodeType.RUN,
-    NodeType.WINDOW,
-    NodeType.POLYGON_SHAPE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SCRIPT,
-    NodeType.SCENE,
-    NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.ARROW_SHAPE,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.SERVICE,
-    NodeType.FRAME_VIEW,
-    NodeType.CUSTOM_ENUM_DEFINITION,
-    NodeType.LAYER,
-    NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.CUSTOM_ENTITY,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.CONTENT_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.ACTION,
-    NodeType.LABEL_VIEW,
-    NodeType.FOLDER,
-    NodeType.INTERNAL_VIEW,
-    NodeType.AGENT,
-    NodeType.TEXT_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.CANVAS,
-  ];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.CUSTOM_OPTION,
-    NodeType.TAGGING,
-  ];
 
   /**
    * CustomProperty.parent
@@ -182,12 +106,12 @@ export class CustomProperty
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -199,12 +123,12 @@ export class CustomProperty
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

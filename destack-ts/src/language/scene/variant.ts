@@ -13,7 +13,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Icon, Length } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
@@ -60,29 +59,10 @@ registerEnumClass(EnumType.VARIANT_STATE_TYPE, VariantStateType);
  * A Variant is an alternative presentation of a visual.
  */
 export class Variant
-  extends Node
-  implements IsSpatial, HasName, HasSlug, HasIcon, IsOwnable, IsDeletable, Entity
+  extends Entity
+  implements IsSpatial, HasName, HasSlug, HasIcon, IsOwnable, IsDeletable
 {
   static metatype: NodeType = NodeType.VARIANT;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.OWNABLE,
-    TraitType.DELETABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.LAYER, NodeType.SCENE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.WINDOW,
-    NodeType.FOLDER,
-    NodeType.LAYER,
-    NodeType.CONTAINER_VIEW,
-    NodeType.CANVAS,
-    NodeType.SCENE,
-  ];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * Variant.parent
@@ -109,12 +89,12 @@ export class Variant
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -126,12 +106,12 @@ export class Variant
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

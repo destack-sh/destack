@@ -13,7 +13,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Icon } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
@@ -30,7 +29,7 @@ import { Temporal } from "temporal-polyfill";
  * An Agent is an identity for a bot.
  */
 export class Agent
-  extends Node
+  extends Entity
   implements
     IsSpatial,
     HasName,
@@ -40,39 +39,9 @@ export class Agent
     IsFollowable,
     IsScriptable,
     IsDeletable,
-    IsSubject,
-    Entity
+    IsSubject
 {
   static metatype: NodeType = NodeType.AGENT;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.OWNER,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.SUBJECT,
-    TraitType.SCRIPTABLE,
-    TraitType.FOLLOWABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.FOLDER];
-  static __childTypes__: NodeType[] = [
-    NodeType.ENTITLEMENT,
-    NodeType.SANCTION,
-    NodeType.SCRIPT,
-    NodeType.FOLLOW,
-    NodeType.CLIENT,
-  ];
-  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.CUSTOM_OPTION,
-    NodeType.SANCTION,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.CLIENT,
-    NodeType.ENTITLEMENT,
-    NodeType.FOLLOW,
-    NodeType.TAGGING,
-    NodeType.SCRIPT,
-  ];
 
   /**
    * Agent.parent
@@ -99,12 +68,12 @@ export class Agent
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -116,12 +85,12 @@ export class Agent
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

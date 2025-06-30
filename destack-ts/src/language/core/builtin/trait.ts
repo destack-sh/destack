@@ -144,25 +144,6 @@ export const IsRunnable = new IsRunnable$Type(TraitType.RUNNABLE);
 registerTraitClass(TraitType.RUNNABLE, IsRunnable);
 /* ==== DESTACK_GENERATED_END:TRAIT:3001 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:3000 ==== */
-/**
- * A Node that can define an Action.
- */
-export interface IsActionable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can define an Action.
- */
-class IsActionable$Type extends TraitClass<IsActionable, TraitType.ACTIONABLE> {}
-
-export const IsActionable = new IsActionable$Type(TraitType.ACTIONABLE);
-registerTraitClass(TraitType.ACTIONABLE, IsActionable);
-/* ==== DESTACK_GENERATED_END:TRAIT:3000 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:500 ==== */
 /**
  * A Node that can be owned by another Node.
@@ -333,41 +314,6 @@ class HasIcon$Type extends TraitClass<HasIcon, TraitType.HAS_ICON> {}
 export const HasIcon = new HasIcon$Type(TraitType.HAS_ICON);
 registerTraitClass(TraitType.HAS_ICON, HasIcon);
 /* ==== DESTACK_GENERATED_END:TRAIT:50202 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:50100 ==== */
-/**
- * A Node that is "tracked" on create/update.
- */
-export interface IsTracked {
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  get createdBy(): (Node & IsSubject) | null;
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  get updatedBy(): (Node & IsSubject) | null;
-  readonly updatedByPtr: NodeReference | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that is "tracked" on create/update.
- */
-class IsTracked$Type extends TraitClass<IsTracked, TraitType.TRACKED> {}
-
-export const IsTracked = new IsTracked$Type(TraitType.TRACKED);
-registerTraitClass(TraitType.TRACKED, IsTracked);
-/* ==== DESTACK_GENERATED_END:TRAIT:50100 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:50101 ==== */
 /**

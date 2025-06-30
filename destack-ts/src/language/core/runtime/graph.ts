@@ -283,7 +283,7 @@ export class PolyGraph extends Graph {
       let isOrdered = false;
       for (const childrenOfType of childrenByType.values()) {
         const nodeClass = childrenOfType[0].constructor as NodeClass;
-        if (nodeClass.__traits__.includes(TraitType.ORDERED)) {
+        if (nodeClass.__definition__.traits.includes(TraitType.ORDERED)) {
           isOrdered = true;
         }
         children.push(...childrenOfType);
@@ -305,7 +305,7 @@ export class PolyGraph extends Graph {
         let isOrdered = false;
         for (const childrenOfType of childrenByType.values()) {
           const nodeClass = childrenOfType[0].constructor as NodeClass;
-          if (nodeClass.__traits__.includes(TraitType.ORDERED)) {
+          if (nodeClass.__definition__.traits.includes(TraitType.ORDERED)) {
             isOrdered = true;
           }
           children.push(...childrenOfType);

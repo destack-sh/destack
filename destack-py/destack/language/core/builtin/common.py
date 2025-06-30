@@ -202,7 +202,7 @@ class EnumType(Enum):
     NODE_TYPE = 50001
     STRUCT_TYPE = 50002
     TRAIT_TYPE = 50003
-    RELATION_TYPE = 50010
+    NODE_DEFINITION_TYPE = 50010
     OBJECT_DEFINITION_TYPE = 50011
     PROPERTY_REFERENCE_TYPE = 50012
     MATERIALIZATION_TYPE = 50013
@@ -480,7 +480,6 @@ class TraitType(Enum):
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
 
     # behavior
-    TRACKED = 50100, "Tracked", "Is tracked", "fas fa-clock"
     ARCHIVABLE = 50101, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 50102, "Deletable", "Can be deleted", "fas fa-trash"
     EXTENSIBLE = 50103, "Extensible", "Is extensible", "fas fa-expand"

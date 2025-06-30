@@ -2,7 +2,6 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   HasName,
-  IsActionable,
   IsDeletable,
   IsExtensible,
   IsOwnable,
@@ -16,7 +15,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Value } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
@@ -32,50 +30,19 @@ import { Temporal } from "temporal-polyfill";
  * A set of Actions for a Node.
  */
 export class Service
-  extends Node
+  extends Entity
   implements
     IsSpatial,
     HasName,
-    IsActionable,
     IsDeletable,
     IsOwnable,
     IsTaggable,
     IsRunnable,
     IsScriptable,
     IsSourceable,
-    IsExtensible,
-    Entity
+    IsExtensible
 {
   static metatype: NodeType = NodeType.SERVICE;
-  static __traits__: TraitType[] = [
-    TraitType.TAGGABLE,
-    TraitType.EXTENSIBLE,
-    TraitType.SPATIAL,
-    TraitType.OWNABLE,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.ORDERED,
-    TraitType.ACTIONABLE,
-    TraitType.RUNNABLE,
-    TraitType.SCRIPTABLE,
-    TraitType.SOURCEABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.TAGGING,
-    NodeType.ACTION,
-    NodeType.SCRIPT,
-  ];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.ACTION,
-    NodeType.CUSTOM_OPTION,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.TAGGING,
-    NodeType.SCRIPT,
-  ];
 
   /**
    * IsSpatial.parent
@@ -102,12 +69,12 @@ export class Service
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -119,12 +86,12 @@ export class Service
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

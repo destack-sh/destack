@@ -10,7 +10,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import {
   Align,
@@ -66,87 +65,8 @@ registerEnumClass(EnumType.LAYER_TYPE, LayerType);
 /**
  * A Layer is a named container for Views.
  */
-export class Layer extends Node implements HasIcon, IsOwnable, ContainerView {
+export class Layer extends ContainerView implements HasIcon, IsOwnable {
   static metatype: NodeType = NodeType.LAYER;
-  static __traits__: TraitType[] = [
-    TraitType.TAGGABLE,
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.OWNABLE,
-    TraitType.DELETABLE,
-    TraitType.EXTENSIBLE,
-    TraitType.ORDERED,
-    TraitType.SCRIPTABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.CANVAS, NodeType.SCENE];
-  static __childTypes__: NodeType[] = [
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.VIEW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.CONTENT_VIEW,
-    NodeType.TEXT_VIEW,
-    NodeType.INPUT_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.INTERNAL_VIEW,
-    NodeType.SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.CANVAS,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.TAGGING,
-    NodeType.SCRIPT,
-    NodeType.VARIANT,
-  ];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.WINDOW,
-    NodeType.FOLDER,
-    NodeType.LAYER,
-    NodeType.CONTAINER_VIEW,
-    NodeType.CANVAS,
-    NodeType.SCENE,
-  ];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.STYLE,
-    NodeType.SHAPE,
-    NodeType.VIEW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.COLOR_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.LINE_SHAPE,
-    NodeType.INPUT_VIEW,
-    NodeType.SHADOW_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.STROKE_STYLE,
-    NodeType.EFFECT_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SCRIPT,
-    NodeType.ARROW_SHAPE,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.LAYER,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.CONTENT_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_OPTION,
-    NodeType.VARIANT,
-    NodeType.INTERNAL_VIEW,
-    NodeType.TEXT_VIEW,
-    NodeType.TAGGING,
-    NodeType.SPLIT_VIEW,
-    NodeType.CANVAS,
-  ];
 
   /**
    * Layer.parent
@@ -173,12 +93,12 @@ export class Layer extends Node implements HasIcon, IsOwnable, ContainerView {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -190,12 +110,12 @@ export class Layer extends Node implements HasIcon, IsOwnable, ContainerView {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

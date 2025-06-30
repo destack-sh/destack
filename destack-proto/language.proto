@@ -433,7 +433,7 @@ enum EnumTypeProto {
   ENUM_TYPE_NODE_TYPE = 50001;
   ENUM_TYPE_STRUCT_TYPE = 50002;
   ENUM_TYPE_TRAIT_TYPE = 50003;
-  ENUM_TYPE_RELATION_TYPE = 50010;
+  ENUM_TYPE_NODE_DEFINITION_TYPE = 50010;
   ENUM_TYPE_OBJECT_DEFINITION_TYPE = 50011;
   ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 50012;
   ENUM_TYPE_MATERIALIZATION_TYPE = 50013;
@@ -834,6 +834,14 @@ enum MouseButtonProto {
   MOUSE_BUTTON_MIDDLE = 3;
 }
 
+enum NodeDefinitionTypeProto {
+  NODE_DEFINITION_TYPE_UNSPECIFIED = 0;
+  NODE_DEFINITION_TYPE_BUILTIN_NODE = 1;
+  NODE_DEFINITION_TYPE_CUSTOM_NODE = 2;
+  NODE_DEFINITION_TYPE_BUILTIN_TRAIT = 3;
+  NODE_DEFINITION_TYPE_CUSTOM_TRAIT = 4;
+}
+
 enum NodePermissionProto {
   NODE_PERMISSION_UNSPECIFIED = 0;
   NODE_PERMISSION_READ = 1;
@@ -1204,14 +1212,6 @@ enum RegionContinentProto {
   REGION_CONTINENT_PRIVATE = 9000;
 }
 
-enum RelationTypeProto {
-  RELATION_TYPE_UNSPECIFIED = 0;
-  RELATION_TYPE_BUILTIN_NODE = 1;
-  RELATION_TYPE_CUSTOM_NODE = 2;
-  RELATION_TYPE_BUILTIN_TRAIT = 3;
-  RELATION_TYPE_CUSTOM_TRAIT = 4;
-}
-
 enum RepeatTypeProto {
   REPEAT_TYPE_UNSPECIFIED = 0;
   REPEAT_TYPE_LOOP = 1;
@@ -1523,7 +1523,6 @@ enum TraitTypeProto {
   TRAIT_TYPE_SUBJECT = 505;
   TRAIT_TYPE_OWNER = 506;
   TRAIT_TYPE_TAGGABLE = 1000;
-  TRAIT_TYPE_ACTIONABLE = 3000;
   TRAIT_TYPE_RUNNABLE = 3001;
   TRAIT_TYPE_SCRIPTABLE = 3002;
   TRAIT_TYPE_SOURCEABLE = 3003;
@@ -1532,7 +1531,6 @@ enum TraitTypeProto {
   TRAIT_TYPE_FOLLOWABLE = 5534;
   TRAIT_TYPE_GLOBAL = 50001;
   TRAIT_TYPE_SPATIAL = 50002;
-  TRAIT_TYPE_TRACKED = 50100;
   TRAIT_TYPE_ARCHIVABLE = 50101;
   TRAIT_TYPE_DELETABLE = 50102;
   TRAIT_TYPE_EXTENSIBLE = 50103;
@@ -1853,6 +1851,8 @@ message ClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -1895,6 +1895,8 @@ message ClipboardEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -2031,6 +2033,8 @@ message CopyEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -2050,6 +2054,8 @@ message CounterMeasurementEventProto {
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -2145,6 +2151,8 @@ message CustomEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   NodeReferenceProto definition_ptr = 40;
 }
@@ -2253,6 +2261,7 @@ message CustomTraitDefinitionProto {
   optional NodeDefinitionReferenceProto base_type = 41;
   repeated NodeDefinitionReferenceProto base_traits = 42;
   bool is_abstract = 45;
+  optional NodeReferenceProto script_ptr = 200;
   optional NodeReferenceProto source_ptr = 210;
 }
 
@@ -2262,6 +2271,8 @@ message CutEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -2312,6 +2323,8 @@ message DoubleClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -2329,6 +2342,8 @@ message DragEndEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
 }
@@ -2339,6 +2354,8 @@ message DragEnterEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
 }
@@ -2349,6 +2366,8 @@ message DragEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
 }
@@ -2359,6 +2378,8 @@ message DragLeaveEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
 }
@@ -2369,6 +2390,8 @@ message DragOverEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
 }
@@ -2379,6 +2402,8 @@ message DragStartEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
 }
@@ -2389,6 +2414,8 @@ message DropEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
 }
@@ -2412,6 +2439,8 @@ message EditEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   EditTypeProto type = 30;
   optional EditOperationProto operation = 31;
   NodeReferenceProto node_ptr = 35;
@@ -2492,6 +2521,8 @@ message EntitlementEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -2501,6 +2532,8 @@ message EntitlementExpiredEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -2510,6 +2543,8 @@ message EntitlementGrantedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -2519,6 +2554,8 @@ message EntitlementRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -2528,6 +2565,8 @@ message EntitlementRevokedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -2574,6 +2613,8 @@ message EventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -2674,6 +2715,8 @@ message FocusEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -2683,6 +2726,8 @@ message FocusInEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -2692,6 +2737,8 @@ message FocusOutEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -2841,6 +2888,8 @@ message FriendshipInviteAcceptedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -2850,6 +2899,8 @@ message FriendshipInviteEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -2859,6 +2910,8 @@ message FriendshipInviteRejectedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -2868,6 +2921,8 @@ message FriendshipInviteRescindedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -2877,6 +2932,8 @@ message FriendshipInviteSentEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -2901,6 +2958,8 @@ message GaugeMeasurementEventProto {
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -2994,6 +3053,8 @@ message HistogramMeasurementEventProto {
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -3029,6 +3090,8 @@ message InputEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -3132,6 +3195,8 @@ message InviteAcceptedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
@@ -3145,6 +3210,8 @@ message InviteEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
@@ -3156,6 +3223,8 @@ message InviteRejectedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
@@ -3167,6 +3236,8 @@ message InviteRescindedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
@@ -3178,6 +3249,8 @@ message InviteSentEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
@@ -3188,7 +3261,7 @@ message InviteSentEventProto {
 message JoinProto {
   StructTypeProto metatype = 1;
   JoinTypeProto type = 30;
-  optional NodeDefinitionReferenceProto relation = 31;
+  optional NodeDefinitionReferenceProto definition = 31;
   bool recursive = 33;
   optional int64 depth = 34 [jstype = JS_NUMBER];
   optional ConditionProto on = 35;
@@ -3200,6 +3273,8 @@ message KeyDownEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   string key = 50;
   string code = 51;
@@ -3216,6 +3291,8 @@ message KeyPressEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   string key = 50;
   string code = 51;
@@ -3232,6 +3309,8 @@ message KeyUpEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   string key = 50;
   string code = 51;
@@ -3248,6 +3327,8 @@ message KeyboardEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   string key = 50;
   string code = 51;
@@ -3353,6 +3434,8 @@ message LeftClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3456,6 +3539,8 @@ message LogEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   string content = 40;
   map<string, google.protobuf.Value> attributes = 41;
@@ -3468,6 +3553,8 @@ message LongPressEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3514,6 +3601,8 @@ message MeasurementEventProto {
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -3540,6 +3629,8 @@ message MembershipEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
@@ -3551,6 +3642,8 @@ message MembershipJoinedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
@@ -3564,6 +3657,8 @@ message MembershipLeftEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
@@ -3610,6 +3705,8 @@ message MiddleClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3627,6 +3724,8 @@ message MouseEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3676,7 +3775,7 @@ message NodeDefinitionProto {
 
 message NodeDefinitionReferenceProto {
   StructTypeProto metatype = 1;
-  RelationTypeProto type = 30;
+  NodeDefinitionTypeProto type = 30;
   optional NodeTypeProto node_type = 40;
   optional TraitTypeProto trait_type = 41;
   optional NodeReferenceProto definition_ptr = 45;
@@ -3712,6 +3811,8 @@ message NotificationDismissedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -3721,6 +3822,8 @@ message NotificationEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -3730,6 +3833,8 @@ message NotificationExpiredEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -3739,6 +3844,8 @@ message NotificationReadEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -3748,6 +3855,8 @@ message NotificationRescindedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -3757,6 +3866,8 @@ message NotificationSentEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -3862,6 +3973,8 @@ message PasteEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -3897,6 +4010,8 @@ message PointerDownEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3913,6 +4028,8 @@ message PointerEnterEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3929,6 +4046,8 @@ message PointerEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3945,6 +4064,8 @@ message PointerLeaveEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3961,6 +4082,8 @@ message PointerMoveEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3977,6 +4100,8 @@ message PointerOverEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -3993,6 +4118,8 @@ message PointerUpEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -4119,7 +4246,7 @@ message QueryProto {
   string id = 2;
   QueryTypeProto type = 30;
   string name = 31;
-  NodeDefinitionReferenceProto relation = 32;
+  NodeDefinitionReferenceProto definition = 32;
   optional JoinProto join = 33;
   optional SelectProto select = 34;
   repeated QueryProto subqueries = 35;
@@ -4196,6 +4323,8 @@ message RightClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -4231,6 +4360,8 @@ message RoleAssignedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   NodeReferenceProto subject_ptr = 40;
 }
@@ -4241,6 +4372,8 @@ message RoleEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   NodeReferenceProto subject_ptr = 40;
 }
@@ -4251,6 +4384,8 @@ message RoleUnassignedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   NodeReferenceProto subject_ptr = 40;
 }
@@ -4300,6 +4435,8 @@ message RunCompletedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -4310,6 +4447,8 @@ message RunEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -4320,6 +4459,8 @@ message RunFailedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -4330,6 +4471,8 @@ message RunPauseRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -4340,6 +4483,8 @@ message RunPausedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -4350,6 +4495,8 @@ message RunResumeRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -4360,6 +4507,8 @@ message RunResumedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -4370,6 +4519,8 @@ message RunStartedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -4380,6 +4531,8 @@ message RunStopRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -4405,6 +4558,8 @@ message SanctionEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -4414,6 +4569,8 @@ message SanctionExpiredEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -4423,6 +4580,8 @@ message SanctionGrantedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -4432,6 +4591,8 @@ message SanctionRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -4441,6 +4602,8 @@ message SanctionRevokedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto target_ptr = 40;
 }
@@ -4497,6 +4660,8 @@ message SceneEnteredEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -4506,6 +4671,8 @@ message SceneEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -4515,6 +4682,8 @@ message SceneExitedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -4763,6 +4932,8 @@ message SpanEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
 }
 
@@ -5084,6 +5255,8 @@ message TimerCancelledEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -5093,6 +5266,8 @@ message TimerCompletedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -5102,6 +5277,8 @@ message TimerEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -5111,6 +5288,8 @@ message TimerStartedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -5188,6 +5367,8 @@ message TriggerEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -5334,6 +5515,8 @@ message WheelEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
   Vector2Proto position = 50;
   double pressure = 51;
@@ -5403,14 +5586,10 @@ message SomeNodeProto {
     SanctionRevokedEventProto sanction_revoked_event = 592;
     SanctionExpiredEventProto sanction_expired_event = 593;
     SanctionProto sanction = 580;
-    ViewProto view = 9100;
-    ContainerViewProto container_view = 10000;
     FrameViewProto frame_view = 10060;
     LabelViewProto label_view = 10080;
     SplitViewProto split_view = 10100;
-    ContentViewProto content_view = 10200;
     TextViewProto text_view = 10220;
-    InputViewProto input_view = 10400;
     NumberInputViewProto number_input_view = 10420;
     SliderInputViewProto slider_input_view = 10440;
     InternalViewProto internal_view = 10600;
@@ -5507,7 +5686,6 @@ message SomeNodeProto {
     SpaceProto space = 1;
     TeamProto team = 120;
     UserProto user = 40;
-    StyleProto style = 12040;
     ColorStyleProto color_style = 12060;
     BorderStyleProto border_style = 12063;
     TransitionStyleProto transition_style = 12066;
@@ -5542,14 +5720,10 @@ message SomeEntityProto {
     PermissionProto permission = 560;
     RoleProto role = 540;
     SanctionProto sanction = 580;
-    ViewProto view = 9100;
-    ContainerViewProto container_view = 10000;
     FrameViewProto frame_view = 10060;
     LabelViewProto label_view = 10080;
     SplitViewProto split_view = 10100;
-    ContentViewProto content_view = 10200;
     TextViewProto text_view = 10220;
-    InputViewProto input_view = 10400;
     NumberInputViewProto number_input_view = 10420;
     SliderInputViewProto slider_input_view = 10440;
     InternalViewProto internal_view = 10600;
@@ -5596,7 +5770,6 @@ message SomeEntityProto {
     SpaceProto space = 1;
     TeamProto team = 120;
     UserProto user = 40;
-    StyleProto style = 12040;
     ColorStyleProto color_style = 12060;
     BorderStyleProto border_style = 12063;
     TransitionStyleProto transition_style = 12066;

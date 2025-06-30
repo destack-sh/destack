@@ -11,7 +11,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
@@ -26,21 +25,10 @@ import { Temporal } from "temporal-polyfill";
  * A Snapshot is a point in Space time.
  */
 export class Snapshot
-  extends Node
-  implements IsSpatial, HasName, HasSlug, IsOwnable, IsDeletable, Entity
+  extends Entity
+  implements IsSpatial, HasName, HasSlug, IsOwnable, IsDeletable
 {
   static metatype: NodeType = NodeType.SNAPSHOT;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.OWNABLE,
-    TraitType.DELETABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE, NodeType.BRANCH];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE, NodeType.BRANCH];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * Snapshot.parent
@@ -67,12 +55,12 @@ export class Snapshot
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -84,12 +72,12 @@ export class Snapshot
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -558,22 +546,8 @@ registerNodeClass(NodeType.SNAPSHOT, Snapshot);
 /**
  * A Branch is a version of a Snapshot.
  */
-export class Branch
-  extends Node
-  implements IsSpatial, HasName, HasSlug, IsOwnable, IsDeletable, Entity
-{
+export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.BRANCH;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.OWNABLE,
-    TraitType.DELETABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [NodeType.SNAPSHOT];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [NodeType.SNAPSHOT];
 
   /**
    * Branch.parent
@@ -600,12 +574,12 @@ export class Branch
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -617,12 +591,12 @@ export class Branch
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
