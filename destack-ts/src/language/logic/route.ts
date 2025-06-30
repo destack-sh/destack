@@ -283,7 +283,6 @@ export class Route
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -300,6 +299,7 @@ export class Route
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -426,7 +426,6 @@ export class Route
       parent: unpackedParentPtr,
       scene: unpackedScenePtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       deletedAt: unpackedDeletedAt,
       orderKey: objectValue["22"],
@@ -435,6 +434,7 @@ export class Route
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -524,7 +524,6 @@ export class Route
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -561,6 +560,7 @@ export class Route
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

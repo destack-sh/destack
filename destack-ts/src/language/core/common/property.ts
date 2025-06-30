@@ -677,7 +677,6 @@ export class CustomProperty
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
@@ -688,7 +687,6 @@ export class CustomProperty
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -697,6 +695,8 @@ export class CustomProperty
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
 
     return h;
   }
@@ -1012,16 +1012,16 @@ export class CustomProperty
       isReadonly: unpackedIsReadonly,
       isStatic: unpackedIsStatic,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
-      orderKey: objectValue["22"],
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      orderKey: objectValue["22"],
       _session,
       _graph,
       _connection,
@@ -1254,7 +1254,6 @@ export class CustomProperty
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
@@ -1272,7 +1271,6 @@ export class CustomProperty
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1295,6 +1293,8 @@ export class CustomProperty
               _connection,
             )
           : null,
+      id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,

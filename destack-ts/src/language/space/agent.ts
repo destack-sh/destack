@@ -309,7 +309,6 @@ export class Agent
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
@@ -327,6 +326,7 @@ export class Agent
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -461,7 +461,6 @@ export class Agent
       slug: objectValue["33"],
       cursor: unpackedCursorPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       icon: unpackedIcon,
       script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
@@ -469,6 +468,7 @@ export class Agent
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -563,7 +563,6 @@ export class Agent
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       icon:
         objectProto.icon != undefined
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -602,6 +601,7 @@ export class Agent
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

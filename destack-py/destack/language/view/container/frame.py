@@ -8,3 +8,5 @@ from .container import ContainerView
 @builtin_node(NodeType.FRAME_VIEW)
 class FrameView(ContainerView):
     """A frame container View."""
+
+    pass

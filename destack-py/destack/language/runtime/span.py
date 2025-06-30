@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Event,
     NodeType,
     builtin_node,
-    property_parent_,
+    property_,
 )
 
 if TYPE_CHECKING:
@@ -21,4 +21,4 @@ class SpanEvent(Event):
     """
 
     # meta
-    parent: Union["Run", None] = property_parent_(node_is_customizable=False)
+    run: "Run" = property_(40)

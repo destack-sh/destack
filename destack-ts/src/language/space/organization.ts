@@ -284,10 +284,6 @@ export class Organization
     if (this.handlePtr !== null) {
       h = (h * 31 + hashString(this.handlePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
@@ -299,6 +295,10 @@ export class Organization
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -377,11 +377,6 @@ export class Organization
       handlePtrValue != undefined
         ? NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
@@ -397,19 +392,24 @@ export class Organization
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Organization({
       slug: objectValue["33"],
       status: Number(objectValue["40"]),
       space: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       handle: unpackedHandlePtr,
-      id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       icon: unpackedIcon,
       name: objectValue["31"],
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -484,17 +484,6 @@ export class Organization
               _connection,
             )
           : null,
-      id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       icon:
         objectProto.icon != undefined
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -516,6 +505,17 @@ export class Organization
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(
               objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,

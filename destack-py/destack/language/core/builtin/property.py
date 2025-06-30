@@ -488,9 +488,6 @@ class PropertyDeclaration(TypeDeclaration):
         # default to regular node references
         if self.scalar_type == ScalarType.NODE_REFERENCE and self.edge_type is None:
             self.edge_type = EdgeType.REGULAR
-        # node templates always point to their own type
-        if self.name == "template" and object_type is not None:
-            self.node_types = (NodeType(object_type),)
         # references get a _ptr property (which is wired/stored)
         if self.scalar_type == ScalarType.NODE_REFERENCE:
             # (don't want lists of Node references or Property references in Nodes, it's a mess)

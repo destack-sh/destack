@@ -392,7 +392,7 @@ export class Interruption extends Entity implements IsSpatial {
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.duration !== null) {
-      h = (h * 31 + hashFloat(this.duration.totalSeconds())) & 0xffffffff;
+      h = (h * 31 + hashFloat(this.duration.total("seconds"))) & 0xffffffff;
     }
     if (this.closedAt !== null) {
       h = (h * 31 + hashString(this.closedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -406,7 +406,6 @@ export class Interruption extends Entity implements IsSpatial {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -415,6 +414,7 @@ export class Interruption extends Entity implements IsSpatial {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -562,11 +562,11 @@ export class Interruption extends Entity implements IsSpatial {
       response: unpackedResponse,
       message: unpackedMessagePtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -695,7 +695,6 @@ export class Interruption extends Entity implements IsSpatial {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -718,6 +717,7 @@ export class Interruption extends Entity implements IsSpatial {
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

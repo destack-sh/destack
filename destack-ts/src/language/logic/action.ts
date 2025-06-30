@@ -318,12 +318,10 @@ export class Action
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.value && Object.keys(this.value).length > 0) {
       for (const [_key, _value] of Object.entries(this.value)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -341,6 +339,8 @@ export class Action
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
 
     return h;
   }
@@ -482,16 +482,16 @@ export class Action
       cardinality: Number(objectValue["40"]),
       text: unpackedText,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       source: unpackedSourcePtr,
-      orderKey: objectValue["22"],
       value: unpackedValue,
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      orderKey: objectValue["22"],
       _session,
       _graph,
       _connection,
@@ -592,7 +592,6 @@ export class Action
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
@@ -604,7 +603,6 @@ export class Action
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
       value: unpackedValue,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -630,6 +628,8 @@ export class Action
               _connection,
             )
           : null,
+      id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,

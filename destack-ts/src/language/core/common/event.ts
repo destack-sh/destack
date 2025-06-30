@@ -39,12 +39,12 @@ export abstract class Event extends Node implements IsSpatial {
   static metatype: NodeType = NodeType.EVENT;
 
   /**
-   * IsSpatial.parent
+   * Node.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -113,12 +113,12 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
   static metatype: NodeType = NodeType.CUSTOM_EVENT_DEFINITION;
 
   /**
-   * IsSpatial.parent
+   * Trait.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -194,7 +194,7 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -310,18 +310,13 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -330,6 +325,11 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
 
     return h;
   }
@@ -408,11 +408,6 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEventDefinition {
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -433,17 +428,22 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new CustomEventDefinition({
-      parent: unpackedParentPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       source: unpackedSourcePtr,
-      orderKey: objectValue["22"],
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
+      orderKey: objectValue["22"],
       _session,
       _graph,
       _connection,
@@ -503,16 +503,6 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     _connection?: any | null,
   ): CustomEventDefinition {
     return new CustomEventDefinition({
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -523,7 +513,6 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
@@ -535,7 +524,6 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -558,6 +546,18 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
               _connection,
             )
           : null,
+      id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,
@@ -601,12 +601,12 @@ export abstract class CustomEvent extends Event {
   static metatype: NodeType = NodeType.CUSTOM_EVENT;
 
   /**
-   * IsSpatial.parent
+   * Node.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -690,12 +690,12 @@ export class EditEvent extends Event {
   static metatype: NodeType = NodeType.EDIT_EVENT;
 
   /**
-   * IsSpatial.parent
+   * Node.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -791,7 +791,7 @@ export class EditEvent extends Event {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -951,13 +951,13 @@ export class EditEvent extends Event {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
 
     return h;
   }
@@ -1084,15 +1084,15 @@ export class EditEvent extends Event {
       createdByPtrValue != undefined
         ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new EditEvent({
       type: Number(objectValue["30"]),
@@ -1104,9 +1104,9 @@ export class EditEvent extends Event {
       value: unpackedValue,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -1219,16 +1219,6 @@ export class EditEvent extends Event {
               _connection,
             )
           : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -1240,6 +1230,16 @@ export class EditEvent extends Event {
             )
           : null,
       id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       _session,
       _graph,
       _connection,
@@ -1277,12 +1277,12 @@ export abstract class MeasurementEvent extends Event {
   static metatype: NodeType = NodeType.MEASUREMENT_EVENT;
 
   /**
-   * IsSpatial.parent
+   * Node.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }

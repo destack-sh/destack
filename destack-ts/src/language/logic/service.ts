@@ -45,12 +45,12 @@ export class Service
   static metatype: NodeType = NodeType.SERVICE;
 
   /**
-   * IsSpatial.parent
+   * Trait.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -174,7 +174,7 @@ export class Service
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -328,13 +328,9 @@ export class Service
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -348,7 +344,6 @@ export class Service
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.value && Object.keys(this.value).length > 0) {
       for (const [_key, _value] of Object.entries(this.value)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -363,6 +358,11 @@ export class Service
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
 
     return h;
   }
@@ -460,11 +460,6 @@ export class Service
     _graph?: any | null,
     _connection?: any | null,
   ): Service {
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -509,21 +504,26 @@ export class Service
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Service({
-      parent: unpackedParentPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       deletedAt: unpackedDeletedAt,
       ownedBy: unpackedOwnedByPtr,
       script: unpackedScriptPtr,
       source: unpackedSourcePtr,
-      orderKey: objectValue["22"],
       value: unpackedValue,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
+      orderKey: objectValue["22"],
       _session,
       _graph,
       _connection,
@@ -601,16 +601,6 @@ export class Service
       }
     }
     return new Service({
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -621,7 +611,6 @@ export class Service
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -655,7 +644,6 @@ export class Service
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
       value: unpackedValue,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
@@ -679,6 +667,18 @@ export class Service
               _connection,
             )
           : null,
+      id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,

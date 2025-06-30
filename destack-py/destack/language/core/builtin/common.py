@@ -801,7 +801,6 @@ class NodeType(Enum):
 
     # style [12000-12500]
     THEME = 12000, "Theme", None, "fas fa-palette"
-    PALETTE = 12020, "Palette", None, "fas fa-palette"
     STYLE = 12040, "Style", None, "fas fa-palette"
     COLOR_STYLE = 12060, "Color Style", None, "fas fa-palette"
     FILL_STYLE = 12061, "Fill Style", None, "fas fa-fill"
@@ -814,6 +813,7 @@ class NodeType(Enum):
     STROKE_STYLE = 12068, "Stroke Style", None, "fas fa-stroke"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
+    # PALETTE, ...
 
     # meta [50000-51000]
     # nocheckin: move meta into 1-1000 range (and increase spacing.. again?)

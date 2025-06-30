@@ -259,7 +259,6 @@ export class Script
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
@@ -279,6 +278,7 @@ export class Script
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -407,7 +407,6 @@ export class Script
       parent: unpackedParentPtr,
       code: unpackedCode,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
@@ -416,6 +415,7 @@ export class Script
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -508,7 +508,6 @@ export class Script
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
@@ -536,6 +535,7 @@ export class Script
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

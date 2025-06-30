@@ -300,11 +300,14 @@ class NodeDefinition(StructFrozen):
     extended_by: list[NodeType] = property_(
         52, description="Nodes that extend this Node type (directly)."
     )
+    inherited_by: list[NodeType] = property_(
+        53, description="Nodes that inherit this Node type (directly and indirectly)."
+    )
     base_traits: list[TraitType] = property_(
-        53, description="Traits directly inherited by this Node (directly)."
+        55, description="Traits directly inherited by this Node (directly)."
     )
     traits: list[TraitType] = property_(
-        54,
+        56,
         description="Traits directly and indirectly inherited by this Node (directly and indirectly).",
     )
 
@@ -333,6 +336,7 @@ class NodeDefinition(StructFrozen):
             ],
             base_type=node_cls.__base_type__,
             extended_by=list(node_cls.__extended_by__),
+            inherited_by=list(node_cls.__inherited_by__),
             traits=list(node_cls.__traits__),
             base_traits=list(node_cls.__base_traits__),
             root_type=node_cls.__root_type__,

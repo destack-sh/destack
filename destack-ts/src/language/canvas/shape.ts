@@ -16,6 +16,7 @@ import {
   Value,
   Vector2,
 } from "@destack/language/core/common";
+import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
@@ -34,10 +35,16 @@ export abstract class Shape extends ContainerView {
   /**
    * View.parent
    */
-  get parent(): Window | Scene | Layer | ContainerView | null {
+  get parent(): Window | Scene | Layer | ContainerView | Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | ContainerView | null;
+      return this._supergraph.get(nodePtr.id) as
+        | Window
+        | Scene
+        | Layer
+        | ContainerView
+        | Folder
+        | null;
     }
     return null;
   }

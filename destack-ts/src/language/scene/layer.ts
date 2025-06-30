@@ -688,15 +688,6 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (Object.keys(this.value).length !== Object.keys(other.value).length) {
       return false;
     }
@@ -707,6 +698,15 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
       if (!this.value.get(key)!.equals(other.value.get(key)!)) {
         return false;
       }
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
     }
     return true;
   }
@@ -721,7 +721,6 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
@@ -782,6 +781,7 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
     if (this.radius !== null) {
       h = (h * 31 + this.radius.hash()) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.position !== null) {
       h = (h * 31 + this.position.hash()) & 0xffffffff;
     }
@@ -803,6 +803,12 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
     if (this.maxHeight !== null) {
       h = (h * 31 + this.maxHeight.hash()) & 0xffffffff;
     }
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -821,12 +827,6 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
     }
 
     return h;
@@ -1122,6 +1122,15 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
       maxHeightValue != undefined
         ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -1147,20 +1156,10 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
-          String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new Layer({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
       icon: unpackedIcon,
-      id: String(objectValue["2"]),
       ownedBy: unpackedOwnedByPtr,
       layout: unpackedLayout,
       direction: unpackedDirection,
@@ -1181,6 +1180,7 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
       shadow: unpackedShadow,
       border: unpackedBorder,
       radius: unpackedRadius,
+      id: String(objectValue["2"]),
       position: unpackedPosition,
       width: unpackedWidth,
       height: unpackedHeight,
@@ -1188,6 +1188,7 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
+      value: unpackedValue,
       space: unpackedSpacePtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1197,7 +1198,6 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
       orderKey: objectValue["22"],
       script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
-      value: unpackedValue,
       _session,
       _graph,
       _connection,
@@ -1369,7 +1369,6 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
         objectProto.icon != undefined
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      id: String(objectProto.id),
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? NodeReference.fromProto(
@@ -1431,6 +1430,7 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
         objectProto.radius != undefined
           ? Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
       position:
         objectProto.position != undefined
           ? Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
@@ -1459,6 +1459,7 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
         objectProto.maxHeight != undefined
           ? Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
+      value: unpackedValue,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -1505,7 +1506,6 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      value: unpackedValue,
       _session,
       _graph,
       _connection,

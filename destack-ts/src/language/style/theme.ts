@@ -31,12 +31,12 @@ export class Theme
   static metatype: NodeType = NodeType.THEME;
 
   /**
-   * IsSpatial.parent
+   * Trait.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -110,7 +110,7 @@ export class Theme
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -229,13 +229,9 @@ export class Theme
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
@@ -251,6 +247,10 @@ export class Theme
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -333,11 +333,6 @@ export class Theme
     _graph?: any | null,
     _connection?: any | null,
   ): Theme {
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -363,10 +358,13 @@ export class Theme
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Theme({
-      parent: unpackedParentPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       icon: unpackedIcon,
       orderKey: objectValue["22"],
@@ -375,6 +373,8 @@ export class Theme
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -431,16 +431,6 @@ export class Theme
     _connection?: any | null,
   ): Theme {
     return new Theme({
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -451,7 +441,6 @@ export class Theme
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
@@ -476,6 +465,17 @@ export class Theme
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(
               objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,

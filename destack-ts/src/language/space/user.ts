@@ -379,10 +379,6 @@ export class User
     if (this.passwordHash !== null) {
       h = (h * 31 + hashBytes(this.passwordHash)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
@@ -393,6 +389,10 @@ export class User
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -505,11 +505,6 @@ export class User
     const passwordHashValue = objectValue["62"];
     const unpackedPasswordHash =
       passwordHashValue != undefined ? base64Decode(passwordHashValue) : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
@@ -525,6 +520,11 @@ export class User
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new User({
       name: objectValue["31"],
       slug: objectValue["33"],
@@ -537,13 +537,13 @@ export class User
       email: unpackedEmail,
       passwordSalt: unpackedPasswordSalt,
       passwordHash: unpackedPasswordHash,
-      id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       icon: unpackedIcon,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -653,17 +653,6 @@ export class User
       email: objectProto.email != undefined ? objectProto.email : null,
       passwordSalt: objectProto.passwordSalt != undefined ? objectProto.passwordSalt : null,
       passwordHash: objectProto.passwordHash != undefined ? objectProto.passwordHash : null,
-      id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       icon:
         objectProto.icon != undefined
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -684,6 +673,17 @@ export class User
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(
               objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,

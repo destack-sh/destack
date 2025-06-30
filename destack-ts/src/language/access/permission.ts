@@ -263,7 +263,6 @@ export class Permission
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.slug !== null) {
       h = (h * 31 + hashString(this.slug)) & 0xffffffff;
@@ -282,6 +281,7 @@ export class Permission
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -405,7 +405,6 @@ export class Permission
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       slug: unpackedSlug,
       icon: unpackedIcon,
@@ -414,6 +413,7 @@ export class Permission
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -494,7 +494,6 @@ export class Permission
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       slug: objectProto.slug != undefined ? objectProto.slug : null,
       icon:
@@ -525,6 +524,7 @@ export class Permission
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

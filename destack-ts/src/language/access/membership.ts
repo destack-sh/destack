@@ -311,7 +311,6 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (this.roleType !== null) {
       h = (h * 31 + this.roleType) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -329,6 +328,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -469,7 +469,6 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       ),
       role: unpackedRolePtr,
       roleType: unpackedRoleType,
-      id: String(objectValue["2"]),
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
@@ -477,6 +476,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -567,7 +567,6 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
           : null,
       roleType:
         objectProto.roleType != undefined ? (Number(objectProto.roleType) as RoleType) : null,
-      id: String(objectProto.id),
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -612,6 +611,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,
@@ -649,12 +649,12 @@ export abstract class MembershipEvent extends Event {
   static metatype: NodeType = NodeType.MEMBERSHIP_EVENT;
 
   /**
-   * IsSpatial.parent
+   * Node.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -749,12 +749,12 @@ export class MembershipJoinedEvent extends MembershipEvent {
   static metatype: NodeType = NodeType.MEMBERSHIP_JOINED_EVENT;
 
   /**
-   * IsSpatial.parent
+   * Node.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -856,7 +856,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -998,13 +998,13 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
 
     return h;
   }
@@ -1082,15 +1082,15 @@ export class MembershipJoinedEvent extends MembershipEvent {
       createdByPtrValue != undefined
         ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new MembershipJoinedEvent({
       role: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
@@ -1112,9 +1112,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
       ),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -1210,16 +1210,6 @@ export class MembershipJoinedEvent extends MembershipEvent {
               _connection,
             )
           : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -1231,6 +1221,16 @@ export class MembershipJoinedEvent extends MembershipEvent {
             )
           : null,
       id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       _session,
       _graph,
       _connection,
@@ -1274,12 +1274,12 @@ export class MembershipLeftEvent extends MembershipEvent {
   static metatype: NodeType = NodeType.MEMBERSHIP_LEFT_EVENT;
 
   /**
-   * IsSpatial.parent
+   * Node.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -1361,7 +1361,7 @@ export class MembershipLeftEvent extends MembershipEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1480,13 +1480,13 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
 
     return h;
   }
@@ -1562,15 +1562,15 @@ export class MembershipLeftEvent extends MembershipEvent {
       createdByPtrValue != undefined
         ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new MembershipLeftEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
@@ -1590,9 +1590,9 @@ export class MembershipLeftEvent extends MembershipEvent {
       ),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -1678,16 +1678,6 @@ export class MembershipLeftEvent extends MembershipEvent {
               _connection,
             )
           : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -1699,6 +1689,16 @@ export class MembershipLeftEvent extends MembershipEvent {
             )
           : null,
       id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       _session,
       _graph,
       _connection,

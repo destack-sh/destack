@@ -232,7 +232,6 @@ export class Reaction
     }
     h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.content)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -247,6 +246,7 @@ export class Reaction
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -360,13 +360,13 @@ export class Reaction
         _connection,
       ),
       content: objectValue["40"],
-      id: String(objectValue["2"]),
       space: unpackedSpacePtr,
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -438,7 +438,6 @@ export class Reaction
         _connection,
       ),
       content: objectProto.content,
-      id: String(objectProto.id),
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -473,6 +472,7 @@ export class Reaction
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

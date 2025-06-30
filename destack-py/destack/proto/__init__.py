@@ -200,7 +200,6 @@ AnyNodeProto = Union[
     GradientStyleProto,
     FillStyleProto,
     FontStyleProto,
-    PaletteProto,
     ShadowStyleProto,
     StrokeStyleProto,
     ThemeProto,

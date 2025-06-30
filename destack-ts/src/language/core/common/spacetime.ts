@@ -246,7 +246,6 @@ export class Snapshot
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.slug !== null) {
       h = (h * 31 + hashString(this.slug)) & 0xffffffff;
@@ -265,6 +264,7 @@ export class Snapshot
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -389,7 +389,6 @@ export class Snapshot
     return new Snapshot({
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       slug: unpackedSlug,
       ownedBy: unpackedOwnedByPtr,
@@ -398,6 +397,7 @@ export class Snapshot
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -476,7 +476,6 @@ export class Snapshot
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       slug: objectProto.slug != undefined ? objectProto.slug : null,
       ownedBy:
@@ -513,6 +512,7 @@ export class Snapshot
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,
@@ -796,7 +796,6 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.slug !== null) {
       h = (h * 31 + hashString(this.slug)) & 0xffffffff;
@@ -815,6 +814,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -948,7 +948,6 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
       parent: unpackedParentPtr,
       head: unpackedHeadPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       slug: unpackedSlug,
       ownedBy: unpackedOwnedByPtr,
@@ -957,6 +956,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -1048,7 +1048,6 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       slug: objectProto.slug != undefined ? objectProto.slug : null,
       ownedBy:
@@ -1085,6 +1084,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

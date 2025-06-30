@@ -25,6 +25,7 @@ import {
   Value,
   Vector2,
 } from "@destack/language/core/common";
+import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import {
   registerEnumClass,
@@ -303,10 +304,16 @@ export class PolygonShape extends Shape {
   /**
    * View.parent
    */
-  get parent(): Window | Scene | Layer | ContainerView | null {
+  get parent(): Window | Scene | Layer | ContainerView | Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | ContainerView | null;
+      return this._supergraph.get(nodePtr.id) as
+        | Window
+        | Scene
+        | Layer
+        | ContainerView
+        | Folder
+        | null;
     }
     return null;
   }
@@ -544,7 +551,7 @@ export class PolygonShape extends Shape {
 
   constructor(options: {
     id?: string;
-    parent?: Window | Scene | Layer | ContainerView | NodeReference | null;
+    parent?: Window | Scene | Layer | ContainerView | Folder | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -908,15 +915,6 @@ export class PolygonShape extends Shape {
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (Object.keys(this.value).length !== Object.keys(other.value).length) {
       return false;
     }
@@ -927,6 +925,15 @@ export class PolygonShape extends Shape {
       if (!this.value.get(key)!.equals(other.value.get(key)!)) {
         return false;
       }
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
     }
     return true;
   }
@@ -1024,10 +1031,15 @@ export class PolygonShape extends Shape {
     if (this.maxHeight !== null) {
       h = (h * 31 + this.maxHeight.hash()) & 0xffffffff;
     }
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1044,12 +1056,7 @@ export class PolygonShape extends Shape {
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -1350,6 +1357,15 @@ export class PolygonShape extends Shape {
       maxHeightValue != undefined
         ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -1375,15 +1391,6 @@ export class PolygonShape extends Shape {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
-          String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new PolygonShape({
       type: Number(objectValue["30"]),
       points: unpackedPoints,
@@ -1415,8 +1422,8 @@ export class PolygonShape extends Shape {
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
+      value: unpackedValue,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
@@ -1425,7 +1432,7 @@ export class PolygonShape extends Shape {
       orderKey: objectValue["22"],
       script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
-      value: unpackedValue,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -1687,6 +1694,7 @@ export class PolygonShape extends Shape {
         objectProto.maxHeight != undefined
           ? Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
+      value: unpackedValue,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -1697,7 +1705,6 @@ export class PolygonShape extends Shape {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1734,7 +1741,7 @@ export class PolygonShape extends Shape {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      value: unpackedValue,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

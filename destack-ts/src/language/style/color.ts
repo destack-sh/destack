@@ -15,7 +15,7 @@ import {
 } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
-import { Palette, Style, Theme } from "@destack/language/style";
+import { Style, Theme } from "@destack/language/style";
 import { View } from "@destack/language/view";
 import {
   ColorHueProto,
@@ -561,10 +561,10 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.parent
    */
-  get parent(): Scene | View | Theme | Palette | null {
+  get parent(): Scene | View | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
     }
     return null;
   }
@@ -678,7 +678,7 @@ export class ColorStyle extends Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | View | Theme | Palette | NodeReference | null;
+    parent?: Scene | View | Theme | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -892,7 +892,6 @@ export class ColorStyle extends Style {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -906,6 +905,7 @@ export class ColorStyle extends Style {
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -1087,7 +1087,6 @@ export class ColorStyle extends Style {
       alpha: unpackedAlpha,
       dark: unpackedDark,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
@@ -1095,6 +1094,7 @@ export class ColorStyle extends Style {
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -1205,7 +1205,6 @@ export class ColorStyle extends Style {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1232,6 +1231,7 @@ export class ColorStyle extends Style {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

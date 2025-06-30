@@ -643,7 +643,6 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       h = (h * 31 + hashString(this.browserVersion)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -655,6 +654,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -834,12 +834,12 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       browserName: unpackedBrowserName,
       browserVersion: unpackedBrowserVersion,
       name: objectValue["31"],
-      id: String(objectValue["2"]),
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -975,7 +975,6 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       browserName: objectProto.browserName != undefined ? objectProto.browserName : null,
       browserVersion: objectProto.browserVersion != undefined ? objectProto.browserVersion : null,
       name: objectProto.name,
-      id: String(objectProto.id),
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
@@ -1000,6 +999,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,
