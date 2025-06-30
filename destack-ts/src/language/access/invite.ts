@@ -1,9 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Role } from "@destack/language/access";
-import {
-  Entity,
-  Event,
-  Graph,
+import type { Role } from "@destack/language/access";
+import type {
   IsDeletable,
   IsGlobal,
   IsJoinable,
@@ -11,17 +8,22 @@ import {
   IsOwner,
   IsSpatial,
   IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
+import {
+  Entity,
+  Event,
+  Graph,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
   RoleType,
-  Session,
   StructType,
-  Supergraph,
 } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import {
   InviteAcceptedEventProto,
   InviteProto,

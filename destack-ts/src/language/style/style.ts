@@ -1,20 +1,17 @@
-import {
-  Entity,
+import type {
   HasName,
   IsDeletable,
   IsOrdered,
   IsSpatial,
   IsSubject,
   IsTaggable,
-  Node,
-  NodeReference,
-  NodeType,
 } from "@destack/language/core";
+import { Entity, Node, NodeReference, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import { Scene } from "@destack/language/scene";
-import { Space } from "@destack/language/space";
-import { Theme } from "@destack/language/style";
-import { View } from "@destack/language/view";
+import type { Scene } from "@destack/language/scene";
+import type { Space } from "@destack/language/space";
+import type { Theme } from "@destack/language/style";
+import type { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:12040 ==== */

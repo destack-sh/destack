@@ -4,25 +4,27 @@ import {
   unpackProtoDuration,
   unpackProtoTimestamp,
 } from "@destack/grpc";
-import {
-  EnumType,
-  Graph,
+import type {
   HasName,
   IsGlobal,
   IsSpatial,
   IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
+import {
+  EnumType,
+  Graph,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
   Resource,
   ResourceStatus,
-  Session,
   StructType,
-  Supergraph,
 } from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import {
   FileFormatProto,
   FileProto,

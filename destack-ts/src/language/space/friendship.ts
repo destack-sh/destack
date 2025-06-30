@@ -1,21 +1,23 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import type {
+  IsGlobal,
+  IsOwnable,
+  IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
 import {
   Entity,
   Event,
   Graph,
-  IsGlobal,
-  IsOwnable,
-  IsSubject,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
-  Session,
   StructType,
-  Supergraph,
 } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import { Space, User } from "@destack/language/space";
+import type { Space, User } from "@destack/language/space";
 import {
   FriendshipInviteAcceptedEventProto,
   FriendshipInviteProto,

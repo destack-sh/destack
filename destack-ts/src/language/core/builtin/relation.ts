@@ -10,12 +10,13 @@ import {
   CustomTraitDefinition,
 } from "@destack/language/core/builtin/entity";
 import { CustomEventDefinition } from "@destack/language/core/builtin/event";
-import { Node, NodeClass } from "@destack/language/core/builtin/node";
+import type { NodeClass } from "@destack/language/core/builtin/node";
+import { Node } from "@destack/language/core/builtin/node";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import { CustomProperty } from "@destack/language/core/common/property";
-import { CustomStructDefinition } from "@destack/language/core/common/struct";
-import { Supergraph } from "@destack/language/core/runtime/graph";
-import { Session } from "@destack/language/core/runtime/session";
+import type { CustomStructDefinition } from "@destack/language/core/common/struct";
+import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   NodeDefinitionReferenceProto,

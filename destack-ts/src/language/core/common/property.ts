@@ -10,10 +10,11 @@ import {
   StructType,
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
-import { CustomEntityDefinition, Entity } from "@destack/language/core/builtin/entity";
+import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
+import { Entity } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
 import { NodeReference } from "@destack/language/core/builtin/relation";
-import {
+import type {
   HasIcon,
   HasName,
   IsDeletable,
@@ -33,12 +34,13 @@ import {
   Type,
 } from "@destack/language/core/common/type";
 import { Value } from "@destack/language/core/common/value";
-import { QueryConnection } from "@destack/language/core/runtime/connection";
-import { Graph, Supergraph } from "@destack/language/core/runtime/graph";
-import { Session } from "@destack/language/core/runtime/session";
-import { Script } from "@destack/language/logic";
+import type { QueryConnection } from "@destack/language/core/runtime/connection";
+import type { Supergraph } from "@destack/language/core/runtime/graph";
+import { Graph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
+import type { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import {
   CascadeActionProto,
   CustomPropertyProto,

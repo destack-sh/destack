@@ -3,11 +3,11 @@ import { EnumType, StructType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
 import { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import { IsSubject } from "@destack/language/core/builtin/trait";
-import { CustomProperty } from "@destack/language/core/common/property";
+import type { IsSubject } from "@destack/language/core/builtin/trait";
+import type { CustomProperty } from "@destack/language/core/common/property";
 import { Value } from "@destack/language/core/common/value";
-import { Supergraph } from "@destack/language/core/runtime/graph";
-import { Session } from "@destack/language/core/runtime/session";
+import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Origin } from "@destack/language/space";
 import {

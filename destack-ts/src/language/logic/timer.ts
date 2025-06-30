@@ -1,23 +1,25 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import type {
+  HasName,
+  IsSpatial,
+  IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
 import {
   Entity,
   EnumType,
   Event,
   Graph,
-  HasName,
-  IsSpatial,
-  IsSubject,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
-  Session,
   StructType,
-  Supergraph,
 } from "@destack/language/core";
 import { Schedule } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import {
   TimerCancelledEventProto,
   TimerCompletedEventProto,

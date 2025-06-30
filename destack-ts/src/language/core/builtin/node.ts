@@ -2,12 +2,8 @@ import { NodeType, TraitType } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import { NodeDefinitionReference, NodeReference } from "@destack/language/core/builtin/relation";
-import {
-  INTER_ORDER_TYPES,
-  IsOrdered,
-  IsSpatial,
-  TraitClass,
-} from "@destack/language/core/builtin/trait";
+import { INTER_ORDER_TYPES, IsOrdered, IsSpatial } from "@destack/language/core/builtin/trait";
+import type { TraitClass } from "@destack/language/core/builtin/trait_class";
 import {
   Aggregation,
   AggregationType,

@@ -1,7 +1,7 @@
 import { toValue } from "@destack/language";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
-import { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
-import { NodeClass } from "@destack/language/core/builtin/node";
+import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
+import type { NodeClass } from "@destack/language/core/builtin/node";
 import {
   NodeDefinitionReference,
   PropertyReference,
@@ -10,8 +10,8 @@ import { Struct, StructFrozen } from "@destack/language/core/builtin/struct";
 import { PropertyDefinition } from "@destack/language/core/common/meta";
 import { CustomProperty } from "@destack/language/core/common/property";
 import { Value } from "@destack/language/core/common/value";
-import { Supergraph } from "@destack/language/core/runtime/graph";
-import { Session } from "@destack/language/core/runtime/session";
+import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   AggregationProto,

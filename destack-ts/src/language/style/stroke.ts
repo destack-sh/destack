@@ -1,16 +1,13 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import type { IsSubject, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
   Graph,
-  IsSubject,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
-  Session,
   StructFrozen,
   StructType,
-  Supergraph,
   Vector2,
 } from "@destack/language/core";
 import {
@@ -18,10 +15,11 @@ import {
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
-import { Scene } from "@destack/language/scene";
-import { Space } from "@destack/language/space";
-import { Color, Easing, Style, Theme } from "@destack/language/style";
-import { View } from "@destack/language/view";
+import type { Scene } from "@destack/language/scene";
+import type { Space } from "@destack/language/space";
+import type { Theme } from "@destack/language/style";
+import { Color, Easing, Style } from "@destack/language/style";
+import type { View } from "@destack/language/view";
 import {
   EasingProto,
   StrokeCapProto,

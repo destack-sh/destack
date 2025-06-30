@@ -1,6 +1,4 @@
-import {
-  Dimension,
-  Entity,
+import type {
   HasName,
   IsDeletable,
   IsOrdered,
@@ -8,16 +6,13 @@ import {
   IsSpatial,
   IsSubject,
   IsTaggable,
-  Node,
-  NodeReference,
-  NodeType,
-  Position,
 } from "@destack/language/core";
-import { Folder } from "@destack/language/folder";
-import { Script } from "@destack/language/logic";
+import { Dimension, Entity, Node, NodeReference, NodeType, Position } from "@destack/language/core";
+import type { Folder } from "@destack/language/folder";
+import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import { Layer, Scene, Window } from "@destack/language/scene";
-import { Space } from "@destack/language/space";
+import type { Layer, Scene, Window } from "@destack/language/scene";
+import type { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { Temporal } from "temporal-polyfill";
 

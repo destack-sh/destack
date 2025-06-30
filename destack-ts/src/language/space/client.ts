@@ -1,25 +1,27 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import {
-  ClientType,
-  Entity,
-  Graph,
+import type {
   HasName,
   IsDeletable,
   IsGlobal,
   IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
+import {
+  ClientType,
+  Entity,
+  Graph,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
-  Session,
   StructFrozen,
   StructType,
-  Supergraph,
 } from "@destack/language/core";
-import { Machine } from "@destack/language/infra";
-import { Cursor } from "@destack/language/logic";
+import type { Machine } from "@destack/language/infra";
+import type { Cursor } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";
-import { User } from "@destack/language/space";
+import type { User } from "@destack/language/space";
 import { ClientProto, ClientTypeProto, OriginProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
