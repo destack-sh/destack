@@ -57,7 +57,6 @@ import type {
   HasIcon,
   HasName,
   HasSlug,
-  IsActionable,
   IsArchivable,
   IsDeletable,
   IsExtensible,
@@ -75,11 +74,11 @@ import type {
   IsStarable,
   IsSubject,
   IsTaggable,
-  IsTracked,
   JoinablePermission,
   MaterializationType,
   ModeType,
   NodeDefinitionReference,
+  NodeDefinitionType,
   NodePermission,
   NodeReference,
   NodeType,
@@ -93,7 +92,6 @@ import type {
   Region,
   RegionArea,
   RegionContinent,
-  RelationType,
   ResourceStatus,
   RoleType,
   RuntimeType,
@@ -611,7 +609,6 @@ export type TraitTypeMapping = {
   [TraitType.HAS_NAME]: HasName;
   [TraitType.HAS_SLUG]: HasSlug;
   [TraitType.HAS_ICON]: HasIcon;
-  [TraitType.TRACKED]: IsTracked;
   [TraitType.ARCHIVABLE]: IsArchivable;
   [TraitType.DELETABLE]: IsDeletable;
   [TraitType.EXTENSIBLE]: IsExtensible;
@@ -622,7 +619,6 @@ export type TraitTypeMapping = {
   [TraitType.SOURCEABLE]: IsSourceable;
   [TraitType.SCRIPTABLE]: IsScriptable;
   [TraitType.RUNNABLE]: IsRunnable;
-  [TraitType.ACTIONABLE]: IsActionable;
   [TraitType.OWNABLE]: IsOwnable;
   [TraitType.JOINABLE]: IsJoinable;
   [TraitType.SUBJECT]: IsSubject;
@@ -739,7 +735,7 @@ export type EnumTypeMapping = {
   [EnumType.CLIENT_TYPE]: ClientType;
   [EnumType.TENANCY]: Tenancy;
   [EnumType.JOINABLE_PERMISSION]: JoinablePermission;
-  [EnumType.RELATION_TYPE]: RelationType;
+  [EnumType.NODE_DEFINITION_TYPE]: NodeDefinitionType;
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
   [EnumType.EDIT_TYPE]: EditType;

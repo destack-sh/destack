@@ -5,7 +5,7 @@ from typing import (
     Union,
 )
 
-from ..builtin import Node, NodeType, ResourceStatus, builtin_node
+from ..builtin import Node, NodeType, ResourceStatus, RoleType, builtin_node
 from ..builtin.property import (
     property_,
     property_parent_,
@@ -19,12 +19,12 @@ from ..builtin.trait import (
     IsSourceable,
     IsSpatial,
     IsTaggable,
-    IsTracked,
 )
 
 if TYPE_CHECKING:
     from destack.language import (
         Folder,
+        IsSubject,
         NodeDefinitionReference,
         NodeReference,
     )
@@ -33,10 +33,34 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.ENTITY, is_abstract=True)
-class Entity(IsTracked, Node):
+class Entity(Node):
     """
     An Entity is a versioned Node in primary relational storage (OLTP).
     """
+
+    created_at: datetime = property_(15, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
+    created_by: Optional["IsSubject"] = property_(
+        16,
+        default=None,
+        is_managed=True,
+        is_eq=False,
+        node_space_from="self",
+        node_is_customizable=False,
+        can_write=RoleType.SYSTEM,
+    )
+    updated_at: datetime = property_(17, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
+    updated_by: Optional["IsSubject"] = property_(
+        18,
+        default=None,
+        is_managed=True,
+        is_eq=False,
+        node_space_from="self",
+        node_is_customizable=False,
+        can_write=RoleType.SYSTEM,
+    )
+    if TYPE_CHECKING:
+        created_by_ptr: Optional[NodeReference] = None
+        updated_by_ptr: Optional[NodeReference] = None
 
     # nocheckin: support Entity branching & variants (how to handle Snapshot, which is an Entity?)
     # primary key: (id, snapshot_id)

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, assert_never
 from destack.language.registry import (
     ENUM_DEFINITION_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
-    OBJECT_REF_BY_CLASS,
+    OBJECT_DEFINITION_REFERENCE_BY_CLASS,
     STRUCT_DEFINITION_BY_TYPE,
     TRAIT_DEFINITION_BY_TYPE,
 )
@@ -110,8 +110,10 @@ class PropertyDefinition(StructFrozen):
         """Create PropertyDefinition from a Property."""
         assert prop.id is not None, f"{prop!r} has no id"
         type = prop._to_type()
-        object_ref = OBJECT_REF_BY_CLASS[prop.component]
-        original_object_ref = OBJECT_REF_BY_CLASS.get(prop.original_component, object_ref)
+        object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS[prop.component]
+        original_object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS.get(
+            prop.original_component, object_ref
+        )
 
         return cls(
             id=prop.id,
@@ -289,14 +291,21 @@ class NodeDefinition(StructFrozen):
 
     properties: list["PropertyDefinition"] = property_(40)
 
-    base_type: NodeType | None = property_(50, description="The base type this Node extends.")
-    extends: list[NodeType] = property_(51, description="Nodes that this Node extends.")
-    extended_by: list[NodeType] = property_(52, description="Nodes that extend this Node type.")
+    base_type: NodeType | None = property_(
+        50, description="The base type this Node extends (directly)."
+    )
+    extends: list[NodeType] = property_(
+        51, description="Nodes that this Node extends (directly and indirectly)."
+    )
+    extended_by: list[NodeType] = property_(
+        52, description="Nodes that extend this Node type (directly)."
+    )
     base_traits: list[TraitType] = property_(
-        53, description="Traits directly inherited by this Node."
+        53, description="Traits directly inherited by this Node (directly)."
     )
     traits: list[TraitType] = property_(
-        54, description="Traits directly and indirectly inherited by this Node."
+        54,
+        description="Traits directly and indirectly inherited by this Node (directly and indirectly).",
     )
 
     root_type: NodeType | None = property_(60)

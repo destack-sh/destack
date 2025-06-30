@@ -7,7 +7,6 @@ import {
   NodeType,
   StructFrozen,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Axis2 } from "@destack/language/core/common";
 import {
@@ -616,30 +615,8 @@ registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
 /**
  * A gradient style.
  */
-export class GradientStyle extends Node implements Style {
+export class GradientStyle extends Style {
   static metatype: NodeType = NodeType.GRADIENT_STYLE;
-  static __traits__: TraitType[] = [
-    TraitType.TAGGABLE,
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.ORDERED,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.THEME, NodeType.VIEW, NodeType.SCENE];
-  static __childTypes__: NodeType[] = [NodeType.TAGGING];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.THEME,
-    NodeType.SPACE,
-    NodeType.WINDOW,
-    NodeType.FOLDER,
-    NodeType.VIEW,
-    NodeType.LAYER,
-    NodeType.CONTAINER_VIEW,
-    NodeType.CANVAS,
-    NodeType.SCENE,
-  ];
-  static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
   /**
    * Style.parent
@@ -666,12 +643,12 @@ export class GradientStyle extends Node implements Style {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -683,12 +660,12 @@ export class GradientStyle extends Node implements Style {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

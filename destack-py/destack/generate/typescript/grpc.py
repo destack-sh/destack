@@ -27,8 +27,8 @@ def _upper_first(s: str) -> str:
 def generate_object_proto(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the BuiltinObject toProto/fromProto method implementations."""
 
-    pack_proto = textwrap.indent(_generate_pack_proto(cls), "    ")
-    unpack_proto = textwrap.indent(_generate_unpack_proto(cls), "    ")
+    pack_proto = _generate_pack_proto(cls)
+    unpack_proto = _generate_unpack_proto(cls)
 
     if cls.__is_frozen__ and not cls.__is_node__:
         to_proto_method = f"""
@@ -48,7 +48,7 @@ def generate_object_proto(cls: type["BuiltinObjectBase"]) -> str:
     return f"""{to_proto_method}
 
   static __packProto__(object: {cls.__name__}): {cls.__name__}Proto {{
-{pack_proto}
+{textwrap.indent(pack_proto, "  ")}
   }}
 
   static __unpackProto__(
@@ -58,7 +58,7 @@ def generate_object_proto(cls: type["BuiltinObjectBase"]) -> str:
     _graph?: any | null,
     _connection?: any | null,
   ): {cls.__name__} {{
-{unpack_proto}
+{textwrap.indent(unpack_proto, "  ")}
   }}
 
   static fromProto(

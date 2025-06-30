@@ -9,7 +9,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
@@ -23,14 +22,8 @@ import { Temporal } from "temporal-polyfill";
 /**
  * An Environment is a deployment of a Space.
  */
-export class Environment extends Node implements IsSpatial, HasName, HasIcon, IsDeletable, Entity {
+export class Environment extends Entity implements IsSpatial, HasName, HasIcon, IsDeletable {
   static metatype: NodeType = NodeType.ENVIRONMENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.DELETABLE];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * Environment.parent
@@ -57,12 +50,12 @@ export class Environment extends Node implements IsSpatial, HasName, HasIcon, Is
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -74,12 +67,12 @@ export class Environment extends Node implements IsSpatial, HasName, HasIcon, Is
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

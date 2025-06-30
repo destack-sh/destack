@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.STYLE)
+@builtin_node(NodeType.STYLE, is_abstract=True)
 class Style(
     IsSpatial,
     Entity,

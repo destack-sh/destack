@@ -45,8 +45,8 @@ class Scope(StructFrozen[ScopeProto]):
     space_id: Optional[UUID] = property_(32, is_repr=True)
 
 
-@builtin_enum(EnumType.RELATION_TYPE)
-class RelationType(Enum):
+@builtin_enum(EnumType.NODE_DEFINITION_TYPE)
+class NodeDefinitionType(Enum):
     BUILTIN_NODE = 1
     CUSTOM_NODE = 2
     BUILTIN_TRAIT = 3
@@ -58,7 +58,7 @@ class RelationType(Enum):
 class NodeDefinitionReference(StructFrozen):
     """Reference to a Node definition (builtin, custom or by trait)."""
 
-    type: RelationType = property_(30, is_repr=True)
+    type: NodeDefinitionType = property_(30, is_repr=True)
     node_type: Optional[NodeType] = property_(40, is_repr=True)
     trait_type: Optional[TraitType] = property_(41, is_repr=True)
     definition: Union[
@@ -72,25 +72,25 @@ class NodeDefinitionReference(StructFrozen):
 
     @property
     def is_single(self) -> bool:
-        return self.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE)
+        return self.type in (NodeDefinitionType.BUILTIN_NODE, NodeDefinitionType.CUSTOM_NODE)
 
     @property
     def is_multi(self) -> bool:
-        return self.type in (RelationType.BUILTIN_TRAIT, RelationType.CUSTOM_TRAIT)
+        return self.type in (NodeDefinitionType.BUILTIN_TRAIT, NodeDefinitionType.CUSTOM_TRAIT)
 
     @property
     def object_cls(self) -> type_[BuiltinObjectBase] | None:
-        if self.type == RelationType.BUILTIN_NODE:
+        if self.type == NodeDefinitionType.BUILTIN_NODE:
             assert self.node_type is not None, f"no node_type for {self!r}"
             return NODE_CLASS_BY_TYPE.get(self.node_type)
-        elif self.type == RelationType.CUSTOM_NODE:
+        elif self.type == NodeDefinitionType.CUSTOM_NODE:
             node_definition = self.definition
             assert node_definition is not None, f"no definition for {self!r}"
             return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_ENTITY)
-        elif self.type == RelationType.BUILTIN_TRAIT:
+        elif self.type == NodeDefinitionType.BUILTIN_TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
             return TRAIT_CLASS_BY_TYPE.get(self.trait_type)
-        elif self.type == RelationType.CUSTOM_TRAIT:
+        elif self.type == NodeDefinitionType.CUSTOM_TRAIT:
             trait_definition = self.definition
             assert trait_definition is not None, f"no trait_definition for {self!r}"
             return TRAIT_CLASS_BY_TYPE.get(trait_definition.metatype)
@@ -98,14 +98,14 @@ class NodeDefinitionReference(StructFrozen):
             assert_never(self.type)
 
     def resolve_property(self, name: str) -> "PropertyDeclaration | None":
-        """Resolve a Property in this relation."""
+        """Resolve a Property in this definition."""
         object_cls = self.object_cls
         if object_cls is None:
             raise ValueError(f"could not resolve {self!r}")
         return object_cls.__properties__.get(name)
 
     def resolve_property_or_error(self, name: str) -> "PropertyDeclaration":
-        """Resolve a Property in this relation (error if not found)."""
+        """Resolve a Property in this definition (error if not found)."""
         resolved = self.resolve_property(name)
         if resolved is None:
             raise LookupError(f"could not find property {name!r} in {self!r}")
@@ -118,21 +118,23 @@ class NodeDefinitionReference(StructFrozen):
         from .node import Node
 
         if isinstance(base, NodeType):
-            return NodeDefinitionReference(type=RelationType.BUILTIN_NODE, node_type=base)
+            return NodeDefinitionReference(type=NodeDefinitionType.BUILTIN_NODE, node_type=base)
         elif isinstance(base, type):
             if issubclass(base, Node):
                 return NodeDefinitionReference(
-                    type=RelationType.BUILTIN_NODE, node_type=base.metatype
+                    type=NodeDefinitionType.BUILTIN_NODE, node_type=base.metatype
                 )
             elif issubclass(base, Trait):
                 return NodeDefinitionReference(
-                    type=RelationType.BUILTIN_TRAIT, trait_type=base.metatype
+                    type=NodeDefinitionType.BUILTIN_TRAIT, trait_type=base.metatype
                 )
             else:
-                raise ValueError(f"invalid relation reference type: {base!r}")
+                raise ValueError(f"invalid definition reference type: {base!r}")
         elif isinstance(base, Node):
             return NodeDefinitionReference(
-                type=RelationType.CUSTOM_NODE, node_type=NodeType.CUSTOM_ENTITY, definition=base
+                type=NodeDefinitionType.CUSTOM_NODE,
+                node_type=NodeType.CUSTOM_ENTITY,
+                definition=base,
             )
         else:
             assert_never(base)
@@ -196,14 +198,14 @@ class ObjectDefinitionReference(StructFrozen):
             assert_never(self.type)
 
     def resolve_property(self, name: str) -> "PropertyDeclaration | None":
-        """Resolve a Property in this relation."""
+        """Resolve a Property in this definition."""
         object_cls = self.object_cls
         if object_cls is None:
             raise ValueError(f"could not resolve {self!r}")
         return object_cls.__properties__.get(name)
 
     def resolve_property_or_error(self, name: str) -> "PropertyDeclaration":
-        """Resolve a Property in this relation (error if not found)."""
+        """Resolve a Property in this definition (error if not found)."""
         resolved = self.resolve_property(name)
         if resolved is None:
             raise LookupError(f"could not find property {name!r} in {self!r}")

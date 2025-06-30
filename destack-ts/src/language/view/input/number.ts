@@ -1,6 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import { IsSubject, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { IsSubject, Node, NodeType, StructType } from "@destack/language/core/builtin";
 import { Dimension, Position } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
@@ -17,39 +17,8 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A general number input View.
  */
-export class NumberInputView extends Node implements InputView {
+export class NumberInputView extends InputView {
   static metatype: NodeType = NodeType.NUMBER_INPUT_VIEW;
-  static __traits__: TraitType[] = [
-    TraitType.TAGGABLE,
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.ORDERED,
-    TraitType.SCRIPTABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.WINDOW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.LAYER,
-    NodeType.SCENE,
-  ];
-  static __childTypes__: NodeType[] = [NodeType.TAGGING, NodeType.SCRIPT];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.WINDOW,
-    NodeType.FOLDER,
-    NodeType.LAYER,
-    NodeType.CONTAINER_VIEW,
-    NodeType.CANVAS,
-    NodeType.SCENE,
-  ];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.SCRIPT,
-    NodeType.CUSTOM_OPTION,
-    NodeType.TAGGING,
-    NodeType.CUSTOM_PROPERTY,
-  ];
 
   /**
    * View.parent
@@ -76,12 +45,12 @@ export class NumberInputView extends Node implements InputView {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -93,12 +62,12 @@ export class NumberInputView extends Node implements InputView {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

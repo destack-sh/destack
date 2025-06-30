@@ -12,8 +12,8 @@ from typing import (
 )
 
 from destack.language.registry import (
+    NODE_DEFINITION_REFERENCE_BY_CLASS,
     NODE_TYPES_BY_TRAIT_TYPE,
-    RELATION_REF_BY_CLASS,
     TRAIT_CLASS_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
 )
@@ -26,7 +26,6 @@ from .common import (
     Enum,
     EnumType,
     NodeType,
-    RoleType,
     TraitType,
     builtin_enum,
 )
@@ -118,9 +117,11 @@ def builtin_trait(
             object_type=None,
             is_concrete=False,
             is_node=True,
+            is_abstract=True,
             is_frozen=pretend_frozen,
         )
         cls.__is_trait__ = True
+        cls.__is_abstract__ = True
         traits = set()
         base_traits = set()
         for superclass in get_superclasses(cls):
@@ -158,10 +159,15 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
     __is_abstract__: ClassVar[bool] = False
 
+    """The base type this Node extends (directly)."""
     __base_type__: ClassVar[NodeType | None] = None
+    """Nodes that this Node extends (directly and indirectly)."""
     __extends__: ClassVar[tuple[NodeType, ...]] = ()
+    """Nodes that extend this Node type (directly)."""
     __extended_by__: ClassVar[tuple[NodeType, ...]] = ()
+    """Traits directly inherited by this Node (directly)."""
     __base_traits__: ClassVar[tuple[TraitType, ...]] = ()
+    """Traits directly and indirectly inherited by this Node (directly and indirectly)."""
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
 
     __root_type__: ClassVar[NodeType | None] = None
@@ -197,7 +203,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
         query = Query(
             type=QueryType.NODE,
-            relation=RELATION_REF_BY_CLASS[cls],
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -225,7 +231,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
         query = Query(
             type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
-            relation=RELATION_REF_BY_CLASS[cls],
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -257,7 +263,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
         query = Query(
             type=QueryType.SCALAR,
-            relation=RELATION_REF_BY_CLASS[cls],
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -281,7 +287,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            relation=RELATION_REF_BY_CLASS[cls],
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -308,7 +314,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            relation=RELATION_REF_BY_CLASS[cls],
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -336,7 +342,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            relation=RELATION_REF_BY_CLASS[cls],
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -364,7 +370,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            relation=RELATION_REF_BY_CLASS[cls],
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -383,8 +389,9 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     metatype: ClassVar[TraitType]
 
     # 1-9: node identity
-    #  (repeat common Node properties here so Trait RelationReferences can reference them,
-    #   since Trait doesn't actually inherit from Node for circularity reasons)
+    #  (repeat common Node properties here so Trait NodeDefinitionReferences can reference them,
+    #   since Trait doesn't actually inherit from Node for circularity reasons;
+    #   but it is still useful to pretend so for typing since Python doesn't support `Trait & Node`)
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write=None)
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
     if TYPE_CHECKING:
@@ -425,35 +432,6 @@ class HasIcon(Trait):
 #
 # Is* Traits (ascribes some behavior)
 #
-
-
-@builtin_trait(TraitType.TRACKED)
-class IsTracked(Trait):
-    """A Node that is "tracked" on create/update."""
-
-    created_at: datetime = property_(15, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    created_by: Optional["IsSubject"] = property_(
-        16,
-        default=None,
-        is_managed=True,
-        is_eq=False,
-        node_space_from="self",
-        node_is_customizable=False,
-        can_write=RoleType.SYSTEM,
-    )
-    updated_at: datetime = property_(17, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    updated_by: Optional["IsSubject"] = property_(
-        18,
-        default=None,
-        is_managed=True,
-        is_eq=False,
-        node_space_from="self",
-        node_is_customizable=False,
-        can_write=RoleType.SYSTEM,
-    )
-    if TYPE_CHECKING:
-        created_by_ptr: Optional[NodeReference] = None
-        updated_by_ptr: Optional[NodeReference] = None
 
 
 @builtin_trait(TraitType.ARCHIVABLE)

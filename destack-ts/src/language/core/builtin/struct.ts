@@ -1,4 +1,10 @@
-import { ACTIVE_SESSION, Session, StructType, Supergraph } from "@destack/language/core";
+import {
+  ACTIVE_SESSION,
+  Session,
+  StructDefinition,
+  StructType,
+  Supergraph,
+} from "@destack/language/core";
 import { AnyStructProto } from "@destack/proto";
 import { BuiltinObject, BuiltinObjectClass } from "./object";
 
@@ -6,6 +12,7 @@ import { BuiltinObject, BuiltinObjectClass } from "./object";
 export abstract class Struct extends BuiltinObject {
   static readonly __isStruct__: boolean = true;
   static readonly metatype: StructType;
+  static readonly __definition__: StructDefinition;
 
   constructor(_session: Session | null, _supergraph: Supergraph | null) {
     _session = _session ?? ACTIVE_SESSION.get();
@@ -39,8 +46,9 @@ export abstract class StructFrozen extends Struct {
 }
 
 /** A Struct class. */
-export type StructClass<S extends Struct = Struct> = {
-  new (...args: any[]): S;
-} & BuiltinObjectClass<any, any> & {
+type StructConstructor<S extends Struct = Struct> = new (...args: any[]) => S;
+export type StructClass<S extends Struct = Struct> = StructConstructor &
+  BuiltinObjectClass<any, any> & {
     metatype: StructType;
+    __definition__: StructDefinition;
   };

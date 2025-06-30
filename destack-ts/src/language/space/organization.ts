@@ -12,7 +12,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Icon } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
@@ -42,35 +41,10 @@ registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
  * An Organization with Users and Teams.
  */
 export class Organization
-  extends Node
-  implements IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable, Entity
+  extends Entity
+  implements IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable
 {
   static metatype: NodeType = NodeType.ORGANIZATION;
-  static __traits__: TraitType[] = [
-    TraitType.GLOBAL,
-    TraitType.OWNER,
-    TraitType.TRACKED,
-    TraitType.JOINABLE,
-  ];
-  static __rootType__: NodeType | null = null;
-  static __parentTypes__: NodeType[] = [];
-  static __childTypes__: NodeType[] = [
-    NodeType.ENTITLEMENT,
-    NodeType.INVITE,
-    NodeType.MEMBERSHIP,
-    NodeType.PERMISSION,
-    NodeType.ROLE,
-    NodeType.SANCTION,
-  ];
-  static __ancestorTypes__: NodeType[] = [];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.SANCTION,
-    NodeType.INVITE,
-    NodeType.PERMISSION,
-    NodeType.MEMBERSHIP,
-    NodeType.ENTITLEMENT,
-    NodeType.ROLE,
-  ];
 
   /**
    * Trait.parent
@@ -85,12 +59,12 @@ export class Organization
   readonly parentPtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -102,12 +76,12 @@ export class Organization
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

@@ -1774,27 +1774,27 @@ export class NodeDefinition extends StructFrozen {
   readonly properties: Array<PropertyDefinition>;
 
   /**
-   * The base type this Node extends.
+   * The base type this Node extends (directly).
    */
   readonly baseType: NodeType | null;
 
   /**
-   * Nodes that this Node extends.
+   * Nodes that this Node extends (directly and indirectly).
    */
   readonly extends: Array<NodeType>;
 
   /**
-   * Nodes that extend this Node type.
+   * Nodes that extend this Node type (directly).
    */
   readonly extendedBy: Array<NodeType>;
 
   /**
-   * Traits directly inherited by this Node.
+   * Traits directly inherited by this Node (directly).
    */
   readonly baseTraits: Array<TraitType>;
 
   /**
-   * Traits directly and indirectly inherited by this Node.
+   * Traits directly and indirectly inherited by this Node (directly and indirectly).
    */
   readonly traits: Array<TraitType>;
 

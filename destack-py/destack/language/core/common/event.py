@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from ..builtin import (
@@ -7,6 +8,7 @@ from ..builtin import (
     IsSpatial,
     Node,
     NodeType,
+    RoleType,
     builtin_node,
     property_,
 )
@@ -17,6 +19,7 @@ if TYPE_CHECKING:
         CustomProperty,
         EditOperation,
         EditType,
+        IsSubject,
         Metric,
         NodeReference,
         PropertyReference,
@@ -31,6 +34,17 @@ class Event[N: Node = Node](IsSpatial, Node):
     """
     An Event represents something happening in a Space.
     """
+
+    created_at: datetime = property_(15, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
+    created_by: Optional["IsSubject"] = property_(
+        16,
+        default=None,
+        is_managed=True,
+        is_eq=False,
+        node_space_from="self",
+        node_is_customizable=False,
+        can_write=RoleType.SYSTEM,
+    )
 
     if TYPE_CHECKING:
         node: Optional[N] = None

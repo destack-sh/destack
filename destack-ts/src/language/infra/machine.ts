@@ -8,7 +8,6 @@ import {
   NodeType,
   ResourceStatus,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Resource } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
@@ -41,14 +40,8 @@ registerEnumClass(EnumType.MACHINE_TYPE, MachineType);
  * A Machine provides physical compute.
  * NOTE :RichComputing: Machines also need Deployments/Endpoints/...?
  */
-export class Machine extends Node implements IsSpatial, Resource {
+export class Machine extends Resource implements IsSpatial {
   static metatype: NodeType = NodeType.MACHINE;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.DELETABLE];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -75,12 +68,12 @@ export class Machine extends Node implements IsSpatial, Resource {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -92,12 +85,12 @@ export class Machine extends Node implements IsSpatial, Resource {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

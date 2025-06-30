@@ -7,7 +7,6 @@ import {
   NodeType,
   StructFrozen,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import {
   Align,
@@ -295,40 +294,8 @@ registerStructClass(StructType.LINE, Line);
 /**
  * A LineShape is a shape that represents a line.
  */
-export class LineShape extends Node implements Shape {
+export class LineShape extends Shape {
   static metatype: NodeType = NodeType.LINE_SHAPE;
-  static __traits__: TraitType[] = [
-    TraitType.TAGGABLE,
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.EXTENSIBLE,
-    TraitType.ORDERED,
-    TraitType.SCRIPTABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.WINDOW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.LAYER,
-    NodeType.SCENE,
-  ];
-  static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.TAGGING, NodeType.SCRIPT];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.WINDOW,
-    NodeType.FOLDER,
-    NodeType.LAYER,
-    NodeType.CONTAINER_VIEW,
-    NodeType.CANVAS,
-    NodeType.SCENE,
-  ];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.SCRIPT,
-    NodeType.CUSTOM_OPTION,
-    NodeType.TAGGING,
-    NodeType.CUSTOM_PROPERTY,
-  ];
 
   /**
    * View.parent
@@ -355,12 +322,12 @@ export class LineShape extends Node implements Shape {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -372,12 +339,12 @@ export class LineShape extends Node implements Shape {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

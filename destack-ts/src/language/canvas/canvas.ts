@@ -1,13 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import {
-  EnumType,
-  IsSubject,
-  Node,
-  NodeType,
-  StructType,
-  TraitType,
-} from "@destack/language/core/builtin";
+import { EnumType, IsSubject, Node, NodeType, StructType } from "@destack/language/core/builtin";
 import {
   Align,
   Axis2,
@@ -60,74 +53,8 @@ registerEnumClass(EnumType.CANVAS_TYPE, CanvasType);
 /**
  * A Canvas is a container for only Shapes (other than that it's just a ContainerView).
  */
-export class Canvas extends Node implements ContainerView {
+export class Canvas extends ContainerView {
   static metatype: NodeType = NodeType.CANVAS;
-  static __traits__: TraitType[] = [
-    TraitType.TAGGABLE,
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.DELETABLE,
-    TraitType.EXTENSIBLE,
-    TraitType.ORDERED,
-    TraitType.SCRIPTABLE,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.WINDOW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.LAYER,
-    NodeType.SCENE,
-  ];
-  static __childTypes__: NodeType[] = [
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.TAGGING,
-    NodeType.SCRIPT,
-    NodeType.LAYER,
-  ];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.WINDOW,
-    NodeType.FOLDER,
-    NodeType.LAYER,
-    NodeType.CONTAINER_VIEW,
-    NodeType.CANVAS,
-    NodeType.SCENE,
-  ];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.STYLE,
-    NodeType.SHAPE,
-    NodeType.VIEW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.COLOR_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.LINE_SHAPE,
-    NodeType.INPUT_VIEW,
-    NodeType.SHADOW_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.STROKE_STYLE,
-    NodeType.EFFECT_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SCRIPT,
-    NodeType.ARROW_SHAPE,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.LAYER,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.CONTENT_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_OPTION,
-    NodeType.VARIANT,
-    NodeType.INTERNAL_VIEW,
-    NodeType.TEXT_VIEW,
-    NodeType.TAGGING,
-    NodeType.SPLIT_VIEW,
-    NodeType.CANVAS,
-  ];
 
   /**
    * View.parent
@@ -154,12 +81,12 @@ export class Canvas extends Node implements ContainerView {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -171,12 +98,12 @@ export class Canvas extends Node implements ContainerView {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

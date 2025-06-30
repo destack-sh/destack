@@ -16,6 +16,7 @@ from destack.language import (
     FunctionType,
     JoinType,
     NodeDefinitionReference,
+    NodeDefinitionType,
     NodeReference,
     PrimitiveType,
     PropertyReference,
@@ -24,7 +25,6 @@ from destack.language import (
     QueryResult,
     QueryResultGroup,
     QueryType,
-    RelationType,
     ScalarType,
     Select,
     Sort,
@@ -310,7 +310,7 @@ def _is_id_condition(condition: Condition) -> tuple[bool, Sequence[UUID]]:
 @tracer.start_as_current_span("memory.walk_node")
 def _walk_node(
     context: MemoryContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     roots_ptr: Sequence[NodeReference],
     roots_parents_ptr: Sequence[NodeReference],
     direction: EdgeDirection,
@@ -320,7 +320,7 @@ def _walk_node(
     """Get the cascaded Nodes for a query."""
 
     nodes_by_id: dict[UUID, NodeReference] = {ptr.id: ptr for ptr in roots_ptr}
-    relations = context.resolve(relation)
+    definitions = context.resolve(definition)
 
     # parent walk
     if direction == EdgeDirection.PARENT:
@@ -332,7 +332,7 @@ def _walk_node(
                 break
 
             next_node_ids: set[UUID] = set()
-            for rel in relations:
+            for rel in definitions:
                 table = context.get(rel)
                 for node_id in current_node_ids:
                     if (
@@ -358,7 +358,7 @@ def _walk_node(
                 break
 
             next_parent_ids: set[UUID] = set()
-            for rel in relations:
+            for rel in definitions:
                 table = context.get(rel)
                 for parent_id in current_parent_ids:
                     if children := table.rows_by_parent_id.get(parent_id):
@@ -374,7 +374,7 @@ def _walk_node(
 
     # side walk
     elif direction == EdgeDirection.SIDE:
-        raise NotImplementedError(f"cannot walk {relation!r} in direction: {direction!r}")
+        raise NotImplementedError(f"cannot walk {definition!r} in direction: {direction!r}")
 
     else:
         assert_never(direction)
@@ -385,7 +385,7 @@ def _walk_node(
 @tracer.start_as_current_span("memory.query_node")
 def _query_node(
     context: MemoryContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     select: Select | None,
     where: Condition | None,
     sort: Sequence[Sort] | None,
@@ -393,18 +393,18 @@ def _query_node(
     offset: int | None,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
-    # handle multi-relations
-    if relation.type == RelationType.BUILTIN_TRAIT:
-        # fan out trait relations
+    # handle multi-definitions
+    if definition.type == NodeDefinitionType.BUILTIN_TRAIT:
+        # fan out trait definitions
         if limit is not None or offset is not None:
-            raise NotImplementedError(f"cannot limit/offset for multi relation: {relation!r}")
-        relations = context.resolve(relation)
+            raise NotImplementedError(f"cannot limit/offset for multi definition: {definition!r}")
+        definitions = context.resolve(definition)
         all_values: list[Value] = []
         all_ptrs: list[NodeReference] = []
-        for rel in relations:
+        for rel in definitions:
             values, ptrs = _query_node(
                 context=context,
-                relation=rel,
+                definition=rel,
                 select=select,
                 where=where,
                 sort=sort,
@@ -415,7 +415,7 @@ def _query_node(
             all_ptrs.extend(ptrs)
         return all_values, all_ptrs
 
-    table = context.get(relation)
+    table = context.get(definition)
 
     # filter
     if where is not None:
@@ -454,22 +454,22 @@ def _query_node(
 @tracer.start_as_current_span("memory.query_scalar")
 def _query_scalar(
     context: MemoryContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
 ) -> Value:
     """Execute a scalar Query."""
-    # handle multi-relations
-    if relation.type == RelationType.BUILTIN_TRAIT:
-        relations = context.resolve(relation)
+    # handle multi-definitions
+    if definition.type == NodeDefinitionType.BUILTIN_TRAIT:
+        definitions = context.resolve(definition)
         filtered_rows: list[MemoryRow] = []
-        for rel in relations:
+        for rel in definitions:
             table = context.get(rel)
             for row in table.rows.values():
                 if where is None or _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
-        table = context.get(relation)
+        table = context.get(definition)
         filtered_rows = []
         for row in table.rows.values():
             if where is None or _evaluate_condition(context, where, row):
@@ -480,7 +480,7 @@ def _query_scalar(
     scalar_value = to_value(scalar)
     logger.trace(
         "memory.query_scalar",
-        relation=relation,
+        definition=definition,
         scalar=scalar_value,
         span="current",
     )
@@ -490,7 +490,7 @@ def _query_scalar(
 @tracer.start_as_current_span("memory.query_grouped_node")
 def _query_grouped_node(
     context: MemoryContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     select: Select | None,
     where: Condition | None,
     having: Condition | None,
@@ -500,10 +500,10 @@ def _query_grouped_node(
     offset: int | None,
 ) -> list[tuple[Value, list[Value], list[NodeReference]]]:
     """Execute a grouped node Query."""
-    if relation.type == RelationType.BUILTIN_TRAIT:
-        raise NotImplementedError("grouped node queries not supported for trait relations")
+    if definition.type == NodeDefinitionType.BUILTIN_TRAIT:
+        raise NotImplementedError("grouped node queries not supported for trait definitions")
 
-    table = context.get(relation)
+    table = context.get(definition)
 
     # filter
     if where is not None:
@@ -557,7 +557,7 @@ def _query_grouped_node(
 
     logger.trace(
         "memory.query_grouped_node",
-        relation=relation,
+        definition=definition,
         groups=len(results),
         total_nodes=len(filtered_rows),
         span="current",
@@ -568,17 +568,17 @@ def _query_grouped_node(
 @tracer.start_as_current_span("memory.query_grouped_scalar")
 def _query_grouped_scalar(
     context: MemoryContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
     having: Condition | None,
     group_by: Sequence[Expression],
 ) -> list[tuple[Value, Value]]:
     """Execute a grouped scalar Query."""
-    if relation.type == RelationType.BUILTIN_TRAIT:
-        raise NotImplementedError("grouped scalar queries not supported for trait relations")
+    if definition.type == NodeDefinitionType.BUILTIN_TRAIT:
+        raise NotImplementedError("grouped scalar queries not supported for trait definitions")
 
-    table = context.get(relation)
+    table = context.get(definition)
 
     # filter rows based on where condition
     filtered_nodes: list[MemoryRow] = []
@@ -608,7 +608,7 @@ def _query_grouped_scalar(
 
     logger.trace(
         "memory.query_grouped_scalar",
-        relation=relation,
+        definition=definition,
         groups=len(results),
         total_nodes=len(filtered_nodes),
         span="current",
@@ -635,7 +635,7 @@ def _query_clause(
     if query.type == QueryType.NODE:
         nodes, nodes_ptr = _query_node(
             context=context,
-            relation=query.relation,
+            definition=query.definition,
             select=query.select,
             where=combined_where,
             sort=query.sort,
@@ -649,7 +649,7 @@ def _query_clause(
         assert query.aggregation is not None, f"no aggregation for scalar query: {query!r}"
         scalar_result = _query_scalar(
             context=context,
-            relation=query.relation,
+            definition=query.definition,
             aggregation=query.aggregation,
             where=combined_where,
         )
@@ -665,7 +665,7 @@ def _query_clause(
         assert query.group_by, f"no group_by for grouped node query: {query!r}"
         groups_value = _query_grouped_node(
             context=context,
-            relation=query.relation,
+            definition=query.definition,
             select=query.select,
             where=combined_where,
             having=query.having,
@@ -692,7 +692,7 @@ def _query_clause(
         assert query.group_by, f"no group_by for grouped scalar query: {query!r}"
         groups_value = _query_grouped_scalar(
             context=context,
-            relation=query.relation,
+            definition=query.definition,
             aggregation=query.aggregation,
             where=combined_where,
             having=query.having,
@@ -750,18 +750,18 @@ def _execute_subquery(
         if subquery.join.recursive:
             expanded_nodes_ptr = _walk_node(
                 context=context,
-                relation=subquery.relation,
+                definition=subquery.definition,
                 roots_ptr=list(parents_ptr.values()),
                 roots_parents_ptr=(),
                 direction=EdgeDirection.PARENT,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
-            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
                 *(n.id for n in expanded_nodes_ptr)
             )
         else:
-            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
                 *parents_ptr.keys()
             )
 
@@ -777,7 +777,7 @@ def _execute_subquery(
         if subquery.join.recursive:
             expanded_nodes_ptr = _walk_node(
                 context=context,
-                relation=subquery.relation,
+                definition=subquery.definition,
                 roots_ptr=[],
                 roots_parents_ptr=nodes_ptr,
                 direction=EdgeDirection.CHILD,
@@ -787,12 +787,12 @@ def _execute_subquery(
             subquery_where = Condition(
                 type=ConditionalType.IN,
                 left=Expression.of(
-                    PropertyReference.of(subquery.relation.resolve_property_or_error("id"))
+                    PropertyReference.of(subquery.definition.resolve_property_or_error("id"))
                 ),
                 right=Expression.of(to_value([n.id for n in expanded_nodes_ptr])),
             )
         else:
-            subquery_where = subquery.relation.resolve_property_or_error("parent").in_(
+            subquery_where = subquery.definition.resolve_property_or_error("parent").in_(
                 *(n.id for n in nodes_ptr),
             )
 

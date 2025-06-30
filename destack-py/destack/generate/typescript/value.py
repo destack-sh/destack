@@ -31,8 +31,12 @@ def _upper_first(s: str) -> str:
 def generate_object_value(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the BuiltinObject toValue/fromValue method implementations."""
 
-    pack_value = textwrap.indent(_generate_to_value(cls), "    ")
-    unpack_value = textwrap.indent(_generate_from_value(cls), "    ")
+    if cls.__is_abstract__:
+        pack_value = f"throw new Error('cannot pack abstract {cls.__name__}');"
+        unpack_value = f"throw new Error('cannot unpack abstract {cls.__name__}');"
+    else:
+        pack_value = _generate_to_value(cls)
+        unpack_value = _generate_from_value(cls)
 
     if cls.__is_frozen__ and not cls.__is_node__:
         to_value_method = f"""
@@ -52,7 +56,7 @@ def generate_object_value(cls: type["BuiltinObjectBase"]) -> str:
     return f"""{to_value_method}
 
   static __packValue__(object: {cls.__name__}): {{ [key: string]: any }} {{
-{pack_value}
+{textwrap.indent(pack_value, "  ")}
   }}
 
   static __unpackValue__(
@@ -62,7 +66,7 @@ def generate_object_value(cls: type["BuiltinObjectBase"]) -> str:
     _graph?: any | null,
     _connection?: any | null,
   ): {cls.__name__} {{
-{unpack_value}
+{textwrap.indent(unpack_value, "  ")}
   }}
 
   static fromValue(

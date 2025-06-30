@@ -12,7 +12,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity, Icon } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
@@ -42,28 +41,10 @@ registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
  * A Permission for something.
  */
 export class Permission
-  extends Node
-  implements IsSpatial, HasName, HasSlug, HasIcon, IsDeletable, Entity
+  extends Entity
+  implements IsSpatial, HasName, HasSlug, HasIcon, IsDeletable
 {
   static metatype: NodeType = NodeType.PERMISSION;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.DELETABLE];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.ORGANIZATION,
-    NodeType.FOLDER,
-    NodeType.TEAM,
-    NodeType.THREAD,
-  ];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.ORGANIZATION,
-    NodeType.FOLDER,
-    NodeType.TEAM,
-    NodeType.THREAD,
-  ];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * Permission.parent
@@ -90,12 +71,12 @@ export class Permission
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -107,12 +88,12 @@ export class Permission
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;

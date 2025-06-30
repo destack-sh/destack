@@ -83,6 +83,13 @@ def builtin_node(
         cls.__base_type__ = cls.__extends__[-1] if cls.__extends__ else None
         cls.__is_abstract__ = is_abstract
 
+        if cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+            raise ValueError(f"{cls.__name__} extends non-abstract {cls.__bases__[0].__name__}")
+        if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+            raise ValueError(
+                f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
+            )
+
         cls, _ = _process_object_cls(
             cls=cls,
             object_type=node_type,
@@ -92,6 +99,7 @@ def builtin_node(
             is_frozen=pretend_frozen,
             is_abstract=is_abstract,
             traits=cls.__traits__,
+            extends=cls.__extends__,
         )
         cls.__indexes__ = index
 

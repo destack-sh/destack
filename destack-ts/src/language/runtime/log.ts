@@ -1,6 +1,11 @@
-import { packProtoJson, unpackProtoJson } from "@destack/grpc";
+import {
+  packProtoJson,
+  packProtoTimestamp,
+  unpackProtoJson,
+  unpackProtoTimestamp,
+} from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { EnumType, IsSubject, Node, NodeType, StructType } from "@destack/language/core/builtin";
 import { Event } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -32,14 +37,8 @@ registerEnumClass(EnumType.LOG_LEVEL, LogLevel);
 /**
  * A Log message.
  */
-export class LogEvent extends Node implements Event {
+export class LogEvent extends Event {
   static metatype: NodeType = NodeType.LOG_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * LogEvent.parent
@@ -64,6 +63,23 @@ export class LogEvent extends Node implements Event {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -103,6 +119,8 @@ export class LogEvent extends Node implements Event {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     content: string;
     attributes?: Map<string, any>;
@@ -172,13 +190,9 @@ export class LogEvent extends Node implements Event {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -186,13 +200,6 @@ export class LogEvent extends Node implements Event {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -233,6 +240,10 @@ export class LogEvent extends Node implements Event {
       }
     }
     h = (h * 31 + this.level) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -293,6 +304,10 @@ export class LogEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -326,6 +341,11 @@ export class LogEvent extends Node implements Event {
         unpackedAttributes.set(key, value as any);
       }
     }
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -341,6 +361,8 @@ export class LogEvent extends Node implements Event {
       content: objectValue["40"],
       attributes: unpackedAttributes,
       level: Number(objectValue["42"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -372,6 +394,10 @@ export class LogEvent extends Node implements Event {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -414,6 +440,17 @@ export class LogEvent extends Node implements Event {
       content: objectProto.content,
       attributes: unpackedAttributes,
       level: Number(objectProto.level) as LogLevel,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(

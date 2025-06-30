@@ -12,7 +12,9 @@ from destack.language import (
     BuiltinObjectBase,
     ConstantDefinition,
     DefaultFactory,
+    Entity,
     EnumDefinition,
+    Event,
     Node,
     NodeBase,
     NodeDefinition,
@@ -155,7 +157,12 @@ def _generate_property_type(prop: PropertyDeclaration, as_ptr: bool = True) -> s
 
 
 def _generate_property(
-    prop: PropertyDeclaration, *, is_readonly: bool, is_node: bool, is_interface: bool
+    prop: PropertyDeclaration,
+    *,
+    is_readonly: bool,
+    is_node: bool,
+    is_interface: bool,
+    is_abstract: bool,
 ) -> str:
     """Generate a Property definition."""
 
@@ -245,6 +252,8 @@ set {ts_name}(value: {node_type_str}) {{
         ptr_prop_str = f"{ptr_prop_name}: {ptr_type_str}"
         if is_readonly:
             ptr_prop_str = f"readonly {ptr_prop_str}"
+        if is_abstract and not is_interface:
+            ptr_prop_str = f"declare {ptr_prop_str}"
         return f"{node_prop_str};\n{ptr_prop_str}"
 
     else:
@@ -252,6 +261,8 @@ set {ts_name}(value: {node_type_str}) {{
         node_prop_str = f"{ts_name}: {type_str}"
         if is_readonly:
             node_prop_str = f"readonly {node_prop_str}"
+        if is_abstract and not is_interface:
+            node_prop_str = f"declare {node_prop_str}"
         if node_prop_str.count("\n") < 1:
             node_prop_str = f"{node_prop_str};"
         node_prop_str = f"""\
@@ -425,7 +436,8 @@ if (_{ts_name_in} === null) {{
 
     # node identity
     if issubclass(cls, Node):
-        identity_str = """\
+        if issubclass(cls, Entity):
+            identity_str = """\
 if (options.id == null) {
   const now = Temporal.Now.zonedDateTimeISO("UTC");
   this.createdAt = now;
@@ -442,6 +454,22 @@ if (options.id == null) {
   this.updatedByPtr = options.updatedBy != null ? (options.updatedBy instanceof Node ? options.updatedBy.toRef() : options.updatedBy) : null;
 }
 """
+        elif issubclass(cls, Event):
+            identity_str = """\
+if (options.id == null) {
+  const now = Temporal.Now.zonedDateTimeISO("UTC");
+  this.createdAt = now;
+  this.createdByPtr = null;
+} else {
+  if (options.createdAt == null) {
+    throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+  }
+  this.createdAt = options.createdAt;
+  this.createdByPtr = options.createdBy != null ? (options.createdBy instanceof Node ? options.createdBy.toRef() : options.createdBy) : null;
+}
+"""
+        else:
+            raise NotImplementedError(f"unexpected node {cls.__name__} extends {cls.__extends__}")
     else:
         if issubclass(cls, StructFrozen):
             identity_str = """\
@@ -978,6 +1006,7 @@ def _generate_struct(definition: StructDefinition) -> str:
             is_readonly=definition.is_frozen,
             is_node=False,
             is_interface=False,
+            is_abstract=False,
         )
         prop_parts.append(prop_str)
     struct_parts.append("\n\n".join(prop_parts))
@@ -1031,6 +1060,7 @@ def _generate_trait(definition: TraitDefinition) -> str:
             is_readonly=_is_property_readonly(prop),
             is_node=False,
             is_interface=True,
+            is_abstract=True,
         )
         prop_parts.append(prop_str)
     trait_parts.append("\n\n".join(prop_parts))
@@ -1083,12 +1113,6 @@ def _generate_node(definition: NodeDefinition) -> str:
     # meta
     node_meta_parts: list[str] = [
         f"static metatype: NodeType = NodeType.{definition.type.name};",
-        f"static __traits__: TraitType[] = [{', '.join(f'TraitType.{trait_type.name}' for trait_type in definition.traits)}];",
-        f"static __rootType__: NodeType | null = {f'NodeType.{definition.root_type.name}' if definition.root_type else 'null'};",
-        f"static __parentTypes__: NodeType[] = [{', '.join(f'NodeType.{parent_type.name}' for parent_type in definition.parent_types)}];",
-        f"static __childTypes__: NodeType[] = [{', '.join(f'NodeType.{child_type.name}' for child_type in definition.child_types)}];",
-        f"static __ancestorTypes__: NodeType[] = [{', '.join(f'NodeType.{ancestor_type.name}' for ancestor_type in definition.ancestor_types)}];",
-        f"static __descendantTypes__: NodeType[] = [{', '.join(f'NodeType.{descendant_type.name}' for descendant_type in definition.descendant_types)}];",
     ]
     node_parts.append("\n".join(node_meta_parts))
 
@@ -1102,29 +1126,31 @@ def _generate_node(definition: NodeDefinition) -> str:
             is_readonly=_is_property_readonly(prop),
             is_node=True,
             is_interface=False,
+            is_abstract=node_cls.__is_abstract__,
         )
         prop_parts.append(prop_str)
     node_parts.append("\n\n".join(prop_parts))
 
     # body
-    init_str = _generate_init(node_cls)
-    node_parts.append(init_str)
-    equals_str = _generate_equals(node_cls)
-    node_parts.append(equals_str)
-    hash_str = _generate_hash(node_cls)
-    node_parts.append(hash_str)
-    validate_str = _generate_validate(node_cls)
-    node_parts.append(validate_str)
-    to_ref_str = _generate_to_ref(node_cls)
-    node_parts.append(to_ref_str)
-    path_str = _generate_path(node_cls)
-    node_parts.append(path_str)
-    repr_str = _generate_repr(node_cls)
-    node_parts.append(repr_str)
-    value_str = generate_object_value(node_cls)
-    node_parts.append(value_str)
-    proto_str = generate_object_proto(node_cls)
-    node_parts.append(proto_str)
+    if not node_cls.__is_abstract__:
+        init_str = _generate_init(node_cls)
+        node_parts.append(init_str)
+        equals_str = _generate_equals(node_cls)
+        node_parts.append(equals_str)
+        hash_str = _generate_hash(node_cls)
+        node_parts.append(hash_str)
+        validate_str = _generate_validate(node_cls)
+        node_parts.append(validate_str)
+        to_ref_str = _generate_to_ref(node_cls)
+        node_parts.append(to_ref_str)
+        path_str = _generate_path(node_cls)
+        node_parts.append(path_str)
+        repr_str = _generate_repr(node_cls)
+        node_parts.append(repr_str)
+        value_str = generate_object_value(node_cls)
+        node_parts.append(value_str)
+        proto_str = generate_object_proto(node_cls)
+        node_parts.append(proto_str)
 
     # class
     super_trait_classes = [
@@ -1134,6 +1160,7 @@ def _generate_node(definition: NodeDefinition) -> str:
         and issubclass(super_cls, Trait)
         and super_cls != NodeBase
         and super_cls != Node
+        and super_cls.__is_trait__
     ]
     implements_str = (
         " implements " + ", ".join(super_cls.__name__ for super_cls in super_trait_classes)
@@ -1141,9 +1168,11 @@ def _generate_node(definition: NodeDefinition) -> str:
         else ""
     )
 
+    base_type = definition.base_type
+    base_cls_name = NODE_CLASS_BY_TYPE[base_type].__name__ if base_type else "Node"
     node_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
-export class {definition.name} extends Node{implements_str} {{
+export {"abstract " if node_cls.__is_abstract__ else ""}class {definition.name} extends {base_cls_name}{implements_str} {{
 {textwrap.indent("\n\n".join(node_parts), "  ")}
 
   {MARKER_CUSTOM_START}
@@ -1292,6 +1321,13 @@ MARKER_START_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_START:([^:]+):([^
 MARKER_END_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_END:([^:]+):([^=]+) ==== \*/")
 MARKER_CUSTOM_START_PATTERN = re.compile(r"/\* ==== DESTACK_CUSTOM_START ==== \*/")
 MARKER_CUSTOM_END_PATTERN = re.compile(r"/\* ==== DESTACK_CUSTOM_END ==== \*/")
+
+BUILTIN_NAMES = {
+    "Node",
+    "Struct",
+    "Enum",
+    "Trait",
+}
 
 
 def _generate_file(
@@ -1532,6 +1568,8 @@ def _generate_file(
     for definition in file.definitions.values():
         for dependency_name in definition.dependencies:
             if dependency_name not in definitions_by_name:
+                if dependency_name in BUILTIN_NAMES:
+                    continue  # manually defined (above)
                 raise RuntimeError(f"missing dependency: {dependency_name}")
             definition = definitions_by_name[dependency_name]
             language_imports_by_module[definition.submodule].add(definition.alias)
@@ -1716,6 +1754,8 @@ def generate():
         definition = _generate_definition(TRAIT_DEFINITION_BY_TYPE[trait_type])
         definitions_by_module[trait_cls.__module__].append(definition)
     for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
+        if node_type == NodeType.NODE:
+            continue  # manually defined
         definition = _generate_definition(NODE_DEFINITION_BY_TYPE[node_type])
         definitions_by_module[node_cls.__module__].append(definition)
     for constant_definition in CONSTANT_DEFINITIONS.values():
@@ -1755,6 +1795,8 @@ def generate():
         for definition in definitions:
             for dependency_name in definition.dependencies:
                 if dependency_name not in definitions_by_name:
+                    if dependency_name in BUILTIN_NAMES:
+                        continue  # manually defined
                     raise RuntimeError(f"missing dependency: {dependency_name}")
                 file_dependencies_by_name[dependency_name] = definitions_by_name[dependency_name]
 

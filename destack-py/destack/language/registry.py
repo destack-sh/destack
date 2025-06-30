@@ -49,8 +49,10 @@ NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
 STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
 
-RELATION_REF_BY_CLASS: dict[type["NodeBase"], "NodeDefinitionReference"] = {}
-OBJECT_REF_BY_CLASS: dict[type["BuiltinObjectBase"], "ObjectDefinitionReference"] = {}
+NODE_DEFINITION_REFERENCE_BY_CLASS: dict[type["NodeBase"], "NodeDefinitionReference"] = {}
+OBJECT_DEFINITION_REFERENCE_BY_CLASS: dict[
+    type["BuiltinObjectBase"], "ObjectDefinitionReference"
+] = {}
 ENUM_DEFINITION_BY_TYPE: dict[EnumType, "EnumDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict[StructType, "StructDefinition"] = {}
 TRAIT_DEFINITION_BY_TYPE: dict[TraitType, "TraitDefinition"] = {}
@@ -130,6 +132,14 @@ def finalize():
         assert trait_type in TRAIT_CLASS_BY_TYPE, f"missing trait type: {trait_type!r}"
         if trait_type not in NODE_TYPES_BY_TRAIT_TYPE:
             NODE_TYPES_BY_TRAIT_TYPE[trait_type] = ()
+
+    # index extended_by
+    extended_by_by_type: dict[NodeType, list[NodeType]] = defaultdict(list)
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        for extended_type in node_cls.__extends__:
+            extended_by_by_type[extended_type].append(node_cls.metatype)
+    for node_type, extended_by in extended_by_by_type.items():
+        NODE_CLASS_BY_TYPE[node_type].__extended_by__ = tuple(extended_by)
 
     from destack.language.core.builtin.trait import expand_node_types
 
@@ -227,17 +237,17 @@ def finalize():
         setattr(cls, "to_value", cls_dict_copy["to_value"])
         setattr(cls, "from_value", cls_dict_copy["from_value"])
 
-    # generate relation refs
+    # generate definition refs
     from destack.language.core import NodeDefinitionReference, ObjectDefinitionReference
 
     for cls in NODE_CLASS_BY_TYPE.values():
-        RELATION_REF_BY_CLASS[cls] = NodeDefinitionReference.of(cls)
-        OBJECT_REF_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
+        NODE_DEFINITION_REFERENCE_BY_CLASS[cls] = NodeDefinitionReference.of(cls)
+        OBJECT_DEFINITION_REFERENCE_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
     for cls in TRAIT_CLASS_BY_TYPE.values():
-        RELATION_REF_BY_CLASS[cls] = NodeDefinitionReference.of(cls)
-        OBJECT_REF_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
+        NODE_DEFINITION_REFERENCE_BY_CLASS[cls] = NodeDefinitionReference.of(cls)
+        OBJECT_DEFINITION_REFERENCE_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
     for cls in STRUCT_CLASS_BY_TYPE.values():
-        OBJECT_REF_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
+        OBJECT_DEFINITION_REFERENCE_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
 
     # generate meta info
     from destack.language.core import (

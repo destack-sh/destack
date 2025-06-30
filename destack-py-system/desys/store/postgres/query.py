@@ -257,7 +257,7 @@ def _compile_expression(
 async def _walk_node(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     roots_ptr: Sequence[NodeReference],
     roots_parents_ptr: Sequence[NodeReference],
     direction: EdgeDirection,
@@ -273,10 +273,9 @@ async def _walk_node(
 
     # parent walk
     if direction == EdgeDirection.PARENT:
-        if relation.is_multi:
-            # fan out relation
-            tables = [context.get(r) for r in context.resolve(relation)]
-
+        if definition.is_multi:
+            # fan out definition
+            tables = [context.get(r) for r in context.resolve(definition)]
             # build a single UNION of all node tables
             union_parts = [
                 f"SELECT id, parent_id, {tbl.node_type.value}::int AS node_type FROM {tbl.name}"
@@ -327,7 +326,7 @@ FROM tree;
                 result_nodes_ptr.append(node_ptr)
             return result_nodes_ptr
         else:
-            table = context.get(relation)
+            table = context.get(definition)
             stmt = f"""
 WITH RECURSIVE tree AS (
     SELECT  id,
@@ -359,8 +358,8 @@ FROM    tree;
 
     # child walk
     elif direction == EdgeDirection.CHILD:
-        # fan out relation
-        tables = [context.get(r) for r in context.resolve(relation)]
+        # fan out definition
+        tables = [context.get(r) for r in context.resolve(definition)]
 
         # build a single UNION of all node tables
         union_parts = [
@@ -414,7 +413,7 @@ FROM tree;
 
     # side walk
     elif direction == EdgeDirection.SIDE:
-        raise NotImplementedError(f"cannot walk {relation!r} in direction: {direction!r}")
+        raise NotImplementedError(f"cannot walk {definition!r} in direction: {direction!r}")
 
     else:
         assert_never(direction)
@@ -424,7 +423,7 @@ FROM tree;
 async def _query_node(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     select: Select | None,
     where: Condition | None,
     sort: Sequence[Sort] | None,
@@ -432,18 +431,18 @@ async def _query_node(
     offset: int | None,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
-    if relation.is_multi:
-        # fan out multi relations
+    if definition.is_multi:
+        # fan out multi definitions
         if limit is not None or offset is not None:
-            raise NotImplementedError(f"cannot limit/offset for multi relation: {relation!r}")
-        subrelations = context.resolve(relation)
+            raise NotImplementedError(f"cannot limit/offset for multi definition: {definition!r}")
+        subdefinitions = context.resolve(definition)
         nodes_value: list[Value] = []
         nodes_ptr: list[NodeReference] = []
-        for subrelation in subrelations:
+        for subdefinition in subdefinitions:
             subnodes_value, subnodes_ptr = await _query_node(
                 conn=conn,
                 context=context,
-                relation=subrelation,
+                definition=subdefinition,
                 select=select,
                 where=where,
                 sort=sort,
@@ -456,7 +455,7 @@ async def _query_node(
 
     else:
         # build statement
-        table = context.get(relation)
+        table = context.get(definition)
         arguments: list[Any] = []
         stmt_parts: list[str] = ["SELECT"]
         if select:
@@ -491,16 +490,16 @@ async def _query_node(
 async def _query_scalar(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
 ) -> Value:
     """Execute a scalar Query."""
-    if relation.is_multi:
-        raise NotImplementedError(f"cannot query scalar on multi relation: {relation!r}")
+    if definition.is_multi:
+        raise NotImplementedError(f"cannot query scalar on multi definition: {definition!r}")
 
     # build statement
-    table = context.get(relation)
+    table = context.get(definition)
     arguments: list[Any] = []
     stmt_parts: list[str] = [
         "SELECT",
@@ -524,7 +523,7 @@ async def _query_scalar(
     logger.trace(
         "postgres.query_scalar",
         stmt=stmt,
-        relation=relation,
+        definition=definition,
         scalar_value=scalar_value,
         span="current",
     )
@@ -535,7 +534,7 @@ async def _query_scalar(
 async def _query_grouped_node(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     select: Select | None,
     where: Condition | None,
     having: Condition | None,
@@ -545,11 +544,11 @@ async def _query_grouped_node(
     offset: int | None,
 ) -> list[tuple[Value, list[Value], list[NodeReference]]]:
     """Execute a grouped node Query."""
-    if relation.is_multi:
-        raise NotImplementedError(f"cannot query grouped node on multi relation: {relation!r}")
+    if definition.is_multi:
+        raise NotImplementedError(f"cannot query grouped node on multi definition: {definition!r}")
 
     # build statement to get groups
-    table = context.get(relation)
+    table = context.get(definition)
     group_arguments: list[Any] = []
     group_by_parts = [_compile_expression(context, group_arguments, expr) for expr in group_by]
     group_by_clause = ", ".join(group_by_parts)
@@ -618,7 +617,7 @@ async def _query_grouped_node(
 
     logger.trace(
         "postgres.query_grouped_node",
-        relation=relation,
+        definition=definition,
         groups=len(results),
         total_nodes=len(node_rows),
         span="current",
@@ -630,18 +629,20 @@ async def _query_grouped_node(
 async def _query_grouped_scalar(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: NodeDefinitionReference,
+    definition: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
     having: Condition | None,
     group_by: Sequence[Expression],
 ) -> list[tuple[Value, Value]]:
     """Execute a grouped scalar Query."""
-    if relation.is_multi:
-        raise NotImplementedError(f"cannot query grouped scalar on multi relation: {relation!r}")
+    if definition.is_multi:
+        raise NotImplementedError(
+            f"cannot query grouped scalar on multi definition: {definition!r}"
+        )
 
     # build statement
-    table = context.get(relation)
+    table = context.get(definition)
     arguments: list[Any] = []
     # build GROUP BY clause
     group_by_parts = [_compile_expression(context, arguments, expr) for expr in group_by]
@@ -683,7 +684,7 @@ async def _query_grouped_scalar(
 
     logger.trace(
         "postgres.query_grouped_scalar",
-        relation=relation,
+        definition=definition,
         groups=len(results),
         span="current",
     )
@@ -710,7 +711,7 @@ async def _query_clause(
         nodes, nodes_ptr = await _query_node(
             conn=conn,
             context=context,
-            relation=query.relation,
+            definition=query.definition,
             select=query.select,
             where=combined_where,
             sort=query.sort,
@@ -725,7 +726,7 @@ async def _query_clause(
         scalar = await _query_scalar(
             conn=conn,
             context=context,
-            relation=query.relation,
+            definition=query.definition,
             aggregation=query.aggregation,
             where=combined_where,
         )
@@ -742,7 +743,7 @@ async def _query_clause(
         groups_value = await _query_grouped_node(
             conn=conn,
             context=context,
-            relation=query.relation,
+            definition=query.definition,
             select=query.select,
             where=combined_where,
             having=query.having,
@@ -770,7 +771,7 @@ async def _query_clause(
         groups_value = await _query_grouped_scalar(
             conn=conn,
             context=context,
-            relation=query.relation,
+            definition=query.definition,
             aggregation=query.aggregation,
             where=combined_where,
             having=query.having,
@@ -828,18 +829,18 @@ async def _execute_subquery(
             expanded_nodes_ptr = await _walk_node(
                 conn=conn,
                 context=context,
-                relation=subquery.relation,
+                definition=subquery.definition,
                 roots_ptr=list(parents_ptr.values()),
                 roots_parents_ptr=(),
                 direction=EdgeDirection.PARENT,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
-            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
                 *(n.id for n in expanded_nodes_ptr),
             )
         else:
-            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
                 *parents_ptr,
             )
         # subquery
@@ -860,18 +861,18 @@ async def _execute_subquery(
             expanded_nodes_ptr = await _walk_node(
                 conn=conn,
                 context=context,
-                relation=subquery.relation,
+                definition=subquery.definition,
                 roots_ptr=(),
                 roots_parents_ptr=nodes_ptr,
                 direction=EdgeDirection.CHILD,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
-            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
                 *(n.id for n in expanded_nodes_ptr),
             )
         else:
-            subquery_where = subquery.relation.resolve_property_or_error("parent").in_(
+            subquery_where = subquery.definition.resolve_property_or_error("parent").in_(
                 *(n.id for n in nodes_ptr),
             )
         # subquery

@@ -6,14 +6,14 @@ from destack.language import (
     CustomEntityDefinition,
     Edit,
     NodeDefinitionReference,
+    NodeDefinitionType,
     NodeReference,
     NodeType,
-    RelationType,
 )
 from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
+    NODE_DEFINITION_REFERENCE_BY_CLASS,
     NODE_TYPES_BY_TRAIT_TYPE,
-    RELATION_REF_BY_CLASS,
 )
 from destack.utils.uuid import UUID
 
@@ -52,40 +52,41 @@ class MemoryContext:
         """Apply the Edits to the context. Returns the Edits that were applied."""
         ...
 
-    def resolve(self, relation: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
-        """Expand the specific Relations for a RelationReference."""
-        if relation.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE):
-            return (relation,)
-        elif relation.type == RelationType.BUILTIN_TRAIT:
-            assert relation.trait_type is not None, f"no trait_type for {relation!r}"
-            node_types = NODE_TYPES_BY_TRAIT_TYPE.get(relation.trait_type, ())
+    def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
+        """Expand the specific Definitions for a NodeDefinitionReference."""
+        if definition.type in (NodeDefinitionType.BUILTIN_NODE, NodeDefinitionType.CUSTOM_NODE):
+            return (definition,)
+        elif definition.type == NodeDefinitionType.BUILTIN_TRAIT:
+            assert definition.trait_type is not None, f"no trait_type for {definition!r}"
+            node_types = NODE_TYPES_BY_TRAIT_TYPE.get(definition.trait_type, ())
             return tuple(
-                RELATION_REF_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]] for node_type in node_types
+                NODE_DEFINITION_REFERENCE_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]]
+                for node_type in node_types
             )
-        elif relation.type == RelationType.CUSTOM_TRAIT:
-            raise NotImplementedError(f"cannot resolve {relation!r}")
+        elif definition.type == NodeDefinitionType.CUSTOM_TRAIT:
+            raise NotImplementedError(f"cannot resolve {definition!r}")
         else:
-            assert_never(relation.type)
+            assert_never(definition.type)
 
-    def get(self, relation: NodeDefinitionReference | NodeReference) -> "MemoryTable":
-        """Get the (single) Table for a node / relation. Doesn't work for multi-relations."""
-        assert relation.node_type is not None, f"no node_type for {relation!r}"
-        if isinstance(relation, NodeReference):
-            if relation.node_type != NodeType.CUSTOM_ENTITY:
-                table_key = (relation.node_type, None)
+    def get(self, definition: NodeDefinitionReference | NodeReference) -> "MemoryTable":
+        """Get the (single) Table for a node / definition. Doesn't work for multi-definitions."""
+        assert definition.node_type is not None, f"no node_type for {definition!r}"
+        if isinstance(definition, NodeReference):
+            if definition.node_type != NodeType.CUSTOM_ENTITY:
+                table_key = (definition.node_type, None)
             else:
-                table_key = (relation.node_type, relation.definition_id)
+                table_key = (definition.node_type, definition.definition_id)
         else:
-            if relation.node_type != NodeType.CUSTOM_ENTITY:
-                table_key = (relation.node_type, None)
+            if definition.node_type != NodeType.CUSTOM_ENTITY:
+                table_key = (definition.node_type, None)
             else:
                 table_key = (
-                    relation.node_type,
-                    relation.definition_ptr.id if relation.definition_ptr else None,
+                    definition.node_type,
+                    definition.definition_ptr.id if definition.definition_ptr else None,
                 )
         if table_key not in self.database.tables:
             self.database.tables[table_key] = MemoryTable(
-                database=self.database, metatype=relation.node_type, definition=None
+                database=self.database, metatype=definition.node_type, definition=None
             )
         return self.database.tables[table_key]
 
@@ -94,7 +95,7 @@ class MemoryContext:
 
 
 class MemoryTable:
-    """In-memory table of Nodes for some relation."""
+    """In-memory table of Nodes for some definition."""
 
     __slots__ = (
         "database",

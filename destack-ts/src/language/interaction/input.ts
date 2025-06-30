@@ -1,38 +1,31 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { EnumType, IsSubject, Node, NodeType, StructType } from "@destack/language/core/builtin";
 import { Event, Vector2 } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
-  ClickEventProto,
-  ClipboardEventProto,
   CopyEventProto,
   CutEventProto,
   DoubleClickEventProto,
   DragEndEventProto,
   DragEnterEventProto,
-  DragEventProto,
   DragLeaveEventProto,
   DragOverEventProto,
   DragStartEventProto,
   DropEventProto,
-  FocusEventProto,
   FocusInEventProto,
   FocusOutEventProto,
-  InputEventProto,
   KeyDownEventProto,
   KeyPressEventProto,
   KeyUpEventProto,
-  KeyboardEventProto,
   LeftClickEventProto,
   LongPressEventProto,
   MiddleClickEventProto,
   MouseButtonProto,
-  MouseEventProto,
   PasteEventProto,
   PointerDownEventProto,
   PointerEnterEventProto,
-  PointerEventProto,
   PointerLeaveEventProto,
   PointerMoveEventProto,
   PointerOverEventProto,
@@ -64,14 +57,8 @@ registerEnumClass(EnumType.MOUSE_BUTTON, MouseButton);
 /**
  * An InputEvent is an Event that corresponds to some direct user input.
  */
-export class InputEvent extends Node implements Event {
+export abstract class InputEvent extends Event {
   static metatype: NodeType = NodeType.INPUT_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -83,7 +70,7 @@ export class InputEvent extends Node implements Event {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -95,7 +82,24 @@ export class InputEvent extends Node implements Event {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -114,295 +118,7 @@ export class InputEvent extends Node implements Event {
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node?: Node | NodeReference | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    this.nodePtr = _node;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.INPUT_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "InputEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<InputEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return InputEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: InputEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9500;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): InputEvent {
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new InputEvent({
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): InputEvent {
-    return InputEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): InputEventProto {
-    return InputEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: InputEvent): InputEventProto {
-    const objectProto: Partial<InputEventProto> = { metatype: 9500 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    return objectProto as InputEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: InputEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): InputEvent {
-    return new InputEvent({
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: InputEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): InputEvent {
-    return InputEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): InputEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = InputEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -415,14 +131,8 @@ registerNodeClass(NodeType.INPUT_EVENT, InputEvent);
 /**
  * A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer.
  */
-export class PointerEvent extends Node implements InputEvent {
+export abstract class PointerEvent extends InputEvent {
   static metatype: NodeType = NodeType.POINTER_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -434,7 +144,7 @@ export class PointerEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -446,7 +156,24 @@ export class PointerEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -465,434 +192,42 @@ export class PointerEvent extends Node implements InputEvent {
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
+  declare nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  declare position: Vector2;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  declare pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  declare shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  declare altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  declare ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  declare metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node?: Node | NodeReference | null;
-    position: Vector2;
-    pressure: number;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
-    accelKey: boolean;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    this.nodePtr = _node;
-    let _position = options.position;
-    if (_position === null) {
-      throw new Error(`PointerEvent.position is required`);
-    }
-    this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`PointerEvent.pressure is required`);
-    }
-    this.pressure = _pressure;
-    let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
-      throw new Error(`PointerEvent.shiftKey is required`);
-    }
-    this.shiftKey = _shiftKey;
-    let _altKey = options.altKey;
-    if (_altKey === null) {
-      throw new Error(`PointerEvent.altKey is required`);
-    }
-    this.altKey = _altKey;
-    let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
-      throw new Error(`PointerEvent.ctrlKey is required`);
-    }
-    this.ctrlKey = _ctrlKey;
-    let _metaKey = options.metaKey;
-    if (_metaKey === null) {
-      throw new Error(`PointerEvent.metaKey is required`);
-    }
-    this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`PointerEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!this.position.equals(other.position)) {
-      return false;
-    }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
-      return false;
-    }
-    if (!(this.shiftKey === other.shiftKey)) {
-      return false;
-    }
-    if (!(this.altKey === other.altKey)) {
-      return false;
-    }
-    if (!(this.ctrlKey === other.ctrlKey)) {
-      return false;
-    }
-    if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.POINTER_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "PointerEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<PointerEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return PointerEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: PointerEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9510;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    objectValue["50"] = object.position.toValue();
-    objectValue["51"] = object.pressure;
-    objectValue["80"] = object.shiftKey;
-    objectValue["81"] = object.altKey;
-    objectValue["82"] = object.ctrlKey;
-    objectValue["83"] = object.metaKey;
-    objectValue["84"] = object.accelKey;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PointerEvent {
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new PointerEvent({
-      position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["51"],
-      shiftKey: objectValue["80"],
-      altKey: objectValue["81"],
-      ctrlKey: objectValue["82"],
-      metaKey: objectValue["83"],
-      accelKey: objectValue["84"],
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PointerEvent {
-    return PointerEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): PointerEventProto {
-    return PointerEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: PointerEvent): PointerEventProto {
-    const objectProto: Partial<PointerEventProto> = { metatype: 9510 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
-    return objectProto as PointerEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: PointerEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PointerEvent {
-    return new PointerEvent({
-      position: Vector2.fromProto(
-        objectProto.position!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      pressure: objectProto.pressure,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: PointerEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PointerEvent {
-    return PointerEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): PointerEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = PointerEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare accelKey: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -905,14 +240,8 @@ registerNodeClass(NodeType.POINTER_EVENT, PointerEvent);
 /**
  * A PointerDownEvent is a PointerEvent when a pointer is pressed down.
  */
-export class PointerDownEvent extends Node implements PointerEvent {
+export class PointerDownEvent extends PointerEvent {
   static metatype: NodeType = NodeType.POINTER_DOWN_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -937,6 +266,23 @@ export class PointerDownEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -996,6 +342,8 @@ export class PointerDownEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -1089,13 +437,9 @@ export class PointerDownEvent extends Node implements PointerEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1103,13 +447,6 @@ export class PointerDownEvent extends Node implements PointerEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -1158,6 +495,10 @@ export class PointerDownEvent extends Node implements PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1221,6 +562,10 @@ export class PointerDownEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -1241,6 +586,11 @@ export class PointerDownEvent extends Node implements PointerEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): PointerDownEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1264,6 +614,8 @@ export class PointerDownEvent extends Node implements PointerEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -1303,6 +655,10 @@ export class PointerDownEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1337,6 +693,17 @@ export class PointerDownEvent extends Node implements PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -1407,14 +774,8 @@ registerNodeClass(NodeType.POINTER_DOWN_EVENT, PointerDownEvent);
 /**
  * A PointerUpEvent is a PointerEvent when a pointer is released.
  */
-export class PointerUpEvent extends Node implements PointerEvent {
+export class PointerUpEvent extends PointerEvent {
   static metatype: NodeType = NodeType.POINTER_UP_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -1439,6 +800,23 @@ export class PointerUpEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -1498,6 +876,8 @@ export class PointerUpEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -1591,13 +971,9 @@ export class PointerUpEvent extends Node implements PointerEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1605,13 +981,6 @@ export class PointerUpEvent extends Node implements PointerEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -1660,6 +1029,10 @@ export class PointerUpEvent extends Node implements PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1723,6 +1096,10 @@ export class PointerUpEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -1743,6 +1120,11 @@ export class PointerUpEvent extends Node implements PointerEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): PointerUpEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1766,6 +1148,8 @@ export class PointerUpEvent extends Node implements PointerEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -1798,6 +1182,10 @@ export class PointerUpEvent extends Node implements PointerEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -1833,6 +1221,17 @@ export class PointerUpEvent extends Node implements PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -1897,14 +1296,8 @@ registerNodeClass(NodeType.POINTER_UP_EVENT, PointerUpEvent);
 /**
  * A PointerMoveEvent is a PointerEvent when a pointer is moved.
  */
-export class PointerMoveEvent extends Node implements PointerEvent {
+export class PointerMoveEvent extends PointerEvent {
   static metatype: NodeType = NodeType.POINTER_MOVE_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -1929,6 +1322,23 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -1988,6 +1398,8 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -2081,13 +1493,9 @@ export class PointerMoveEvent extends Node implements PointerEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2095,13 +1503,6 @@ export class PointerMoveEvent extends Node implements PointerEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -2150,6 +1551,10 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -2213,6 +1618,10 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -2233,6 +1642,11 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): PointerMoveEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -2256,6 +1670,8 @@ export class PointerMoveEvent extends Node implements PointerEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -2295,6 +1711,10 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2329,6 +1749,17 @@ export class PointerMoveEvent extends Node implements PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -2399,14 +1830,8 @@ registerNodeClass(NodeType.POINTER_MOVE_EVENT, PointerMoveEvent);
 /**
  * A PointerEnterEvent is a PointerEvent when a pointer enters an element.
  */
-export class PointerEnterEvent extends Node implements PointerEvent {
+export class PointerEnterEvent extends PointerEvent {
   static metatype: NodeType = NodeType.POINTER_ENTER_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -2431,6 +1856,23 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -2490,6 +1932,8 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -2583,13 +2027,9 @@ export class PointerEnterEvent extends Node implements PointerEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2597,13 +2037,6 @@ export class PointerEnterEvent extends Node implements PointerEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -2652,6 +2085,10 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -2715,6 +2152,10 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -2735,6 +2176,11 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): PointerEnterEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -2758,6 +2204,8 @@ export class PointerEnterEvent extends Node implements PointerEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -2797,6 +2245,10 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2831,6 +2283,17 @@ export class PointerEnterEvent extends Node implements PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -2901,14 +2364,8 @@ registerNodeClass(NodeType.POINTER_ENTER_EVENT, PointerEnterEvent);
 /**
  * A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse.
  */
-export class MouseEvent extends Node implements PointerEvent {
+export abstract class MouseEvent extends PointerEvent {
   static metatype: NodeType = NodeType.MOUSE_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -2920,7 +2377,7 @@ export class MouseEvent extends Node implements PointerEvent {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -2932,7 +2389,24 @@ export class MouseEvent extends Node implements PointerEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -2951,453 +2425,47 @@ export class MouseEvent extends Node implements PointerEvent {
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
+  declare nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  declare position: Vector2;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  declare pressure: number;
 
   /**
    * MouseEvent.button
    */
-  button: MouseButton;
+  declare button: MouseButton;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  declare shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  declare altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  declare ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  declare metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node?: Node | NodeReference | null;
-    position: Vector2;
-    pressure: number;
-    button: MouseButton;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
-    accelKey: boolean;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    this.nodePtr = _node;
-    let _position = options.position;
-    if (_position === null) {
-      throw new Error(`MouseEvent.position is required`);
-    }
-    this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`MouseEvent.pressure is required`);
-    }
-    this.pressure = _pressure;
-    let _button = options.button;
-    if (_button === null) {
-      throw new Error(`MouseEvent.button is required`);
-    }
-    this.button = _button;
-    let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
-      throw new Error(`MouseEvent.shiftKey is required`);
-    }
-    this.shiftKey = _shiftKey;
-    let _altKey = options.altKey;
-    if (_altKey === null) {
-      throw new Error(`MouseEvent.altKey is required`);
-    }
-    this.altKey = _altKey;
-    let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
-      throw new Error(`MouseEvent.ctrlKey is required`);
-    }
-    this.ctrlKey = _ctrlKey;
-    let _metaKey = options.metaKey;
-    if (_metaKey === null) {
-      throw new Error(`MouseEvent.metaKey is required`);
-    }
-    this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`MouseEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.button === other.button)) {
-      return false;
-    }
-    if (!this.position.equals(other.position)) {
-      return false;
-    }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
-      return false;
-    }
-    if (!(this.shiftKey === other.shiftKey)) {
-      return false;
-    }
-    if (!(this.altKey === other.altKey)) {
-      return false;
-    }
-    if (!(this.ctrlKey === other.ctrlKey)) {
-      return false;
-    }
-    if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.button) & 0xffffffff;
-    h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.MOUSE_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "MouseEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<MouseEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return MouseEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: MouseEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9520;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    objectValue["50"] = object.position.toValue();
-    objectValue["51"] = object.pressure;
-    objectValue["60"] = object.button;
-    objectValue["80"] = object.shiftKey;
-    objectValue["81"] = object.altKey;
-    objectValue["82"] = object.ctrlKey;
-    objectValue["83"] = object.metaKey;
-    objectValue["84"] = object.accelKey;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MouseEvent {
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new MouseEvent({
-      button: Number(objectValue["60"]),
-      position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["51"],
-      shiftKey: objectValue["80"],
-      altKey: objectValue["81"],
-      ctrlKey: objectValue["82"],
-      metaKey: objectValue["83"],
-      accelKey: objectValue["84"],
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MouseEvent {
-    return MouseEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): MouseEventProto {
-    return MouseEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: MouseEvent): MouseEventProto {
-    const objectProto: Partial<MouseEventProto> = { metatype: 9520 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
-    objectProto.button = Number(object.button) as MouseButtonProto;
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
-    return objectProto as MouseEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: MouseEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MouseEvent {
-    return new MouseEvent({
-      button: Number(objectProto.button) as MouseButton,
-      position: Vector2.fromProto(
-        objectProto.position!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      pressure: objectProto.pressure,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: MouseEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MouseEvent {
-    return MouseEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): MouseEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MouseEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare accelKey: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -3410,14 +2478,8 @@ registerNodeClass(NodeType.MOUSE_EVENT, MouseEvent);
 /**
  * A ClickEvent is an InputEvent that corresponds to some direct user input with a click (left, right, middle).
  */
-export class ClickEvent extends Node implements MouseEvent {
+export abstract class ClickEvent extends MouseEvent {
   static metatype: NodeType = NodeType.CLICK_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -3429,7 +2491,7 @@ export class ClickEvent extends Node implements MouseEvent {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -3441,7 +2503,24 @@ export class ClickEvent extends Node implements MouseEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -3460,453 +2539,47 @@ export class ClickEvent extends Node implements MouseEvent {
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
+  declare nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  declare position: Vector2;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  declare pressure: number;
 
   /**
    * MouseEvent.button
    */
-  button: MouseButton;
+  declare button: MouseButton;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  declare shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  declare altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  declare ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  declare metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node?: Node | NodeReference | null;
-    position: Vector2;
-    pressure: number;
-    button: MouseButton;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
-    accelKey: boolean;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    this.nodePtr = _node;
-    let _position = options.position;
-    if (_position === null) {
-      throw new Error(`ClickEvent.position is required`);
-    }
-    this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`ClickEvent.pressure is required`);
-    }
-    this.pressure = _pressure;
-    let _button = options.button;
-    if (_button === null) {
-      throw new Error(`ClickEvent.button is required`);
-    }
-    this.button = _button;
-    let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
-      throw new Error(`ClickEvent.shiftKey is required`);
-    }
-    this.shiftKey = _shiftKey;
-    let _altKey = options.altKey;
-    if (_altKey === null) {
-      throw new Error(`ClickEvent.altKey is required`);
-    }
-    this.altKey = _altKey;
-    let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
-      throw new Error(`ClickEvent.ctrlKey is required`);
-    }
-    this.ctrlKey = _ctrlKey;
-    let _metaKey = options.metaKey;
-    if (_metaKey === null) {
-      throw new Error(`ClickEvent.metaKey is required`);
-    }
-    this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`ClickEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.button === other.button)) {
-      return false;
-    }
-    if (!this.position.equals(other.position)) {
-      return false;
-    }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
-      return false;
-    }
-    if (!(this.shiftKey === other.shiftKey)) {
-      return false;
-    }
-    if (!(this.altKey === other.altKey)) {
-      return false;
-    }
-    if (!(this.ctrlKey === other.ctrlKey)) {
-      return false;
-    }
-    if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.button) & 0xffffffff;
-    h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.CLICK_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "ClickEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<ClickEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return ClickEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: ClickEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9521;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    objectValue["50"] = object.position.toValue();
-    objectValue["51"] = object.pressure;
-    objectValue["60"] = object.button;
-    objectValue["80"] = object.shiftKey;
-    objectValue["81"] = object.altKey;
-    objectValue["82"] = object.ctrlKey;
-    objectValue["83"] = object.metaKey;
-    objectValue["84"] = object.accelKey;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ClickEvent {
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new ClickEvent({
-      button: Number(objectValue["60"]),
-      position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["51"],
-      shiftKey: objectValue["80"],
-      altKey: objectValue["81"],
-      ctrlKey: objectValue["82"],
-      metaKey: objectValue["83"],
-      accelKey: objectValue["84"],
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ClickEvent {
-    return ClickEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): ClickEventProto {
-    return ClickEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: ClickEvent): ClickEventProto {
-    const objectProto: Partial<ClickEventProto> = { metatype: 9521 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
-    objectProto.button = Number(object.button) as MouseButtonProto;
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
-    return objectProto as ClickEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ClickEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ClickEvent {
-    return new ClickEvent({
-      button: Number(objectProto.button) as MouseButton,
-      position: Vector2.fromProto(
-        objectProto.position!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      pressure: objectProto.pressure,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: ClickEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ClickEvent {
-    return ClickEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): ClickEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ClickEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare accelKey: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -3919,14 +2592,8 @@ registerNodeClass(NodeType.CLICK_EVENT, ClickEvent);
 /**
  * A LeftClickEvent is a ClickEvent when a pointer is clicked with the left button.
  */
-export class LeftClickEvent extends Node implements ClickEvent {
+export class LeftClickEvent extends ClickEvent {
   static metatype: NodeType = NodeType.LEFT_CLICK_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -3951,6 +2618,23 @@ export class LeftClickEvent extends Node implements ClickEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -4015,6 +2699,8 @@ export class LeftClickEvent extends Node implements ClickEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -4114,13 +2800,9 @@ export class LeftClickEvent extends Node implements ClickEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -4128,13 +2810,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -4187,6 +2862,10 @@ export class LeftClickEvent extends Node implements ClickEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -4250,6 +2929,10 @@ export class LeftClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -4271,6 +2954,11 @@ export class LeftClickEvent extends Node implements ClickEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): LeftClickEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -4295,6 +2983,8 @@ export class LeftClickEvent extends Node implements ClickEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -4327,6 +3017,10 @@ export class LeftClickEvent extends Node implements ClickEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -4364,6 +3058,17 @@ export class LeftClickEvent extends Node implements ClickEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -4428,14 +3133,8 @@ registerNodeClass(NodeType.LEFT_CLICK_EVENT, LeftClickEvent);
 /**
  * A KeyboardEvent is an InputEvent that corresponds to some direct user input with a keyboard.
  */
-export class KeyboardEvent extends Node implements InputEvent {
+export abstract class KeyboardEvent extends InputEvent {
   static metatype: NodeType = NodeType.KEYBOARD_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -4447,7 +3146,7 @@ export class KeyboardEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -4459,7 +3158,24 @@ export class KeyboardEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -4478,428 +3194,42 @@ export class KeyboardEvent extends Node implements InputEvent {
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
+  declare nodePtr: NodeReference | null;
 
   /**
    * KeyboardEvent.key
    */
-  key: string;
+  declare key: string;
 
   /**
    * KeyboardEvent.code
    */
-  code: string;
+  declare code: string;
 
   /**
    * KeyboardEvent.repeat
    */
-  repeat: boolean;
+  declare repeat: boolean;
 
   /**
    * KeyboardEvent.shiftKey
    */
-  shiftKey: boolean;
+  declare shiftKey: boolean;
 
   /**
    * KeyboardEvent.altKey
    */
-  altKey: boolean;
+  declare altKey: boolean;
 
   /**
    * KeyboardEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  declare ctrlKey: boolean;
 
   /**
    * KeyboardEvent.metaKey
    */
-  metaKey: boolean;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node?: Node | NodeReference | null;
-    key: string;
-    code: string;
-    repeat: boolean;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    this.nodePtr = _node;
-    let _key = options.key;
-    if (_key === null) {
-      throw new Error(`KeyboardEvent.key is required`);
-    }
-    this.key = _key;
-    let _code = options.code;
-    if (_code === null) {
-      throw new Error(`KeyboardEvent.code is required`);
-    }
-    this.code = _code;
-    let _repeat = options.repeat;
-    if (_repeat === null) {
-      throw new Error(`KeyboardEvent.repeat is required`);
-    }
-    this.repeat = _repeat;
-    let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
-      throw new Error(`KeyboardEvent.shiftKey is required`);
-    }
-    this.shiftKey = _shiftKey;
-    let _altKey = options.altKey;
-    if (_altKey === null) {
-      throw new Error(`KeyboardEvent.altKey is required`);
-    }
-    this.altKey = _altKey;
-    let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
-      throw new Error(`KeyboardEvent.ctrlKey is required`);
-    }
-    this.ctrlKey = _ctrlKey;
-    let _metaKey = options.metaKey;
-    if (_metaKey === null) {
-      throw new Error(`KeyboardEvent.metaKey is required`);
-    }
-    this.metaKey = _metaKey;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.key === other.key)) {
-      return false;
-    }
-    if (!(this.code === other.code)) {
-      return false;
-    }
-    if (!(this.repeat === other.repeat)) {
-      return false;
-    }
-    if (!(this.shiftKey === other.shiftKey)) {
-      return false;
-    }
-    if (!(this.altKey === other.altKey)) {
-      return false;
-    }
-    if (!(this.ctrlKey === other.ctrlKey)) {
-      return false;
-    }
-    if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.key)) & 0xffffffff;
-    h = (h * 31 + hashString(this.code)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.repeat)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.KEYBOARD_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "KeyboardEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<KeyboardEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return KeyboardEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: KeyboardEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9530;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    objectValue["50"] = object.key;
-    objectValue["51"] = object.code;
-    objectValue["52"] = object.repeat;
-    objectValue["80"] = object.shiftKey;
-    objectValue["81"] = object.altKey;
-    objectValue["82"] = object.ctrlKey;
-    objectValue["83"] = object.metaKey;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): KeyboardEvent {
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new KeyboardEvent({
-      key: objectValue["50"],
-      code: objectValue["51"],
-      repeat: objectValue["52"],
-      shiftKey: objectValue["80"],
-      altKey: objectValue["81"],
-      ctrlKey: objectValue["82"],
-      metaKey: objectValue["83"],
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): KeyboardEvent {
-    return KeyboardEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): KeyboardEventProto {
-    return KeyboardEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: KeyboardEvent): KeyboardEventProto {
-    const objectProto: Partial<KeyboardEventProto> = { metatype: 9530 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.key = object.key;
-    objectProto.code = object.code;
-    objectProto.repeat = object.repeat;
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    return objectProto as KeyboardEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: KeyboardEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): KeyboardEvent {
-    return new KeyboardEvent({
-      key: objectProto.key,
-      code: objectProto.code,
-      repeat: objectProto.repeat,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: KeyboardEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): KeyboardEvent {
-    return KeyboardEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): KeyboardEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = KeyboardEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare metaKey: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -4912,14 +3242,8 @@ registerNodeClass(NodeType.KEYBOARD_EVENT, KeyboardEvent);
 /**
  * A KeyDownEvent is a KeyboardEvent when a key is pressed down.
  */
-export class KeyDownEvent extends Node implements KeyboardEvent {
+export class KeyDownEvent extends KeyboardEvent {
   static metatype: NodeType = NodeType.KEY_DOWN_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -4944,6 +3268,23 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -5003,6 +3344,8 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -5096,13 +3439,9 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -5110,13 +3449,6 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -5165,6 +3497,10 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -5228,6 +3564,10 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -5248,6 +3588,11 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): KeyDownEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -5271,6 +3616,8 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
       altKey: objectValue["81"],
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -5304,6 +3651,10 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -5332,6 +3683,17 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -5396,14 +3758,8 @@ registerNodeClass(NodeType.KEY_DOWN_EVENT, KeyDownEvent);
 /**
  * A KeyUpEvent is a KeyboardEvent when a key is released.
  */
-export class KeyUpEvent extends Node implements KeyboardEvent {
+export class KeyUpEvent extends KeyboardEvent {
   static metatype: NodeType = NodeType.KEY_UP_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -5428,6 +3784,23 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -5487,6 +3860,8 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -5580,13 +3955,9 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -5594,13 +3965,6 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -5649,6 +4013,10 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -5712,6 +4080,10 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -5732,6 +4104,11 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): KeyUpEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -5755,6 +4132,8 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
       altKey: objectValue["81"],
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -5788,6 +4167,10 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -5816,6 +4199,17 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -5880,14 +4274,8 @@ registerNodeClass(NodeType.KEY_UP_EVENT, KeyUpEvent);
 /**
  * A KeyPressEvent is a KeyboardEvent when a key is pressed.
  */
-export class KeyPressEvent extends Node implements KeyboardEvent {
+export class KeyPressEvent extends KeyboardEvent {
   static metatype: NodeType = NodeType.KEY_PRESS_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -5912,6 +4300,23 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -5971,6 +4376,8 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -6064,13 +4471,9 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -6078,13 +4481,6 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -6133,6 +4529,10 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -6196,6 +4596,10 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -6216,6 +4620,11 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): KeyPressEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -6239,6 +4648,8 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
       altKey: objectValue["81"],
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -6272,6 +4683,10 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -6300,6 +4715,17 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -6364,14 +4790,8 @@ registerNodeClass(NodeType.KEY_PRESS_EVENT, KeyPressEvent);
 /**
  * A DragEvent is an InputEvent that corresponds to some direct user input with a drag.
  */
-export class DragEvent extends Node implements InputEvent {
+export abstract class DragEvent extends InputEvent {
   static metatype: NodeType = NodeType.DRAG_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -6383,7 +4803,7 @@ export class DragEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -6395,7 +4815,24 @@ export class DragEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -6414,320 +4851,12 @@ export class DragEvent extends Node implements InputEvent {
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
+  declare nodePtr: NodeReference | null;
 
   /**
    * DragEvent.position
    */
-  position: Vector2;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node?: Node | NodeReference | null;
-    position: Vector2;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    this.nodePtr = _node;
-    let _position = options.position;
-    if (_position === null) {
-      throw new Error(`DragEvent.position is required`);
-    }
-    this.position = _position;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!this.position.equals(other.position)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.position.hash()) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.DRAG_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "DragEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<DragEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return DragEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: DragEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9540;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    objectValue["50"] = object.position.toValue();
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): DragEvent {
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new DragEvent({
-      position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): DragEvent {
-    return DragEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): DragEventProto {
-    return DragEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: DragEvent): DragEventProto {
-    const objectProto: Partial<DragEventProto> = { metatype: 9540 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    return objectProto as DragEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: DragEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): DragEvent {
-    return new DragEvent({
-      position: Vector2.fromProto(
-        objectProto.position!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: DragEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): DragEvent {
-    return DragEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): DragEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = DragEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare position: Vector2;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -6740,14 +4869,8 @@ registerNodeClass(NodeType.DRAG_EVENT, DragEvent);
 /**
  * A DragStartEvent is a DragEvent when a drag starts.
  */
-export class DragStartEvent extends Node implements DragEvent {
+export class DragStartEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_START_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -6772,6 +4895,23 @@ export class DragStartEvent extends Node implements DragEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -6801,6 +4941,8 @@ export class DragStartEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -6858,13 +5000,9 @@ export class DragStartEvent extends Node implements DragEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -6872,13 +5010,6 @@ export class DragStartEvent extends Node implements DragEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -6903,6 +5034,10 @@ export class DragStartEvent extends Node implements DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -6966,6 +5101,10 @@ export class DragStartEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -6980,6 +5119,11 @@ export class DragStartEvent extends Node implements DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragStartEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -6997,6 +5141,8 @@ export class DragStartEvent extends Node implements DragEvent {
         : null;
     return new DragStartEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -7030,6 +5176,10 @@ export class DragStartEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -7052,6 +5202,17 @@ export class DragStartEvent extends Node implements DragEvent {
         _graph,
         _connection,
       ),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -7116,14 +5277,8 @@ registerNodeClass(NodeType.DRAG_START_EVENT, DragStartEvent);
 /**
  * A DragEndEvent is a DragEvent when a drag ends.
  */
-export class DragEndEvent extends Node implements DragEvent {
+export class DragEndEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_END_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -7148,6 +5303,23 @@ export class DragEndEvent extends Node implements DragEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -7177,6 +5349,8 @@ export class DragEndEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -7234,13 +5408,9 @@ export class DragEndEvent extends Node implements DragEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -7248,13 +5418,6 @@ export class DragEndEvent extends Node implements DragEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -7279,6 +5442,10 @@ export class DragEndEvent extends Node implements DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -7342,6 +5509,10 @@ export class DragEndEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -7356,6 +5527,11 @@ export class DragEndEvent extends Node implements DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragEndEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -7373,6 +5549,8 @@ export class DragEndEvent extends Node implements DragEvent {
         : null;
     return new DragEndEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -7406,6 +5584,10 @@ export class DragEndEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -7428,6 +5610,17 @@ export class DragEndEvent extends Node implements DragEvent {
         _graph,
         _connection,
       ),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -7492,14 +5685,8 @@ registerNodeClass(NodeType.DRAG_END_EVENT, DragEndEvent);
 /**
  * A CutEvent is a ClipboardEvent when a cut is performed.
  */
-export class CutEvent extends Node implements ClipboardEvent {
+export class CutEvent extends ClipboardEvent {
   static metatype: NodeType = NodeType.CUT_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -7526,6 +5713,23 @@ export class CutEvent extends Node implements ClipboardEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -7548,6 +5752,8 @@ export class CutEvent extends Node implements ClipboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -7599,13 +5805,9 @@ export class CutEvent extends Node implements ClipboardEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -7613,13 +5815,6 @@ export class CutEvent extends Node implements ClipboardEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -7640,6 +5835,10 @@ export class CutEvent extends Node implements ClipboardEvent {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -7703,6 +5902,10 @@ export class CutEvent extends Node implements ClipboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -7716,6 +5919,11 @@ export class CutEvent extends Node implements ClipboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): CutEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -7732,6 +5940,8 @@ export class CutEvent extends Node implements ClipboardEvent {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CutEvent({
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -7765,6 +5975,10 @@ export class CutEvent extends Node implements ClipboardEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -7779,6 +5993,17 @@ export class CutEvent extends Node implements ClipboardEvent {
     _connection?: any | null,
   ): CutEvent {
     return new CutEvent({
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -7843,14 +6068,8 @@ registerNodeClass(NodeType.CUT_EVENT, CutEvent);
 /**
  * A PasteEvent is a ClipboardEvent when a paste is performed.
  */
-export class PasteEvent extends Node implements ClipboardEvent {
+export class PasteEvent extends ClipboardEvent {
   static metatype: NodeType = NodeType.PASTE_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -7877,6 +6096,23 @@ export class PasteEvent extends Node implements ClipboardEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -7899,6 +6135,8 @@ export class PasteEvent extends Node implements ClipboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -7950,13 +6188,9 @@ export class PasteEvent extends Node implements ClipboardEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -7964,13 +6198,6 @@ export class PasteEvent extends Node implements ClipboardEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -7991,6 +6218,10 @@ export class PasteEvent extends Node implements ClipboardEvent {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -8054,6 +6285,10 @@ export class PasteEvent extends Node implements ClipboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -8067,6 +6302,11 @@ export class PasteEvent extends Node implements ClipboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): PasteEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -8083,6 +6323,8 @@ export class PasteEvent extends Node implements ClipboardEvent {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new PasteEvent({
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -8116,6 +6358,10 @@ export class PasteEvent extends Node implements ClipboardEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -8130,6 +6376,17 @@ export class PasteEvent extends Node implements ClipboardEvent {
     _connection?: any | null,
   ): PasteEvent {
     return new PasteEvent({
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -8194,14 +6451,8 @@ registerNodeClass(NodeType.PASTE_EVENT, PasteEvent);
 /**
  * A PointerOverEvent is a PointerEvent when a pointer is over an element.
  */
-export class PointerOverEvent extends Node implements PointerEvent {
+export class PointerOverEvent extends PointerEvent {
   static metatype: NodeType = NodeType.POINTER_OVER_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -8226,6 +6477,23 @@ export class PointerOverEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -8285,6 +6553,8 @@ export class PointerOverEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -8378,13 +6648,9 @@ export class PointerOverEvent extends Node implements PointerEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -8392,13 +6658,6 @@ export class PointerOverEvent extends Node implements PointerEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -8447,6 +6706,10 @@ export class PointerOverEvent extends Node implements PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -8510,6 +6773,10 @@ export class PointerOverEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -8530,6 +6797,11 @@ export class PointerOverEvent extends Node implements PointerEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): PointerOverEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -8553,6 +6825,8 @@ export class PointerOverEvent extends Node implements PointerEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -8592,6 +6866,10 @@ export class PointerOverEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -8626,6 +6904,17 @@ export class PointerOverEvent extends Node implements PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -8696,14 +6985,8 @@ registerNodeClass(NodeType.POINTER_OVER_EVENT, PointerOverEvent);
 /**
  * A PointerLeaveEvent is a PointerEvent when a pointer leaves an element.
  */
-export class PointerLeaveEvent extends Node implements PointerEvent {
+export class PointerLeaveEvent extends PointerEvent {
   static metatype: NodeType = NodeType.POINTER_LEAVE_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -8728,6 +7011,23 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -8787,6 +7087,8 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -8880,13 +7182,9 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -8894,13 +7192,6 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -8949,6 +7240,10 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -9012,6 +7307,10 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -9032,6 +7331,11 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): PointerLeaveEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -9055,6 +7359,8 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -9094,6 +7400,10 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -9128,6 +7438,17 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -9198,14 +7519,8 @@ registerNodeClass(NodeType.POINTER_LEAVE_EVENT, PointerLeaveEvent);
 /**
  * A LongPressEvent is a PointerEvent when a pointer is pressed down and held for a long time.
  */
-export class LongPressEvent extends Node implements PointerEvent {
+export class LongPressEvent extends PointerEvent {
   static metatype: NodeType = NodeType.LONG_PRESS_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -9230,6 +7545,23 @@ export class LongPressEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -9289,6 +7621,8 @@ export class LongPressEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -9382,13 +7716,9 @@ export class LongPressEvent extends Node implements PointerEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -9396,13 +7726,6 @@ export class LongPressEvent extends Node implements PointerEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -9451,6 +7774,10 @@ export class LongPressEvent extends Node implements PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -9514,6 +7841,10 @@ export class LongPressEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -9534,6 +7865,11 @@ export class LongPressEvent extends Node implements PointerEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): LongPressEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -9557,6 +7893,8 @@ export class LongPressEvent extends Node implements PointerEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -9589,6 +7927,10 @@ export class LongPressEvent extends Node implements PointerEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -9624,6 +7966,17 @@ export class LongPressEvent extends Node implements PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -9688,14 +8041,8 @@ registerNodeClass(NodeType.LONG_PRESS_EVENT, LongPressEvent);
 /**
  * A RightClickEvent is a ClickEvent when a pointer is clicked with the right button.
  */
-export class RightClickEvent extends Node implements ClickEvent {
+export class RightClickEvent extends ClickEvent {
   static metatype: NodeType = NodeType.RIGHT_CLICK_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -9720,6 +8067,23 @@ export class RightClickEvent extends Node implements ClickEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -9784,6 +8148,8 @@ export class RightClickEvent extends Node implements ClickEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -9883,13 +8249,9 @@ export class RightClickEvent extends Node implements ClickEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -9897,13 +8259,6 @@ export class RightClickEvent extends Node implements ClickEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -9956,6 +8311,10 @@ export class RightClickEvent extends Node implements ClickEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -10019,6 +8378,10 @@ export class RightClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -10040,6 +8403,11 @@ export class RightClickEvent extends Node implements ClickEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RightClickEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -10064,6 +8432,8 @@ export class RightClickEvent extends Node implements ClickEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -10096,6 +8466,10 @@ export class RightClickEvent extends Node implements ClickEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -10133,6 +8507,17 @@ export class RightClickEvent extends Node implements ClickEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -10197,14 +8582,8 @@ registerNodeClass(NodeType.RIGHT_CLICK_EVENT, RightClickEvent);
 /**
  * A MiddleClickEvent is a ClickEvent when a pointer is clicked with the middle button.
  */
-export class MiddleClickEvent extends Node implements ClickEvent {
+export class MiddleClickEvent extends ClickEvent {
   static metatype: NodeType = NodeType.MIDDLE_CLICK_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -10229,6 +8608,23 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -10293,6 +8689,8 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -10392,13 +8790,9 @@ export class MiddleClickEvent extends Node implements ClickEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -10406,13 +8800,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -10465,6 +8852,10 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -10528,6 +8919,10 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -10549,6 +8944,11 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): MiddleClickEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -10573,6 +8973,8 @@ export class MiddleClickEvent extends Node implements ClickEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -10612,6 +9014,10 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -10648,6 +9054,17 @@ export class MiddleClickEvent extends Node implements ClickEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -10718,14 +9135,8 @@ registerNodeClass(NodeType.MIDDLE_CLICK_EVENT, MiddleClickEvent);
 /**
  * A DoubleClickEvent is a ClickEvent when a pointer is clicked twice in a short time.
  */
-export class DoubleClickEvent extends Node implements ClickEvent {
+export class DoubleClickEvent extends ClickEvent {
   static metatype: NodeType = NodeType.DOUBLE_CLICK_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -10750,6 +9161,23 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -10814,6 +9242,8 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -10913,13 +9343,9 @@ export class DoubleClickEvent extends Node implements ClickEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -10927,13 +9353,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -10986,6 +9405,10 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -11049,6 +9472,10 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -11070,6 +9497,11 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DoubleClickEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -11094,6 +9526,8 @@ export class DoubleClickEvent extends Node implements ClickEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -11133,6 +9567,10 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -11169,6 +9607,17 @@ export class DoubleClickEvent extends Node implements ClickEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -11239,14 +9688,8 @@ registerNodeClass(NodeType.DOUBLE_CLICK_EVENT, DoubleClickEvent);
 /**
  * A WheelEvent is a MouseEvent when a wheel is scrolled.
  */
-export class WheelEvent extends Node implements MouseEvent {
+export class WheelEvent extends MouseEvent {
   static metatype: NodeType = NodeType.WHEEL_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -11271,6 +9714,23 @@ export class WheelEvent extends Node implements MouseEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -11340,6 +9800,8 @@ export class WheelEvent extends Node implements MouseEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -11445,13 +9907,9 @@ export class WheelEvent extends Node implements MouseEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -11459,13 +9917,6 @@ export class WheelEvent extends Node implements MouseEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -11522,6 +9973,10 @@ export class WheelEvent extends Node implements MouseEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -11585,6 +10040,10 @@ export class WheelEvent extends Node implements MouseEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -11607,6 +10066,11 @@ export class WheelEvent extends Node implements MouseEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): WheelEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -11632,6 +10096,8 @@ export class WheelEvent extends Node implements MouseEvent {
       ctrlKey: objectValue["82"],
       metaKey: objectValue["83"],
       accelKey: objectValue["84"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -11664,6 +10130,10 @@ export class WheelEvent extends Node implements MouseEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -11703,6 +10173,17 @@ export class WheelEvent extends Node implements MouseEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -11767,14 +10248,8 @@ registerNodeClass(NodeType.WHEEL_EVENT, WheelEvent);
 /**
  * A DragOverEvent is a DragEvent when a drag is over an element.
  */
-export class DragOverEvent extends Node implements DragEvent {
+export class DragOverEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_OVER_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -11799,6 +10274,23 @@ export class DragOverEvent extends Node implements DragEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -11828,6 +10320,8 @@ export class DragOverEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -11885,13 +10379,9 @@ export class DragOverEvent extends Node implements DragEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -11899,13 +10389,6 @@ export class DragOverEvent extends Node implements DragEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -11930,6 +10413,10 @@ export class DragOverEvent extends Node implements DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -11993,6 +10480,10 @@ export class DragOverEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -12007,6 +10498,11 @@ export class DragOverEvent extends Node implements DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragOverEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -12024,6 +10520,8 @@ export class DragOverEvent extends Node implements DragEvent {
         : null;
     return new DragOverEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -12057,6 +10555,10 @@ export class DragOverEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -12079,6 +10581,17 @@ export class DragOverEvent extends Node implements DragEvent {
         _graph,
         _connection,
       ),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -12143,14 +10656,8 @@ registerNodeClass(NodeType.DRAG_OVER_EVENT, DragOverEvent);
 /**
  * A DragEnterEvent is a DragEvent when a drag enters an element.
  */
-export class DragEnterEvent extends Node implements DragEvent {
+export class DragEnterEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_ENTER_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -12175,6 +10682,23 @@ export class DragEnterEvent extends Node implements DragEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -12204,6 +10728,8 @@ export class DragEnterEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -12261,13 +10787,9 @@ export class DragEnterEvent extends Node implements DragEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -12275,13 +10797,6 @@ export class DragEnterEvent extends Node implements DragEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -12306,6 +10821,10 @@ export class DragEnterEvent extends Node implements DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -12369,6 +10888,10 @@ export class DragEnterEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -12383,6 +10906,11 @@ export class DragEnterEvent extends Node implements DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragEnterEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -12400,6 +10928,8 @@ export class DragEnterEvent extends Node implements DragEvent {
         : null;
     return new DragEnterEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -12433,6 +10963,10 @@ export class DragEnterEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -12455,6 +10989,17 @@ export class DragEnterEvent extends Node implements DragEvent {
         _graph,
         _connection,
       ),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -12519,14 +11064,8 @@ registerNodeClass(NodeType.DRAG_ENTER_EVENT, DragEnterEvent);
 /**
  * A DragLeaveEvent is a DragEvent when a drag leaves an element.
  */
-export class DragLeaveEvent extends Node implements DragEvent {
+export class DragLeaveEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_LEAVE_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -12551,6 +11090,23 @@ export class DragLeaveEvent extends Node implements DragEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -12580,6 +11136,8 @@ export class DragLeaveEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -12637,13 +11195,9 @@ export class DragLeaveEvent extends Node implements DragEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -12651,13 +11205,6 @@ export class DragLeaveEvent extends Node implements DragEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -12682,6 +11229,10 @@ export class DragLeaveEvent extends Node implements DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -12745,6 +11296,10 @@ export class DragLeaveEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -12759,6 +11314,11 @@ export class DragLeaveEvent extends Node implements DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragLeaveEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -12776,6 +11336,8 @@ export class DragLeaveEvent extends Node implements DragEvent {
         : null;
     return new DragLeaveEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -12809,6 +11371,10 @@ export class DragLeaveEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -12831,6 +11397,17 @@ export class DragLeaveEvent extends Node implements DragEvent {
         _graph,
         _connection,
       ),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -12895,14 +11472,8 @@ registerNodeClass(NodeType.DRAG_LEAVE_EVENT, DragLeaveEvent);
 /**
  * A DropEvent is a DragEvent when a drag is dropped on an element.
  */
-export class DropEvent extends Node implements DragEvent {
+export class DropEvent extends DragEvent {
   static metatype: NodeType = NodeType.DROP_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -12927,6 +11498,23 @@ export class DropEvent extends Node implements DragEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -12956,6 +11544,8 @@ export class DropEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -13013,13 +11603,9 @@ export class DropEvent extends Node implements DragEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -13027,13 +11613,6 @@ export class DropEvent extends Node implements DragEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -13058,6 +11637,10 @@ export class DropEvent extends Node implements DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -13121,6 +11704,10 @@ export class DropEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -13135,6 +11722,11 @@ export class DropEvent extends Node implements DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DropEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -13152,6 +11744,8 @@ export class DropEvent extends Node implements DragEvent {
         : null;
     return new DropEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -13185,6 +11779,10 @@ export class DropEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -13207,6 +11805,17 @@ export class DropEvent extends Node implements DragEvent {
         _graph,
         _connection,
       ),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -13271,14 +11880,8 @@ registerNodeClass(NodeType.DROP_EVENT, DropEvent);
 /**
  * A ClipboardEvent is an InputEvent that corresponds to some direct user input with a clipboard.
  */
-export class ClipboardEvent extends Node implements InputEvent {
+export abstract class ClipboardEvent extends InputEvent {
   static metatype: NodeType = NodeType.CLIPBOARD_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -13290,7 +11893,7 @@ export class ClipboardEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -13302,7 +11905,24 @@ export class ClipboardEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -13321,295 +11941,7 @@ export class ClipboardEvent extends Node implements InputEvent {
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node?: Node | NodeReference | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    this.nodePtr = _node;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.CLIPBOARD_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "ClipboardEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<ClipboardEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return ClipboardEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: ClipboardEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9550;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ClipboardEvent {
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new ClipboardEvent({
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ClipboardEvent {
-    return ClipboardEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): ClipboardEventProto {
-    return ClipboardEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: ClipboardEvent): ClipboardEventProto {
-    const objectProto: Partial<ClipboardEventProto> = { metatype: 9550 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    return objectProto as ClipboardEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ClipboardEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ClipboardEvent {
-    return new ClipboardEvent({
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: ClipboardEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ClipboardEvent {
-    return ClipboardEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): ClipboardEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ClipboardEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -13622,14 +11954,8 @@ registerNodeClass(NodeType.CLIPBOARD_EVENT, ClipboardEvent);
 /**
  * A CopyEvent is a ClipboardEvent when a copy is performed.
  */
-export class CopyEvent extends Node implements ClipboardEvent {
+export class CopyEvent extends ClipboardEvent {
   static metatype: NodeType = NodeType.COPY_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -13656,6 +11982,23 @@ export class CopyEvent extends Node implements ClipboardEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -13678,6 +12021,8 @@ export class CopyEvent extends Node implements ClipboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -13729,13 +12074,9 @@ export class CopyEvent extends Node implements ClipboardEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -13743,13 +12084,6 @@ export class CopyEvent extends Node implements ClipboardEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -13770,6 +12104,10 @@ export class CopyEvent extends Node implements ClipboardEvent {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -13833,6 +12171,10 @@ export class CopyEvent extends Node implements ClipboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -13846,6 +12188,11 @@ export class CopyEvent extends Node implements ClipboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): CopyEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -13862,6 +12209,8 @@ export class CopyEvent extends Node implements ClipboardEvent {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CopyEvent({
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -13895,6 +12244,10 @@ export class CopyEvent extends Node implements ClipboardEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -13909,6 +12262,17 @@ export class CopyEvent extends Node implements ClipboardEvent {
     _connection?: any | null,
   ): CopyEvent {
     return new CopyEvent({
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -13973,14 +12337,8 @@ registerNodeClass(NodeType.COPY_EVENT, CopyEvent);
 /**
  * A FocusEvent is an InputEvent that corresponds to some direct user input with a focus.
  */
-export class FocusEvent extends Node implements InputEvent {
+export abstract class FocusEvent extends InputEvent {
   static metatype: NodeType = NodeType.FOCUS_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -13992,7 +12350,7 @@ export class FocusEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -14004,7 +12362,24 @@ export class FocusEvent extends Node implements InputEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -14023,295 +12398,7 @@ export class FocusEvent extends Node implements InputEvent {
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node?: Node | NodeReference | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    this.nodePtr = _node;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.FOCUS_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "FocusEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<FocusEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return FocusEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: FocusEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9560;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): FocusEvent {
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new FocusEvent({
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): FocusEvent {
-    return FocusEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): FocusEventProto {
-    return FocusEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: FocusEvent): FocusEventProto {
-    const objectProto: Partial<FocusEventProto> = { metatype: 9560 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    return objectProto as FocusEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: FocusEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): FocusEvent {
-    return new FocusEvent({
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: FocusEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): FocusEvent {
-    return FocusEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): FocusEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = FocusEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -14324,14 +12411,8 @@ registerNodeClass(NodeType.FOCUS_EVENT, FocusEvent);
 /**
  * A FocusInEvent is a FocusEvent when a focus is gained.
  */
-export class FocusInEvent extends Node implements FocusEvent {
+export class FocusInEvent extends FocusEvent {
   static metatype: NodeType = NodeType.FOCUS_IN_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -14358,6 +12439,23 @@ export class FocusInEvent extends Node implements FocusEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -14380,6 +12478,8 @@ export class FocusInEvent extends Node implements FocusEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -14431,13 +12531,9 @@ export class FocusInEvent extends Node implements FocusEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -14445,13 +12541,6 @@ export class FocusInEvent extends Node implements FocusEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -14472,6 +12561,10 @@ export class FocusInEvent extends Node implements FocusEvent {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -14535,6 +12628,10 @@ export class FocusInEvent extends Node implements FocusEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -14548,6 +12645,11 @@ export class FocusInEvent extends Node implements FocusEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): FocusInEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -14564,6 +12666,8 @@ export class FocusInEvent extends Node implements FocusEvent {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new FocusInEvent({
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -14597,6 +12701,10 @@ export class FocusInEvent extends Node implements FocusEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -14611,6 +12719,17 @@ export class FocusInEvent extends Node implements FocusEvent {
     _connection?: any | null,
   ): FocusInEvent {
     return new FocusInEvent({
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(
@@ -14675,14 +12794,8 @@ registerNodeClass(NodeType.FOCUS_IN_EVENT, FocusInEvent);
 /**
  * A FocusOutEvent is a FocusEvent when a focus is lost.
  */
-export class FocusOutEvent extends Node implements FocusEvent {
+export class FocusOutEvent extends FocusEvent {
   static metatype: NodeType = NodeType.FOCUS_OUT_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
 
   /**
    * IsSpatial.parent
@@ -14709,6 +12822,23 @@ export class FocusOutEvent extends Node implements FocusEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -14731,6 +12861,8 @@ export class FocusOutEvent extends Node implements FocusEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -14782,13 +12914,9 @@ export class FocusOutEvent extends Node implements FocusEvent {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -14796,13 +12924,6 @@ export class FocusOutEvent extends Node implements FocusEvent {
           ? options.createdBy instanceof Node
             ? options.createdBy.toRef()
             : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
           : null;
     }
   }
@@ -14823,6 +12944,10 @@ export class FocusOutEvent extends Node implements FocusEvent {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -14886,6 +13011,10 @@ export class FocusOutEvent extends Node implements FocusEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -14899,6 +13028,11 @@ export class FocusOutEvent extends Node implements FocusEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): FocusOutEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -14915,6 +13049,8 @@ export class FocusOutEvent extends Node implements FocusEvent {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new FocusOutEvent({
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -14948,6 +13084,10 @@ export class FocusOutEvent extends Node implements FocusEvent {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -14962,6 +13102,17 @@ export class FocusOutEvent extends Node implements FocusEvent {
     _connection?: any | null,
   ): FocusOutEvent {
     return new FocusOutEvent({
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       node:
         objectProto.nodePtr != undefined
           ? NodeReference.fromProto(

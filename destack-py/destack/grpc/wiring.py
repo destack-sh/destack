@@ -41,8 +41,12 @@ def generate_pack_proto_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[
     """
     Generate BuiltinObject.__pack_proto__ and __unpack_proto__ class methods.
     """
-    pack_proto = textwrap.indent(_generate_pack_proto(cls), "    ")
-    unpack_proto = textwrap.indent(_generate_unpack_proto(cls), "    ")
+    if cls.__is_abstract__:
+        pack_proto = "raise RuntimeError('cannot pack abstract {cls.__name__}')"
+        unpack_proto = "raise RuntimeError('cannot unpack abstract {cls.__name__}')"
+    else:
+        pack_proto = _generate_pack_proto(cls)
+        unpack_proto = _generate_unpack_proto(cls)
 
     if cls.__is_frozen__ and not cls.__is_node__:
         to_proto = """\
@@ -60,7 +64,7 @@ def to_proto(self: "Self") -> "StructProtoT":
     proto_impl = f"""
 @classmethod
 def __pack_proto__(cls, _object: "Self") -> "{cls.__name__}Proto":
-{pack_proto}
+{textwrap.indent(pack_proto, "  ")}
 
 @classmethod
 def __unpack_proto__(cls, 
@@ -70,7 +74,7 @@ def __unpack_proto__(cls,
     _supergraph: "Supergraph | None" = None,
     _connection: "QueryConnection | None" = None,
 ) -> "Self":
-{unpack_proto}
+{textwrap.indent(unpack_proto, "  ")}
 
 {to_proto}
 

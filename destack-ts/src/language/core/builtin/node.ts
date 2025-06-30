@@ -1,20 +1,18 @@
 import {
   ExpressionIn,
-  INTER_ORDER_TRAITS,
+  NODE_CLASS_BY_TYPE,
   NodeTypeMapping,
-  RelationReference,
   SingletonGraph,
-  Spatial,
-  TRAIT_CLASS_BY_TYPE,
   TraitTypeMapping,
 } from "@destack/language";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   BuiltinObject,
+  INTER_ORDER_TYPES,
   IsOrdered,
+  IsSpatial,
+  NodeDefinitionReference,
   NodeType,
-  StructType,
-  TraitClass,
   TraitType,
   activeSession,
 } from "@destack/language/core/builtin";
@@ -25,17 +23,15 @@ import {
   Expression,
   Join,
   JoinType,
+  NodeDefinition,
   PropertyDefinition,
   Query,
   QueryType,
   Sort,
+  TraitDefinition,
 } from "@destack/language/core/common";
-import { registerNodeClass } from "@destack/language/registry";
-import { NodeProto } from "@destack/proto";
-import { base64Decode, getOrderKey } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { getOrderKey } from "@destack/utils";
 import { Casing, toCasing } from "@destack/utils/string";
-import { Temporal } from "temporal-polyfill";
 import { v4 as uuid4 } from "uuid";
 import { BuiltinObjectClass } from "./object";
 
@@ -48,12 +44,7 @@ export type NodeFilter = {
 export abstract class Node extends BuiltinObject {
   static readonly __isNode__: boolean = true;
   static readonly metatype: NodeType;
-  static readonly __traits__: TraitType[];
-  static readonly __rootType__: NodeType | null;
-  static readonly __parentTypes__: NodeType[];
-  static readonly __childTypes__: NodeType[];
-  static readonly __ancestorTypes__: NodeType[];
-  static readonly __descendantTypes__: NodeType[];
+  static readonly __definition__: NodeDefinition;
 
   readonly id: string;
   get parent(): Node | null {
@@ -108,28 +99,40 @@ export abstract class Node extends BuiltinObject {
     return (this.constructor as typeof Node).metatype;
   }
 
+  get __definition__(): NodeDefinition {
+    return (this.constructor as typeof Node).__definition__;
+  }
+
   get __traits__(): TraitType[] {
-    return (this.constructor as typeof Node).__traits__;
+    return (this.constructor as typeof Node).__definition__.traits;
+  }
+
+  get __extends__(): NodeType[] {
+    return (this.constructor as typeof Node).__definition__.extends;
+  }
+
+  get __extendedBy__(): NodeType[] {
+    return (this.constructor as typeof Node).__definition__.extendedBy;
   }
 
   get __rootType__(): NodeType | null {
-    return (this.constructor as typeof Node).__rootType__;
+    return (this.constructor as typeof Node).__definition__.rootType;
   }
 
   get __parentTypes__(): NodeType[] {
-    return (this.constructor as typeof Node).__parentTypes__;
+    return (this.constructor as typeof Node).__definition__.parentTypes;
   }
 
   get __childTypes__(): NodeType[] {
-    return (this.constructor as typeof Node).__childTypes__;
+    return (this.constructor as typeof Node).__definition__.childTypes;
   }
 
   get __ancestorTypes__(): NodeType[] {
-    return (this.constructor as typeof Node).__ancestorTypes__;
+    return (this.constructor as typeof Node).__definition__.ancestorTypes;
   }
 
   get __descendantTypes__(): NodeType[] {
-    return (this.constructor as typeof Node).__descendantTypes__;
+    return (this.constructor as typeof Node).__definition__.descendantTypes;
   }
 
   get _pathKey(): string {
@@ -166,7 +169,7 @@ export abstract class Node extends BuiltinObject {
     const session = this._session;
     const nodes: Node[] = [child, ...child._graph.getDescendants(child)];
 
-    // validate parent-child relationship
+    // validate parent-child definitionship
     if (!child.__parentTypes__.includes(this.metatype)) {
       throw new Error(`${this} cannot parent ${child} (allowed: ${child.__parentTypes__})`);
     }
@@ -179,9 +182,9 @@ export abstract class Node extends BuiltinObject {
 
     // assign order
     if (hasTrait(child, TraitType.ORDERED)) {
-      const orderTrait = child.__traits__.find((trait) => trait in INTER_ORDER_TRAITS);
-      const peerClass = orderTrait
-        ? TRAIT_CLASS_BY_TYPE[orderTrait]
+      const orderType = child.__extends__.find((type) => type in INTER_ORDER_TYPES);
+      const peerClass = orderType
+        ? NODE_CLASS_BY_TYPE[orderType]
         : (child.constructor as NodeClass);
       const existingNodes = this._graph.getChildren(this, peerClass) as (Node & IsOrdered)[];
       if (existingNodes.length > 0) {
@@ -219,9 +222,9 @@ export abstract class Node extends BuiltinObject {
       let spacePtr: NodeReference | null = null;
       if (
         hasTrait(this, TraitType.SPATIAL) &&
-        (this as unknown as Node & Spatial).spacePtr != null
+        (this as unknown as Node & IsSpatial).spacePtr != null
       ) {
-        spacePtr = (this as unknown as Node & Spatial).spacePtr;
+        spacePtr = (this as unknown as Node & IsSpatial).spacePtr;
       } else if (this.metatype === NodeType.SPACE) {
         spacePtr = this.toRef();
       }
@@ -325,7 +328,7 @@ export abstract class Node extends BuiltinObject {
     const { where, name, join, ...subqueries } = options;
     const query = new Query({
       type: QueryType.NODE,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -350,7 +353,7 @@ export abstract class Node extends BuiltinObject {
     const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_NODE : QueryType.NODE,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -375,7 +378,7 @@ export abstract class Node extends BuiltinObject {
     const { where, name, join, ...subqueries } = options;
     const query = new Query({
       type: QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -399,7 +402,7 @@ export abstract class Node extends BuiltinObject {
     const { where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -427,7 +430,7 @@ export abstract class Node extends BuiltinObject {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -455,7 +458,7 @@ export abstract class Node extends BuiltinObject {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -483,7 +486,7 @@ export abstract class Node extends BuiltinObject {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -498,29 +501,24 @@ export abstract class Node extends BuiltinObject {
 }
 
 /** A Node class. */
-export type NodeClass<N extends Node = Node> = { new (...args: any[]): N } & BuiltinObjectClass<
-  any,
-  any
-> & {
+type NodeConstructor<N extends Node = Node> = new (...args: any[]) => N;
+type AbstractNodeConstructor<N extends Node = Node> = abstract new (...args: any[]) => N;
+export type NodeClass<N extends Node = Node> = (NodeConstructor<N> | AbstractNodeConstructor<N>) &
+  (BuiltinObjectClass<any, any> & {
     metatype: NodeType;
-    __traits__: TraitType[];
-    __rootType__: NodeType | null;
-    __parentTypes__: NodeType[];
-    __childTypes__: NodeType[];
-    __ancestorTypes__: NodeType[];
-    __descendantTypes__: NodeType[];
-  };
+    __definition__: NodeDefinition;
+  });
 
 /** Internal base class for Trait companion objects.*/
 export class TraitClass<N = any, T extends TraitType = TraitType> {
   readonly metatype: T;
-  readonly __traits__: TraitType[];
-  readonly __properties__: Record<string, PropertyDefinition>;
-  readonly __propertiesById__: Record<number, PropertyDefinition>;
+  __definition__: TraitDefinition;
+  __properties__: Record<string, PropertyDefinition>;
+  __propertiesById__: Record<number, PropertyDefinition>;
 
   constructor(metatype: any) {
     this.metatype = metatype;
-    this.__traits__ = [];
+    this.__definition__ = null as any; // set later;
     this.__properties__ = {};
     this.__propertiesById__ = {};
   }
@@ -545,7 +543,7 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
     const { where, name, join, ...subqueries } = options;
     const query = new Query({
       type: QueryType.NODE,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -570,7 +568,7 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
     const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_NODE : QueryType.NODE,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -595,7 +593,7 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
     const { where, name, join, ...subqueries } = options;
     const query = new Query({
       type: QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -619,7 +617,7 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
     const { where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -647,7 +645,7 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -675,7 +673,7 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -703,7 +701,7 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
+      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -753,245 +751,3 @@ export function toSubqueries(subqueries: WithSubqueries<Record<string, any>>): Q
   }
   return queries;
 }
-
-/* ==== DESTACK_GENERATED_START:NODE:51000 ==== */
-/**
- * A Node with Properties and a persistent identity.
- */
-export class Node extends Node {
-  static metatype: NodeType = NodeType.NODE;
-  static __traits__: TraitType[] = [];
-  static __rootType__: NodeType | null = null;
-  static __parentTypes__: NodeType[] = [];
-  static __childTypes__: NodeType[] = [NodeType.ENTITY];
-  static __ancestorTypes__: NodeType[] = [];
-  static __descendantTypes__: NodeType[] = [NodeType.ENTITY];
-
-  /**
-   * Node.parent
-   */
-  get parent(): Node | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  constructor(options: {
-    id?: string;
-    parent?: Node | NodeReference | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      true,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.NODE,
-      id: this.id,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "Node[id={this.id}]";
-  }
-
-  get path(): string {
-    return "Node[id={this.id}]";
-  }
-
-  repr(): string {
-    return `<Node '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return Node.__packValue__(this);
-  }
-
-  static __packValue__(object: Node): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 51000;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Node {
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new Node({
-      id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Node {
-    return Node.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): NodeProto {
-    return Node.__packProto__(this);
-  }
-
-  static __packProto__(object: Node): NodeProto {
-    const objectProto: Partial<NodeProto> = { metatype: 51000 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    return objectProto as NodeProto;
-  }
-
-  static __unpackProto__(
-    objectProto: NodeProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Node {
-    return new Node({
-      id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: NodeProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Node {
-    return Node.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Node {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = NodeProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.NODE, Node);
-/* ==== DESTACK_GENERATED_END:NODE:51000 ==== */

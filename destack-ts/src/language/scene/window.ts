@@ -12,7 +12,6 @@ import {
   Node,
   NodeType,
   StructType,
-  TraitType,
 } from "@destack/language/core/builtin";
 import { Entity } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
@@ -43,77 +42,10 @@ registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
  * A Window for someone to interact with a Space via Scenes.
  */
 export class Window
-  extends Node
-  implements IsSpatial, HasName, IsOwnable, IsOrdered, IsDeletable, Entity
+  extends Entity
+  implements IsSpatial, HasName, IsOwnable, IsOrdered, IsDeletable
 {
   static metatype: NodeType = NodeType.WINDOW;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.OWNABLE,
-    TraitType.DELETABLE,
-    TraitType.ORDERED,
-  ];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [
-    NodeType.VIEW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.CONTENT_VIEW,
-    NodeType.TEXT_VIEW,
-    NodeType.INPUT_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.INTERNAL_VIEW,
-    NodeType.SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.CANVAS,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.SCENE,
-  ];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [
-    NodeType.STYLE,
-    NodeType.SHAPE,
-    NodeType.VIEW,
-    NodeType.CONTAINER_VIEW,
-    NodeType.COLOR_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.EFFECT_STYLE,
-    NodeType.STROKE_STYLE,
-    NodeType.LINE_SHAPE,
-    NodeType.INPUT_VIEW,
-    NodeType.POLYGON_SHAPE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SCRIPT,
-    NodeType.SCENE,
-    NodeType.ARROW_SHAPE,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.LAYER,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.CONTENT_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_OPTION,
-    NodeType.VARIANT,
-    NodeType.INTERNAL_VIEW,
-    NodeType.TEXT_VIEW,
-    NodeType.TAGGING,
-    NodeType.PALETTE,
-    NodeType.SPLIT_VIEW,
-    NodeType.CANVAS,
-  ];
 
   /**
    * IsSpatial.parent
@@ -140,12 +72,12 @@ export class Window
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -157,12 +89,12 @@ export class Window
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsTracked.updatedAt
+   * Entity.updatedAt
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * IsTracked.updatedBy
+   * Entity.updatedBy
    */
   get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
