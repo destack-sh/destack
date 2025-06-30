@@ -33,7 +33,9 @@ import {
   Type,
 } from "@destack/language/core/common/type";
 import { Value } from "@destack/language/core/common/value";
-import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
+import { QueryConnection } from "@destack/language/core/runtime/connection";
+import { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import { Session } from "@destack/language/core/runtime/session";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";

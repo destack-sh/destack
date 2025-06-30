@@ -14,7 +14,8 @@ import { Node, NodeClass } from "@destack/language/core/builtin/node";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import { CustomProperty } from "@destack/language/core/common/property";
 import { CustomStructDefinition } from "@destack/language/core/common/struct";
-import { Session, Supergraph } from "@destack/language/core/runtime";
+import { Supergraph } from "@destack/language/core/runtime/graph";
+import { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   NodeDefinitionReferenceProto,

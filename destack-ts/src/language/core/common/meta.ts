@@ -27,7 +27,8 @@ import {
   Type,
 } from "@destack/language/core/common/type";
 import { Value } from "@destack/language/core/common/value";
-import { Session, Supergraph } from "@destack/language/core/runtime";
+import { Supergraph } from "@destack/language/core/runtime/graph";
+import { Session } from "@destack/language/core/runtime/session";
 import { registerStructClass } from "@destack/language/registry";
 import {
   CascadeActionProto,

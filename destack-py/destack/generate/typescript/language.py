@@ -1543,12 +1543,14 @@ def _generate_file(
     # add imports to the top (will be auto-merged by linter)
     language_imports_by_module: dict[str, set[str]] = defaultdict(set)
     core_imports_by_module: dict[str, set[str]] = defaultdict(set)
-    core_imports_by_module["core/runtime"] = {
+    core_imports_by_module["core/runtime/graph"] = {
         "Graph",
         "Supergraph",
-        "Session",
-        "QueryConnection",
     }
+    core_imports_by_module["core/runtime/session"] = {
+        "Session",
+    }
+    core_imports_by_module["core/runtime/connection"] = {"QueryConnection"}
     core_imports_by_module["core/builtin/relation"] = {
         "NodeReference",
     }
@@ -1890,5 +1892,5 @@ finalize();
     )
     root_index_path.write_text(root_index_content)
 
-    # format it all # nocheckin
+    # format it all
     subprocess.run("cd destack-ts && bun run format-language", shell=True, check=True)

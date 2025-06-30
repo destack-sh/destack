@@ -6,7 +6,8 @@ import { StructFrozen } from "@destack/language/core/builtin/struct";
 import { IsSubject } from "@destack/language/core/builtin/trait";
 import { CustomProperty } from "@destack/language/core/common/property";
 import { Value } from "@destack/language/core/common/value";
-import { Session, Supergraph } from "@destack/language/core/runtime";
+import { Supergraph } from "@destack/language/core/runtime/graph";
+import { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Origin } from "@destack/language/space";
 import {

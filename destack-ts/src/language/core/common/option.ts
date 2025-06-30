@@ -15,7 +15,9 @@ import {
 import { Icon } from "@destack/language/core/common/icon";
 import { CustomProperty } from "@destack/language/core/common/property";
 import { CustomStructDefinition } from "@destack/language/core/common/struct";
-import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
+import { QueryConnection } from "@destack/language/core/runtime/connection";
+import { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import { Session } from "@destack/language/core/runtime/session";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";

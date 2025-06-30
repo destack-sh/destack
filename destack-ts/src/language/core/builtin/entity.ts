@@ -15,7 +15,9 @@ import {
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
 import { Value } from "@destack/language/core/common/value";
-import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
+import { QueryConnection } from "@destack/language/core/runtime/connection";
+import { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import { Session } from "@destack/language/core/runtime/session";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
