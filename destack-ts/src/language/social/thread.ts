@@ -1,8 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import {
-  Entity,
-  EnumType,
-  Graph,
+import type {
   HasName,
   IsDeletable,
   IsJoinable,
@@ -11,17 +8,22 @@ import {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
+import {
+  Entity,
+  EnumType,
+  Graph,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
-  Session,
   StructType,
-  Supergraph,
 } from "@destack/language/core";
-import { Folder } from "@destack/language/folder";
+import type { Folder } from "@destack/language/folder";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import { ThreadProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

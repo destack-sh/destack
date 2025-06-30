@@ -4,21 +4,18 @@ import {
   unpackProtoJson,
   unpackProtoTimestamp,
 } from "@destack/grpc";
+import type { IsSubject, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
   Event,
   Graph,
-  IsSubject,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
-  Session,
   StructType,
-  Supergraph,
 } from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import { LogEventProto, LogLevelProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

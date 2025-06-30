@@ -1,5 +1,14 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Canvas } from "@destack/language/canvas";
+import type { Canvas } from "@destack/language/canvas";
+import type {
+  HasIcon,
+  IsOwnable,
+  IsOwner,
+  IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
 import {
   Align,
   Axis2,
@@ -12,28 +21,21 @@ import {
   Graph,
   Grid,
   GridSpan,
-  HasIcon,
   Icon,
   Insets,
-  IsOwnable,
-  IsOwner,
-  IsSubject,
   Layout,
   Node,
   NodeReference,
   NodeType,
   Position,
-  QueryConnection,
-  Session,
   StructType,
-  Supergraph,
   Value,
   Vector2,
 } from "@destack/language/core";
-import { Script } from "@destack/language/logic";
+import type { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import { Scene } from "@destack/language/scene";
-import { Space } from "@destack/language/space";
+import type { Scene } from "@destack/language/scene";
+import type { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import {

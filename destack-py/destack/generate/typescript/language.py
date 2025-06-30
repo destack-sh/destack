@@ -1196,10 +1196,11 @@ export const {definition.name} = {generate_value(definition.value.type, definiti
 
 
 def _get_type_dependencies(
-    type: Type | TypeDeclaration | PropertyDeclaration | PropertyDefinition,
-) -> dict[str, Definition]:
+    type: Type | TypeDeclaration | PropertyDeclaration | PropertyDefinition, is_abstract: bool
+) -> tuple[dict[str, Definition], set[str]]:
     """Get the dependencies of a type."""
     dependencies: dict[str, Definition] = {}
+    value_dependencies: set[str] = set()
     if type.scalar_type == ScalarType.NODE_REFERENCE:
         if isinstance(type, (TypeDeclaration, PropertyDeclaration)):
             for node_type in type.node_types or ():
@@ -1219,16 +1220,30 @@ def _get_type_dependencies(
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
         dependencies[struct_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[type.struct_type]
+        if not is_abstract:
+            value_dependencies.add(struct_cls.__name__)
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum_type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
         dependencies[enum_cls.__name__] = ENUM_DEFINITION_BY_TYPE[type.enum_type]
-    return dependencies
+        if not is_abstract:
+            value_dependencies.add(enum_cls.__name__)
+    return dependencies, value_dependencies
 
 
-def _get_builtin_object_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Definition]:
+def _get_value_dependencies(
+    value: Value, is_abstract: bool
+) -> tuple[dict[str, Definition], set[str]]:
+    """Get the dependencies of a value."""
+    return _get_type_dependencies(value.type, is_abstract)
+
+
+def _get_builtin_object_dependencies(
+    cls: type[BuiltinObjectBase], is_abstract: bool
+) -> tuple[dict[str, Definition], set[str]]:
     """Get the dependencies of a definition."""
     dependencies: dict[str, Definition] = {}
+    value_dependencies: set[str] = set()
 
     # base classes
     if issubclass(cls, (Trait, NodeBase)):
@@ -1244,19 +1259,19 @@ def _get_builtin_object_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, 
                     dependencies[super_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[super_type]
                 elif isinstance(super_type, NodeType):
                     dependencies[super_cls.__name__] = NODE_DEFINITION_BY_TYPE[super_type]
+                    value_dependencies.add(super_cls.__name__)
                 else:
                     assert_never(super_type)
 
     # properties
     for prop in _get_properties(cls):
-        dependencies.update(_get_type_dependencies(prop))
+        prop_dependencies, prop_value_dependencies = _get_type_dependencies(
+            prop, is_abstract=is_abstract
+        )
+        dependencies.update(prop_dependencies)
+        value_dependencies.update(prop_value_dependencies)
 
-    return dependencies
-
-
-def _get_value_dependencies(value: Value) -> dict[str, Definition]:
-    """Get the dependencies of a value."""
-    return _get_type_dependencies(value.type)
+    return dependencies, value_dependencies
 
 
 def _generate_definition(definition: Definition) -> TypescriptDefinition:
@@ -1268,7 +1283,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = cls.__module__
         definition_str = _generate_enum(definition)
         name = definition.name
-        dependencies = EMPTY_DICT
+        dependencies, value_dependencies = EMPTY_DICT, set()
     elif isinstance(definition, StructDefinition):
         kind = "STRUCT"
         cls = STRUCT_CLASS_BY_TYPE[definition.type]
@@ -1276,7 +1291,9 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = cls.__module__
         definition_str = _generate_struct(definition)
         name = definition.name
-        dependencies = _get_builtin_object_dependencies(cast(type[BuiltinObjectBase], cls))
+        dependencies, value_dependencies = _get_builtin_object_dependencies(
+            cast(type[BuiltinObjectBase], cls), is_abstract=False
+        )
     elif isinstance(definition, TraitDefinition):
         kind = "TRAIT"
         cls = TRAIT_CLASS_BY_TYPE[definition.type]
@@ -1284,7 +1301,9 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = cls.__module__
         definition_str = _generate_trait(definition)
         name = definition.alias
-        dependencies = _get_builtin_object_dependencies(cast(type[BuiltinObjectBase], cls))
+        dependencies, value_dependencies = _get_builtin_object_dependencies(
+            cast(type[BuiltinObjectBase], cls), is_abstract=True
+        )
     elif isinstance(definition, NodeDefinition):
         kind = "NODE"
         cls = NODE_CLASS_BY_TYPE[definition.type]
@@ -1292,7 +1311,9 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = cls.__module__
         definition_str = _generate_node(definition)
         name = definition.name
-        dependencies = _get_builtin_object_dependencies(cast(type[BuiltinObjectBase], cls))
+        dependencies, value_dependencies = _get_builtin_object_dependencies(
+            cast(type[BuiltinObjectBase], cls), is_abstract=cls.__is_abstract__
+        )
     elif isinstance(definition, ConstantDefinition):
         kind = "CONSTANT"
         alias = definition.name
@@ -1300,7 +1321,9 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = definition._declaration.module
         definition_str = _generate_constant(definition)
         name = definition.name
-        dependencies = _get_value_dependencies(definition.value)
+        dependencies, value_dependencies = _get_value_dependencies(
+            definition.value, is_abstract=False
+        )
     else:
         assert_never(definition)
 
@@ -1318,6 +1341,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         definition=definition,
         definition_str=definition_str,
         dependencies=dependencies,
+        value_dependencies=value_dependencies,
     )
     return source_definition
 
@@ -1542,29 +1566,27 @@ def _generate_file(
 
     # add imports to the top (will be auto-merged by linter)
     language_imports_by_module: dict[str, set[str]] = defaultdict(set)
+    value_dependencies: set[str] = set()
     core_imports_by_module: dict[str, set[str]] = defaultdict(set)
-    core_imports_by_module["core/runtime/graph"] = {
-        "Graph",
-        "Supergraph",
-    }
-    core_imports_by_module["core/runtime/session"] = {
-        "Session",
-    }
+    core_imports_by_module["core/runtime/graph"] = {"Graph", "Supergraph"}
+    value_dependencies.add("Graph")
+    core_imports_by_module["core/runtime/session"] = {"Session"}
     core_imports_by_module["core/runtime/connection"] = {"QueryConnection"}
-    core_imports_by_module["core/builtin/relation"] = {
-        "NodeReference",
-    }
+    core_imports_by_module["core/builtin/relation"] = {"NodeReference"}
+    value_dependencies.add("NodeReference")
     core_imports_by_module["core/builtin/common"] = {
         "NodeType",
         "TraitType",
         "StructType",
         "EnumType",
     }
+    value_dependencies.update(core_imports_by_module["core/builtin/common"])
     core_imports_by_module["core/builtin/event"] = {
         "Event",
         "CustomEventDefinition",
         "CustomEvent",
     }
+    value_dependencies.add("Event")
     core_imports_by_module["core/builtin/entity"] = {
         "Entity",
         "Resource",
@@ -1573,14 +1595,19 @@ def _generate_file(
         "CustomEntity",
         "CustomTraitDefinition",
     }
+    value_dependencies.update(("Entity", "Resource", "Metric"))
     core_imports_by_module["core/builtin/const"] = {
         "ACTIVE_SESSION",
         "activeSession",
     }
+    value_dependencies.update(("ACTIVE_SESSION", "activeSession"))
     core_imports_by_module["core/builtin/node"] = {"Node", "NodeClass"}
-    core_imports_by_module["core/builtin/trait"] = {"TraitClass"}
+    value_dependencies.add("Node")
+    core_imports_by_module["core/builtin/trait_class"] = {"TraitClass"}
     core_imports_by_module["core/builtin/object"] = {"BuiltinObject"}
+    value_dependencies.add("BuiltinObject")
     core_imports_by_module["core/builtin/struct"] = {"Struct", "StructFrozen"}
+    value_dependencies.update(("Struct", "StructFrozen"))
     # if we're in core, make core imports granular, otherwise just combine it all
     if file.module.startswith("destack.language.core"):
         language_imports_by_module.update(core_imports_by_module)
@@ -1593,6 +1620,7 @@ def _generate_file(
         "registerEnumClass",
         "registerTraitClass",
     }
+    value_dependencies.update(language_imports_by_module["registry"])
     seen_language_imports: set[str] = {*language_imports_by_module["core"]}
     # add any new language imports
     for definition in file.definitions.values():
@@ -1601,14 +1629,19 @@ def _generate_file(
                 if dependency_name in BUILTIN_NAMES:
                     continue  # manually defined (above)
                 raise RuntimeError(f"missing dependency: {dependency_name}")
-            definition = definitions_by_name[dependency_name]
-            language_imports_by_module[definition.submodule].add(definition.alias)
-            seen_language_imports.add(definition.alias)
+            dependency_definition = definitions_by_name[dependency_name]
+            language_imports_by_module[dependency_definition.submodule].add(
+                dependency_definition.alias
+            )
+            seen_language_imports.add(dependency_definition.alias)
+            value_dependencies.update(definition.value_dependencies)
     # add any previous language imports
     for import_ in import_block.imports:
         if not import_.path.startswith("@destack/language"):
             continue  # leave be
         for name in import_.names:
+            if not import_.is_type and name not in value_dependencies:
+                value_dependencies.add(name)
             if name in seen_language_imports:
                 continue
             seen_language_imports.add(name)
@@ -1623,13 +1656,22 @@ def _generate_file(
     # generate import statements
     import_parts: list[str] = []
     for module, imports in language_imports_by_module.items():
-        if imports:
-            if module.startswith("core") and not file.module.startswith("destack.language.core"):
-                module = "core"  # simplify imports from outside core to just "core"
-            import_path = (
-                f"@destack/language/{module.replace('.', '/')}" if module else "@destack/language"
+        if not imports:
+            continue
+        if module.startswith("core") and not file.module.startswith("destack.language.core"):
+            module = "core"  # simplify imports from outside core to just "core"
+        import_path = (
+            f"@destack/language/{module.replace('.', '/')}" if module else "@destack/language"
+        )
+        # split into type and non-type imports
+        type_imports = sorted(imports - value_dependencies)
+        value_imports = sorted(imports & value_dependencies)
+        if type_imports:
+            import_parts.append(
+                f"import type {{ {', '.join(type_imports)} }} from '{import_path}';"
             )
-            import_parts.append(f"import {{ {', '.join(sorted(imports))} }} from '{import_path}';")
+        if value_imports:
+            import_parts.append(f"import {{ {', '.join(value_imports)} }} from '{import_path}';")
     # add proto imports for all definitions and dependencies
     proto_names = {
         f"{definition.alias}Proto"

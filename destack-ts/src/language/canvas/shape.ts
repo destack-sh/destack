@@ -1,3 +1,4 @@
+import type { IsSubject } from "@destack/language/core";
 import {
   Align,
   Axis2,
@@ -9,7 +10,6 @@ import {
   Grid,
   GridSpan,
   Insets,
-  IsSubject,
   Layout,
   Node,
   NodeReference,
@@ -18,11 +18,11 @@ import {
   Value,
   Vector2,
 } from "@destack/language/core";
-import { Folder } from "@destack/language/folder";
-import { Script } from "@destack/language/logic";
+import type { Folder } from "@destack/language/folder";
+import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import { Layer, Scene, Window } from "@destack/language/scene";
-import { Space } from "@destack/language/space";
+import type { Layer, Scene, Window } from "@destack/language/scene";
+import type { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import { Temporal } from "temporal-polyfill";

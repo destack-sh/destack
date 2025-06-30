@@ -1,7 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import {
-  Entity,
-  Graph,
+import type {
   HasName,
   IsDeletable,
   IsOrdered,
@@ -10,18 +8,15 @@ import {
   IsSpatial,
   IsSubject,
   IsTaggable,
-  Node,
-  NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
 } from "@destack/language/core";
-import { Folder } from "@destack/language/folder";
+import { Entity, Graph, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
+import type { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
-import { Scene } from "@destack/language/scene";
-import { Space } from "@destack/language/space";
+import type { Scene } from "@destack/language/scene";
+import type { Space } from "@destack/language/space";
 import { RouteProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

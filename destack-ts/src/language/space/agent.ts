@@ -1,29 +1,31 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import {
-  Entity,
-  Graph,
+import type {
   HasIcon,
   HasName,
   HasSlug,
-  Icon,
   IsDeletable,
   IsFollowable,
   IsOwner,
   IsScriptable,
   IsSpatial,
   IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
+import {
+  Entity,
+  Graph,
+  Icon,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
-  Session,
   StructType,
-  Supergraph,
 } from "@destack/language/core";
-import { Folder } from "@destack/language/folder";
-import { Cursor, Script } from "@destack/language/logic";
+import type { Folder } from "@destack/language/folder";
+import type { Cursor, Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import { AgentProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

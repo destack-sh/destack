@@ -1,7 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import {
-  Entity,
-  Graph,
+import type {
   IsDeletable,
   IsOwnable,
   IsOwner,
@@ -9,18 +7,22 @@ import {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
+import {
+  Entity,
+  Graph,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
-  Session,
   StructType,
-  Supergraph,
   Text,
 } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import { Thread } from "@destack/language/social";
-import { Space } from "@destack/language/space";
+import type { Thread } from "@destack/language/social";
+import type { Space } from "@destack/language/space";
 import { MessageProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

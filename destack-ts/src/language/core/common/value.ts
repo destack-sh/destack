@@ -12,8 +12,8 @@ import { BuiltinObject } from "@destack/language/core/builtin/object";
 import { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import { Type } from "@destack/language/core/common/type";
-import { Supergraph } from "@destack/language/core/runtime/graph";
-import { Session } from "@destack/language/core/runtime/session";
+import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
 import { registerStructClass } from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
 import {

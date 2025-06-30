@@ -3,16 +3,22 @@ import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Entity, Metric } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
 import { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
-import { HasName, IsSourceable, IsSpatial, IsSubject } from "@destack/language/core/builtin/trait";
+import type {
+  HasName,
+  IsSourceable,
+  IsSpatial,
+  IsSubject,
+} from "@destack/language/core/builtin/trait";
 import { EditOperation, EditType } from "@destack/language/core/common/edit";
-import { CustomProperty } from "@destack/language/core/common/property";
+import type { CustomProperty } from "@destack/language/core/common/property";
 import { Value } from "@destack/language/core/common/value";
-import { QueryConnection } from "@destack/language/core/runtime/connection";
-import { Graph, Supergraph } from "@destack/language/core/runtime/graph";
-import { Session } from "@destack/language/core/runtime/session";
-import { Script } from "@destack/language/logic";
+import type { QueryConnection } from "@destack/language/core/runtime/connection";
+import type { Supergraph } from "@destack/language/core/runtime/graph";
+import { Graph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
+import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import {
   CustomEventDefinitionProto,
   EditEventProto,

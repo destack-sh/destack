@@ -1,8 +1,9 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { NodeType, ResourceStatus, StructType } from "@destack/language/core/builtin/common";
+import type { ResourceStatus } from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
 import { NodeDefinitionReference, NodeReference } from "@destack/language/core/builtin/relation";
-import {
+import type {
   HasName,
   IsDeletable,
   IsExtensible,
@@ -15,13 +16,14 @@ import {
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
 import { Value } from "@destack/language/core/common/value";
-import { QueryConnection } from "@destack/language/core/runtime/connection";
-import { Graph, Supergraph } from "@destack/language/core/runtime/graph";
-import { Session } from "@destack/language/core/runtime/session";
-import { Folder } from "@destack/language/folder";
-import { Script } from "@destack/language/logic";
+import type { QueryConnection } from "@destack/language/core/runtime/connection";
+import type { Supergraph } from "@destack/language/core/runtime/graph";
+import { Graph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
+import type { Folder } from "@destack/language/folder";
+import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import { CustomEntityDefinitionProto, CustomTraitDefinitionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";

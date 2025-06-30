@@ -67,6 +67,7 @@ class TypescriptDefinition:
     definition: Definition
     definition_str: str
     dependencies: Mapping[str, Definition]
+    value_dependencies: set[str]
 
 
 @dataclass(slots=True)

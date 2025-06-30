@@ -3,7 +3,7 @@ import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Entity } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
 import { NodeReference } from "@destack/language/core/builtin/relation";
-import {
+import type {
   HasName,
   HasSlug,
   IsDeletable,
@@ -12,11 +12,12 @@ import {
   IsSpatial,
   IsSubject,
 } from "@destack/language/core/builtin/trait";
-import { QueryConnection } from "@destack/language/core/runtime/connection";
-import { Graph, Supergraph } from "@destack/language/core/runtime/graph";
-import { Session } from "@destack/language/core/runtime/session";
+import type { QueryConnection } from "@destack/language/core/runtime/connection";
+import type { Supergraph } from "@destack/language/core/runtime/graph";
+import { Graph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
 import { registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import { BranchProto, SnapshotProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

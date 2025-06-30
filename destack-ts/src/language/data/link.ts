@@ -1,21 +1,23 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import type {
+  IsSpatial,
+  IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
 import {
   EnumType,
   Graph,
-  IsSpatial,
-  IsSubject,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
   Resource,
   ResourceStatus,
-  Session,
   StructType,
-  Supergraph,
 } from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space";
 import { LinkProto, LinkTypeProto, ResourceStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";

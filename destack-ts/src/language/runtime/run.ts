@@ -4,27 +4,29 @@ import {
   unpackProtoDuration,
   unpackProtoTimestamp,
 } from "@destack/grpc";
+import type {
+  IsExtensible,
+  IsRunnable,
+  IsSpatial,
+  IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
 import {
   Entity,
   EnumType,
   Event,
   Graph,
-  IsExtensible,
-  IsRunnable,
-  IsSpatial,
-  IsSubject,
   Node,
   NodeReference,
   NodeType,
-  QueryConnection,
-  Session,
   StructType,
-  Supergraph,
   Value,
 } from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import { Interruption } from "@destack/language/runtime";
-import { Space } from "@destack/language/space";
+import type { Interruption } from "@destack/language/runtime";
+import type { Space } from "@destack/language/space";
 import {
   RunCompletedEventProto,
   RunFailedEventProto,
