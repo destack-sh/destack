@@ -307,7 +307,7 @@ export class Snapshot
       propertyReprs.push(`slug=${this.slug}`);
     }
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<Snapshot '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -857,7 +857,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
       propertyReprs.push(`slug=${this.slug}`);
     }
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<Branch '${this.path}' ${propertyReprs.join(" ")}>`;
   }

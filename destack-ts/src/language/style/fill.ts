@@ -189,7 +189,7 @@ export class Fill extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${FillType[this.type]}`);
       if (this.style !== null) {
-        propertyReprs.push(`style=${this.style.repr()}`);
+        propertyReprs.push(`style=${this.style?.repr()}`);
       }
       if (this.color !== null) {
         propertyReprs.push(`color=${this.color.repr()}`);
@@ -198,7 +198,7 @@ export class Fill extends StructFrozen {
         propertyReprs.push(`gradient=${this.gradient.repr()}`);
       }
       if (this.image !== null) {
-        propertyReprs.push(`image=${this.image.repr()}`);
+        propertyReprs.push(`image=${this.image?.repr()}`);
       }
       if (this.position !== null) {
         propertyReprs.push(`position=${FillPosition[this.position]}`);
@@ -855,7 +855,7 @@ export class FillStyle extends Style {
       propertyReprs.push(`gradient=${this.gradient.repr()}`);
     }
     if (this.image !== null) {
-      propertyReprs.push(`image=${this.image.repr()}`);
+      propertyReprs.push(`image=${this.image?.repr()}`);
     }
     if (this.position !== null) {
       propertyReprs.push(`position=${FillPosition[this.position]}`);

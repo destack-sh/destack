@@ -1,4 +1,4 @@
-import { Change, ChangeResult, Query, QueryResult, Store } from "@destack/language";
+import { Change, ChangeResult, Query, QueryResult, QueryUpdate, Store } from "@destack/language";
 
 export class MemoryStore implements Store {
   repr(): string {
@@ -10,6 +10,10 @@ export class MemoryStore implements Store {
   }
   
   commit(changes: Change[]): Promise<ChangeResult[]> {
+    throw new Error("Method not implemented.");
+  }
+
+  subscribe(query: Query): AsyncIterator<QueryUpdate, any, any> {
     throw new Error("Method not implemented.");
   }
 }

@@ -1959,7 +1959,7 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   repr(): string {
     const propertyReprs: string[] = [];
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     if (propertyReprs.length > 0) {
       return `<Invite '${this.path}' ${propertyReprs.join(" ")}>`;

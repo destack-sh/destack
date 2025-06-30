@@ -292,12 +292,12 @@ export class Edit extends StructFrozen {
       if (this.operation !== null) {
         propertyReprs.push(`operation=${EditOperation[this.operation]}`);
       }
-      propertyReprs.push(`node=${this.node.repr()}`);
+      propertyReprs.push(`node=${this.node?.repr()}`);
       if (this.propPtr !== null) {
         propertyReprs.push(`propPtr=${this.propPtr.repr()}`);
       }
       if (this.field !== null) {
-        propertyReprs.push(`field=${this.field.repr()}`);
+        propertyReprs.push(`field=${this.field?.repr()}`);
       }
       if (this.key !== null) {
         propertyReprs.push(`key=${this.key.repr()}`);
@@ -720,7 +720,7 @@ export class Change extends StructFrozen {
       }
       propertyReprs.push(`createdAt=${this.createdAt.toString({ timeZoneName: "never" })}`);
       if (this.createdBy !== null) {
-        propertyReprs.push(`createdBy=${this.createdBy.repr()}`);
+        propertyReprs.push(`createdBy=${this.createdBy?.repr()}`);
       }
       if (this.origin !== null) {
         propertyReprs.push(`origin=${this.origin.repr()}`);

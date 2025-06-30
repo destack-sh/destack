@@ -146,7 +146,7 @@ export class Border extends StructFrozen {
         propertyReprs.push(`width=${this.width.repr()}`);
       }
       if (this.style !== null) {
-        propertyReprs.push(`style=${this.style.repr()}`);
+        propertyReprs.push(`style=${this.style?.repr()}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<Border ${propertyReprs.join(" ")}>`;
@@ -683,7 +683,7 @@ export class BorderStyle extends Style {
       propertyReprs.push(`width=${this.width.repr()}`);
     }
     if (this.style !== null) {
-      propertyReprs.push(`style=${this.style.repr()}`);
+      propertyReprs.push(`style=${this.style?.repr()}`);
     }
     propertyReprs.push(`name=${this.name}`);
     return `<BorderStyle '${this.path}' ${propertyReprs.join(" ")}>`;

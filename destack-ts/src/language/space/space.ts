@@ -478,7 +478,7 @@ export class Space
     propertyReprs.push(`slug=${this.slug}`);
     propertyReprs.push(`status=${SpaceStatus[this.status]}`);
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<Space '${this.path}' ${propertyReprs.join(" ")}>`;
   }

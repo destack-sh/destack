@@ -746,13 +746,13 @@ export class CustomProperty
       propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
     }
     if (this.nodeDefinition !== null) {
-      propertyReprs.push(`nodeDefinition=${this.nodeDefinition.repr()}`);
+      propertyReprs.push(`nodeDefinition=${this.nodeDefinition?.repr()}`);
     }
     if (this.structType !== null) {
       propertyReprs.push(`structType=${StructType[this.structType]}`);
     }
     if (this.baseType !== null) {
-      propertyReprs.push(`baseType=${this.baseType.repr()}`);
+      propertyReprs.push(`baseType=${this.baseType?.repr()}`);
     }
     if (this.keyType !== null) {
       propertyReprs.push(`keyType=${this.keyType.repr()}`);

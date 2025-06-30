@@ -24,6 +24,76 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
+/* ==== DESTACK_GENERATED_START:NODE:3101 ==== */
+/**
+ * A TimerEvent is an Event that corresponds to a Timer.
+ */
+export abstract class TimerEvent extends Event {
+  static metatype: NodeType = NodeType.TIMER_EVENT;
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * TimerEvent.node
+   */
+  get node(): Timer | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Timer | null;
+    }
+    return null;
+  }
+  set node(node: Timer) {
+    this.nodePtr = node.toRef();
+  }
+  declare nodePtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.TIMER_EVENT, TimerEvent);
+/* ==== DESTACK_GENERATED_END:NODE:3101 ==== */
+
 /* ==== DESTACK_GENERATED_START:ENUM:3053 ==== */
 /**
  * TimerType
@@ -1261,76 +1331,6 @@ export class Timer extends Entity implements IsSpatial, HasName {
 }
 registerNodeClass(NodeType.TIMER, Timer);
 /* ==== DESTACK_GENERATED_END:NODE:3100 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:3101 ==== */
-/**
- * A TimerEvent is an Event that corresponds to a Timer.
- */
-export abstract class TimerEvent extends Event {
-  static metatype: NodeType = NodeType.TIMER_EVENT;
-
-  /**
-   * IsSpatial.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly spacePtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * TimerEvent.node
-   */
-  get node(): Timer | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Timer | null;
-    }
-    return null;
-  }
-  set node(node: Timer) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.TIMER_EVENT, TimerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:3101 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3112 ==== */
 /**

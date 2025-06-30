@@ -44,12 +44,12 @@ export enum NotificationStatus {
 registerEnumClass(EnumType.NOTIFICATION_STATUS, NotificationStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:5600 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:5600 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:5601 ==== */
 /**
- * A Notification is a message about something.
+ * A Event regarding a Notification.
  */
-export class Notification extends Entity implements IsSpatial, IsOwnable {
-  static metatype: NodeType = NodeType.NOTIFICATION;
+export abstract class NotificationEvent extends Event {
+  static metatype: NodeType = NodeType.NOTIFICATION_EVENT;
 
   /**
    * IsSpatial.parent
@@ -61,7 +61,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -73,15 +73,15 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * Event.createdAt
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * Event.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -90,481 +90,29 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * NotificationEvent.node
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
+  get node(): Notification | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as Notification | null;
     }
     return null;
   }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
-   * IsOwnable.ownedBy
-   */
-  get ownedBy(): (Node & IsOwner) | null {
-    const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
-    }
-    return null;
+  set node(node: Notification) {
+    this.nodePtr = node.toRef();
   }
-  set ownedBy(node: (Node & IsOwner) | null) {
-    if (node === null) {
-      this.ownedByPtr = null;
-    } else {
-      this.ownedByPtr = node.toRef();
-    }
-  }
-  ownedByPtr: NodeReference | null;
-
-  /**
-   * Notification.status
-   */
-  status: NotificationStatus;
-
-  /**
-   * Notification.title
-   */
-  title: string;
-
-  /**
-   * Notification.text
-   */
-  text: Text | null;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
-    ownedBy?: (Node & IsOwner) | NodeReference | null;
-    status: NotificationStatus;
-    title: string;
-    text?: Text | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy instanceof Node) {
-      _ownedBy = _ownedBy.toRef();
-    }
-    this.ownedByPtr = _ownedBy;
-    let _status = options.status;
-    if (_status === null) {
-      throw new Error(`Notification.status is required`);
-    }
-    this.status = _status;
-    let _title = options.title;
-    if (_title === null) {
-      throw new Error(`Notification.title is required`);
-    }
-    this.title = _title;
-    let _text = options.text ?? null;
-    this.text = _text;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.title === other.title)) {
-      return false;
-    }
-    if (
-      (this.text == null) !== (other.text == null) ||
-      (this.text != null && !this.text.equals(other.text))
-    ) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.status) & 0xffffffff;
-    h = (h * 31 + hashString(this.title)) & 0xffffffff;
-    if (this.text !== null) {
-      h = (h * 31 + this.text.hash()) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.NOTIFICATION,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return this.title;
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    const propertyReprs: string[] = [];
-    if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
-    }
-    if (propertyReprs.length > 0) {
-      return `<Notification '${this.path}' ${propertyReprs.join(" ")}>`;
-    } else {
-      return `<Notification '${this.path}'>`;
-    }
-  }
-
-  toValue(): { [key: string]: any } {
-    return Notification.__packValue__(this);
-  }
-
-  static __packValue__(object: Notification): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 5600;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
-    if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
-    }
-    objectValue["40"] = object.status;
-    objectValue["50"] = object.title;
-    if (object.text != null) {
-      objectValue["51"] = object.text.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Notification {
-    const textValue = objectValue["51"];
-    const unpackedText =
-      textValue != undefined
-        ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByPtrValue = objectValue["25"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new Notification({
-      status: Number(objectValue["40"]),
-      title: objectValue["50"],
-      text: unpackedText,
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      ownedBy: unpackedOwnedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Notification {
-    return Notification.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): NotificationProto {
-    return Notification.__packProto__(this);
-  }
-
-  static __packProto__(object: Notification): NotificationProto {
-    const objectProto: Partial<NotificationProto> = { metatype: 5600 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
-    }
-    objectProto.status = Number(object.status) as NotificationStatusProto;
-    objectProto.title = object.title;
-    if (object.text != null) {
-      objectProto.text = object.text.toProto();
-    }
-    return objectProto as NotificationProto;
-  }
-
-  static __unpackProto__(
-    objectProto: NotificationProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Notification {
-    return new Notification({
-      status: Number(objectProto.status) as NotificationStatus,
-      title: objectProto.title,
-      text:
-        objectProto.text != undefined
-          ? Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: NotificationProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Notification {
-    return Notification.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Notification {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = NotificationProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare nodePtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.NOTIFICATION, Notification);
-/* ==== DESTACK_GENERATED_END:NODE:5600 ==== */
+registerNodeClass(NodeType.NOTIFICATION_EVENT, NotificationEvent);
+/* ==== DESTACK_GENERATED_END:NODE:5601 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5610 ==== */
 /**
@@ -2466,12 +2014,12 @@ export class NotificationExpiredEvent extends NotificationEvent {
 registerNodeClass(NodeType.NOTIFICATION_EXPIRED_EVENT, NotificationExpiredEvent);
 /* ==== DESTACK_GENERATED_END:NODE:5650 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:5601 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:5600 ==== */
 /**
- * A Event regarding a Notification.
+ * A Notification is a message about something.
  */
-export abstract class NotificationEvent extends Event {
-  static metatype: NodeType = NodeType.NOTIFICATION_EVENT;
+export class Notification extends Entity implements IsSpatial, IsOwnable {
+  static metatype: NodeType = NodeType.NOTIFICATION;
 
   /**
    * IsSpatial.parent
@@ -2483,7 +2031,7 @@ export abstract class NotificationEvent extends Event {
     }
     return null;
   }
-  declare readonly parentPtr: NodeReference | null;
+  readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -2495,15 +2043,15 @@ export abstract class NotificationEvent extends Event {
     }
     return null;
   }
-  declare readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * Entity.createdAt
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2512,26 +2060,478 @@ export abstract class NotificationEvent extends Event {
     }
     return null;
   }
-  declare readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference | null;
 
   /**
-   * NotificationEvent.node
+   * Entity.updatedAt
    */
-  get node(): Notification | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * Entity.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Notification | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
-  set node(node: Notification) {
-    this.nodePtr = node.toRef();
+  readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
+    }
+    return null;
   }
-  declare nodePtr: NodeReference;
+  set ownedBy(node: (Node & IsOwner) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  ownedByPtr: NodeReference | null;
+
+  /**
+   * Notification.status
+   */
+  status: NotificationStatus;
+
+  /**
+   * Notification.title
+   */
+  title: string;
+
+  /**
+   * Notification.text
+   */
+  text: Text | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    updatedAt?: Temporal.ZonedDateTime;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
+    status: NotificationStatus;
+    title: string;
+    text?: Text | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy instanceof Node) {
+      _ownedBy = _ownedBy.toRef();
+    }
+    this.ownedByPtr = _ownedBy;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`Notification.status is required`);
+    }
+    this.status = _status;
+    let _title = options.title;
+    if (_title === null) {
+      throw new Error(`Notification.title is required`);
+    }
+    this.title = _title;
+    let _text = options.text ?? null;
+    this.text = _text;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.title === other.title)) {
+      return false;
+    }
+    if (
+      (this.text == null) !== (other.text == null) ||
+      (this.text != null && !this.text.equals(other.text))
+    ) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    h = (h * 31 + hashString(this.title)) & 0xffffffff;
+    if (this.text !== null) {
+      h = (h * 31 + this.text.hash()) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.NOTIFICATION,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return this.title;
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
+    if (propertyReprs.length > 0) {
+      return `<Notification '${this.path}' ${propertyReprs.join(" ")}>`;
+    } else {
+      return `<Notification '${this.path}'>`;
+    }
+  }
+
+  toValue(): { [key: string]: any } {
+    return Notification.__packValue__(this);
+  }
+
+  static __packValue__(object: Notification): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 5600;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.updatedByPtr != null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.ownedByPtr != null) {
+      objectValue["25"] = object.ownedByPtr.toValue();
+    }
+    objectValue["40"] = object.status;
+    objectValue["50"] = object.title;
+    if (object.text != null) {
+      objectValue["51"] = object.text.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Notification {
+    const textValue = objectValue["51"];
+    const unpackedText =
+      textValue != undefined
+        ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByPtrValue = objectValue["25"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Notification({
+      status: Number(objectValue["40"]),
+      title: objectValue["50"],
+      text: unpackedText,
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      ownedBy: unpackedOwnedByPtr,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Notification {
+    return Notification.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): NotificationProto {
+    return Notification.__packProto__(this);
+  }
+
+  static __packProto__(object: Notification): NotificationProto {
+    const objectProto: Partial<NotificationProto> = { metatype: 5600 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.ownedByPtr != null) {
+      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    }
+    objectProto.status = Number(object.status) as NotificationStatusProto;
+    objectProto.title = object.title;
+    if (object.text != null) {
+      objectProto.text = object.text.toProto();
+    }
+    return objectProto as NotificationProto;
+  }
+
+  static __unpackProto__(
+    objectProto: NotificationProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Notification {
+    return new Notification({
+      status: Number(objectProto.status) as NotificationStatus,
+      title: objectProto.title,
+      text:
+        objectProto.text != undefined
+          ? Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: NotificationProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Notification {
+    return Notification.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Notification {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = NotificationProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.NOTIFICATION_EVENT, NotificationEvent);
-/* ==== DESTACK_GENERATED_END:NODE:5601 ==== */
+registerNodeClass(NodeType.NOTIFICATION, Notification);
+/* ==== DESTACK_GENERATED_END:NODE:5600 ==== */

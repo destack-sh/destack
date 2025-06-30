@@ -999,12 +999,12 @@ export class EditEvent extends Event {
     if (this.operation !== null) {
       propertyReprs.push(`operation=${EditOperation[this.operation]}`);
     }
-    propertyReprs.push(`node=${this.node.repr()}`);
+    propertyReprs.push(`node=${this.node?.repr()}`);
     if (this.propPtr !== null) {
       propertyReprs.push(`propPtr=${this.propPtr.repr()}`);
     }
     if (this.field !== null) {
-      propertyReprs.push(`field=${this.field.repr()}`);
+      propertyReprs.push(`field=${this.field?.repr()}`);
     }
     if (this.key !== null) {
       propertyReprs.push(`key=${this.key.repr()}`);

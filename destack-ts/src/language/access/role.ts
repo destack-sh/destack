@@ -29,6 +29,95 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
+/* ==== DESTACK_GENERATED_START:NODE:541 ==== */
+/**
+ * A Event regarding a Role.
+ */
+export abstract class RoleEvent extends Event {
+  static metatype: NodeType = NodeType.ROLE_EVENT;
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The Node this Event is about.
+   */
+  get node(): Node | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
+  }
+  set node(node: Node | null) {
+    if (node === null) {
+      this.nodePtr = null;
+    } else {
+      this.nodePtr = node.toRef();
+    }
+  }
+  declare nodePtr: NodeReference | null;
+
+  /**
+   * RoleEvent.subject
+   */
+  get subject(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.subjectPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  set subject(node: Node & IsSubject) {
+    this.subjectPtr = node.toRef();
+  }
+  declare subjectPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.ROLE_EVENT, RoleEvent);
+/* ==== DESTACK_GENERATED_END:NODE:541 ==== */
+
 /* ==== DESTACK_GENERATED_START:NODE:550 ==== */
 /**
  * A Event regarding a Role.
@@ -1444,92 +1533,3 @@ export class Role
 }
 registerNodeClass(NodeType.ROLE, Role);
 /* ==== DESTACK_GENERATED_END:NODE:540 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:541 ==== */
-/**
- * A Event regarding a Role.
- */
-export abstract class RoleEvent extends Event {
-  static metatype: NodeType = NodeType.ROLE_EVENT;
-
-  /**
-   * IsSpatial.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly spacePtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * The Node this Event is about.
-   */
-  get node(): Node | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
-
-  /**
-   * RoleEvent.subject
-   */
-  get subject(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.subjectPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  set subject(node: Node & IsSubject) {
-    this.subjectPtr = node.toRef();
-  }
-  declare subjectPtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.ROLE_EVENT, RoleEvent);
-/* ==== DESTACK_GENERATED_END:NODE:541 ==== */

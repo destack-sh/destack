@@ -298,7 +298,7 @@ export class Color extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${ColorType[this.type]}`);
       if (this.style !== null) {
-        propertyReprs.push(`style=${this.style.repr()}`);
+        propertyReprs.push(`style=${this.style?.repr()}`);
       }
       if (this.hue !== null) {
         propertyReprs.push(`hue=${ColorHue[this.hue]}`);

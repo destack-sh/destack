@@ -339,7 +339,7 @@ export class Route
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${this.name}`);
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<Route '${this.path}' ${propertyReprs.join(" ")}>`;
   }

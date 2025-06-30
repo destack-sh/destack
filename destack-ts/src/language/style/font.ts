@@ -233,7 +233,7 @@ export class Font extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${FontType[this.type]}`);
       if (this.style !== null) {
-        propertyReprs.push(`style=${this.style.repr()}`);
+        propertyReprs.push(`style=${this.style?.repr()}`);
       }
       if (this.weight !== null) {
         propertyReprs.push(`weight=${FontWeight[this.weight]}`);

@@ -40,6 +40,91 @@ export enum SanctionType {
 registerEnumClass(EnumType.SANCTION_TYPE, SanctionType);
 /* ==== DESTACK_GENERATED_END:ENUM:540 ==== */
 
+/* ==== DESTACK_GENERATED_START:NODE:581 ==== */
+/**
+ * SanctionEvent
+ */
+export abstract class SanctionEvent extends Event {
+  static metatype: NodeType = NodeType.SANCTION_EVENT;
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * SanctionEvent.node
+   */
+  get node(): Sanction | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Sanction | null;
+    }
+    return null;
+  }
+  set node(node: Sanction) {
+    this.nodePtr = node.toRef();
+  }
+  declare nodePtr: NodeReference;
+
+  /**
+   * SanctionEvent.target
+   */
+  get target(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.targetPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  set target(node: Node & IsSubject) {
+    this.targetPtr = node.toRef();
+  }
+  declare targetPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.SANCTION_EVENT, SanctionEvent);
+/* ==== DESTACK_GENERATED_END:NODE:581 ==== */
+
 /* ==== DESTACK_GENERATED_START:NODE:590 ==== */
 /**
  * SanctionRequestedEvent
@@ -2241,88 +2326,3 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
 }
 registerNodeClass(NodeType.SANCTION, Sanction);
 /* ==== DESTACK_GENERATED_END:NODE:580 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:581 ==== */
-/**
- * SanctionEvent
- */
-export abstract class SanctionEvent extends Event {
-  static metatype: NodeType = NodeType.SANCTION_EVENT;
-
-  /**
-   * IsSpatial.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly spacePtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * SanctionEvent.node
-   */
-  get node(): Sanction | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Sanction | null;
-    }
-    return null;
-  }
-  set node(node: Sanction) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
-
-  /**
-   * SanctionEvent.target
-   */
-  get target(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.targetPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  set target(node: Node & IsSubject) {
-    this.targetPtr = node.toRef();
-  }
-  declare targetPtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.SANCTION_EVENT, SanctionEvent);
-/* ==== DESTACK_GENERATED_END:NODE:581 ==== */
