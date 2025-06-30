@@ -1,7 +1,5 @@
 export * from "@destack/language/core/common/edit";
-export * from "@destack/language/core/common/entity";
 export * from "@destack/language/core/common/enum";
-export * from "@destack/language/core/common/event";
 export * from "@destack/language/core/common/icon";
 export * from "@destack/language/core/common/meta";
 export * from "@destack/language/core/common/metric";

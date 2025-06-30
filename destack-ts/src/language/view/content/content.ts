@@ -1,6 +1,12 @@
-import { NodeReference } from "@destack/language/core";
-import { IsSubject, Node, NodeType } from "@destack/language/core/builtin";
-import { Align, Dimension, Position } from "@destack/language/core/common";
+import {
+  Align,
+  Dimension,
+  IsSubject,
+  Node,
+  NodeReference,
+  NodeType,
+  Position,
+} from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";

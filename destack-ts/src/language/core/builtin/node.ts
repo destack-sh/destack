@@ -1,39 +1,38 @@
+import { NodeType, TraitType } from "@destack/language/core/builtin/common";
+import { activeSession } from "@destack/language/core/builtin/const";
+import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
+import { NodeDefinitionReference, NodeReference } from "@destack/language/core/builtin/relation";
 import {
-  ExpressionIn,
-  NODE_CLASS_BY_TYPE,
-  NodeTypeMapping,
-  SingletonGraph,
-  TraitTypeMapping,
-} from "@destack/language";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import {
-  BuiltinObject,
   INTER_ORDER_TYPES,
   IsOrdered,
   IsSpatial,
-  NodeDefinitionReference,
-  NodeType,
-  TraitType,
-  activeSession,
-} from "@destack/language/core/builtin";
+  TraitClass,
+} from "@destack/language/core/builtin/trait";
 import {
   Aggregation,
   AggregationType,
   Condition,
   Expression,
+  ExpressionIn,
   Join,
   JoinType,
   NodeDefinition,
-  PropertyDefinition,
   Query,
   QueryType,
   Sort,
-  TraitDefinition,
 } from "@destack/language/core/common";
+import {
+  Graph,
+  QueryConnection,
+  Session,
+  SingletonGraph,
+  Supergraph,
+} from "@destack/language/core/runtime";
+import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
+import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
 import { getOrderKey } from "@destack/utils";
 import { Casing, toCasing } from "@destack/utils/string";
 import { v4 as uuid4 } from "uuid";
-import { BuiltinObjectClass } from "./object";
 
 export type NodeFilter = {
   includeDeleted?: boolean;
@@ -508,212 +507,6 @@ export type NodeClass<N extends Node = Node> = (NodeConstructor<N> | AbstractNod
     metatype: NodeType;
     __definition__: NodeDefinition;
   });
-
-/** Internal base class for Trait companion objects.*/
-export class TraitClass<N = any, T extends TraitType = TraitType> {
-  readonly metatype: T;
-  __definition__: TraitDefinition;
-  __properties__: Record<string, PropertyDefinition>;
-  __propertiesById__: Record<number, PropertyDefinition>;
-
-  constructor(metatype: any) {
-    this.metatype = metatype;
-    this.__definition__ = null as any; // set later;
-    this.__properties__ = {};
-    this.__propertiesById__ = {};
-  }
-
-  /** Get a PropertyDefinition or CustomProperty by name. */
-  property(name: string): PropertyDefinition {
-    const prop = this.__properties__[name];
-    if (!prop) {
-      throw new Error(`Property ${name} not found on ${this.constructor.name}`);
-    }
-    return prop;
-  }
-
-  /** Make a get Query for this Node/Trait type. */
-  get(
-    options: WithSubqueries<{
-      where?: Condition;
-      name?: string;
-      join?: Join;
-    }>,
-  ): Query {
-    const { where, name, join, ...subqueries } = options;
-    const query = new Query({
-      type: QueryType.NODE,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a search Query for this Node/Trait type. */
-  search(
-    options: WithSubqueries<{
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      having?: Condition;
-      groupBy?: ExpressionIn[];
-      sort?: Sort[];
-      limit?: number;
-      offset?: number;
-    }>,
-  ): Query {
-    const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_NODE : QueryType.NODE,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      sort,
-      limit,
-      offset,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make an exists Query for this Node/Trait type. */
-  exists(
-    options: WithSubqueries<{
-      where?: Condition;
-      name?: string;
-      join?: Join;
-    }>,
-  ): Query {
-    const { where, name, join, ...subqueries } = options;
-    const query = new Query({
-      type: QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      aggregation: Aggregation.of(AggregationType.EXISTS),
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a count Query for this Node/Trait type. */
-  count(
-    options: WithSubqueries<{
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      groupBy?: ExpressionIn[];
-      having?: Condition;
-      sort?: Sort[];
-    }>,
-  ): Query {
-    const { where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.COUNT),
-      sort,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a min Query for this Node/Trait type. */
-  min(
-    options: WithSubqueries<{
-      expression: ExpressionIn;
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      groupBy?: ExpressionIn[];
-      having?: Condition;
-      sort?: Sort[];
-    }>,
-  ): Query {
-    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.MIN, Expression.of(expression)),
-      sort,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a max Query for this Node/Trait type. */
-  max(
-    options: WithSubqueries<{
-      expression: ExpressionIn;
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      groupBy?: ExpressionIn[];
-      having?: Condition;
-      sort?: Sort[];
-    }>,
-  ): Query {
-    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.MAX, Expression.of(expression)),
-      sort,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a sum Query for this Node/Trait type. */
-  sum(
-    options: WithSubqueries<{
-      expression: ExpressionIn;
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      groupBy?: ExpressionIn[];
-      having?: Condition;
-      sort?: Sort[];
-    }>,
-  ): Query {
-    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.SUM, Expression.of(expression)),
-      sort,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-}
 
 /** Check if a value is a Node of a specific type. */
 export function isNode<T extends NodeType>(value: any, nodeType?: T): value is NodeTypeMapping[T] {

@@ -1,23 +1,13 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import {
-  HasName,
-  IsSourceable,
-  IsSpatial,
-  IsSubject,
-  Node,
-  NodeType,
-  PropertyReference,
-  StructType,
-} from "@destack/language/core/builtin";
-import {
-  CustomProperty,
-  EditOperation,
-  EditType,
-  Entity,
-  Metric,
-  Value,
-} from "@destack/language/core/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import { Entity, Metric } from "@destack/language/core/builtin/entity";
+import { Node } from "@destack/language/core/builtin/node";
+import { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
+import { HasName, IsSourceable, IsSpatial, IsSubject } from "@destack/language/core/builtin/trait";
+import { EditOperation, EditType } from "@destack/language/core/common/edit";
+import { CustomProperty } from "@destack/language/core/common/property";
+import { Value } from "@destack/language/core/common/value";
+import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -33,7 +23,7 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:51002 ==== */
 /**
- * An Event represents something happening in a Space.
+ * An Event is an immutable record of something happening to an Entity.
  */
 export abstract class Event extends Node implements IsSpatial {
   static metatype: NodeType = NodeType.EVENT;

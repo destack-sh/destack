@@ -1,7 +1,8 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
+  Entity,
   EnumType,
+  Graph,
   HasName,
   IsDeletable,
   IsExtensible,
@@ -12,10 +13,15 @@ import {
   IsSubject,
   IsTaggable,
   Node,
+  NodeReference,
   NodeType,
+  QueryConnection,
+  Session,
   StructType,
-} from "@destack/language/core/builtin";
-import { Entity, Text, Value } from "@destack/language/core/common";
+  Supergraph,
+  Text,
+  Value,
+} from "@destack/language/core";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";

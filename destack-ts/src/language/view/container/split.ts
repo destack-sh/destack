@@ -1,6 +1,4 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import { IsSubject, Node, NodeType, StructType } from "@destack/language/core/builtin";
 import {
   Align,
   Axis2,
@@ -9,14 +7,23 @@ import {
   Dimension,
   Direction,
   Distribute,
+  Graph,
   Grid,
   GridSpan,
   Insets,
+  IsSubject,
   Layout,
+  Node,
+  NodeReference,
+  NodeType,
   Position,
+  QueryConnection,
+  Session,
+  StructType,
+  Supergraph,
   Value,
   Vector2,
-} from "@destack/language/core/common";
+} from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";

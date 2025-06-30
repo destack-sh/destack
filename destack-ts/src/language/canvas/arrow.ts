@@ -1,7 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Shape } from "@destack/language/canvas";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import { EnumType, IsSubject, Node, NodeType, StructType } from "@destack/language/core/builtin";
 import {
   Align,
   Axis2,
@@ -10,14 +8,24 @@ import {
   Dimension,
   Direction,
   Distribute,
+  EnumType,
+  Graph,
   Grid,
   GridSpan,
   Insets,
+  IsSubject,
   Layout,
+  Node,
+  NodeReference,
+  NodeType,
   Position,
+  QueryConnection,
+  Session,
+  StructType,
+  Supergraph,
   Value,
   Vector2,
-} from "@destack/language/core/common";
+} from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";

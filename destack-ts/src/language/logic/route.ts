@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
+  Entity,
+  Graph,
   HasName,
   IsDeletable,
   IsOrdered,
@@ -10,10 +11,13 @@ import {
   IsSubject,
   IsTaggable,
   Node,
+  NodeReference,
   NodeType,
+  QueryConnection,
+  Session,
   StructType,
-} from "@destack/language/core/builtin";
-import { Entity } from "@destack/language/core/common";
+  Supergraph,
+} from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";

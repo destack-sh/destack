@@ -1304,7 +1304,10 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
     else:
         assert_never(definition)
 
-    submodule = ".".join(module.split(".")[2:-1])
+    if module.startswith("destack.language.core"):
+        submodule = ".".join(module.split(".")[2:])
+    else:
+        submodule = ".".join(module.split(".")[2:-1])
     source_definition = TypescriptDefinition(
         name=name,
         alias=alias,
@@ -1539,37 +1542,49 @@ def _generate_file(
 
     # add imports to the top (will be auto-merged by linter)
     language_imports_by_module: dict[str, set[str]] = defaultdict(set)
-    language_imports_by_module["core"] = {
-        "NodeReference",
+    core_imports_by_module: dict[str, set[str]] = defaultdict(set)
+    core_imports_by_module["core/runtime"] = {
         "Graph",
         "Supergraph",
         "Session",
         "QueryConnection",
     }
-    language_imports_by_module["core/builtin"] = {
+    core_imports_by_module["core/builtin/relation"] = {
+        "NodeReference",
+    }
+    core_imports_by_module["core/builtin/common"] = {
         "NodeType",
         "TraitType",
         "StructType",
         "EnumType",
-        "BuiltinObject",
-        "Struct",
-        "StructFrozen",
-        "Node",
-        "ACTIVE_SESSION",
-        "activeSession",
-        "TraitClass",
     }
-    language_imports_by_module["core/common"] = {
-        "Entity",
+    core_imports_by_module["core/builtin/event"] = {
         "Event",
+        "CustomEventDefinition",
+        "CustomEvent",
+    }
+    core_imports_by_module["core/builtin/entity"] = {
+        "Entity",
         "Resource",
         "Metric",
         "CustomEntityDefinition",
         "CustomEntity",
         "CustomTraitDefinition",
-        "CustomEventDefinition",
-        "CustomEvent",
     }
+    core_imports_by_module["core/builtin/const"] = {
+        "ACTIVE_SESSION",
+        "activeSession",
+    }
+    core_imports_by_module["core/builtin/node"] = {"Node", "NodeClass"}
+    core_imports_by_module["core/builtin/trait"] = {"TraitClass"}
+    core_imports_by_module["core/builtin/object"] = {"BuiltinObject"}
+    core_imports_by_module["core/builtin/struct"] = {"Struct", "StructFrozen"}
+    # if we're in core, make core imports granular, otherwise just combine it all
+    if file.module.startswith("destack.language.core"):
+        language_imports_by_module.update(core_imports_by_module)
+    else:
+        for _, imports in core_imports_by_module.items():
+            language_imports_by_module["core"].update(imports)
     language_imports_by_module["registry"] = {
         "registerNodeClass",
         "registerStructClass",
@@ -1607,6 +1622,8 @@ def _generate_file(
     import_parts: list[str] = []
     for module, imports in language_imports_by_module.items():
         if imports:
+            if module.startswith("core") and not file.module.startswith("destack.language.core"):
+                module = "core"  # simplify imports from outside core to just "core"
             import_path = (
                 f"@destack/language/{module.replace('.', '/')}" if module else "@destack/language"
             )
@@ -1873,5 +1890,5 @@ finalize();
     )
     root_index_path.write_text(root_index_content)
 
-    # format it all
+    # format it all # nocheckin
     subprocess.run("cd destack-ts && bun run format-language", shell=True, check=True)

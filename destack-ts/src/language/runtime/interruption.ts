@@ -4,17 +4,21 @@ import {
   unpackProtoDuration,
   unpackProtoTimestamp,
 } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
+  Entity,
   EnumType,
+  Graph,
   IsRunnable,
   IsSpatial,
   IsSubject,
   Node,
+  NodeReference,
   NodeType,
+  QueryConnection,
+  Session,
   StructType,
-} from "@destack/language/core/builtin";
-import { Entity } from "@destack/language/core/common";
+  Supergraph,
+} from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Run, SpanEvent } from "@destack/language/runtime";
 import { Message } from "@destack/language/social";

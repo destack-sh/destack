@@ -5,12 +5,13 @@ from typing import (
     Union,
 )
 
-from ..builtin import Node, NodeType, ResourceStatus, RoleType, builtin_node
-from ..builtin.property import (
+from .common import ResourceStatus, RoleType
+from .node import Node, NodeType, builtin_node
+from .property import (
     property_,
     property_parent_,
 )
-from ..builtin.trait import (
+from .trait import (
     HasName,
     IsDeletable,
     IsExtensible,
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.ENTITY, is_abstract=True)
 class Entity(Node):
     """
-    An Entity is a versioned Node in primary relational storage (OLTP).
+    An Entity is a versioned, stateful Node.
     """
 
     created_at: datetime = property_(15, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)

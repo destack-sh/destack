@@ -40,6 +40,7 @@
     "@protobuf-ts/plugin": "^2.11.0",
     "@types/uuid": "^10.0.0",
     "eslint": "^9.29.0",
+    "madge": "^8.0.0",
     "prettier": "^3.5.3",
     "prettier-plugin-organize-imports": "^4.1.0",
     "prettier-plugin-tailwindcss": "^0.6.12",

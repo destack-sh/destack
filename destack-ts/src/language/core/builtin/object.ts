@@ -1,14 +1,8 @@
-import {
-  Graph,
-  NodeDefinition,
-  PropertyDefinition,
-  QueryConnection,
-  Session,
-  StructDefinition,
-} from "@destack/language/core";
+import type { NodeDefinition, PropertyDefinition, StructDefinition } from "@destack/language/core";
+import type { Supergraph } from "@destack/language/core/runtime";
+import { Graph, QueryConnection, Session } from "@destack/language/core/runtime";
 import { AnyNodeProto, AnyStructProto } from "@destack/proto";
 import { Casing, toCasing } from "@destack/utils";
-import { Supergraph } from "../runtime/graph";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
 export abstract class BuiltinObject {

@@ -1,21 +1,20 @@
-import { NodeClass } from "@destack/language";
-import { Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
-  Node,
   NodeType,
   Region,
-  StructFrozen,
   StructType,
   TraitType,
-} from "@destack/language/core/builtin";
+} from "@destack/language/core/builtin/common";
 import {
   CustomEntityDefinition,
-  CustomEventDefinition,
-  CustomProperty,
-  CustomStructDefinition,
   CustomTraitDefinition,
-} from "@destack/language/core/common";
+} from "@destack/language/core/builtin/entity";
+import { CustomEventDefinition } from "@destack/language/core/builtin/event";
+import { Node, NodeClass } from "@destack/language/core/builtin/node";
+import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { CustomProperty } from "@destack/language/core/common/property";
+import { CustomStructDefinition } from "@destack/language/core/common/struct";
+import { Session, Supergraph } from "@destack/language/core/runtime";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   NodeDefinitionReferenceProto,

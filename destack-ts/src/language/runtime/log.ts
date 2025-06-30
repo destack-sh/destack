@@ -4,9 +4,19 @@ import {
   unpackProtoJson,
   unpackProtoTimestamp,
 } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import { EnumType, IsSubject, Node, NodeType, StructType } from "@destack/language/core/builtin";
-import { Event } from "@destack/language/core/common";
+import {
+  EnumType,
+  Event,
+  Graph,
+  IsSubject,
+  Node,
+  NodeReference,
+  NodeType,
+  QueryConnection,
+  Session,
+  StructType,
+  Supergraph,
+} from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { LogEventProto, LogLevelProto } from "@destack/proto";

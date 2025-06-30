@@ -2570,7 +2570,7 @@ message EntitlementRevokedEventProto {
   NodeReferenceProto target_ptr = 40;
 }
 
-// An Entity is a versioned Node in primary relational storage (OLTP).
+// An Entity is a versioned, stateful Node.
 message EntityProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -2606,7 +2606,7 @@ message EnvironmentProto {
   optional IconProto icon = 34;
 }
 
-// An Event represents something happening in a Space.
+// An Event is an immutable record of something happening to an Entity.
 message EventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -5535,9 +5535,9 @@ message SomeNodeProto {
   oneof node {
     CustomEntityDefinitionProto custom_entity_definition = 2000;
     CustomTraitDefinitionProto custom_trait_definition = 2002;
-    CustomEnumDefinitionProto custom_enum_definition = 2510;
     CustomEventDefinitionProto custom_event_definition = 4300;
     EditEventProto edit_event = 4302;
+    CustomEnumDefinitionProto custom_enum_definition = 2510;
     GaugeMetricProto gauge_metric = 4240;
     GaugeMeasurementEventProto gauge_measurement_event = 4241;
     CounterMetricProto counter_metric = 4260;
@@ -5688,8 +5688,8 @@ message SomeEntityProto {
   oneof node {
     CustomEntityDefinitionProto custom_entity_definition = 2000;
     CustomTraitDefinitionProto custom_trait_definition = 2002;
-    CustomEnumDefinitionProto custom_enum_definition = 2510;
     CustomEventDefinitionProto custom_event_definition = 4300;
+    CustomEnumDefinitionProto custom_enum_definition = 2510;
     GaugeMetricProto gauge_metric = 4240;
     CounterMetricProto counter_metric = 4260;
     HistogramMetricProto histogram_metric = 4280;

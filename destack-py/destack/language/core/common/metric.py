@@ -1,10 +1,10 @@
 from ..builtin import (
+    MeasurementEvent,
+    Metric,
     NodeType,
     builtin_node,
     property_,
 )
-from .entity import Metric
-from .event import MeasurementEvent
 
 # pyright: reportIncompatibleVariableOverride=false
 

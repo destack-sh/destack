@@ -1,5 +1,5 @@
-import { NodeReference } from "@destack/language/core";
 import {
+  Entity,
   HasName,
   IsDeletable,
   IsOrdered,
@@ -7,9 +7,9 @@ import {
   IsSubject,
   IsTaggable,
   Node,
+  NodeReference,
   NodeType,
-} from "@destack/language/core/builtin";
-import { Entity } from "@destack/language/core/common";
+} from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";

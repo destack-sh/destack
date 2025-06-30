@@ -1,17 +1,18 @@
 import { packProtoJson, unpackProtoJson } from "@destack/grpc";
 import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, toType } from "@destack/language";
-import { NodeReference, Session, Supergraph } from "@destack/language/core";
 import {
-  BuiltinObject,
-  Node,
   NodeType,
   PrimitiveType,
   ScalarType,
-  StructFrozen,
   StructType,
   TypeCardinality,
-} from "@destack/language/core/builtin";
-import { Type } from "@destack/language/core/common";
+} from "@destack/language/core/builtin/common";
+import { Node } from "@destack/language/core/builtin/node";
+import { BuiltinObject } from "@destack/language/core/builtin/object";
+import { NodeReference } from "@destack/language/core/builtin/relation";
+import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { Type } from "@destack/language/core/common/type";
+import { Session, Supergraph } from "@destack/language/core/runtime";
 import { registerStructClass } from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
 import {

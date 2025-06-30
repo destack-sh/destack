@@ -8,43 +8,46 @@ from destack.language.registry import (
     TRAIT_DEFINITION_BY_TYPE,
 )
 
-from ..builtin import (
+from ..builtin.common import (
     CascadeAction,
-    ConstantDeclaration,
+    DefaultFactory,
     EdgeType,
     Enum,
     EnumType,
     NodeType,
-    PropertyDeclaration,
-    StructBase,
-    StructFrozen,
+    PrimitiveType,
+    ScalarType,
     StructType,
     TraitType,
-    builtin_struct,
-    property_,
-    property_runtime_,
-    register_constant,
+    TypeCardinality,
 )
+from ..builtin.constant import ConstantDeclaration, register_constant
+from ..builtin.property import PropertyDeclaration, property_, property_runtime_
 from ..builtin.relation import (
     ObjectDefinitionReference,
     ObjectDefinitionType,
     PropertyReference,
     PropertyReferenceType,
 )
-from .query import Condition, ConditionalType, Sort, SortType
-from .type import (
-    CollectionConstraint,
-    DefaultFactory,
-    NodeConstraint,
-    NumberConstraint,
-    PrimitiveType,
-    ScalarType,
-    StringConstraint,
-    TypeCardinality,
-)
+from ..builtin.struct import StructBase, StructFrozen, builtin_struct
 
 if TYPE_CHECKING:
-    from destack.language import Icon, Node, NodeBase, ObjectDefinitionReference, Type, Value
+    from destack.language import (
+        CollectionConstraint,
+        Condition,
+        ConditionalType,
+        Icon,
+        Node,
+        NodeBase,
+        NodeConstraint,
+        NumberConstraint,
+        ObjectDefinitionReference,
+        Sort,
+        SortType,
+        StringConstraint,
+        Type,
+        Value,
+    )
 
 
 _type = type
@@ -78,7 +81,7 @@ class PropertyDefinition(StructFrozen):
     is_required: bool | None = property_(50, is_repr=True)
     is_unique: bool | None = property_(51, is_repr=True)
     default_value: Optional["Value"] = property_(55, is_repr=True)
-    default_factory: Optional[DefaultFactory] = property_(56, is_repr=True)
+    default_factory: Optional["DefaultFactory"] = property_(56, is_repr=True)
 
     # constraints
     collection_constraint: Optional["CollectionConstraint"] = property_(60)
@@ -184,56 +187,88 @@ class PropertyDefinition(StructFrozen):
         else:
             assert_never(self.object.type)
 
-    def eq(self, value: Any) -> Condition:
+    def eq(self, value: Any) -> "Condition":
+        from . import Condition
+
         if value is None:
             return self.not_exists()
         return Condition.of(self, ConditionalType.EQUALS, value=value)
 
-    def neq(self, value: Any) -> Condition:
+    def neq(self, value: Any) -> "Condition":
+        from . import Condition
+
         if value is None:
             return self.exists()
         return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
 
-    def gt(self, value: Any) -> Condition:
+    def gt(self, value: Any) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
 
-    def gte(self, value: Any) -> Condition:
+    def gte(self, value: Any) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
 
-    def lt(self, value: Any) -> Condition:
+    def lt(self, value: Any) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.LESS_THAN, value=value)
 
-    def lte(self, value: Any) -> Condition:
+    def lte(self, value: Any) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
 
-    def starts_with(self, value: str) -> Condition:
+    def starts_with(self, value: str) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
 
-    def ends_with(self, value: str) -> Condition:
+    def ends_with(self, value: str) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
 
-    def in_(self, *values: Any) -> Condition:
+    def in_(self, *values: Any) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.IN, value=values)
 
-    def not_in(self, *values: Any) -> Condition:
+    def not_in(self, *values: Any) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.NOT_IN, value=values)
 
-    def exists(self) -> Condition:
+    def exists(self) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.EXISTS)
 
-    def is_not_none(self) -> Condition:
+    def is_not_none(self) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.EXISTS)
 
     def not_exists(self) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     def is_none(self) -> "Condition":
+        from . import Condition
+
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     def asc(self) -> "Sort":
+        from . import Sort
+
         return Sort.of(self, SortType.ASCENDING)
 
     def desc(self) -> "Sort":
+        from . import Sort
+
         return Sort.of(self, SortType.DESCENDING)
 
 
@@ -258,7 +293,7 @@ class TraitDefinition(StructFrozen):
     @classmethod
     def from_trait(cls, trait_cls: _type["NodeBase"]) -> "TraitDefinition":
         """Create TraitDefinition from a Trait class."""
-        from .icon import to_icon
+        from . import to_icon
 
         trait_type = TraitType(trait_cls.metatype)
         return cls(
@@ -320,7 +355,7 @@ class NodeDefinition(StructFrozen):
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
         """Create NodeDefinition from a Node class."""
-        from .icon import to_icon
+        from . import to_icon
 
         return cls(
             id=node_cls.metatype.value,
@@ -362,7 +397,7 @@ class StructDefinition(StructFrozen):
     @classmethod
     def from_struct(cls, struct_cls: _type[StructBase]) -> "StructDefinition":
         """Create StructDefinition from a Struct class."""
-        from .icon import to_icon
+        from . import to_icon
 
         return cls(
             id=struct_cls.metatype.value,
@@ -391,7 +426,7 @@ class EnumDefinition(StructFrozen):
     @classmethod
     def from_enum(cls, enum_type: EnumType, enum_cls: _type[Enum]) -> "EnumDefinition":
         """Create EnumDefinition from an Enum class."""
-        from .icon import to_icon
+        from . import to_icon
 
         return cls(
             id=enum_type.value,
@@ -419,7 +454,7 @@ class OptionDefinition(StructFrozen):
     @classmethod
     def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
         """Create OptionDefinition from an Enum option."""
-        from .icon import to_icon
+        from . import to_icon
 
         return cls(
             id=option.value,
@@ -455,7 +490,7 @@ class ConstantDefinition(StructFrozen):
     @classmethod
     def from_constant(cls, constant_declaration: ConstantDeclaration) -> "ConstantDefinition":
         """Create ConstantDefinition from a ConstantDeclaration."""
-        from .value import to_value
+        from . import to_value
 
         if constant_declaration.value is None:
             assert constant_declaration.getter is not None, (

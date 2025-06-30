@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from ..builtin import (
+    Entity,
     HasName,
     HasSlug,
     IsDeletable,
@@ -11,7 +12,6 @@ from ..builtin import (
     property_,
     property_parent_,
 )
-from .entity import Entity
 
 if TYPE_CHECKING:
     from destack.language import Space

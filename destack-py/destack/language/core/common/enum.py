@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from ..builtin import (
+    Entity,
     HasIcon,
     HasName,
     IsDeletable,
@@ -11,7 +12,6 @@ from ..builtin import (
     NodeType,
     builtin_node,
 )
-from .entity import Entity
 
 if TYPE_CHECKING:
     pass

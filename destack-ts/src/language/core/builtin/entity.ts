@@ -1,5 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
+import { NodeType, ResourceStatus, StructType } from "@destack/language/core/builtin/common";
+import { Node } from "@destack/language/core/builtin/node";
+import { NodeDefinitionReference, NodeReference } from "@destack/language/core/builtin/relation";
 import {
   HasName,
   IsDeletable,
@@ -11,13 +13,9 @@ import {
   IsSpatial,
   IsSubject,
   IsTaggable,
-  Node,
-  NodeDefinitionReference,
-  NodeType,
-  ResourceStatus,
-  StructType,
-} from "@destack/language/core/builtin";
-import { Value } from "@destack/language/core/common";
+} from "@destack/language/core/builtin/trait";
+import { Value } from "@destack/language/core/common/value";
+import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
@@ -29,7 +27,7 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:51001 ==== */
 /**
- * An Entity is a versioned Node in primary relational storage (OLTP).
+ * An Entity is a versioned, stateful Node.
  */
 export abstract class Entity extends Node {
   static metatype: NodeType = NodeType.ENTITY;
