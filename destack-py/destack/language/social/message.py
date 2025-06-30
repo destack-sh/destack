@@ -9,10 +9,10 @@ from destack.language.core import (
     IsDeletable,
     IsOwnable,
     IsReactable,
+    IsSpatial,
     IsTaggable,
     Node,
     NodeType,
-    Spatial,
     Text,
     TextIn,
     builtin_node,
@@ -31,13 +31,12 @@ logger = structlog.get_logger(__name__)
 
 @builtin_node(NodeType.MESSAGE)
 class Message(
-    Spatial,
-    Entity,
+    IsSpatial,
     IsOwnable,
     IsDeletable,
     IsTaggable,
     IsReactable,
-    Node,
+    Entity,
 ):
     """
     A Message about something (usually in a Thread or a Channel).

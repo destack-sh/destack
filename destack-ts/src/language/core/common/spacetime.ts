@@ -1,19 +1,19 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   HasName,
   HasSlug,
   IsDeletable,
   IsOwnable,
   IsOwner,
+  IsSpatial,
   IsSubject,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Entity } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { BranchProto, SnapshotProto } from "@destack/proto";
@@ -27,15 +27,14 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Snapshot
   extends Node
-  implements Spatial, Entity, HasName, HasSlug, IsOwnable, IsDeletable
+  implements IsSpatial, HasName, HasSlug, IsOwnable, IsDeletable, Entity
 {
   static metatype: NodeType = NodeType.SNAPSHOT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.DELETABLE,
     TraitType.OWNABLE,
+    TraitType.DELETABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE, NodeType.BRANCH];
@@ -260,14 +259,6 @@ export class Snapshot
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.slug !== null) {
       h = (h * 31 + hashString(this.slug)) & 0xffffffff;
@@ -277,6 +268,14 @@ export class Snapshot
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -377,16 +376,6 @@ export class Snapshot
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const slugValue = objectValue["33"];
     const unpackedSlug = slugValue != undefined ? slugValue : null;
     const ownedByPtrValue = objectValue["25"];
@@ -399,18 +388,28 @@ export class Snapshot
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Snapshot({
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       slug: unpackedSlug,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -490,6 +489,20 @@ export class Snapshot
             )
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
+      slug: objectProto.slug != undefined ? objectProto.slug : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -512,20 +525,6 @@ export class Snapshot
               _connection,
             )
           : null,
-      name: objectProto.name,
-      slug: objectProto.slug != undefined ? objectProto.slug : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,
@@ -561,15 +560,14 @@ registerNodeClass(NodeType.SNAPSHOT, Snapshot);
  */
 export class Branch
   extends Node
-  implements Spatial, Entity, HasName, HasSlug, IsOwnable, IsDeletable
+  implements IsSpatial, HasName, HasSlug, IsOwnable, IsDeletable, Entity
 {
   static metatype: NodeType = NodeType.BRANCH;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.DELETABLE,
     TraitType.OWNABLE,
+    TraitType.DELETABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -825,14 +823,6 @@ export class Branch
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.slug !== null) {
       h = (h * 31 + hashString(this.slug)) & 0xffffffff;
@@ -842,6 +832,14 @@ export class Branch
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -950,16 +948,6 @@ export class Branch
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const slugValue = objectValue["33"];
     const unpackedSlug = slugValue != undefined ? slugValue : null;
     const ownedByPtrValue = objectValue["25"];
@@ -972,19 +960,29 @@ export class Branch
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Branch({
       parent: unpackedParentPtr,
       head: unpackedHeadPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       slug: unpackedSlug,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -1077,6 +1075,20 @@ export class Branch
             )
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
+      slug: objectProto.slug != undefined ? objectProto.slug : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1099,20 +1111,6 @@ export class Branch
               _connection,
             )
           : null,
-      name: objectProto.name,
-      slug: objectProto.slug != undefined ? objectProto.slug : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

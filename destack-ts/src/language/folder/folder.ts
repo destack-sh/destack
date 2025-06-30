@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
   HasIcon,
   HasName,
@@ -12,16 +11,16 @@ import {
   IsOrdered,
   IsOwnable,
   IsOwner,
+  IsSpatial,
   IsStarable,
   IsSubject,
   IsTaggable,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Icon } from "@destack/language/core/common";
+import { Entity, Icon } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
@@ -55,8 +54,7 @@ registerEnumClass(EnumType.FOLDER_TYPE, FolderType);
 export class Folder
   extends Node
   implements
-    Spatial,
-    Entity,
+    IsSpatial,
     HasIcon,
     HasSlug,
     HasName,
@@ -66,15 +64,15 @@ export class Folder
     IsOrdered,
     IsDeletable,
     IsStarable,
-    IsFollowable
+    IsFollowable,
+    Entity
 {
   static metatype: NodeType = NodeType.FOLDER;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
     TraitType.TAGGABLE,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
+    TraitType.SPATIAL,
     TraitType.OWNABLE,
+    TraitType.TRACKED,
     TraitType.JOINABLE,
     TraitType.DELETABLE,
     TraitType.ORDERED,
@@ -85,13 +83,14 @@ export class Folder
   static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
   static __childTypes__: NodeType[] = [
     NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.CUSTOM_TRAIT_DEFINITION,
+    NodeType.RESOURCE,
     NodeType.ENTITLEMENT,
     NodeType.INVITE,
     NodeType.MEMBERSHIP,
     NodeType.PERMISSION,
     NodeType.ROLE,
     NodeType.SANCTION,
-    NodeType.CUSTOM_VIEW_DEFINITION,
     NodeType.FOLDER,
     NodeType.TAG,
     NodeType.TAGGING,
@@ -105,57 +104,62 @@ export class Folder
   ];
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.INVITE,
-    NodeType.FONT_STYLE,
+    NodeType.STYLE,
+    NodeType.SHAPE,
+    NodeType.VIEW,
     NodeType.MESSAGE,
-    NodeType.CUSTOM_VIEW,
-    NodeType.BORDER_STYLE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.WIZARD_VIEW,
+    NodeType.CONTAINER_VIEW,
     NodeType.ROLE,
+    NodeType.COLOR_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.FILL_STYLE,
     NodeType.SHADOW_STYLE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.REACTION,
-    NodeType.FRAME_VIEW,
     NodeType.GRADIENT_STYLE,
-    NodeType.LABEL_VIEW,
-    NodeType.PERMISSION,
     NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.REACTION,
+    NodeType.STROKE_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.LINE_SHAPE,
+    NodeType.INPUT_VIEW,
+    NodeType.PERMISSION,
+    NodeType.POLYGON_SHAPE,
+    NodeType.NUMBER_INPUT_VIEW,
     NodeType.STAR,
     NodeType.SCRIPT,
-    NodeType.EFFECT_STYLE,
-    NodeType.SPLIT_VIEW,
+    NodeType.RESOURCE,
     NodeType.SCENE,
     NodeType.SANCTION,
-    NodeType.STROKE_STYLE,
     NodeType.CLIENT,
+    NodeType.ARROW_SHAPE,
+    NodeType.SLIDER_INPUT_VIEW,
     NodeType.FOLLOW,
+    NodeType.FRAME_VIEW,
     NodeType.LAYER,
     NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.CUSTOM_TRAIT_DEFINITION,
     NodeType.CUSTOM_ENTITY,
     NodeType.CUSTOM_PROPERTY,
     NodeType.ENTITLEMENT,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.LABEL_VIEW,
     NodeType.ACTION,
     NodeType.CUSTOM_OPTION,
     NodeType.VARIANT,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
     NodeType.FOLDER,
-    NodeType.PALETTE,
     NodeType.AGENT,
+    NodeType.TEXT_VIEW,
     NodeType.TAG,
     NodeType.TAGGING,
     NodeType.MEMBERSHIP,
-    NodeType.COLOR_STYLE,
+    NodeType.PALETTE,
+    NodeType.SPLIT_VIEW,
     NodeType.ROUTE,
     NodeType.CANVAS,
     NodeType.THREAD,
-    NodeType.FILL_STYLE,
   ];
 
   /**
@@ -452,14 +456,6 @@ export class Folder
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
@@ -473,6 +469,14 @@ export class Folder
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -587,16 +591,6 @@ export class Folder
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
@@ -614,22 +608,32 @@ export class Folder
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Folder({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
       mainScene: unpackedMainScenePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       icon: unpackedIcon,
       slug: unpackedSlug,
       name: objectValue["31"],
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -728,6 +732,25 @@ export class Folder
             )
           : null,
       id: String(objectProto.id),
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      slug: objectProto.slug != undefined ? objectProto.slug : null,
+      name: objectProto.name,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      orderKey: objectProto.orderKey,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -750,25 +773,6 @@ export class Folder
               _connection,
             )
           : null,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      slug: objectProto.slug != undefined ? objectProto.slug : null,
-      name: objectProto.name,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      orderKey: objectProto.orderKey,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

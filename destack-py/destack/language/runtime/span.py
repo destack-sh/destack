@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Event,
-    Node,
     NodeType,
     builtin_node,
     property_parent_,
@@ -15,11 +14,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SPAN)
-class Span(
-    Event,
-    Node,
-):
+@builtin_node(NodeType.SPAN_EVENT)
+class SpanEvent(Event):
     """
     A Span is a trace inside a Run.
     """

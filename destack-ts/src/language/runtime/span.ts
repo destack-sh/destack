@@ -1,9 +1,10 @@
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import { Event, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Event } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Run } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
-import { SpanProto } from "@destack/proto";
+import { SpanEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -12,9 +13,9 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Span is a trace inside a Run.
  */
-export class Span extends Node implements Event {
-  static metatype: NodeType = NodeType.SPAN;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+export class SpanEvent extends Node implements Event {
+  static metatype: NodeType = NodeType.SPAN_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.RUN];
   static __childTypes__: NodeType[] = [];
@@ -22,7 +23,7 @@ export class Span extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Span.parent
+   * SpanEvent.parent
    */
   get parent(): Run | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -180,7 +181,7 @@ export class Span extends Node implements Event {
 
   __toRef__(): NodeReference {
     return new NodeReference({
-      nodeType: NodeType.SPAN,
+      nodeType: NodeType.SPAN_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -189,7 +190,7 @@ export class Span extends Node implements Event {
   }
 
   get _pathKey(): string {
-    return "Span[id={this.id}]";
+    return "SpanEvent[id={this.id}]";
   }
 
   get path(): string {
@@ -206,14 +207,14 @@ export class Span extends Node implements Event {
   }
 
   repr(): string {
-    return `<Span '${this.path}'>`;
+    return `<SpanEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
-    return Span.__packValue__(this);
+    return SpanEvent.__packValue__(this);
   }
 
-  static __packValue__(object: Span): { [key: string]: any } {
+  static __packValue__(object: SpanEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4020;
     objectValue["2"] = String(object.id);
@@ -235,7 +236,7 @@ export class Span extends Node implements Event {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Span {
+  ): SpanEvent {
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -251,7 +252,7 @@ export class Span extends Node implements Event {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    return new Span({
+    return new SpanEvent({
       parent: unpackedParentPtr,
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -268,16 +269,16 @@ export class Span extends Node implements Event {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Span {
-    return Span.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): SpanEvent {
+    return SpanEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): SpanProto {
-    return Span.__packProto__(this);
+  toProto(): SpanEventProto {
+    return SpanEvent.__packProto__(this);
   }
 
-  static __packProto__(object: Span): SpanProto {
-    const objectProto: Partial<SpanProto> = { metatype: 4020 };
+  static __packProto__(object: SpanEvent): SpanEventProto {
+    const objectProto: Partial<SpanEventProto> = { metatype: 4020 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -288,17 +289,17 @@ export class Span extends Node implements Event {
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
-    return objectProto as SpanProto;
+    return objectProto as SpanEventProto;
   }
 
   static __unpackProto__(
-    objectProto: SpanProto,
+    objectProto: SpanEventProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Span {
-    return new Span({
+  ): SpanEvent {
+    return new SpanEvent({
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -337,18 +338,18 @@ export class Span extends Node implements Event {
   }
 
   static fromProto(
-    objectProto: SpanProto,
+    objectProto: SpanEventProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Span {
-    return Span.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): SpanEvent {
+    return SpanEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Span {
+  static fromProtoString(packedProtoString: string): SpanEvent {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = SpanProto.fromBinary(packedProtoBytes);
+    const packedProto = SpanEventProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -356,5 +357,5 @@ export class Span extends Node implements Event {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.SPAN, Span);
+registerNodeClass(NodeType.SPAN_EVENT, SpanEvent);
 /* ==== DESTACK_GENERATED_END:NODE:4020 ==== */

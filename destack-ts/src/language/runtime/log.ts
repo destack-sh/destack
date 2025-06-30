@@ -1,16 +1,10 @@
 import { packProtoJson, unpackProtoJson } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import {
-  EnumType,
-  Event,
-  Node,
-  NodeType,
-  StructType,
-  TraitType,
-} from "@destack/language/core/builtin";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Event } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { LogLevelProto, LogProto } from "@destack/proto";
+import { LogEventProto, LogLevelProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -38,9 +32,9 @@ registerEnumClass(EnumType.LOG_LEVEL, LogLevel);
 /**
  * A Log message.
  */
-export class Log extends Node implements Event {
-  static metatype: NodeType = NodeType.LOG;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+export class LogEvent extends Node implements Event {
+  static metatype: NodeType = NodeType.LOG_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -48,7 +42,7 @@ export class Log extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Log.parent
+   * LogEvent.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -91,17 +85,17 @@ export class Log extends Node implements Event {
   nodePtr: NodeReference | null;
 
   /**
-   * Log.content
+   * LogEvent.content
    */
   content: string;
 
   /**
-   * Log.attributes
+   * LogEvent.attributes
    */
   attributes: Map<string, any>;
 
   /**
-   * Log.level
+   * LogEvent.level
    */
   level: LogLevel;
 
@@ -159,7 +153,7 @@ export class Log extends Node implements Event {
     this.nodePtr = _node;
     let _content = options.content;
     if (_content === null) {
-      throw new Error(`Log.content is required`);
+      throw new Error(`LogEvent.content is required`);
     }
     this.content = _content;
     let _attributes = options.attributes ?? null;
@@ -169,7 +163,7 @@ export class Log extends Node implements Event {
     this.attributes = _attributes;
     let _level = options.level;
     if (_level === null) {
-      throw new Error(`Log.level is required`);
+      throw new Error(`LogEvent.level is required`);
     }
     this.level = _level;
 
@@ -256,7 +250,7 @@ export class Log extends Node implements Event {
 
   __toRef__(): NodeReference {
     return new NodeReference({
-      nodeType: NodeType.LOG,
+      nodeType: NodeType.LOG_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -265,7 +259,7 @@ export class Log extends Node implements Event {
   }
 
   get _pathKey(): string {
-    return "Log[id={this.id}]";
+    return "LogEvent[id={this.id}]";
   }
 
   get path(): string {
@@ -282,14 +276,14 @@ export class Log extends Node implements Event {
   }
 
   repr(): string {
-    return `<Log '${this.path}'>`;
+    return `<LogEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
-    return Log.__packValue__(this);
+    return LogEvent.__packValue__(this);
   }
 
-  static __packValue__(object: Log): { [key: string]: any } {
+  static __packValue__(object: LogEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4100;
     objectValue["2"] = String(object.id);
@@ -320,7 +314,7 @@ export class Log extends Node implements Event {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Log {
+  ): LogEvent {
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -342,7 +336,7 @@ export class Log extends Node implements Event {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    return new Log({
+    return new LogEvent({
       parent: unpackedParentPtr,
       content: objectValue["40"],
       attributes: unpackedAttributes,
@@ -362,16 +356,16 @@ export class Log extends Node implements Event {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Log {
-    return Log.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): LogEvent {
+    return LogEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): LogProto {
-    return Log.__packProto__(this);
+  toProto(): LogEventProto {
+    return LogEvent.__packProto__(this);
   }
 
-  static __packProto__(object: Log): LogProto {
-    const objectProto: Partial<LogProto> = { metatype: 4100 };
+  static __packProto__(object: LogEvent): LogEventProto {
+    const objectProto: Partial<LogEventProto> = { metatype: 4100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -390,23 +384,23 @@ export class Log extends Node implements Event {
       }
     }
     objectProto.level = Number(object.level) as LogLevelProto;
-    return objectProto as LogProto;
+    return objectProto as LogEventProto;
   }
 
   static __unpackProto__(
-    objectProto: LogProto,
+    objectProto: LogEventProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Log {
+  ): LogEvent {
     const unpackedAttributes = new Map();
     if (objectProto.attributes) {
       for (const [key, value] of Object.entries(objectProto.attributes)) {
         unpackedAttributes.set(key, unpackProtoJson((value as any)!));
       }
     }
-    return new Log({
+    return new LogEvent({
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -448,18 +442,18 @@ export class Log extends Node implements Event {
   }
 
   static fromProto(
-    objectProto: LogProto,
+    objectProto: LogEventProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Log {
-    return Log.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): LogEvent {
+    return LogEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Log {
+  static fromProtoString(packedProtoString: string): LogEvent {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = LogProto.fromBinary(packedProtoBytes);
+    const packedProto = LogEventProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -467,5 +461,5 @@ export class Log extends Node implements Event {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.LOG, Log);
+registerNodeClass(NodeType.LOG_EVENT, LogEvent);
 /* ==== DESTACK_GENERATED_END:NODE:4100 ==== */

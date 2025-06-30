@@ -1,15 +1,15 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
-  Global,
   HasSlug,
+  IsGlobal,
   IsSubject,
   Node,
   NodeType,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Entity } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { HandleProto } from "@destack/proto";
@@ -21,9 +21,9 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Destack @handle.
  */
-export class Handle extends Node implements Global, Entity, HasSlug {
+export class Handle extends Node implements IsGlobal, HasSlug, Entity {
   static metatype: NodeType = NodeType.HANDLE;
-  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.TRACKED, TraitType.ENTITY];
+  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.TRACKED];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];

@@ -1,8 +1,10 @@
-import { NodeClass, toValue } from "@destack/language";
+import { NodeClass, RelationReference, toValue } from "@destack/language";
 import { Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
+  NodeDefinitionReference,
   NodeType,
+  PropertyReference,
   Struct,
   StructFrozen,
   StructType,
@@ -11,8 +13,6 @@ import {
   CustomEntityDefinition,
   CustomProperty,
   PropertyDefinition,
-  PropertyReference,
-  RelationReference,
   Value,
 } from "@destack/language/core/common";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
@@ -1781,7 +1781,7 @@ export class Join extends StructFrozen {
   /**
    * Join.relation
    */
-  readonly relation: RelationReference | null;
+  readonly relation: NodeDefinitionReference | null;
 
   /**
    * Join.recursive
@@ -1800,7 +1800,7 @@ export class Join extends StructFrozen {
 
   constructor(options: {
     type: JoinType;
-    relation?: RelationReference | null;
+    relation?: NodeDefinitionReference | null;
     recursive?: boolean;
     depth?: number | null;
     on?: Condition | null;
@@ -1961,7 +1961,13 @@ export class Join extends StructFrozen {
     const relationValue = objectValue["31"];
     const unpackedRelation =
       relationValue != undefined
-        ? RelationReference.fromValue(relationValue, _session, _supergraph, _graph, _connection)
+        ? NodeDefinitionReference.fromValue(
+            relationValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const depthValue = objectValue["34"];
     const unpackedDepth = depthValue != undefined ? Number(depthValue) : null;
@@ -2026,7 +2032,7 @@ export class Join extends StructFrozen {
       type: Number(objectProto.type) as JoinType,
       relation:
         objectProto.relation != undefined
-          ? RelationReference.fromProto(
+          ? NodeDefinitionReference.fromProto(
               objectProto.relation!,
               _session,
               _supergraph,
@@ -2116,7 +2122,7 @@ export class Query extends StructFrozen {
   /**
    * Query.relation
    */
-  readonly relation: RelationReference;
+  readonly relation: NodeDefinitionReference;
 
   /**
    * Relative to parent Query.
@@ -2172,7 +2178,7 @@ export class Query extends StructFrozen {
     id?: string;
     type: QueryType;
     name: string;
-    relation: RelationReference;
+    relation: NodeDefinitionReference;
     join?: Join | null;
     select?: Select | null;
     subqueries?: Array<Query>;
@@ -2560,7 +2566,7 @@ export class Query extends StructFrozen {
       id: String(objectValue["2"]),
       type: Number(objectValue["30"]),
       name: objectValue["31"],
-      relation: RelationReference.fromValue(
+      relation: NodeDefinitionReference.fromValue(
         objectValue["32"],
         _session,
         _supergraph,
@@ -2682,7 +2688,7 @@ export class Query extends StructFrozen {
       id: String(objectProto.id),
       type: Number(objectProto.type) as QueryType,
       name: objectProto.name,
-      relation: RelationReference.fromProto(
+      relation: NodeDefinitionReference.fromProto(
         objectProto.relation!,
         _session,
         _supergraph,

@@ -2,26 +2,25 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Role } from "@destack/language/access";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
-  Event,
-  Global,
   IsDeletable,
+  IsGlobal,
   IsJoinable,
   IsOwnable,
   IsOwner,
+  IsSpatial,
   IsSubject,
-  LikeMembership,
   Node,
   NodeType,
   RoleType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Entity, Event } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
+  MembershipEventProto,
   MembershipJoinedEventProto,
   MembershipLeftEventProto,
   MembershipProto,
@@ -52,17 +51,15 @@ registerEnumClass(EnumType.MEMBERSHIP_PERMISSION, MembershipPermission);
  */
 export class Membership
   extends Node
-  implements Global, Spatial, Entity, LikeMembership, IsOwnable, IsDeletable
+  implements IsGlobal, IsSpatial, IsOwnable, IsDeletable, Entity
 {
   static metatype: NodeType = NodeType.MEMBERSHIP;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.OWNABLE,
     TraitType.DELETABLE,
-    TraitType.MEMBERSHIP,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
@@ -347,6 +344,12 @@ export class Membership
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -354,12 +357,6 @@ export class Membership
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
-    }
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
 
     return h;
@@ -470,16 +467,6 @@ export class Membership
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -489,6 +476,16 @@ export class Membership
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Membership({
       parent: unpackedParentPtr,
@@ -503,12 +500,12 @@ export class Membership
       roleType: unpackedRoleType,
       id: String(objectValue["2"]),
       space: unpackedSpacePtr,
+      ownedBy: unpackedOwnedByPtr,
+      deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      ownedBy: unpackedOwnedByPtr,
-      deletedAt: unpackedDeletedAt,
       _session,
       _graph,
       _connection,
@@ -610,6 +607,18 @@ export class Membership
               _connection,
             )
           : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -632,18 +641,6 @@ export class Membership
               _connection,
             )
           : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,
@@ -677,9 +674,9 @@ registerNodeClass(NodeType.MEMBERSHIP, Membership);
 /**
  * A Event regarding a Membership Join.
  */
-export class MembershipJoinedEvent extends Node implements Event {
+export class MembershipJoinedEvent extends Node implements MembershipEvent {
   static metatype: NodeType = NodeType.MEMBERSHIP_JOINED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -687,7 +684,7 @@ export class MembershipJoinedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -711,7 +708,7 @@ export class MembershipJoinedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * MembershipJoinedEvent.node
+   * MembershipEvent.node
    */
   get node(): Membership | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -726,7 +723,7 @@ export class MembershipJoinedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * MembershipJoinedEvent.joinable
+   * MembershipEvent.joinable
    */
   get joinable(): (Node & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
@@ -741,7 +738,7 @@ export class MembershipJoinedEvent extends Node implements Event {
   joinablePtr: NodeReference;
 
   /**
-   * MembershipJoinedEvent.member
+   * MembershipEvent.member
    */
   get member(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
@@ -895,6 +892,12 @@ export class MembershipJoinedEvent extends Node implements Event {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.rolePtr.id === other.rolePtr.id)) {
+      return false;
+    }
+    if (!(this.roleType === other.roleType)) {
+      return false;
+    }
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
@@ -902,12 +905,6 @@ export class MembershipJoinedEvent extends Node implements Event {
       return false;
     }
     if (!(this.memberPtr.id === other.memberPtr.id)) {
-      return false;
-    }
-    if (!(this.rolePtr.id === other.rolePtr.id)) {
-      return false;
-    }
-    if (!(this.roleType === other.roleType)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -919,11 +916,11 @@ export class MembershipJoinedEvent extends Node implements Event {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.rolePtr.id)) & 0xffffffff;
+    h = (h * 31 + this.roleType) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.rolePtr.id)) & 0xffffffff;
-    h = (h * 31 + this.roleType) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -987,8 +984,8 @@ export class MembershipJoinedEvent extends Node implements Event {
     objectValue["35"] = object.nodePtr.toValue();
     objectValue["40"] = object.joinablePtr.toValue();
     objectValue["41"] = object.memberPtr.toValue();
-    objectValue["42"] = object.rolePtr.toValue();
-    objectValue["43"] = object.roleType;
+    objectValue["50"] = object.rolePtr.toValue();
+    objectValue["51"] = object.roleType;
     return objectValue;
   }
 
@@ -1010,6 +1007,8 @@ export class MembershipJoinedEvent extends Node implements Event {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new MembershipJoinedEvent({
+      role: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      roleType: Number(objectValue["51"]),
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       joinable: NodeReference.fromValue(
         objectValue["40"],
@@ -1025,8 +1024,6 @@ export class MembershipJoinedEvent extends Node implements Event {
         _graph,
         _connection,
       ),
-      role: NodeReference.fromValue(objectValue["42"], _session, _supergraph, _graph, _connection),
-      roleType: Number(objectValue["43"]),
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1081,6 +1078,14 @@ export class MembershipJoinedEvent extends Node implements Event {
     _connection?: any | null,
   ): MembershipJoinedEvent {
     return new MembershipJoinedEvent({
+      role: NodeReference.fromProto(
+        objectProto.rolePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      roleType: Number(objectProto.roleType) as RoleType,
       node: NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
@@ -1102,14 +1107,6 @@ export class MembershipJoinedEvent extends Node implements Event {
         _graph,
         _connection,
       ),
-      role: NodeReference.fromProto(
-        objectProto.rolePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      roleType: Number(objectProto.roleType) as RoleType,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -1170,9 +1167,9 @@ registerNodeClass(NodeType.MEMBERSHIP_JOINED_EVENT, MembershipJoinedEvent);
 /**
  * A Event regarding a Membership Leave.
  */
-export class MembershipLeftEvent extends Node implements Event {
+export class MembershipLeftEvent extends Node implements MembershipEvent {
   static metatype: NodeType = NodeType.MEMBERSHIP_LEFT_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1180,7 +1177,7 @@ export class MembershipLeftEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1204,7 +1201,7 @@ export class MembershipLeftEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * MembershipLeftEvent.node
+   * MembershipEvent.node
    */
   get node(): Membership | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1219,7 +1216,7 @@ export class MembershipLeftEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * MembershipLeftEvent.joinable
+   * MembershipEvent.joinable
    */
   get joinable(): (Node & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
@@ -1234,7 +1231,7 @@ export class MembershipLeftEvent extends Node implements Event {
   joinablePtr: NodeReference;
 
   /**
-   * MembershipLeftEvent.member
+   * MembershipEvent.member
    */
   get member(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
@@ -1248,26 +1245,6 @@ export class MembershipLeftEvent extends Node implements Event {
   }
   memberPtr: NodeReference;
 
-  /**
-   * MembershipLeftEvent.role
-   */
-  get role(): Role | null {
-    const nodePtr: NodeReference | null = this.rolePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | null;
-    }
-    return null;
-  }
-  set role(node: Role) {
-    this.rolePtr = node.toRef();
-  }
-  rolePtr: NodeReference;
-
-  /**
-   * MembershipLeftEvent.roleType
-   */
-  roleType: RoleType;
-
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -1275,8 +1252,6 @@ export class MembershipLeftEvent extends Node implements Event {
     node: Membership | NodeReference;
     joinable: (Node & IsJoinable) | NodeReference;
     member: (Node & IsSubject) | NodeReference;
-    role: Role | NodeReference;
-    roleType: RoleType;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1340,19 +1315,6 @@ export class MembershipLeftEvent extends Node implements Event {
       throw new Error(`MembershipLeftEvent.member is required`);
     }
     this.memberPtr = _member;
-    let _role = options.role;
-    if (_role != null && _role instanceof Node) {
-      _role = _role.toRef();
-    }
-    if (_role === null) {
-      throw new Error(`MembershipLeftEvent.role is required`);
-    }
-    this.rolePtr = _role;
-    let _roleType = options.roleType;
-    if (_roleType === null) {
-      throw new Error(`MembershipLeftEvent.roleType is required`);
-    }
-    this.roleType = _roleType;
 
     // identity
     if (options.id == null) {
@@ -1397,12 +1359,6 @@ export class MembershipLeftEvent extends Node implements Event {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
-    if (!(this.rolePtr.id === other.rolePtr.id)) {
-      return false;
-    }
-    if (!(this.roleType === other.roleType)) {
-      return false;
-    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1415,8 +1371,6 @@ export class MembershipLeftEvent extends Node implements Event {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.rolePtr.id)) & 0xffffffff;
-    h = (h * 31 + this.roleType) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1480,8 +1434,6 @@ export class MembershipLeftEvent extends Node implements Event {
     objectValue["35"] = object.nodePtr.toValue();
     objectValue["40"] = object.joinablePtr.toValue();
     objectValue["41"] = object.memberPtr.toValue();
-    objectValue["42"] = object.rolePtr.toValue();
-    objectValue["43"] = object.roleType;
     return objectValue;
   }
 
@@ -1518,8 +1470,6 @@ export class MembershipLeftEvent extends Node implements Event {
         _graph,
         _connection,
       ),
-      role: NodeReference.fromValue(objectValue["42"], _session, _supergraph, _graph, _connection),
-      roleType: Number(objectValue["43"]),
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1561,8 +1511,6 @@ export class MembershipLeftEvent extends Node implements Event {
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.joinablePtr = object.joinablePtr.toProto();
     objectProto.memberPtr = object.memberPtr.toProto();
-    objectProto.rolePtr = object.rolePtr.toProto();
-    objectProto.roleType = Number(object.roleType) as RoleTypeProto;
     return objectProto as MembershipLeftEventProto;
   }
 
@@ -1595,14 +1543,6 @@ export class MembershipLeftEvent extends Node implements Event {
         _graph,
         _connection,
       ),
-      role: NodeReference.fromProto(
-        objectProto.rolePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      roleType: Number(objectProto.roleType) as RoleType,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -1658,3 +1598,427 @@ export class MembershipLeftEvent extends Node implements Event {
 }
 registerNodeClass(NodeType.MEMBERSHIP_LEFT_EVENT, MembershipLeftEvent);
 /* ==== DESTACK_GENERATED_END:NODE:511 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:501 ==== */
+/**
+ * A Event regarding a Membership.
+ */
+export class MembershipEvent extends Node implements Event {
+  static metatype: NodeType = NodeType.MEMBERSHIP_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * MembershipEvent.node
+   */
+  get node(): Membership | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Membership | null;
+    }
+    return null;
+  }
+  set node(node: Membership) {
+    this.nodePtr = node.toRef();
+  }
+  nodePtr: NodeReference;
+
+  /**
+   * MembershipEvent.joinable
+   */
+  get joinable(): (Node & IsJoinable) | null {
+    const nodePtr: NodeReference | null = this.joinablePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
+    }
+    return null;
+  }
+  set joinable(node: Node & IsJoinable) {
+    this.joinablePtr = node.toRef();
+  }
+  joinablePtr: NodeReference;
+
+  /**
+   * MembershipEvent.member
+   */
+  get member(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.memberPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  set member(node: Node & IsSubject) {
+    this.memberPtr = node.toRef();
+  }
+  memberPtr: NodeReference;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    node: Membership | NodeReference;
+    joinable: (Node & IsJoinable) | NodeReference;
+    member: (Node & IsSubject) | NodeReference;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`MembershipEvent.node is required`);
+    }
+    this.nodePtr = _node;
+    let _joinable = options.joinable;
+    if (_joinable != null && _joinable instanceof Node) {
+      _joinable = _joinable.toRef();
+    }
+    if (_joinable === null) {
+      throw new Error(`MembershipEvent.joinable is required`);
+    }
+    this.joinablePtr = _joinable;
+    let _member = options.member;
+    if (_member != null && _member instanceof Node) {
+      _member = _member.toRef();
+    }
+    if (_member === null) {
+      throw new Error(`MembershipEvent.member is required`);
+    }
+    this.memberPtr = _member;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.joinablePtr.id === other.joinablePtr.id)) {
+      return false;
+    }
+    if (!(this.memberPtr.id === other.memberPtr.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.MEMBERSHIP_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "MembershipEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<MembershipEvent '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return MembershipEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: MembershipEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 501;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["35"] = object.nodePtr.toValue();
+    objectValue["40"] = object.joinablePtr.toValue();
+    objectValue["41"] = object.memberPtr.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MembershipEvent {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new MembershipEvent({
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      joinable: NodeReference.fromValue(
+        objectValue["40"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      member: NodeReference.fromValue(
+        objectValue["41"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MembershipEvent {
+    return MembershipEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): MembershipEventProto {
+    return MembershipEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: MembershipEvent): MembershipEventProto {
+    const objectProto: Partial<MembershipEventProto> = { metatype: 501 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    objectProto.joinablePtr = object.joinablePtr.toProto();
+    objectProto.memberPtr = object.memberPtr.toProto();
+    return objectProto as MembershipEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: MembershipEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MembershipEvent {
+    return new MembershipEvent({
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      joinable: NodeReference.fromProto(
+        objectProto.joinablePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      member: NodeReference.fromProto(
+        objectProto.memberPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: MembershipEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MembershipEvent {
+    return MembershipEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): MembershipEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = MembershipEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.MEMBERSHIP_EVENT, MembershipEvent);
+/* ==== DESTACK_GENERATED_END:NODE:501 ==== */

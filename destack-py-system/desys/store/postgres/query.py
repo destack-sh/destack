@@ -17,6 +17,7 @@ from destack.language import (
     ExpressionType,
     Function,
     JoinType,
+    NodeDefinitionReference,
     NodeReference,
     NodeType,
     PropertyReference,
@@ -24,14 +25,13 @@ from destack.language import (
     QueryResult,
     QueryResultGroup,
     QueryType,
-    RelationReference,
     ScalarType,
     Select,
     Sort,
     Value,
     to_value,
 )
-from destack.language.core.common.relation import PropertyReferenceType
+from destack.language.core.builtin.relation import PropertyReferenceType
 from destack.utils.uuid import UUID
 
 from .core import PostgresContext
@@ -257,7 +257,7 @@ def _compile_expression(
 async def _walk_node(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     roots_ptr: Sequence[NodeReference],
     roots_parents_ptr: Sequence[NodeReference],
     direction: EdgeDirection,
@@ -424,7 +424,7 @@ FROM tree;
 async def _query_node(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     select: Select | None,
     where: Condition | None,
     sort: Sequence[Sort] | None,
@@ -491,7 +491,7 @@ async def _query_node(
 async def _query_scalar(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
 ) -> Value:
@@ -535,7 +535,7 @@ async def _query_scalar(
 async def _query_grouped_node(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     select: Select | None,
     where: Condition | None,
     having: Condition | None,
@@ -630,7 +630,7 @@ async def _query_grouped_node(
 async def _query_grouped_scalar(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
     having: Condition | None,

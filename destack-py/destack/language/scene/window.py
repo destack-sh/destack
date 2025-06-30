@@ -8,9 +8,8 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsOwnable,
-    Node,
+    IsSpatial,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -31,13 +30,12 @@ class WindowType(Enum):
 
 @builtin_node(NodeType.WINDOW)
 class Window(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     IsOwnable,
     IsOrdered,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """
     A Window for someone to interact with a Space via Scenes.

@@ -5,7 +5,6 @@ from destack.language.core import (
     EnumType,
     HasIcon,
     IsOwnable,
-    Node,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -31,12 +30,7 @@ class LayerType(Enum):
 
 
 @builtin_node(NodeType.LAYER)
-class Layer(
-    ContainerView,
-    HasIcon,
-    IsOwnable,
-    Node,
-):
+class Layer(HasIcon, IsOwnable, ContainerView):
     """A Layer is a named container for Views."""
 
     parent: Union["Scene", "Canvas", None] = property_parent_(node_is_customizable=True)

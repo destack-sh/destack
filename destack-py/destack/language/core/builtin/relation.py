@@ -1,6 +1,7 @@
 from typing import (
     TYPE_CHECKING,
     Optional,
+    Union,
     assert_never,
 )
 
@@ -12,29 +13,20 @@ from destack.language.registry import (
 from destack.proto import NodeReferenceProto, PropertyReferenceProto, ScopeProto
 from destack.utils.uuid import UUID
 
-from ..builtin import (
-    BuiltinObjectBase,
-    Enum,
-    EnumType,
-    Node,
-    NodeType,
-    PrimitiveType,
-    PropertyDeclaration,
-    Region,
-    StructBase,
-    StructFrozen,
-    StructType,
-    Trait,
-    TraitType,
-    builtin_enum,
-    builtin_struct,
-    property_,
-)
+from .common import EnumType, NodeType, PrimitiveType, Region
+from .enum import Enum, builtin_enum
+from .object import BuiltinObjectBase
+from .property import PropertyDeclaration, property_
+from .struct import StructBase, StructFrozen, StructType, builtin_struct
+from .trait import Trait, TraitType
 
 if TYPE_CHECKING:
     from destack.language import (
         CustomEntityDefinition,
+        CustomEventDefinition,
         CustomProperty,
+        CustomStructDefinition,
+        CustomTraitDefinition,
         Node,
         NodeBase,
         PropertyDefinition,
@@ -57,18 +49,24 @@ class Scope(StructFrozen[ScopeProto]):
 class RelationType(Enum):
     BUILTIN_NODE = 1
     CUSTOM_NODE = 2
-    TRAIT = 3
+    BUILTIN_TRAIT = 3
+    CUSTOM_TRAIT = 4
     # MULTI?
 
 
-@builtin_struct(StructType.RELATION_REFERENCE, frozen=True)
-class RelationReference(StructFrozen):
-    """Reference to a Node relation (builtin, custom or trait, i.e. a "relation")."""
+@builtin_struct(StructType.NODE_DEFINITION_REFERENCE, frozen=True)
+class NodeDefinitionReference(StructFrozen):
+    """Reference to a Node definition (builtin, custom or by trait)."""
 
     type: RelationType = property_(30, is_repr=True)
-    node_type: Optional[NodeType] = property_(31, is_repr=True)
-    definition: Optional["CustomEntityDefinition"] = property_(32, is_repr=True)
-    trait_type: Optional[TraitType] = property_(33, is_repr=True)
+    node_type: Optional[NodeType] = property_(40, is_repr=True)
+    trait_type: Optional[TraitType] = property_(41, is_repr=True)
+    definition: Union[
+        "CustomEntityDefinition",
+        "CustomEventDefinition",
+        "CustomTraitDefinition",
+        None,
+    ] = property_(45, is_repr=True)
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 
@@ -78,7 +76,7 @@ class RelationReference(StructFrozen):
 
     @property
     def is_multi(self) -> bool:
-        return self.type == RelationType.TRAIT
+        return self.type in (RelationType.BUILTIN_TRAIT, RelationType.CUSTOM_TRAIT)
 
     @property
     def object_cls(self) -> type_[BuiltinObjectBase] | None:
@@ -86,11 +84,16 @@ class RelationReference(StructFrozen):
             assert self.node_type is not None, f"no node_type for {self!r}"
             return NODE_CLASS_BY_TYPE.get(self.node_type)
         elif self.type == RelationType.CUSTOM_NODE:
-            assert self.definition is not None, f"no definition for {self!r}"
+            node_definition = self.definition
+            assert node_definition is not None, f"no definition for {self!r}"
             return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_ENTITY)
-        elif self.type == RelationType.TRAIT:
+        elif self.type == RelationType.BUILTIN_TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
             return TRAIT_CLASS_BY_TYPE.get(self.trait_type)
+        elif self.type == RelationType.CUSTOM_TRAIT:
+            trait_definition = self.definition
+            assert trait_definition is not None, f"no trait_definition for {self!r}"
+            return TRAIT_CLASS_BY_TYPE.get(trait_definition.metatype)
         else:
             assert_never(self.type)
 
@@ -109,61 +112,86 @@ class RelationReference(StructFrozen):
         return resolved
 
     @classmethod
-    def of(cls, base: "NodeType | type[NodeBase] | CustomEntityDefinition") -> "RelationReference":
+    def of(
+        cls, base: "NodeType | type[NodeBase] | CustomEntityDefinition"
+    ) -> "NodeDefinitionReference":
+        from .node import Node
+
         if isinstance(base, NodeType):
-            return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base)
+            return NodeDefinitionReference(type=RelationType.BUILTIN_NODE, node_type=base)
         elif isinstance(base, type):
             if issubclass(base, Node):
-                return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base.metatype)
+                return NodeDefinitionReference(
+                    type=RelationType.BUILTIN_NODE, node_type=base.metatype
+                )
             elif issubclass(base, Trait):
-                return RelationReference(type=RelationType.TRAIT, trait_type=base.metatype)
+                return NodeDefinitionReference(
+                    type=RelationType.BUILTIN_TRAIT, trait_type=base.metatype
+                )
             else:
                 raise ValueError(f"invalid relation reference type: {base!r}")
         elif isinstance(base, Node):
-            return RelationReference(
-                type=RelationType.CUSTOM_NODE,
-                node_type=NodeType.CUSTOM_ENTITY,
-                definition=base,
+            return NodeDefinitionReference(
+                type=RelationType.CUSTOM_NODE, node_type=NodeType.CUSTOM_ENTITY, definition=base
             )
         else:
             assert_never(base)
 
 
-@builtin_enum(EnumType.OBJECT_TYPE)
-class ObjectType(Enum):
+@builtin_enum(EnumType.OBJECT_DEFINITION_TYPE)
+class ObjectDefinitionType(Enum):
     BUILTIN_NODE = 1
     CUSTOM_NODE = 2
-    TRAIT = 3
+    BUILTIN_TRAIT = 3
+    CUSTOM_TRAIT = 4
     BUILTIN_STRUCT = 5
-    # MULTI?
+    CUSTOM_STRUCT = 6
+    # BUILTIN_ENUM, CUSTOM_ENUM?
 
 
-@builtin_struct(StructType.OBJECT_REFERENCE, frozen=True)
-class ObjectReference(StructFrozen):
+@builtin_struct(StructType.OBJECT_DEFINITION_REFERENCE, frozen=True)
+class ObjectDefinitionReference(StructFrozen):
     """Reference to an object "type" (builtin, custom or trait)."""
 
-    type: ObjectType = property_(30, is_repr=True)
+    type: ObjectDefinitionType = property_(30, is_repr=True)
     node_type: Optional[NodeType] = property_(31, is_repr=True)
     trait_type: Optional[TraitType] = property_(32, is_repr=True)
     struct_type: Optional[StructType] = property_(33, is_repr=True)
-    definition: Optional["CustomEntityDefinition"] = property_(40, is_repr=True)
+    definition: Union[
+        "CustomEntityDefinition",
+        "CustomEventDefinition",
+        "CustomTraitDefinition",
+        "CustomStructDefinition",
+        None,
+    ] = property_(40, is_repr=True)
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 
     @property
     def object_cls(self) -> type_[BuiltinObjectBase] | None:
-        if self.type == ObjectType.BUILTIN_NODE:
+        if self.type == ObjectDefinitionType.BUILTIN_NODE:
             assert self.node_type is not None, f"no node_type for {self!r}"
             return NODE_CLASS_BY_TYPE.get(self.node_type)
-        elif self.type == ObjectType.CUSTOM_NODE:
-            assert self.definition is not None, f"no definition for {self!r}"
-            return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_ENTITY)
-        elif self.type == ObjectType.TRAIT:
+        elif self.type == ObjectDefinitionType.CUSTOM_NODE:
+            definition = self.definition
+            assert definition is not None, f"no definition for {self!r}"
+            if isinstance(definition, CustomEntityDefinition):
+                return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_ENTITY)
+            elif isinstance(definition, CustomEventDefinition):
+                return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_EVENT)
+            else:
+                raise ValueError(f"unexpected object definition reference: {self!r}")
+        elif self.type == ObjectDefinitionType.BUILTIN_TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
             return TRAIT_CLASS_BY_TYPE.get(self.trait_type)
-        elif self.type == ObjectType.BUILTIN_STRUCT:
+        elif self.type == ObjectDefinitionType.BUILTIN_STRUCT:
             assert self.struct_type is not None, f"no struct_type for {self!r}"
             return STRUCT_CLASS_BY_TYPE.get(self.struct_type)
+        elif (
+            self.type == ObjectDefinitionType.CUSTOM_STRUCT
+            or self.type == ObjectDefinitionType.CUSTOM_TRAIT
+        ):
+            raise NotImplementedError(f"unexpected object definition reference: {self!r}")
         else:
             assert_never(self.type)
 
@@ -184,23 +212,33 @@ class ObjectReference(StructFrozen):
     @classmethod
     def of(
         cls, base: "NodeType | type[NodeBase] | CustomEntityDefinition | type[StructBase]"
-    ) -> "ObjectReference":
+    ) -> "ObjectDefinitionReference":
+        from .node import Node
+
         if isinstance(base, NodeType):
-            return ObjectReference(type=ObjectType.BUILTIN_NODE, node_type=base)
+            return ObjectDefinitionReference(type=ObjectDefinitionType.BUILTIN_NODE, node_type=base)
         elif isinstance(base, StructType):
-            return ObjectReference(type=ObjectType.BUILTIN_STRUCT, struct_type=base)
+            return ObjectDefinitionReference(
+                type=ObjectDefinitionType.BUILTIN_STRUCT, struct_type=base
+            )
         elif isinstance(base, type):
             if issubclass(base, Node):
-                return ObjectReference(type=ObjectType.BUILTIN_NODE, node_type=base.metatype)
+                return ObjectDefinitionReference(
+                    type=ObjectDefinitionType.BUILTIN_NODE, node_type=base.metatype
+                )
             elif issubclass(base, Trait):
-                return ObjectReference(type=ObjectType.TRAIT, trait_type=base.metatype)
+                return ObjectDefinitionReference(
+                    type=ObjectDefinitionType.BUILTIN_TRAIT, trait_type=base.metatype
+                )
             elif issubclass(base, StructBase):
-                return ObjectReference(type=ObjectType.BUILTIN_STRUCT, struct_type=base.metatype)
+                return ObjectDefinitionReference(
+                    type=ObjectDefinitionType.BUILTIN_STRUCT, struct_type=base.metatype
+                )
             else:
                 raise ValueError(f"invalid object reference type: {base!r}")
         elif isinstance(base, Node):
-            return ObjectReference(
-                type=ObjectType.CUSTOM_NODE,
+            return ObjectDefinitionReference(
+                type=ObjectDefinitionType.CUSTOM_NODE,
                 node_type=NodeType.CUSTOM_ENTITY,
                 definition=base,
             )

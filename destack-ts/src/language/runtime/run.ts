@@ -6,24 +6,23 @@ import {
 } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
-  Event,
   IsExtensible,
   IsRunnable,
+  IsSpatial,
   IsSubject,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Value } from "@destack/language/core/common";
+import { Entity, Event, Value } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Interruption } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
 import {
   RunCompletedEventProto,
+  RunEventProto,
   RunFailedEventProto,
   RunPauseRequestedEventProto,
   RunPausedEventProto,
@@ -63,27 +62,22 @@ registerEnumClass(EnumType.RUN_STATUS, RunStatus);
 /**
  * Run something somewhere, somehow.
  */
-export class Run extends Node implements Spatial, Entity, IsExtensible {
+export class Run extends Node implements IsSpatial, IsExtensible, Entity {
   static metatype: NodeType = NodeType.RUN;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.EXTENSIBLE,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.EXTENSIBLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [
     NodeType.CUSTOM_PROPERTY,
     NodeType.INTERRUPTION,
-    NodeType.SPAN,
+    NodeType.SPAN_EVENT,
   ];
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
     NodeType.CUSTOM_OPTION,
     NodeType.INTERRUPTION,
     NodeType.TAGGING,
-    NodeType.SPAN,
+    NodeType.SPAN_EVENT,
     NodeType.CUSTOM_PROPERTY,
   ];
 
@@ -427,6 +421,12 @@ export class Run extends Node implements Spatial, Entity, IsExtensible {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -434,12 +434,6 @@ export class Run extends Node implements Spatial, Entity, IsExtensible {
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
     }
 
     return h;
@@ -603,6 +597,15 @@ export class Run extends Node implements Spatial, Entity, IsExtensible {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -613,15 +616,6 @@ export class Run extends Node implements Spatial, Entity, IsExtensible {
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
-          String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new Run({
       parent: unpackedParentPtr,
       target: unpackedTargetPtr,
@@ -635,11 +629,11 @@ export class Run extends Node implements Spatial, Entity, IsExtensible {
       interruption: unpackedInterruptionPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      value: unpackedValue,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      value: unpackedValue,
       _session,
       _graph,
       _connection,
@@ -787,6 +781,7 @@ export class Run extends Node implements Spatial, Entity, IsExtensible {
             )
           : null,
       id: String(objectProto.id),
+      value: unpackedValue,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -809,7 +804,6 @@ export class Run extends Node implements Spatial, Entity, IsExtensible {
               _connection,
             )
           : null,
-      value: unpackedValue,
       _session,
       _graph,
       _connection,
@@ -841,11 +835,11 @@ registerNodeClass(NodeType.RUN, Run);
 
 /* ==== DESTACK_GENERATED_START:NODE:4011 ==== */
 /**
- * An Event regarding a Run.
+ * A Run was started.
  */
-export class RunStartedEvent extends Node implements Event {
+export class RunStartedEvent extends Node implements RunEvent {
   static metatype: NodeType = NodeType.RUN_STARTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -853,7 +847,7 @@ export class RunStartedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -877,7 +871,7 @@ export class RunStartedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * RunStartedEvent.node
+   * RunEvent.node
    */
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -892,7 +886,7 @@ export class RunStartedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * RunStartedEvent.target
+   * RunEvent.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -1230,11 +1224,11 @@ registerNodeClass(NodeType.RUN_STARTED_EVENT, RunStartedEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:4012 ==== */
 /**
- * An Event regarding a Run.
+ * A Run was paused.
  */
-export class RunPauseRequestedEvent extends Node implements Event {
+export class RunPauseRequestedEvent extends Node implements RunEvent {
   static metatype: NodeType = NodeType.RUN_PAUSE_REQUESTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1242,7 +1236,7 @@ export class RunPauseRequestedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1266,7 +1260,7 @@ export class RunPauseRequestedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * RunPauseRequestedEvent.node
+   * RunEvent.node
    */
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1281,7 +1275,7 @@ export class RunPauseRequestedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * RunPauseRequestedEvent.target
+   * RunEvent.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -1631,11 +1625,11 @@ registerNodeClass(NodeType.RUN_PAUSE_REQUESTED_EVENT, RunPauseRequestedEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:4013 ==== */
 /**
- * A Event regarding a Run.
+ * A Run was paused.
  */
-export class RunPausedEvent extends Node implements Event {
+export class RunPausedEvent extends Node implements RunEvent {
   static metatype: NodeType = NodeType.RUN_PAUSED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1643,7 +1637,7 @@ export class RunPausedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1667,7 +1661,7 @@ export class RunPausedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * RunPausedEvent.node
+   * RunEvent.node
    */
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1682,7 +1676,7 @@ export class RunPausedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * RunPausedEvent.target
+   * RunEvent.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -2020,11 +2014,11 @@ registerNodeClass(NodeType.RUN_PAUSED_EVENT, RunPausedEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:4014 ==== */
 /**
- * An Event regarding a Run.
+ * A Run was resumed.
  */
-export class RunResumeRequestedEvent extends Node implements Event {
+export class RunResumeRequestedEvent extends Node implements RunEvent {
   static metatype: NodeType = NodeType.RUN_RESUME_REQUESTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -2032,7 +2026,7 @@ export class RunResumeRequestedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -2056,7 +2050,7 @@ export class RunResumeRequestedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * RunResumeRequestedEvent.node
+   * RunEvent.node
    */
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -2071,7 +2065,7 @@ export class RunResumeRequestedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * RunResumeRequestedEvent.target
+   * RunEvent.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -2421,11 +2415,11 @@ registerNodeClass(NodeType.RUN_RESUME_REQUESTED_EVENT, RunResumeRequestedEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:4015 ==== */
 /**
- * A Event regarding a Run.
+ * A Run was resumed.
  */
-export class RunResumedEvent extends Node implements Event {
+export class RunResumedEvent extends Node implements RunEvent {
   static metatype: NodeType = NodeType.RUN_RESUMED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -2433,7 +2427,7 @@ export class RunResumedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -2457,7 +2451,7 @@ export class RunResumedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * RunResumedEvent.node
+   * RunEvent.node
    */
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -2472,7 +2466,7 @@ export class RunResumedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * RunResumedEvent.target
+   * RunEvent.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -2810,11 +2804,11 @@ registerNodeClass(NodeType.RUN_RESUMED_EVENT, RunResumedEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:4016 ==== */
 /**
- * An Event regarding a Run.
+ * A Run was stopped.
  */
-export class RunStopRequestedEvent extends Node implements Event {
+export class RunStopRequestedEvent extends Node implements RunEvent {
   static metatype: NodeType = NodeType.RUN_STOP_REQUESTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -2822,7 +2816,7 @@ export class RunStopRequestedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -2846,7 +2840,7 @@ export class RunStopRequestedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * RunStopRequestedEvent.node
+   * RunEvent.node
    */
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -2861,7 +2855,7 @@ export class RunStopRequestedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * RunStopRequestedEvent.target
+   * RunEvent.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -3211,11 +3205,11 @@ registerNodeClass(NodeType.RUN_STOP_REQUESTED_EVENT, RunStopRequestedEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:4017 ==== */
 /**
- * An Event regarding a Run.
+ * A Run failed.
  */
-export class RunFailedEvent extends Node implements Event {
+export class RunFailedEvent extends Node implements RunEvent {
   static metatype: NodeType = NodeType.RUN_FAILED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -3223,7 +3217,7 @@ export class RunFailedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -3247,7 +3241,7 @@ export class RunFailedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * RunFailedEvent.node
+   * RunEvent.node
    */
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -3262,7 +3256,7 @@ export class RunFailedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * RunFailedEvent.target
+   * RunEvent.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -3600,11 +3594,11 @@ registerNodeClass(NodeType.RUN_FAILED_EVENT, RunFailedEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:4018 ==== */
 /**
- * An Event regarding a Run.
+ * A Run completed.
  */
-export class RunCompletedEvent extends Node implements Event {
+export class RunCompletedEvent extends Node implements RunEvent {
   static metatype: NodeType = NodeType.RUN_COMPLETED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -3612,7 +3606,7 @@ export class RunCompletedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -3636,7 +3630,7 @@ export class RunCompletedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * RunCompletedEvent.node
+   * RunEvent.node
    */
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -3651,7 +3645,7 @@ export class RunCompletedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * RunCompletedEvent.target
+   * RunEvent.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -3998,3 +3992,392 @@ export class RunCompletedEvent extends Node implements Event {
 }
 registerNodeClass(NodeType.RUN_COMPLETED_EVENT, RunCompletedEvent);
 /* ==== DESTACK_GENERATED_END:NODE:4018 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:4001 ==== */
+/**
+ * An Event regarding a Run.
+ */
+export class RunEvent extends Node implements Event {
+  static metatype: NodeType = NodeType.RUN_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * RunEvent.node
+   */
+  get node(): Run | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Run | null;
+    }
+    return null;
+  }
+  set node(node: Run) {
+    this.nodePtr = node.toRef();
+  }
+  nodePtr: NodeReference;
+
+  /**
+   * RunEvent.target
+   */
+  get target(): (Node & IsRunnable) | null {
+    const nodePtr: NodeReference | null = this.targetPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+    }
+    return null;
+  }
+  set target(node: (Node & IsRunnable) | null) {
+    if (node === null) {
+      this.targetPtr = null;
+    } else {
+      this.targetPtr = node.toRef();
+    }
+  }
+  targetPtr: NodeReference | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    node: Run | NodeReference;
+    target?: (Node & IsRunnable) | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`RunEvent.node is required`);
+    }
+    this.nodePtr = _node;
+    let _target = options.target ?? null;
+    if (_target != null && _target instanceof Node) {
+      _target = _target.toRef();
+    }
+    this.targetPtr = _target;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.targetPtr?.id === other.targetPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.targetPtr !== null) {
+      h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.RUN_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "RunEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<RunEvent '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return RunEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: RunEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 4001;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["35"] = object.nodePtr.toValue();
+    if (object.targetPtr != null) {
+      objectValue["40"] = object.targetPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): RunEvent {
+    const targetPtrValue = objectValue["40"];
+    const unpackedTargetPtr =
+      targetPtrValue != undefined
+        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new RunEvent({
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): RunEvent {
+    return RunEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): RunEventProto {
+    return RunEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: RunEvent): RunEventProto {
+    const objectProto: Partial<RunEventProto> = { metatype: 4001 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    if (object.targetPtr != null) {
+      objectProto.targetPtr = object.targetPtr.toProto();
+    }
+    return objectProto as RunEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: RunEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): RunEvent {
+    return new RunEvent({
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      target:
+        objectProto.targetPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: RunEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): RunEvent {
+    return RunEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): RunEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = RunEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.RUN_EVENT, RunEvent);
+/* ==== DESTACK_GENERATED_END:NODE:4001 ==== */

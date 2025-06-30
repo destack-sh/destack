@@ -1,21 +1,19 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   HasIcon,
   HasName,
   IsDeletable,
   IsOrdered,
+  IsSpatial,
   IsSubject,
   IsTaggable,
-  IsVisual,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Icon } from "@destack/language/core/common";
+import { Entity, Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { ThemeProto } from "@destack/proto";
@@ -29,15 +27,13 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Theme
   extends Node
-  implements Spatial, Entity, HasName, HasIcon, IsVisual, IsOrdered, IsTaggable, IsDeletable
+  implements IsSpatial, HasName, HasIcon, IsOrdered, IsTaggable, IsDeletable, Entity
 {
   static metatype: NodeType = NodeType.THEME;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];
@@ -45,6 +41,7 @@ export class Theme
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [
     NodeType.TAGGING,
+    NodeType.STYLE,
     NodeType.COLOR_STYLE,
     NodeType.BORDER_STYLE,
     NodeType.TRANSITION_STYLE,
@@ -58,21 +55,22 @@ export class Theme
   ];
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
-    NodeType.STROKE_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.PALETTE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.TAGGING,
-    NodeType.COLOR_STYLE,
-    NodeType.EFFECT_STYLE,
     NodeType.SHADOW_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.STROKE_STYLE,
+    NodeType.STYLE,
+    NodeType.TAGGING,
+    NodeType.PALETTE,
+    NodeType.COLOR_STYLE,
     NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.BORDER_STYLE,
   ];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -277,14 +275,6 @@ export class Theme
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
@@ -292,6 +282,14 @@ export class Theme
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -384,16 +382,6 @@ export class Theme
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
@@ -404,18 +392,28 @@ export class Theme
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Theme({
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       icon: unpackedIcon,
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -493,6 +491,14 @@ export class Theme
             )
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      orderKey: objectProto.orderKey,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -515,14 +521,6 @@ export class Theme
               _connection,
             )
           : null,
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      orderKey: objectProto.orderKey,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

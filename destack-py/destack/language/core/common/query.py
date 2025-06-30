@@ -19,7 +19,7 @@ from ..builtin import (
     object_,
     property_,
 )
-from .relation import PropertyReference, RelationReference
+from ..builtin.relation import NodeDefinitionReference, PropertyReference
 from .value import Value
 
 if TYPE_CHECKING:
@@ -293,7 +293,7 @@ class Join(StructFrozen):
     """Join a Query with another Query."""
 
     type: JoinType = property_(30, is_repr=True)
-    relation: Optional[RelationReference] = property_(31, is_repr=True)
+    relation: Optional[NodeDefinitionReference] = property_(31, is_repr=True)
     # query_name?
     recursive: bool = property_(33, default=False, is_repr=True)  # for tree joins
     depth: int | None = property_(34, default=None, is_repr=True)  # for tree joins
@@ -341,7 +341,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
         description="Name for this subquery. Must be unique within the parent Query.",
         is_repr=True,
     )
-    relation: RelationReference = property_(32, is_repr=True)
+    relation: NodeDefinitionReference = property_(32, is_repr=True)
     join: Optional[Join] = property_(33, description="Relative to parent Query.", is_repr=True)
     select: Optional[Select] = property_(34, is_repr=True)
     subqueries: list["Query"] = property_(35, is_repr=True)

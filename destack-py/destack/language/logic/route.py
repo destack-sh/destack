@@ -6,10 +6,9 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsOwnable,
+    IsSpatial,
     IsTaggable,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
@@ -23,14 +22,13 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.ROUTE)
 class Route(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     IsDeletable,
     IsOrdered,
     IsOwnable,
     IsTaggable,
-    Node,
+    Entity,
 ):
     """A Route is a path to a Scene."""
 

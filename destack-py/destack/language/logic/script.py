@@ -8,9 +8,8 @@ from destack.language.core import (
     IsOrdered,
     IsRunnable,
     IsScriptable,
-    Node,
+    IsSpatial,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
@@ -24,14 +23,13 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.SCRIPT)
 class Script(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     IsOrdered,
     IsDeletable,
     IsRunnable,
     IsExtensible,
-    Node,
+    Entity,
 ):
     """A Script."""
 

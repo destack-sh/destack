@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
-    Node,
     NodeType,
     StructFrozen,
     StructType,
@@ -61,7 +60,7 @@ class StrokeCap(StructFrozen):
 
 
 @builtin_node(NodeType.STROKE_STYLE)
-class StrokeStyle(Style, Node):
+class StrokeStyle(Style):
     """A StrokeStyle."""
 
     type: StrokeType = property_(30)

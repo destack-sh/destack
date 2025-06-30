@@ -1,3 +1,4 @@
+import { ObjectType } from "@destack/language";
 import { Session, Supergraph } from "@destack/language/core";
 import {
   CascadeAction,
@@ -5,7 +6,10 @@ import {
   EdgeType,
   EnumType,
   NodeType,
+  ObjectDefinitionReference,
   PrimitiveType,
+  PropertyReference,
+  PropertyReferenceType,
   ScalarType,
   StructFrozen,
   StructType,
@@ -19,10 +23,6 @@ import {
   Icon,
   NodeConstraint,
   NumberConstraint,
-  ObjectReference,
-  ObjectType,
-  PropertyReference,
-  PropertyReferenceType,
   Sort,
   SortType,
   StringConstraint,
@@ -84,12 +84,12 @@ export class PropertyDefinition extends StructFrozen {
   /**
    * The object that this property is defined on.
    */
-  readonly object: ObjectReference;
+  readonly object: ObjectDefinitionReference;
 
   /**
    * The original object that this property was defined on.
    */
-  readonly originalObject: ObjectReference;
+  readonly originalObject: ObjectDefinitionReference;
 
   /**
    * PropertyDefinition.cardinality
@@ -231,13 +231,23 @@ export class PropertyDefinition extends StructFrozen {
    */
   readonly isComputed: boolean;
 
+  /**
+   * PropertyDefinition.isReadonly
+   */
+  readonly isReadonly: boolean;
+
+  /**
+   * PropertyDefinition.isStatic
+   */
+  readonly isStatic: boolean;
+
   constructor(options: {
     id: number;
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    object: ObjectReference;
-    originalObject: ObjectReference;
+    object: ObjectDefinitionReference;
+    originalObject: ObjectDefinitionReference;
     cardinality?: TypeCardinality;
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
@@ -266,6 +276,8 @@ export class PropertyDefinition extends StructFrozen {
     isEq: boolean;
     isManaged: boolean;
     isComputed: boolean;
+    isReadonly: boolean;
+    isStatic: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -403,6 +415,16 @@ export class PropertyDefinition extends StructFrozen {
       throw new Error(`PropertyDefinition.isComputed is required`);
     }
     this.isComputed = _isComputed;
+    let _isReadonly = options.isReadonly;
+    if (_isReadonly === null) {
+      throw new Error(`PropertyDefinition.isReadonly is required`);
+    }
+    this.isReadonly = _isReadonly;
+    let _isStatic = options.isStatic;
+    if (_isStatic === null) {
+      throw new Error(`PropertyDefinition.isStatic is required`);
+    }
+    this.isStatic = _isStatic;
 
     // identity
     // @ts-expect-error(readonly)
@@ -543,6 +565,12 @@ export class PropertyDefinition extends StructFrozen {
     if (!(this.isComputed === other.isComputed)) {
       return false;
     }
+    if (!(this.isReadonly === other.isReadonly)) {
+      return false;
+    }
+    if (!(this.isStatic === other.isStatic)) {
+      return false;
+    }
     return true;
   }
 
@@ -664,6 +692,8 @@ export class PropertyDefinition extends StructFrozen {
     h = (h * 31 + hashBool(this.isEq)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isManaged)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isComputed)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isStatic)) & 0xffffffff;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -753,6 +783,8 @@ export class PropertyDefinition extends StructFrozen {
     objectValue["84"] = object.isEq;
     objectValue["85"] = object.isManaged;
     objectValue["86"] = object.isComputed;
+    objectValue["87"] = object.isReadonly;
+    objectValue["88"] = object.isStatic;
     return objectValue;
   }
 
@@ -843,14 +875,14 @@ export class PropertyDefinition extends StructFrozen {
       name: objectValue["31"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      object: ObjectReference.fromValue(
+      object: ObjectDefinitionReference.fromValue(
         objectValue["37"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      originalObject: ObjectReference.fromValue(
+      originalObject: ObjectDefinitionReference.fromValue(
         objectValue["38"],
         _session,
         _supergraph,
@@ -885,6 +917,8 @@ export class PropertyDefinition extends StructFrozen {
       isEq: objectValue["84"],
       isManaged: objectValue["85"],
       isComputed: objectValue["86"],
+      isReadonly: objectValue["87"],
+      isStatic: objectValue["88"],
       _value: objectValue,
       _supergraph,
     });
@@ -984,6 +1018,8 @@ export class PropertyDefinition extends StructFrozen {
     objectProto.isEq = object.isEq;
     objectProto.isManaged = object.isManaged;
     objectProto.isComputed = object.isComputed;
+    objectProto.isReadonly = object.isReadonly;
+    objectProto.isStatic = object.isStatic;
     return objectProto as PropertyDefinitionProto;
   }
 
@@ -1002,14 +1038,14 @@ export class PropertyDefinition extends StructFrozen {
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
-      object: ObjectReference.fromProto(
+      object: ObjectDefinitionReference.fromProto(
         objectProto.object!,
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      originalObject: ObjectReference.fromProto(
+      originalObject: ObjectDefinitionReference.fromProto(
         objectProto.originalObject!,
         _session,
         _supergraph,
@@ -1097,6 +1133,8 @@ export class PropertyDefinition extends StructFrozen {
       isEq: objectProto.isEq,
       isManaged: objectProto.isManaged,
       isComputed: objectProto.isComputed,
+      isReadonly: objectProto.isReadonly,
+      isStatic: objectProto.isStatic,
       _proto: objectProto,
       _supergraph,
     });
@@ -1716,6 +1754,21 @@ export class NodeDefinition extends StructFrozen {
   readonly description: string | null;
 
   /**
+   * NodeDefinition.isAbstract
+   */
+  readonly isAbstract: boolean;
+
+  /**
+   * NodeDefinition.isGlobal
+   */
+  readonly isGlobal: boolean;
+
+  /**
+   * NodeDefinition.isSpatial
+   */
+  readonly isSpatial: boolean;
+
+  /**
    * NodeDefinition.properties
    */
   readonly properties: Array<PropertyDefinition>;
@@ -1726,14 +1779,24 @@ export class NodeDefinition extends StructFrozen {
   readonly baseType: NodeType | null;
 
   /**
-   * Traits directly and indirectly inherited by this Node.
+   * Nodes that this Node extends.
    */
-  readonly traits: Array<TraitType>;
+  readonly extends: Array<NodeType>;
+
+  /**
+   * Nodes that extend this Node type.
+   */
+  readonly extendedBy: Array<NodeType>;
 
   /**
    * Traits directly inherited by this Node.
    */
   readonly baseTraits: Array<TraitType>;
+
+  /**
+   * Traits directly and indirectly inherited by this Node.
+   */
+  readonly traits: Array<TraitType>;
 
   /**
    * NodeDefinition.rootType
@@ -1766,10 +1829,15 @@ export class NodeDefinition extends StructFrozen {
     name: string;
     icon?: Icon | null;
     description?: string | null;
+    isAbstract: boolean;
+    isGlobal: boolean;
+    isSpatial: boolean;
     properties?: Array<PropertyDefinition>;
     baseType?: NodeType | null;
-    traits?: Array<TraitType>;
+    extends?: Array<NodeType>;
+    extendedBy?: Array<NodeType>;
     baseTraits?: Array<TraitType>;
+    traits?: Array<TraitType>;
     rootType?: NodeType | null;
     parentTypes?: Array<NodeType>;
     childTypes?: Array<NodeType>;
@@ -1809,6 +1877,21 @@ export class NodeDefinition extends StructFrozen {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
+    let _isAbstract = options.isAbstract;
+    if (_isAbstract === null) {
+      throw new Error(`NodeDefinition.isAbstract is required`);
+    }
+    this.isAbstract = _isAbstract;
+    let _isGlobal = options.isGlobal;
+    if (_isGlobal === null) {
+      throw new Error(`NodeDefinition.isGlobal is required`);
+    }
+    this.isGlobal = _isGlobal;
+    let _isSpatial = options.isSpatial;
+    if (_isSpatial === null) {
+      throw new Error(`NodeDefinition.isSpatial is required`);
+    }
+    this.isSpatial = _isSpatial;
     let _properties = options.properties ?? null;
     if (_properties === null) {
       _properties = [];
@@ -1816,16 +1899,26 @@ export class NodeDefinition extends StructFrozen {
     this.properties = _properties;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
-    let _traits = options.traits ?? null;
-    if (_traits === null) {
-      _traits = [];
+    let _extends = options.extends ?? null;
+    if (_extends === null) {
+      _extends = [];
     }
-    this.traits = _traits;
+    this.extends = _extends;
+    let _extendedBy = options.extendedBy ?? null;
+    if (_extendedBy === null) {
+      _extendedBy = [];
+    }
+    this.extendedBy = _extendedBy;
     let _baseTraits = options.baseTraits ?? null;
     if (_baseTraits === null) {
       _baseTraits = [];
     }
     this.baseTraits = _baseTraits;
+    let _traits = options.traits ?? null;
+    if (_traits === null) {
+      _traits = [];
+    }
+    this.traits = _traits;
     let _rootType = options.rootType ?? null;
     this.rootType = _rootType;
     let _parentTypes = options.parentTypes ?? null;
@@ -1882,6 +1975,15 @@ export class NodeDefinition extends StructFrozen {
     if (!(this.description === other.description)) {
       return false;
     }
+    if (!(this.isAbstract === other.isAbstract)) {
+      return false;
+    }
+    if (!(this.isGlobal === other.isGlobal)) {
+      return false;
+    }
+    if (!(this.isSpatial === other.isSpatial)) {
+      return false;
+    }
     if (this.properties.length !== other.properties.length) {
       return false;
     }
@@ -1893,11 +1995,19 @@ export class NodeDefinition extends StructFrozen {
     if (!(this.baseType === other.baseType)) {
       return false;
     }
-    if (this.traits.length !== other.traits.length) {
+    if (this.extends.length !== other.extends.length) {
       return false;
     }
-    for (let i = 0; i < this.traits.length; i++) {
-      if (!(this.traits[i] === other.traits[i])) {
+    for (let i = 0; i < this.extends.length; i++) {
+      if (!(this.extends[i] === other.extends[i])) {
+        return false;
+      }
+    }
+    if (this.extendedBy.length !== other.extendedBy.length) {
+      return false;
+    }
+    for (let i = 0; i < this.extendedBy.length; i++) {
+      if (!(this.extendedBy[i] === other.extendedBy[i])) {
         return false;
       }
     }
@@ -1906,6 +2016,14 @@ export class NodeDefinition extends StructFrozen {
     }
     for (let i = 0; i < this.baseTraits.length; i++) {
       if (!(this.baseTraits[i] === other.baseTraits[i])) {
+        return false;
+      }
+    }
+    if (this.traits.length !== other.traits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.traits.length; i++) {
+      if (!(this.traits[i] === other.traits[i])) {
         return false;
       }
     }
@@ -1956,6 +2074,9 @@ export class NodeDefinition extends StructFrozen {
       if (this.description !== null) {
         propertyReprs.push(`description=${this.description}`);
       }
+      propertyReprs.push(`isAbstract=${this.isAbstract}`);
+      propertyReprs.push(`isGlobal=${this.isGlobal}`);
+      propertyReprs.push(`isSpatial=${this.isSpatial}`);
       // @ts-expect-error(readonly)
       this._repr = `<NodeDefinition ${propertyReprs.join(" ")}>`;
     }
@@ -1978,6 +2099,9 @@ export class NodeDefinition extends StructFrozen {
     if (this.description !== null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
+    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isGlobal)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isSpatial)) & 0xffffffff;
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -1986,13 +2110,23 @@ export class NodeDefinition extends StructFrozen {
     if (this.baseType !== null) {
       h = (h * 31 + this.baseType) & 0xffffffff;
     }
-    if (this.traits && this.traits.length > 0) {
-      for (const _item of this.traits) {
+    if (this.extends && this.extends.length > 0) {
+      for (const _item of this.extends) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.extendedBy && this.extendedBy.length > 0) {
+      for (const _item of this.extendedBy) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
     if (this.baseTraits && this.baseTraits.length > 0) {
       for (const _item of this.baseTraits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.traits && this.traits.length > 0) {
+      for (const _item of this.traits) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
@@ -2049,6 +2183,9 @@ export class NodeDefinition extends StructFrozen {
     if (object.description != null) {
       objectValue["36"] = object.description;
     }
+    objectValue["37"] = object.isAbstract;
+    objectValue["38"] = object.isGlobal;
+    objectValue["39"] = object.isSpatial;
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
@@ -2059,19 +2196,33 @@ export class NodeDefinition extends StructFrozen {
     if (object.baseType != null) {
       objectValue["50"] = object.baseType;
     }
-    if (object.traits.length > 0) {
-      const packedTraits: any[] = [];
-      for (const item of object.traits) {
-        packedTraits.push(item);
+    if (object.extends.length > 0) {
+      const packedExtends: any[] = [];
+      for (const item of object.extends) {
+        packedExtends.push(item);
       }
-      objectValue["51"] = packedTraits;
+      objectValue["51"] = packedExtends;
+    }
+    if (object.extendedBy.length > 0) {
+      const packedExtendedBy: any[] = [];
+      for (const item of object.extendedBy) {
+        packedExtendedBy.push(item);
+      }
+      objectValue["52"] = packedExtendedBy;
     }
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
         packedBaseTraits.push(item);
       }
-      objectValue["52"] = packedBaseTraits;
+      objectValue["53"] = packedBaseTraits;
+    }
+    if (object.traits.length > 0) {
+      const packedTraits: any[] = [];
+      for (const item of object.traits) {
+        packedTraits.push(item);
+      }
+      objectValue["54"] = packedTraits;
     }
     if (object.rootType != null) {
       objectValue["60"] = object.rootType;
@@ -2131,16 +2282,28 @@ export class NodeDefinition extends StructFrozen {
     }
     const baseTypeValue = objectValue["50"];
     const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
-    const unpackedTraits: any[] = [];
+    const unpackedExtends: any[] = [];
     if (objectValue["51"] != undefined) {
       for (const item of objectValue["51"]) {
-        unpackedTraits.push(Number(item));
+        unpackedExtends.push(Number(item));
+      }
+    }
+    const unpackedExtendedBy: any[] = [];
+    if (objectValue["52"] != undefined) {
+      for (const item of objectValue["52"]) {
+        unpackedExtendedBy.push(Number(item));
       }
     }
     const unpackedBaseTraits: any[] = [];
-    if (objectValue["52"] != undefined) {
-      for (const item of objectValue["52"]) {
+    if (objectValue["53"] != undefined) {
+      for (const item of objectValue["53"]) {
         unpackedBaseTraits.push(Number(item));
+      }
+    }
+    const unpackedTraits: any[] = [];
+    if (objectValue["54"] != undefined) {
+      for (const item of objectValue["54"]) {
+        unpackedTraits.push(Number(item));
       }
     }
     const rootTypeValue = objectValue["60"];
@@ -2175,10 +2338,15 @@ export class NodeDefinition extends StructFrozen {
       name: objectValue["31"],
       icon: unpackedIcon,
       description: unpackedDescription,
+      isAbstract: objectValue["37"],
+      isGlobal: objectValue["38"],
+      isSpatial: objectValue["39"],
       properties: unpackedProperties,
       baseType: unpackedBaseType,
-      traits: unpackedTraits,
+      extends: unpackedExtends,
+      extendedBy: unpackedExtendedBy,
       baseTraits: unpackedBaseTraits,
+      traits: unpackedTraits,
       rootType: unpackedRootType,
       parentTypes: unpackedParentTypes,
       childTypes: unpackedChildTypes,
@@ -2218,6 +2386,9 @@ export class NodeDefinition extends StructFrozen {
     if (object.description != null) {
       objectProto.description = object.description;
     }
+    objectProto.isAbstract = object.isAbstract;
+    objectProto.isGlobal = object.isGlobal;
+    objectProto.isSpatial = object.isSpatial;
     if (object.properties) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
@@ -2228,12 +2399,19 @@ export class NodeDefinition extends StructFrozen {
     if (object.baseType != null) {
       objectProto.baseType = Number(object.baseType) as NodeTypeProto;
     }
-    if (object.traits) {
-      const packedTraits: any[] = [];
-      for (const item of object.traits) {
-        packedTraits.push(Number(item) as TraitTypeProto);
+    if (object.extends) {
+      const packedExtends: any[] = [];
+      for (const item of object.extends) {
+        packedExtends.push(Number(item) as NodeTypeProto);
       }
-      objectProto.traits = packedTraits;
+      objectProto.extends = packedExtends;
+    }
+    if (object.extendedBy) {
+      const packedExtendedBy: any[] = [];
+      for (const item of object.extendedBy) {
+        packedExtendedBy.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.extendedBy = packedExtendedBy;
     }
     if (object.baseTraits) {
       const packedBaseTraits: any[] = [];
@@ -2241,6 +2419,13 @@ export class NodeDefinition extends StructFrozen {
         packedBaseTraits.push(Number(item) as TraitTypeProto);
       }
       objectProto.baseTraits = packedBaseTraits;
+    }
+    if (object.traits) {
+      const packedTraits: any[] = [];
+      for (const item of object.traits) {
+        packedTraits.push(Number(item) as TraitTypeProto);
+      }
+      objectProto.traits = packedTraits;
     }
     if (object.rootType != null) {
       objectProto.rootType = Number(object.rootType) as NodeTypeProto;
@@ -2291,16 +2476,28 @@ export class NodeDefinition extends StructFrozen {
         );
       }
     }
-    const unpackedTraits: any[] = [];
-    if (objectProto.traits) {
-      for (const item of objectProto.traits) {
-        unpackedTraits.push(Number(item) as TraitType);
+    const unpackedExtends: any[] = [];
+    if (objectProto.extends) {
+      for (const item of objectProto.extends) {
+        unpackedExtends.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedExtendedBy: any[] = [];
+    if (objectProto.extendedBy) {
+      for (const item of objectProto.extendedBy) {
+        unpackedExtendedBy.push(Number(item) as NodeType);
       }
     }
     const unpackedBaseTraits: any[] = [];
     if (objectProto.baseTraits) {
       for (const item of objectProto.baseTraits) {
         unpackedBaseTraits.push(Number(item) as TraitType);
+      }
+    }
+    const unpackedTraits: any[] = [];
+    if (objectProto.traits) {
+      for (const item of objectProto.traits) {
+        unpackedTraits.push(Number(item) as TraitType);
       }
     }
     const unpackedParentTypes: any[] = [];
@@ -2336,11 +2533,16 @@ export class NodeDefinition extends StructFrozen {
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
+      isAbstract: objectProto.isAbstract,
+      isGlobal: objectProto.isGlobal,
+      isSpatial: objectProto.isSpatial,
       properties: unpackedProperties,
       baseType:
         objectProto.baseType != undefined ? (Number(objectProto.baseType) as NodeType) : null,
-      traits: unpackedTraits,
+      extends: unpackedExtends,
+      extendedBy: unpackedExtendedBy,
       baseTraits: unpackedBaseTraits,
+      traits: unpackedTraits,
       rootType:
         objectProto.rootType != undefined ? (Number(objectProto.rootType) as NodeType) : null,
       parentTypes: unpackedParentTypes,

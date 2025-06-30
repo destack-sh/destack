@@ -4,11 +4,9 @@ from destack.language.core import (
     Axis2,
     Enum,
     EnumType,
-    Node,
     NodeType,
     NumberFormat,
     StructFrozen,
-    StructMutable,
     StructType,
     builtin_enum,
     builtin_node,
@@ -39,8 +37,8 @@ class GradientStop(StructFrozen):
     position: float = property_(51, format=NumberFormat.PERCENTAGE, is_repr=True)
 
 
-@builtin_struct(StructType.GRADIENT)
-class Gradient(StructMutable):
+@builtin_struct(StructType.GRADIENT, frozen=True)
+class Gradient(StructFrozen):
     """A gradient value."""
 
     type: GradientType = property_(30, default=GradientType.LINEAR, is_repr=True)
@@ -51,10 +49,7 @@ class Gradient(StructMutable):
 
 
 @builtin_node(NodeType.GRADIENT_STYLE)
-class GradientStyle(
-    Style,
-    Node,
-):
+class GradientStyle(Style):
     """A gradient style."""
 
     type: GradientType = property_(30, default=GradientType.LINEAR, is_repr=True)

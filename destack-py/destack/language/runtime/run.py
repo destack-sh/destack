@@ -8,9 +8,8 @@ from destack.language.core import (
     Event,
     IsExtensible,
     IsRunnable,
-    Node,
+    IsSpatial,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -64,117 +63,76 @@ class RunStatus(Enum):
         return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
 
 
-@builtin_node(NodeType.RUN_STARTED_EVENT)
-class RunStartedEvent(
-    Event["Run"],
-    Node,
-):
+@builtin_node(NodeType.RUN_EVENT, is_abstract=True)
+class RunEvent(Event["Run"]):
     """An Event regarding a Run."""
 
     node: "Run" = property_(35)
     target: Optional[IsRunnable] = property_(40)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.RUN_STARTED_EVENT)
+class RunStartedEvent(
+    RunEvent,
+):
+    """A Run was started."""
+
+    pass
 
 
 @builtin_node(NodeType.RUN_PAUSE_REQUESTED_EVENT)
-class RunPauseRequestedEvent(
-    Event["Run"],
-    Node,
-):
-    """An Event regarding a Run."""
+class RunPauseRequestedEvent(RunEvent):
+    """A Run was paused."""
 
-    node: "Run" = property_(35)
-    target: Optional[IsRunnable] = property_(40)
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None
+    pass
 
 
 @builtin_node(NodeType.RUN_PAUSED_EVENT)
-class RunPausedEvent(
-    Event["Run"],
-    Node,
-):
-    """A Event regarding a Run."""
+class RunPausedEvent(RunEvent):
+    """A Run was paused."""
 
-    node: "Run" = property_(35)
-    target: Optional[IsRunnable] = property_(40)
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None
+    pass
 
 
 @builtin_node(NodeType.RUN_RESUME_REQUESTED_EVENT)
-class RunResumeRequestedEvent(
-    Event["Run"],
-    Node,
-):
-    """An Event regarding a Run."""
+class RunResumeRequestedEvent(RunEvent):
+    """A Run was resumed."""
 
-    node: "Run" = property_(35)
-    target: Optional[IsRunnable] = property_(40)
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None
+    pass
 
 
 @builtin_node(NodeType.RUN_RESUMED_EVENT)
-class RunResumedEvent(
-    Event["Run"],
-    Node,
-):
-    """A Event regarding a Run."""
+class RunResumedEvent(RunEvent):
+    """A Run was resumed."""
 
-    node: "Run" = property_(35)
-    target: Optional[IsRunnable] = property_(40)
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None
+    pass
 
 
 @builtin_node(NodeType.RUN_STOP_REQUESTED_EVENT)
-class RunStopRequestedEvent(
-    Event["Run"],
-    Node,
-):
-    """An Event regarding a Run."""
+class RunStopRequestedEvent(RunEvent):
+    """A Run was stopped."""
 
-    node: "Run" = property_(35)
-    target: Optional[IsRunnable] = property_(40)
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None
+    pass
 
 
 @builtin_node(NodeType.RUN_FAILED_EVENT)
-class RunFailedEvent(
-    Event["Run"],
-    Node,
-):
-    """An Event regarding a Run."""
+class RunFailedEvent(RunEvent):
+    """A Run failed."""
 
-    node: "Run" = property_(35)
-    target: Optional[IsRunnable] = property_(40)
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None
+    pass
 
 
 @builtin_node(NodeType.RUN_COMPLETED_EVENT)
-class RunCompletedEvent(
-    Event["Run"],
-    Node,
-):
-    """An Event regarding a Run."""
+class RunCompletedEvent(RunEvent):
+    """A Run completed."""
 
-    node: "Run" = property_(35)
-    target: Optional[IsRunnable] = property_(40)
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None
+    pass
 
 
 @builtin_node(NodeType.RUN)
-class Run(
-    Spatial,
-    Entity,
-    IsExtensible,
-    Node,
-):
+class Run(IsSpatial, IsExtensible, Entity):
     """
     Run something somewhere, somehow.
     """

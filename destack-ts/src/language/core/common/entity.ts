@@ -1,22 +1,22 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   HasName,
   IsActionable,
-  IsCustomNode,
-  IsCustomNodeDefinition,
   IsDeletable,
   IsExtensible,
   IsOwnable,
   IsOwner,
   IsScriptable,
   IsSourceable,
+  IsSpatial,
   IsSubject,
   IsTaggable,
+  IsTracked,
   Node,
+  NodeDefinitionReference,
   NodeType,
-  Spatial,
+  ResourceStatus,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
@@ -25,9 +25,17 @@ import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { CustomEntityDefinitionProto, CustomEntityProto, TraitTypeProto } from "@destack/proto";
+import {
+  CustomEntityDefinitionProto,
+  CustomEntityProto,
+  CustomTraitDefinitionProto,
+  EntityProto,
+  MetricProto,
+  ResourceProto,
+  ResourceStatusProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
@@ -38,30 +46,27 @@ import { Temporal } from "temporal-polyfill";
 export class CustomEntityDefinition
   extends Node
   implements
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
-    IsCustomNodeDefinition,
     IsTaggable,
     IsOwnable,
     IsDeletable,
     IsScriptable,
     IsSourceable,
-    IsActionable
+    IsActionable,
+    Entity
 {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY_DEFINITION;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
     TraitType.TAGGABLE,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
+    TraitType.SPATIAL,
     TraitType.OWNABLE,
+    TraitType.TRACKED,
     TraitType.DELETABLE,
     TraitType.ACTIONABLE,
     TraitType.ORDERED,
     TraitType.SCRIPTABLE,
     TraitType.SOURCEABLE,
-    TraitType.CUSTOM_NODE_DEFINITION,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.FOLDER];
@@ -104,25 +109,6 @@ export class CustomEntityDefinition
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * A custom Entity's prototype is the default template new CustomEntity instances are based on.
-   */
-  get prototype(): CustomEntity | null {
-    const nodePtr: NodeReference | null = this.prototypePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntity | null;
-    }
-    return null;
-  }
-  set prototype(node: CustomEntity | null) {
-    if (node === null) {
-      this.prototypePtr = null;
-    } else {
-      this.prototypePtr = node.toRef();
-    }
-  }
-  prototypePtr: NodeReference | null;
 
   /**
    * IsTracked.createdAt
@@ -193,9 +179,38 @@ export class CustomEntityDefinition
   name: string;
 
   /**
-   * CustomEntityDefinition.traits
+   * A custom Entity's prototype is the default template new CustomEntity instances are based on.
    */
-  traits: Array<TraitType>;
+  get prototype(): CustomEntity | null {
+    const nodePtr: NodeReference | null = this.prototypePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as CustomEntity | null;
+    }
+    return null;
+  }
+  set prototype(node: CustomEntity | null) {
+    if (node === null) {
+      this.prototypePtr = null;
+    } else {
+      this.prototypePtr = node.toRef();
+    }
+  }
+  prototypePtr: NodeReference | null;
+
+  /**
+   * CustomEntityDefinition.baseType
+   */
+  baseType: NodeDefinitionReference | null;
+
+  /**
+   * CustomEntityDefinition.baseTraits
+   */
+  baseTraits: Array<NodeDefinitionReference>;
+
+  /**
+   * CustomEntityDefinition.isAbstract
+   */
+  isAbstract: boolean;
 
   /**
    * The main / root Script of this Node.
@@ -232,7 +247,6 @@ export class CustomEntityDefinition
     id?: string;
     parent?: Folder | NodeReference | null;
     space?: Space | NodeReference | null;
-    prototype?: CustomEntity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -241,7 +255,10 @@ export class CustomEntityDefinition
     orderKey?: string;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
-    traits?: Array<TraitType>;
+    prototype?: CustomEntity | NodeReference | null;
+    baseType?: NodeDefinitionReference | null;
+    baseTraits?: Array<NodeDefinitionReference>;
+    isAbstract?: boolean;
     script?: Script | NodeReference | null;
     source?: Script | NodeReference | null;
     _session?: Session | null;
@@ -283,11 +300,6 @@ export class CustomEntityDefinition
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _prototype = options.prototype ?? null;
-    if (_prototype != null && _prototype instanceof Node) {
-      _prototype = _prototype.toRef();
-    }
-    this.prototypePtr = _prototype;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -308,11 +320,26 @@ export class CustomEntityDefinition
       throw new Error(`CustomEntityDefinition.name is required`);
     }
     this.name = _name;
-    let _traits = options.traits ?? null;
-    if (_traits === null) {
-      _traits = [];
+    let _prototype = options.prototype ?? null;
+    if (_prototype != null && _prototype instanceof Node) {
+      _prototype = _prototype.toRef();
     }
-    this.traits = _traits;
+    this.prototypePtr = _prototype;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
+    let _baseTraits = options.baseTraits ?? null;
+    if (_baseTraits === null) {
+      _baseTraits = [];
+    }
+    this.baseTraits = _baseTraits;
+    let _isAbstract = options.isAbstract ?? null;
+    if (_isAbstract === null) {
+      _isAbstract = false;
+    }
+    if (_isAbstract === null) {
+      throw new Error(`CustomEntityDefinition.isAbstract is required`);
+    }
+    this.isAbstract = _isAbstract;
     let _script = options.script ?? null;
     if (_script != null && _script instanceof Node) {
       _script = _script.toRef();
@@ -361,13 +388,22 @@ export class CustomEntityDefinition
     if (!(this.prototypePtr?.id === other.prototypePtr?.id)) {
       return false;
     }
-    if (this.traits.length !== other.traits.length) {
+    if (
+      (this.baseType == null) !== (other.baseType == null) ||
+      (this.baseType != null && !this.baseType.equals(other.baseType))
+    ) {
       return false;
     }
-    for (let i = 0; i < this.traits.length; i++) {
-      if (!(this.traits[i] === other.traits[i])) {
+    if (this.baseTraits.length !== other.baseTraits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseTraits.length; i++) {
+      if (!this.baseTraits[i].equals(other.baseTraits[i])) {
         return false;
       }
+    }
+    if (!(this.isAbstract === other.isAbstract)) {
+      return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
@@ -396,23 +432,19 @@ export class CustomEntityDefinition
     if (this.prototypePtr !== null) {
       h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
     }
-    if (this.traits && this.traits.length > 0) {
-      for (const _item of this.traits) {
-        h = (h * 31 + _item) & 0xffffffff;
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
+    }
+    if (this.baseTraits && this.baseTraits.length > 0) {
+      for (const _item of this.baseTraits) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
+    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
@@ -427,6 +459,14 @@ export class CustomEntityDefinition
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
 
     return h;
   }
@@ -485,9 +525,6 @@ export class CustomEntityDefinition
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    if (object.prototypePtr != null) {
-      objectValue["6"] = object.prototypePtr.toValue();
-    }
     objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -504,13 +541,20 @@ export class CustomEntityDefinition
       objectValue["25"] = object.ownedByPtr.toValue();
     }
     objectValue["31"] = object.name;
-    if (object.traits.length > 0) {
-      const packedTraits: any[] = [];
-      for (const item of object.traits) {
-        packedTraits.push(item);
-      }
-      objectValue["40"] = packedTraits;
+    if (object.prototypePtr != null) {
+      objectValue["40"] = object.prototypePtr.toValue();
     }
+    if (object.baseType != null) {
+      objectValue["41"] = object.baseType.toValue();
+    }
+    if (object.baseTraits.length > 0) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(item.toValue());
+      }
+      objectValue["42"] = packedBaseTraits;
+    }
+    objectValue["45"] = object.isAbstract;
     if (object.scriptPtr != null) {
       objectValue["200"] = object.scriptPtr.toValue();
     }
@@ -532,31 +576,34 @@ export class CustomEntityDefinition
       parentPtrValue != undefined
         ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const prototypePtrValue = objectValue["6"];
+    const prototypePtrValue = objectValue["40"];
     const unpackedPrototypePtr =
       prototypePtrValue != undefined
         ? NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedTraits: any[] = [];
-    if (objectValue["40"] != undefined) {
-      for (const item of objectValue["40"]) {
-        unpackedTraits.push(Number(item));
+    const baseTypeValue = objectValue["41"];
+    const unpackedBaseType =
+      baseTypeValue != undefined
+        ? NodeDefinitionReference.fromValue(
+            baseTypeValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
+    const unpackedBaseTraits: any[] = [];
+    if (objectValue["42"] != undefined) {
+      for (const item of objectValue["42"]) {
+        unpackedBaseTraits.push(
+          NodeDefinitionReference.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
@@ -578,22 +625,34 @@ export class CustomEntityDefinition
       sourcePtrValue != undefined
         ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new CustomEntityDefinition({
       parent: unpackedParentPtr,
       prototype: unpackedPrototypePtr,
-      traits: unpackedTraits,
+      baseType: unpackedBaseType,
+      baseTraits: unpackedBaseTraits,
+      isAbstract: objectValue["45"],
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
       source: unpackedSourcePtr,
       orderKey: objectValue["22"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -629,9 +688,6 @@ export class CustomEntityDefinition
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    if (object.prototypePtr != null) {
-      objectProto.prototypePtr = object.prototypePtr.toProto();
-    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -648,13 +704,20 @@ export class CustomEntityDefinition
       objectProto.ownedByPtr = object.ownedByPtr.toProto();
     }
     objectProto.name = object.name;
-    if (object.traits) {
-      const packedTraits: any[] = [];
-      for (const item of object.traits) {
-        packedTraits.push(Number(item) as TraitTypeProto);
-      }
-      objectProto.traits = packedTraits;
+    if (object.prototypePtr != null) {
+      objectProto.prototypePtr = object.prototypePtr.toProto();
     }
+    if (object.baseType != null) {
+      objectProto.baseType = object.baseType.toProto();
+    }
+    if (object.baseTraits) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(item.toProto());
+      }
+      objectProto.baseTraits = packedBaseTraits;
+    }
+    objectProto.isAbstract = object.isAbstract;
     if (object.scriptPtr != null) {
       objectProto.scriptPtr = object.scriptPtr.toProto();
     }
@@ -671,10 +734,12 @@ export class CustomEntityDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEntityDefinition {
-    const unpackedTraits: any[] = [];
-    if (objectProto.traits) {
-      for (const item of objectProto.traits) {
-        unpackedTraits.push(Number(item) as TraitType);
+    const unpackedBaseTraits: any[] = [];
+    if (objectProto.baseTraits) {
+      for (const item of objectProto.baseTraits) {
+        unpackedBaseTraits.push(
+          NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new CustomEntityDefinition({
@@ -698,7 +763,18 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
-      traits: unpackedTraits,
+      baseType:
+        objectProto.baseType != undefined
+          ? NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseTraits: unpackedBaseTraits,
+      isAbstract: objectProto.isAbstract,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -710,28 +786,6 @@ export class CustomEntityDefinition
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       name: objectProto.name,
       ownedBy:
         objectProto.ownedByPtr != undefined
@@ -766,6 +820,28 @@ export class CustomEntityDefinition
             )
           : null,
       orderKey: objectProto.orderKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       _session,
       _graph,
       _connection,
@@ -805,16 +881,11 @@ registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
 /**
  * A CustomEntity is an instance of a CustomEntityDefinition.
  */
-export class CustomEntity
-  extends Node
-  implements Spatial, Entity, IsExtensible, IsDeletable, IsCustomNode
-{
+export class CustomEntity extends Node implements IsSpatial, IsExtensible, IsDeletable, Entity {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY;
   static __traits__: TraitType[] = [
-    TraitType.CUSTOM_NODE,
     TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.EXTENSIBLE,
   ];
@@ -1045,14 +1116,6 @@ export class CustomEntity
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     if (this.value && Object.keys(this.value).length > 0) {
       for (const [_key, _value] of Object.entries(this.value)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -1061,6 +1124,14 @@ export class CustomEntity
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -1075,7 +1146,6 @@ export class CustomEntity
       nodeType: NodeType.CUSTOM_ENTITY,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1155,16 +1225,6 @@ export class CustomEntity
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
@@ -1179,6 +1239,16 @@ export class CustomEntity
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new CustomEntity({
       parent: unpackedParentPtr,
       definition: NodeReference.fromValue(
@@ -1190,12 +1260,12 @@ export class CustomEntity
       ),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      value: unpackedValue,
+      deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      value: unpackedValue,
-      deletedAt: unpackedDeletedAt,
       _session,
       _graph,
       _connection,
@@ -1291,6 +1361,9 @@ export class CustomEntity
             )
           : null,
       id: String(objectProto.id),
+      value: unpackedValue,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1313,9 +1386,6 @@ export class CustomEntity
               _connection,
             )
           : null,
-      value: unpackedValue,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,
@@ -1344,3 +1414,1917 @@ export class CustomEntity
 }
 registerNodeClass(NodeType.CUSTOM_ENTITY, CustomEntity);
 /* ==== DESTACK_GENERATED_END:NODE:2001 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:51001 ==== */
+/**
+ * An Entity is a versioned Node in primary relational storage (OLTP).
+ */
+export class Entity extends Node implements IsTracked {
+  static metatype: NodeType = NodeType.ENTITY;
+  static __traits__: TraitType[] = [TraitType.TRACKED];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.NODE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.NODE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * Trait.parent
+   */
+  get parent(): Node | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly updatedByPtr: NodeReference | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Node | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    updatedAt?: Temporal.ZonedDateTime;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.ENTITY,
+      id: this.id,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "Entity[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<Entity '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return Entity.__packValue__(this);
+  }
+
+  static __packValue__(object: Entity): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 51001;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.updatedByPtr != null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Entity {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Entity({
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Entity {
+    return Entity.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): EntityProto {
+    return Entity.__packProto__(this);
+  }
+
+  static __packProto__(object: Entity): EntityProto {
+    const objectProto: Partial<EntityProto> = { metatype: 51001 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    return objectProto as EntityProto;
+  }
+
+  static __unpackProto__(
+    objectProto: EntityProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Entity {
+    return new Entity({
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: EntityProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Entity {
+    return Entity.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Entity {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = EntityProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.ENTITY, Entity);
+/* ==== DESTACK_GENERATED_END:NODE:51001 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:2002 ==== */
+/**
+ * A CustomTraitDefinition defines a kind of CustomTrait.
+ */
+export class CustomTraitDefinition
+  extends Node
+  implements IsSpatial, HasName, IsSourceable, IsDeletable, Entity
+{
+  static metatype: NodeType = NodeType.CUSTOM_TRAIT_DEFINITION;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * CustomTraitDefinition.parent
+   */
+  get parent(): Folder | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Folder | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
+  readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
+  name: string;
+
+  /**
+   * CustomTraitDefinition.baseType
+   */
+  baseType: NodeDefinitionReference | null;
+
+  /**
+   * CustomTraitDefinition.baseTraits
+   */
+  baseTraits: Array<NodeDefinitionReference>;
+
+  /**
+   * CustomTraitDefinition.isAbstract
+   */
+  isAbstract: boolean;
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Folder | NodeReference | null;
+    space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    updatedAt?: Temporal.ZonedDateTime;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
+    orderKey?: string;
+    name: string;
+    baseType?: NodeDefinitionReference | null;
+    baseTraits?: Array<NodeDefinitionReference>;
+    isAbstract?: boolean;
+    source?: Script | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`CustomTraitDefinition.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`CustomTraitDefinition.name is required`);
+    }
+    this.name = _name;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
+    let _baseTraits = options.baseTraits ?? null;
+    if (_baseTraits === null) {
+      _baseTraits = [];
+    }
+    this.baseTraits = _baseTraits;
+    let _isAbstract = options.isAbstract ?? null;
+    if (_isAbstract === null) {
+      _isAbstract = false;
+    }
+    if (_isAbstract === null) {
+      throw new Error(`CustomTraitDefinition.isAbstract is required`);
+    }
+    this.isAbstract = _isAbstract;
+    let _source = options.source ?? null;
+    if (_source != null && _source instanceof Node) {
+      _source = _source.toRef();
+    }
+    this.sourcePtr = _source;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.baseType == null) !== (other.baseType == null) ||
+      (this.baseType != null && !this.baseType.equals(other.baseType))
+    ) {
+      return false;
+    }
+    if (this.baseTraits.length !== other.baseTraits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseTraits.length; i++) {
+      if (!this.baseTraits[i].equals(other.baseTraits[i])) {
+        return false;
+      }
+    }
+    if (!(this.isAbstract === other.isAbstract)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
+    }
+    if (this.baseTraits && this.baseTraits.length > 0) {
+      for (const _item of this.baseTraits) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.sourcePtr !== null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.CUSTOM_TRAIT_DEFINITION,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return this.name;
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<CustomTraitDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return CustomTraitDefinition.__packValue__(this);
+  }
+
+  static __packValue__(object: CustomTraitDefinition): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2002;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.updatedByPtr != null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt != null) {
+      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["31"] = object.name;
+    if (object.baseType != null) {
+      objectValue["41"] = object.baseType.toValue();
+    }
+    if (object.baseTraits.length > 0) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(item.toValue());
+      }
+      objectValue["42"] = packedBaseTraits;
+    }
+    objectValue["45"] = object.isAbstract;
+    if (object.sourcePtr != null) {
+      objectValue["210"] = object.sourcePtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomTraitDefinition {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["41"];
+    const unpackedBaseType =
+      baseTypeValue != undefined
+        ? NodeDefinitionReference.fromValue(
+            baseTypeValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
+    const unpackedBaseTraits: any[] = [];
+    if (objectValue["42"] != undefined) {
+      for (const item of objectValue["42"]) {
+        unpackedBaseTraits.push(
+          NodeDefinitionReference.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const sourcePtrValue = objectValue["210"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new CustomTraitDefinition({
+      parent: unpackedParentPtr,
+      baseType: unpackedBaseType,
+      baseTraits: unpackedBaseTraits,
+      isAbstract: objectValue["45"],
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      name: objectValue["31"],
+      source: unpackedSourcePtr,
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomTraitDefinition {
+    return CustomTraitDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): CustomTraitDefinitionProto {
+    return CustomTraitDefinition.__packProto__(this);
+  }
+
+  static __packProto__(object: CustomTraitDefinition): CustomTraitDefinitionProto {
+    const objectProto: Partial<CustomTraitDefinitionProto> = { metatype: 2002 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.name = object.name;
+    if (object.baseType != null) {
+      objectProto.baseType = object.baseType.toProto();
+    }
+    if (object.baseTraits) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(item.toProto());
+      }
+      objectProto.baseTraits = packedBaseTraits;
+    }
+    objectProto.isAbstract = object.isAbstract;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    return objectProto as CustomTraitDefinitionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: CustomTraitDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomTraitDefinition {
+    const unpackedBaseTraits: any[] = [];
+    if (objectProto.baseTraits) {
+      for (const item of objectProto.baseTraits) {
+        unpackedBaseTraits.push(
+          NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new CustomTraitDefinition({
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseType:
+        objectProto.baseType != undefined
+          ? NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseTraits: unpackedBaseTraits,
+      isAbstract: objectProto.isAbstract,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      name: objectProto.name,
+      source:
+        objectProto.sourcePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      orderKey: objectProto.orderKey,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: CustomTraitDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomTraitDefinition {
+    return CustomTraitDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): CustomTraitDefinition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CustomTraitDefinitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.CUSTOM_TRAIT_DEFINITION, CustomTraitDefinition);
+/* ==== DESTACK_GENERATED_END:NODE:2002 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:51003 ==== */
+/**
+ * A Resource represents an external asset.
+ * The lifecycle of a Resource may be managed by some provisioner.
+ */
+export class Resource extends Node implements IsDeletable, Entity {
+  static metatype: NodeType = NodeType.RESOURCE;
+  static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.DELETABLE];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * Resource.parent
+   */
+  get parent(): Folder | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Folder | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Resource.status
+   */
+  status: ResourceStatus;
+
+  /**
+   * Resource.targetStatus
+   */
+  targetStatus: Temporal.ZonedDateTime | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Folder | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    updatedAt?: Temporal.ZonedDateTime;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
+    status?: ResourceStatus;
+    targetStatus?: Temporal.ZonedDateTime | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = ResourceStatus.PENDING;
+    }
+    if (_status === null) {
+      throw new Error(`Resource.status is required`);
+    }
+    this.status = _status;
+    let _targetStatus = options.targetStatus ?? null;
+    this.targetStatus = _targetStatus;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.targetStatus === other.targetStatus)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.targetStatus !== null) {
+      h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.RESOURCE,
+      id: this.id,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "Resource[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<Resource '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return Resource.__packValue__(this);
+  }
+
+  static __packValue__(object: Resource): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 51003;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.updatedByPtr != null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt != null) {
+      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+    }
+    objectValue["40"] = object.status;
+    if (object.targetStatus != null) {
+      objectValue["41"] = object.targetStatus.toString({ timeZoneName: "never" });
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Resource {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const targetStatusValue = objectValue["41"];
+    const unpackedTargetStatus =
+      targetStatusValue != undefined
+        ? Temporal.Instant.from(targetStatusValue).toZonedDateTimeISO("UTC")
+        : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Resource({
+      parent: unpackedParentPtr,
+      status: Number(objectValue["40"]),
+      targetStatus: unpackedTargetStatus,
+      deletedAt: unpackedDeletedAt,
+      id: String(objectValue["2"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Resource {
+    return Resource.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ResourceProto {
+    return Resource.__packProto__(this);
+  }
+
+  static __packProto__(object: Resource): ResourceProto {
+    const objectProto: Partial<ResourceProto> = { metatype: 51003 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.status = Number(object.status) as ResourceStatusProto;
+    if (object.targetStatus != null) {
+      objectProto.targetStatus = packProtoTimestamp(object.targetStatus);
+    }
+    return objectProto as ResourceProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ResourceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Resource {
+    return new Resource({
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      status: Number(objectProto.status) as ResourceStatus,
+      targetStatus:
+        objectProto.targetStatus != undefined
+          ? unpackProtoTimestamp(objectProto.targetStatus!)
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: ResourceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Resource {
+    return Resource.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Resource {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ResourceProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.RESOURCE, Resource);
+/* ==== DESTACK_GENERATED_END:NODE:51003 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:4200 ==== */
+/**
+ * An Entity that represents a Metric.
+ */
+export class Metric extends Node implements IsSpatial, HasName, IsSourceable, Entity {
+  static metatype: NodeType = NodeType.METRIC;
+  static __traits__: TraitType[] = [
+    TraitType.ORDERED,
+    TraitType.SPATIAL,
+    TraitType.SOURCEABLE,
+    TraitType.TRACKED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
+  readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
+  name: string;
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    updatedAt?: Temporal.ZonedDateTime;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    orderKey?: string;
+    name: string;
+    source?: Script | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Metric.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Metric.name is required`);
+    }
+    this.name = _name;
+    let _source = options.source ?? null;
+    if (_source != null && _source instanceof Node) {
+      _source = _source.toRef();
+    }
+    this.sourcePtr = _source;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.sourcePtr !== null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.METRIC,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return this.name;
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<Metric '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return Metric.__packValue__(this);
+  }
+
+  static __packValue__(object: Metric): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 4200;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.updatedByPtr != null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["31"] = object.name;
+    if (object.sourcePtr != null) {
+      objectValue["210"] = object.sourcePtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Metric {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const sourcePtrValue = objectValue["210"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Metric({
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      name: objectValue["31"],
+      source: unpackedSourcePtr,
+      orderKey: objectValue["22"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Metric {
+    return Metric.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): MetricProto {
+    return Metric.__packProto__(this);
+  }
+
+  static __packProto__(object: Metric): MetricProto {
+    const objectProto: Partial<MetricProto> = { metatype: 4200 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.name = object.name;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    return objectProto as MetricProto;
+  }
+
+  static __unpackProto__(
+    objectProto: MetricProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Metric {
+    return new Metric({
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      name: objectProto.name,
+      source:
+        objectProto.sourcePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      orderKey: objectProto.orderKey,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: MetricProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Metric {
+    return Metric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Metric {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = MetricProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.METRIC, Metric);
+/* ==== DESTACK_GENERATED_END:NODE:4200 ==== */

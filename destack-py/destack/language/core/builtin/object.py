@@ -453,7 +453,7 @@ def _generate_ref[NodeT: "Node"](
     cls: type[NodeT], node_type: NodeType
 ) -> tuple[str, dict[str, Any]]:
     """Generates Node.__to_ref__ method."""
-    from ..common.relation import NodeReference
+    from .relation import NodeReference
 
     assert cls.__is_node__, f"{cls.__name__} is not a Node"
     if node_type == NodeType.SPACE:
@@ -465,7 +465,7 @@ def __to_ref__(self) -> "NodeReference":
         space_id=self.id,
     )
 """
-    elif NodeType.CUSTOM_NODE in cls.__extends__:
+    elif NodeType.CUSTOM_EVENT in cls.__extends__ or NodeType.CUSTOM_ENTITY in cls.__extends__:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(
@@ -936,7 +936,9 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             if existing is not None:
                 if existing.name in ("id", "metatype", "parent", "definition", "_supergraph"):
                     continue  # may be narrowed/duplicated
-                elif component.__is_trait__ and existing.id == prop.id:
+                elif (
+                    component.__is_trait__ or component.__is_abstract__
+                ) and existing.id == prop.id:
                     continue  # may be overridden by the trait
                 else:
                     # error: property conflicts with ancestor component
@@ -1112,6 +1114,7 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
     __is_trait__: ClassVar[bool] = False
+    __is_abstract__: ClassVar[bool] = False
 
     __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
     __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}

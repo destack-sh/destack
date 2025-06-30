@@ -6,10 +6,9 @@ from destack.language.core import (
     HasName,
     IsDeletable,
     IsOrdered,
+    IsSpatial,
     IsTaggable,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
 )
 
@@ -21,13 +20,12 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.THEME)
 class Theme(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     HasIcon,
     IsOrdered,
     IsTaggable,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Theme with common Styles."""

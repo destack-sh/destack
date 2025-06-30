@@ -1,4 +1,4 @@
-from destack.language.core import Node, NodeType, builtin_node
+from destack.language.core import NodeType, builtin_node
 
 from .container import ContainerView
 
@@ -6,8 +6,5 @@ from .container import ContainerView
 
 
 @builtin_node(NodeType.SPLIT_VIEW)
-class SplitView(
-    ContainerView,
-    Node,
-):
+class SplitView(ContainerView):
     """A split container View."""

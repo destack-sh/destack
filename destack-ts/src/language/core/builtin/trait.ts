@@ -1,11 +1,5 @@
 import { NodeReference } from "@destack/language/core";
-import {
-  EnumType,
-  Node,
-  ResourceStatus,
-  TraitClass,
-  TraitType,
-} from "@destack/language/core/builtin";
+import { EnumType, Node, NodeType, TraitClass, TraitType } from "@destack/language/core/builtin";
 import { Icon, Value } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerTraitClass } from "@destack/language/registry";
@@ -28,228 +22,6 @@ export enum JoinablePermission {
 }
 registerEnumClass(EnumType.JOINABLE_PERMISSION, JoinablePermission);
 /* ==== DESTACK_GENERATED_END:ENUM:50101 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:100 ==== */
-/**
- * A Node with a plain name.
- */
-export interface HasName {
-  /**
-   * HasName.name
-   */
-  name: string;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node with a plain name.
- */
-class HasName$Type extends TraitClass<HasName, TraitType.HAS_NAME> {}
-
-export const HasName = new HasName$Type(TraitType.HAS_NAME);
-registerTraitClass(TraitType.HAS_NAME, HasName);
-/* ==== DESTACK_GENERATED_END:TRAIT:100 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:101 ==== */
-/**
- * A Node with a slug.
- */
-export interface HasSlug {
-  /**
-   * HasSlug.slug
-   */
-  slug: string | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node with a slug.
- */
-class HasSlug$Type extends TraitClass<HasSlug, TraitType.HAS_SLUG> {}
-
-export const HasSlug = new HasSlug$Type(TraitType.HAS_SLUG);
-registerTraitClass(TraitType.HAS_SLUG, HasSlug);
-/* ==== DESTACK_GENERATED_END:TRAIT:101 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:102 ==== */
-/**
- * A Node with an icon.
- */
-export interface HasIcon {
-  /**
-   * HasIcon.icon
-   */
-  icon: Icon | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node with an icon.
- */
-class HasIcon$Type extends TraitClass<HasIcon, TraitType.HAS_ICON> {}
-
-export const HasIcon = new HasIcon$Type(TraitType.HAS_ICON);
-registerTraitClass(TraitType.HAS_ICON, HasIcon);
-/* ==== DESTACK_GENERATED_END:TRAIT:102 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:51 ==== */
-/**
- * A Node that is "tracked" on create/update.
- */
-export interface IsTracked {
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  get createdBy(): (Node & IsSubject) | null;
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  get updatedBy(): (Node & IsSubject) | null;
-  readonly updatedByPtr: NodeReference | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that is "tracked" on create/update.
- */
-class IsTracked$Type extends TraitClass<IsTracked, TraitType.TRACKED> {}
-
-export const IsTracked = new IsTracked$Type(TraitType.TRACKED);
-registerTraitClass(TraitType.TRACKED, IsTracked);
-/* ==== DESTACK_GENERATED_END:TRAIT:51 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:9000 ==== */
-/**
- * A Node that is a visual in some sense (views, styles, drawings, ...).
- */
-export interface IsVisual extends IsTracked {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that is a visual in some sense (views, styles, drawings, ...).
- */
-class IsVisual$Type extends TraitClass<IsVisual, TraitType.VISUAL> {}
-
-export const IsVisual = new IsVisual$Type(TraitType.VISUAL);
-registerTraitClass(TraitType.VISUAL, IsVisual);
-/* ==== DESTACK_GENERATED_END:TRAIT:9000 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:52 ==== */
-/**
- * A Node that can be archived.
- */
-export interface IsArchivable {
-  /**
-   * IsArchivable.archivedAt
-   */
-  readonly archivedAt: Temporal.ZonedDateTime | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be archived.
- */
-class IsArchivable$Type extends TraitClass<IsArchivable, TraitType.ARCHIVABLE> {}
-
-export const IsArchivable = new IsArchivable$Type(TraitType.ARCHIVABLE);
-registerTraitClass(TraitType.ARCHIVABLE, IsArchivable);
-/* ==== DESTACK_GENERATED_END:TRAIT:52 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:53 ==== */
-/**
- * A Node that can be deleted.
- */
-export interface IsDeletable {
-  /**
-   * IsDeletable.deletedAt
-   */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be deleted.
- */
-class IsDeletable$Type extends TraitClass<IsDeletable, TraitType.DELETABLE> {}
-
-export const IsDeletable = new IsDeletable$Type(TraitType.DELETABLE);
-registerTraitClass(TraitType.DELETABLE, IsDeletable);
-/* ==== DESTACK_GENERATED_END:TRAIT:53 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:55 ==== */
-/**
- * A Node that can be extended with custom Values (one Value per Field).
- */
-export interface IsExtensible {
-  /**
-   * IsExtensible.value
-   */
-  value: Map<string, Value>;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be extended with custom Values (one Value per Field).
- */
-class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {}
-
-export const IsExtensible = new IsExtensible$Type(TraitType.EXTENSIBLE);
-registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
-/* ==== DESTACK_GENERATED_END:TRAIT:55 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:56 ==== */
-/**
- * A Node that can be ordered.
- */
-export interface IsOrdered {
-  /**
-   * IsOrdered.orderKey
-   */
-  readonly orderKey: string;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be ordered.
- */
-class IsOrdered$Type extends TraitClass<IsOrdered, TraitType.ORDERED> {}
-
-export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
-registerTraitClass(TraitType.ORDERED, IsOrdered);
-/* ==== DESTACK_GENERATED_END:TRAIT:56 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5532 ==== */
 /**
@@ -414,25 +186,6 @@ export const IsOwnable = new IsOwnable$Type(TraitType.OWNABLE);
 registerTraitClass(TraitType.OWNABLE, IsOwnable);
 /* ==== DESTACK_GENERATED_END:TRAIT:500 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:5000 ==== */
-/**
- * A Node that defines Settings.
- */
-export interface IsSettings {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that defines Settings.
- */
-class IsSettings$Type extends TraitClass<IsSettings, TraitType.SETTINGS> {}
-
-export const IsSettings = new IsSettings$Type(TraitType.SETTINGS);
-registerTraitClass(TraitType.SETTINGS, IsSettings);
-/* ==== DESTACK_GENERATED_END:TRAIT:5000 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:502 ==== */
 /**
  * A Node that can be joined by Subjects.
@@ -509,14 +262,15 @@ export const IsTaggable = new IsTaggable$Type(TraitType.TAGGABLE);
 registerTraitClass(TraitType.TAGGABLE, IsTaggable);
 /* ==== DESTACK_GENERATED_END:TRAIT:1000 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:510 ==== */
+/* ==== DESTACK_GENERATED_START:TRAIT:50200 ==== */
 /**
- * A Node that represents a Membership.
+ * A Node with a plain name.
  */
-export interface LikeMembership {
-  get member(): (Node & IsSubject) | null;
-  set member(value: Node & IsSubject);
-  memberPtr: NodeReference;
+export interface HasName {
+  /**
+   * HasName.name
+   */
+  name: string;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -524,22 +278,23 @@ export interface LikeMembership {
 }
 
 /**
- * A Node that represents a Membership.
+ * A Node with a plain name.
  */
-class LikeMembership$Type extends TraitClass<LikeMembership, TraitType.MEMBERSHIP> {}
+class HasName$Type extends TraitClass<HasName, TraitType.HAS_NAME> {}
 
-export const LikeMembership = new LikeMembership$Type(TraitType.MEMBERSHIP);
-registerTraitClass(TraitType.MEMBERSHIP, LikeMembership);
-/* ==== DESTACK_GENERATED_END:TRAIT:510 ==== */
+export const HasName = new HasName$Type(TraitType.HAS_NAME);
+registerTraitClass(TraitType.HAS_NAME, HasName);
+/* ==== DESTACK_GENERATED_END:TRAIT:50200 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:511 ==== */
+/* ==== DESTACK_GENERATED_START:TRAIT:50201 ==== */
 /**
- * A Node that represents an Invite.
+ * A Node with a slug.
  */
-export interface LikeInvite {
-  get member(): (Node & IsSubject) | null;
-  set member(value: Node & IsSubject);
-  memberPtr: NodeReference;
+export interface HasSlug {
+  /**
+   * HasSlug.slug
+   */
+  slug: string | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -547,57 +302,174 @@ export interface LikeInvite {
 }
 
 /**
- * A Node that represents an Invite.
+ * A Node with a slug.
  */
-class LikeInvite$Type extends TraitClass<LikeInvite, TraitType.INVITE> {}
+class HasSlug$Type extends TraitClass<HasSlug, TraitType.HAS_SLUG> {}
 
-export const LikeInvite = new LikeInvite$Type(TraitType.INVITE);
-registerTraitClass(TraitType.INVITE, LikeInvite);
-/* ==== DESTACK_GENERATED_END:TRAIT:511 ==== */
+export const HasSlug = new HasSlug$Type(TraitType.HAS_SLUG);
+registerTraitClass(TraitType.HAS_SLUG, HasSlug);
+/* ==== DESTACK_GENERATED_END:TRAIT:50201 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:1001 ==== */
+/* ==== DESTACK_GENERATED_START:TRAIT:50202 ==== */
 /**
- * A Node that represents a Tag.
+ * A Node with an icon.
  */
-export interface LikeTag {
+export interface HasIcon {
+  /**
+   * HasIcon.icon
+   */
+  icon: Icon | null;
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /**
- * A Node that represents a Tag.
+ * A Node with an icon.
  */
-class LikeTag$Type extends TraitClass<LikeTag, TraitType.TAG> {}
+class HasIcon$Type extends TraitClass<HasIcon, TraitType.HAS_ICON> {}
 
-export const LikeTag = new LikeTag$Type(TraitType.TAG);
-registerTraitClass(TraitType.TAG, LikeTag);
-/* ==== DESTACK_GENERATED_END:TRAIT:1001 ==== */
+export const HasIcon = new HasIcon$Type(TraitType.HAS_ICON);
+registerTraitClass(TraitType.HAS_ICON, HasIcon);
+/* ==== DESTACK_GENERATED_END:TRAIT:50202 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:5535 ==== */
+/* ==== DESTACK_GENERATED_START:TRAIT:50100 ==== */
 /**
- * A Node that represents a Follow.
+ * A Node that is "tracked" on create/update.
  */
-export interface LikeFollow {
+export interface IsTracked {
+  /**
+   * IsTracked.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  get createdBy(): (Node & IsSubject) | null;
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  get updatedBy(): (Node & IsSubject) | null;
+  readonly updatedByPtr: NodeReference | null;
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /**
- * A Node that represents a Follow.
+ * A Node that is "tracked" on create/update.
  */
-class LikeFollow$Type extends TraitClass<LikeFollow, TraitType.FOLLOW> {}
+class IsTracked$Type extends TraitClass<IsTracked, TraitType.TRACKED> {}
 
-export const LikeFollow = new LikeFollow$Type(TraitType.FOLLOW);
-registerTraitClass(TraitType.FOLLOW, LikeFollow);
-/* ==== DESTACK_GENERATED_END:TRAIT:5535 ==== */
+export const IsTracked = new IsTracked$Type(TraitType.TRACKED);
+registerTraitClass(TraitType.TRACKED, IsTracked);
+/* ==== DESTACK_GENERATED_END:TRAIT:50100 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:1 ==== */
+/* ==== DESTACK_GENERATED_START:TRAIT:50101 ==== */
+/**
+ * A Node that can be archived.
+ */
+export interface IsArchivable {
+  /**
+   * IsArchivable.archivedAt
+   */
+  readonly archivedAt: Temporal.ZonedDateTime | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be archived.
+ */
+class IsArchivable$Type extends TraitClass<IsArchivable, TraitType.ARCHIVABLE> {}
+
+export const IsArchivable = new IsArchivable$Type(TraitType.ARCHIVABLE);
+registerTraitClass(TraitType.ARCHIVABLE, IsArchivable);
+/* ==== DESTACK_GENERATED_END:TRAIT:50101 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:50102 ==== */
+/**
+ * A Node that can be deleted.
+ */
+export interface IsDeletable {
+  /**
+   * IsDeletable.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be deleted.
+ */
+class IsDeletable$Type extends TraitClass<IsDeletable, TraitType.DELETABLE> {}
+
+export const IsDeletable = new IsDeletable$Type(TraitType.DELETABLE);
+registerTraitClass(TraitType.DELETABLE, IsDeletable);
+/* ==== DESTACK_GENERATED_END:TRAIT:50102 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:50103 ==== */
+/**
+ * A Node that can be extended with custom Values (one Value per Field).
+ */
+export interface IsExtensible {
+  /**
+   * IsExtensible.value
+   */
+  value: Map<string, Value>;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be extended with custom Values (one Value per Field).
+ */
+class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {}
+
+export const IsExtensible = new IsExtensible$Type(TraitType.EXTENSIBLE);
+registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
+/* ==== DESTACK_GENERATED_END:TRAIT:50103 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:50104 ==== */
+/**
+ * A Node that can be ordered.
+ */
+export interface IsOrdered {
+  /**
+   * IsOrdered.orderKey
+   */
+  readonly orderKey: string;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be ordered.
+ */
+class IsOrdered$Type extends TraitClass<IsOrdered, TraitType.ORDERED> {}
+
+export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
+registerTraitClass(TraitType.ORDERED, IsOrdered);
+/* ==== DESTACK_GENERATED_END:TRAIT:50104 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:50001 ==== */
 /**
  * A Node that is global.
  */
-export interface Global {
+export interface IsGlobal {
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -606,17 +478,17 @@ export interface Global {
 /**
  * A Node that is global.
  */
-class Global$Type extends TraitClass<Global, TraitType.GLOBAL> {}
+class IsGlobal$Type extends TraitClass<IsGlobal, TraitType.GLOBAL> {}
 
-export const Global = new Global$Type(TraitType.GLOBAL);
-registerTraitClass(TraitType.GLOBAL, Global);
-/* ==== DESTACK_GENERATED_END:TRAIT:1 ==== */
+export const IsGlobal = new IsGlobal$Type(TraitType.GLOBAL);
+registerTraitClass(TraitType.GLOBAL, IsGlobal);
+/* ==== DESTACK_GENERATED_END:TRAIT:50001 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:2 ==== */
+/* ==== DESTACK_GENERATED_START:TRAIT:50002 ==== */
 /**
  * A Node in a Space.
  */
-export interface Spatial {
+export interface IsSpatial {
   get space(): Space | null;
   readonly spacePtr: NodeReference | null;
 
@@ -628,184 +500,20 @@ export interface Spatial {
 /**
  * A Node in a Space.
  */
-class Spatial$Type extends TraitClass<Spatial, TraitType.SPATIAL> {}
+class IsSpatial$Type extends TraitClass<IsSpatial, TraitType.SPATIAL> {}
 
-export const Spatial = new Spatial$Type(TraitType.SPATIAL);
-registerTraitClass(TraitType.SPATIAL, Spatial);
-/* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
+export const IsSpatial = new IsSpatial$Type(TraitType.SPATIAL);
+registerTraitClass(TraitType.SPATIAL, IsSpatial);
+/* ==== DESTACK_GENERATED_END:TRAIT:50002 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:21 ==== */
+/* ==== DESTACK_GENERATED_START:CONSTANT:INTER_ORDER_TYPES ==== */
 /**
- * An Event represents something happening in a Space.
- */
-export interface Event extends Spatial {
-  get node(): Node | null;
-  set node(value: Node | null);
-  nodePtr: NodeReference | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Event represents something happening in a Space.
- */
-class Event$Type extends TraitClass<Event, TraitType.EVENT> {}
-
-export const Event = new Event$Type(TraitType.EVENT);
-registerTraitClass(TraitType.EVENT, Event);
-/* ==== DESTACK_GENERATED_END:TRAIT:21 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:4010 ==== */
-/**
- * An Entity that represents a Metric.
- */
-export interface Metric extends Entity, IsCustomNodeDefinition, IsSourceable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity that represents a Metric.
- */
-class Metric$Type extends TraitClass<Metric, TraitType.METRIC> {}
-
-export const Metric = new Metric$Type(TraitType.METRIC);
-registerTraitClass(TraitType.METRIC, Metric);
-/* ==== DESTACK_GENERATED_END:TRAIT:4010 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:4011 ==== */
-/**
- * An Event that represents a Measurement.
- */
-export interface Measurement extends Event, IsCustomNode {
-  get definition(): (Node & Metric) | null;
-  readonly definitionPtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Event that represents a Measurement.
- */
-class Measurement$Type extends TraitClass<Measurement, TraitType.MEASUREMENT> {}
-
-export const Measurement = new Measurement$Type(TraitType.MEASUREMENT);
-registerTraitClass(TraitType.MEASUREMENT, Measurement);
-/* ==== DESTACK_GENERATED_END:TRAIT:4011 ==== */
-
-/* ==== DESTACK_GENERATED_START:CONSTANT:INTER_ORDER_TRAITS ==== */
-/**
- * INTER_ORDER_TRAITS
+ * INTER_ORDER_TYPES
  */
 // prettier-ignore
-export const INTER_ORDER_TRAITS = [
-  TraitType.VIEW,
-  TraitType.STYLE
+export const INTER_ORDER_TYPES = [
+  NodeType.VIEW,
+  NodeType.STYLE
 ];
 
-/* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TRAITS ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:31 ==== */
-/**
- * A Node that defines a Custom Node type.
- */
-export interface IsCustomNodeDefinition {
-  get prototype(): (Node & IsCustomNode) | null;
-  set prototype(value: (Node & IsCustomNode) | null);
-  prototypePtr: NodeReference | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that defines a Custom Node type.
- */
-class IsCustomNodeDefinition$Type extends TraitClass<
-  IsCustomNodeDefinition,
-  TraitType.CUSTOM_NODE_DEFINITION
-> {}
-
-export const IsCustomNodeDefinition = new IsCustomNodeDefinition$Type(
-  TraitType.CUSTOM_NODE_DEFINITION,
-);
-registerTraitClass(TraitType.CUSTOM_NODE_DEFINITION, IsCustomNodeDefinition);
-/* ==== DESTACK_GENERATED_END:TRAIT:31 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:32 ==== */
-/**
- * A Node that is asome Custom Node.
- */
-export interface IsCustomNode {
-  get definition(): (Node & IsCustomNodeDefinition) | null;
-  readonly definitionPtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that is asome Custom Node.
- */
-class IsCustomNode$Type extends TraitClass<IsCustomNode, TraitType.CUSTOM_NODE> {}
-
-export const IsCustomNode = new IsCustomNode$Type(TraitType.CUSTOM_NODE);
-registerTraitClass(TraitType.CUSTOM_NODE, IsCustomNode);
-/* ==== DESTACK_GENERATED_END:TRAIT:32 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:20 ==== */
-/**
- * An Entity is a versioned Node in primary relational storage (OLTP).
- */
-export interface Entity extends IsTracked {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity is a versioned Node in primary relational storage (OLTP).
- */
-class Entity$Type extends TraitClass<Entity, TraitType.ENTITY> {}
-
-export const Entity = new Entity$Type(TraitType.ENTITY);
-registerTraitClass(TraitType.ENTITY, Entity);
-/* ==== DESTACK_GENERATED_END:TRAIT:20 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:30 ==== */
-/**
- * A Resource represents an external asset.
- * The lifecycle of a Resource may be managed by some provisioner.
- */
-export interface Resource extends Entity {
-  /**
-   * Resource.status
-   */
-  status: ResourceStatus;
-
-  /**
-   * Resource.targetStatus
-   */
-  targetStatus: Temporal.ZonedDateTime | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Resource represents an external asset.
- * The lifecycle of a Resource may be managed by some provisioner.
- */
-class Resource$Type extends TraitClass<Resource, TraitType.RESOURCE> {}
-
-export const Resource = new Resource$Type(TraitType.RESOURCE);
-registerTraitClass(TraitType.RESOURCE, Resource);
-/* ==== DESTACK_GENERATED_END:TRAIT:30 ==== */
+/* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TYPES ==== */

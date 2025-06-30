@@ -9,7 +9,7 @@ from .friendship import (
     FriendshipInviteSentEvent,
 )
 from .handle import Handle
-from .organization import Organization, OrganizationProto, OrganizationStatus
+from .organization import Organization, OrganizationStatus
 from .space import Space, SpaceStatus
 from .team import Team
 from .user import User, UserStatus
@@ -25,7 +25,6 @@ __all__ = [
     "FriendshipInviteSentEvent",
     "Handle",
     "Organization",
-    "OrganizationProto",
     "OrganizationStatus",
     "Origin",
     "Space",

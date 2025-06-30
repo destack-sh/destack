@@ -1,21 +1,19 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   HasIcon,
   HasName,
   IsDeletable,
   IsOrdered,
+  IsSpatial,
   IsSubject,
   IsTaggable,
-  IsVisual,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Icon } from "@destack/language/core/common";
+import { Entity, Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
@@ -25,21 +23,19 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:12010 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12020 ==== */
 /**
  * A Palette with common ColorStyles.
  */
 export class Palette
   extends Node
-  implements Spatial, Entity, HasName, HasIcon, IsVisual, IsOrdered, IsTaggable, IsDeletable
+  implements IsSpatial, Entity, HasName, HasIcon, IsOrdered, IsTaggable, IsDeletable
 {
   static metatype: NodeType = NodeType.PALETTE;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];
@@ -324,7 +320,7 @@ export class Palette
 
   static __packValue__(object: Palette): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12010;
+    objectValue["1"] = 12020;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -421,7 +417,7 @@ export class Palette
   }
 
   static __packProto__(object: Palette): PaletteProto {
-    const objectProto: Partial<PaletteProto> = { metatype: 12010 };
+    const objectProto: Partial<PaletteProto> = { metatype: 12020 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -534,4 +530,4 @@ export class Palette
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PALETTE, Palette);
-/* ==== DESTACK_GENERATED_END:NODE:12010 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12020 ==== */

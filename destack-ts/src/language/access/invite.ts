@@ -2,25 +2,25 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Role } from "@destack/language/access";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
-  Event,
-  Global,
   IsDeletable,
+  IsGlobal,
   IsJoinable,
   IsOwnable,
   IsOwner,
+  IsSpatial,
   IsSubject,
   Node,
   NodeType,
   RoleType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Entity, Event } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   InviteAcceptedEventProto,
+  InviteEventProto,
   InviteProto,
   InviteRejectedEventProto,
   InviteRescindedEventProto,
@@ -35,9 +35,9 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Event regarding an Invite.
  */
-export class InviteSentEvent extends Node implements Event {
-  static metatype: NodeType = NodeType.INVITE_SENT_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+export class InviteEvent extends Node implements Event {
+  static metatype: NodeType = NodeType.INVITE_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -45,7 +45,7 @@ export class InviteSentEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -69,7 +69,7 @@ export class InviteSentEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * InviteSentEvent.node
+   * InviteEvent.node
    */
   get node(): Invite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -84,7 +84,7 @@ export class InviteSentEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * InviteSentEvent.joinable
+   * InviteEvent.joinable
    */
   get joinable(): (Node & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
@@ -99,7 +99,431 @@ export class InviteSentEvent extends Node implements Event {
   joinablePtr: NodeReference;
 
   /**
-   * InviteSentEvent.member
+   * InviteEvent.member
+   */
+  get member(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.memberPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  set member(node: Node & IsSubject) {
+    this.memberPtr = node.toRef();
+  }
+  memberPtr: NodeReference;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    node: Invite | NodeReference;
+    joinable: (Node & IsJoinable) | NodeReference;
+    member: (Node & IsSubject) | NodeReference;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`InviteEvent.node is required`);
+    }
+    this.nodePtr = _node;
+    let _joinable = options.joinable;
+    if (_joinable != null && _joinable instanceof Node) {
+      _joinable = _joinable.toRef();
+    }
+    if (_joinable === null) {
+      throw new Error(`InviteEvent.joinable is required`);
+    }
+    this.joinablePtr = _joinable;
+    let _member = options.member;
+    if (_member != null && _member instanceof Node) {
+      _member = _member.toRef();
+    }
+    if (_member === null) {
+      throw new Error(`InviteEvent.member is required`);
+    }
+    this.memberPtr = _member;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.joinablePtr.id === other.joinablePtr.id)) {
+      return false;
+    }
+    if (!(this.memberPtr.id === other.memberPtr.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.INVITE_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "InviteEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<InviteEvent '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return InviteEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: InviteEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 521;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["35"] = object.nodePtr.toValue();
+    objectValue["40"] = object.joinablePtr.toValue();
+    objectValue["41"] = object.memberPtr.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): InviteEvent {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new InviteEvent({
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      joinable: NodeReference.fromValue(
+        objectValue["40"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      member: NodeReference.fromValue(
+        objectValue["41"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): InviteEvent {
+    return InviteEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): InviteEventProto {
+    return InviteEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: InviteEvent): InviteEventProto {
+    const objectProto: Partial<InviteEventProto> = { metatype: 521 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    objectProto.joinablePtr = object.joinablePtr.toProto();
+    objectProto.memberPtr = object.memberPtr.toProto();
+    return objectProto as InviteEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: InviteEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): InviteEvent {
+    return new InviteEvent({
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      joinable: NodeReference.fromProto(
+        objectProto.joinablePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      member: NodeReference.fromProto(
+        objectProto.memberPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: InviteEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): InviteEvent {
+    return InviteEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): InviteEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = InviteEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.INVITE_EVENT, InviteEvent);
+/* ==== DESTACK_GENERATED_END:NODE:521 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:522 ==== */
+/**
+ * An Invite was sent.
+ */
+export class InviteSentEvent extends Node implements InviteEvent {
+  static metatype: NodeType = NodeType.INVITE_SENT_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * InviteEvent.node
+   */
+  get node(): Invite | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Invite | null;
+    }
+    return null;
+  }
+  set node(node: Invite) {
+    this.nodePtr = node.toRef();
+  }
+  nodePtr: NodeReference;
+
+  /**
+   * InviteEvent.joinable
+   */
+  get joinable(): (Node & IsJoinable) | null {
+    const nodePtr: NodeReference | null = this.joinablePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
+    }
+    return null;
+  }
+  set joinable(node: Node & IsJoinable) {
+    this.joinablePtr = node.toRef();
+  }
+  joinablePtr: NodeReference;
+
+  /**
+   * InviteEvent.member
    */
   get member(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
@@ -253,6 +677,12 @@ export class InviteSentEvent extends Node implements Event {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.rolePtr.id === other.rolePtr.id)) {
+      return false;
+    }
+    if (!(this.roleType === other.roleType)) {
+      return false;
+    }
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
@@ -260,12 +690,6 @@ export class InviteSentEvent extends Node implements Event {
       return false;
     }
     if (!(this.memberPtr.id === other.memberPtr.id)) {
-      return false;
-    }
-    if (!(this.rolePtr.id === other.rolePtr.id)) {
-      return false;
-    }
-    if (!(this.roleType === other.roleType)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -277,11 +701,11 @@ export class InviteSentEvent extends Node implements Event {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.rolePtr.id)) & 0xffffffff;
+    h = (h * 31 + this.roleType) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.rolePtr.id)) & 0xffffffff;
-    h = (h * 31 + this.roleType) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -334,7 +758,7 @@ export class InviteSentEvent extends Node implements Event {
 
   static __packValue__(object: InviteSentEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 521;
+    objectValue["1"] = 522;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -345,8 +769,8 @@ export class InviteSentEvent extends Node implements Event {
     objectValue["35"] = object.nodePtr.toValue();
     objectValue["40"] = object.joinablePtr.toValue();
     objectValue["41"] = object.memberPtr.toValue();
-    objectValue["42"] = object.rolePtr.toValue();
-    objectValue["43"] = object.roleType;
+    objectValue["50"] = object.rolePtr.toValue();
+    objectValue["51"] = object.roleType;
     return objectValue;
   }
 
@@ -368,6 +792,8 @@ export class InviteSentEvent extends Node implements Event {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new InviteSentEvent({
+      role: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      roleType: Number(objectValue["51"]),
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       joinable: NodeReference.fromValue(
         objectValue["40"],
@@ -383,8 +809,6 @@ export class InviteSentEvent extends Node implements Event {
         _graph,
         _connection,
       ),
-      role: NodeReference.fromValue(objectValue["42"], _session, _supergraph, _graph, _connection),
-      roleType: Number(objectValue["43"]),
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -409,7 +833,7 @@ export class InviteSentEvent extends Node implements Event {
   }
 
   static __packProto__(object: InviteSentEvent): InviteSentEventProto {
-    const objectProto: Partial<InviteSentEventProto> = { metatype: 521 };
+    const objectProto: Partial<InviteSentEventProto> = { metatype: 522 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -433,6 +857,14 @@ export class InviteSentEvent extends Node implements Event {
     _connection?: any | null,
   ): InviteSentEvent {
     return new InviteSentEvent({
+      role: NodeReference.fromProto(
+        objectProto.rolePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      roleType: Number(objectProto.roleType) as RoleType,
       node: NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
@@ -454,14 +886,6 @@ export class InviteSentEvent extends Node implements Event {
         _graph,
         _connection,
       ),
-      role: NodeReference.fromProto(
-        objectProto.rolePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      roleType: Number(objectProto.roleType) as RoleType,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -510,15 +934,15 @@ export class InviteSentEvent extends Node implements Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE_SENT_EVENT, InviteSentEvent);
-/* ==== DESTACK_GENERATED_END:NODE:521 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:522 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:522 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:523 ==== */
 /**
- * A Event regarding an Invite.
+ * An Invite was rescinded.
  */
-export class InviteRescindedEvent extends Node implements Event {
+export class InviteRescindedEvent extends Node implements InviteEvent {
   static metatype: NodeType = NodeType.INVITE_RESCINDED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -526,7 +950,7 @@ export class InviteRescindedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -550,7 +974,7 @@ export class InviteRescindedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * InviteRescindedEvent.node
+   * InviteEvent.node
    */
   get node(): Invite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -565,7 +989,7 @@ export class InviteRescindedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * InviteRescindedEvent.joinable
+   * InviteEvent.joinable
    */
   get joinable(): (Node & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
@@ -580,7 +1004,7 @@ export class InviteRescindedEvent extends Node implements Event {
   joinablePtr: NodeReference;
 
   /**
-   * InviteRescindedEvent.member
+   * InviteEvent.member
    */
   get member(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
@@ -772,7 +1196,7 @@ export class InviteRescindedEvent extends Node implements Event {
 
   static __packValue__(object: InviteRescindedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 522;
+    objectValue["1"] = 523;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -849,7 +1273,7 @@ export class InviteRescindedEvent extends Node implements Event {
   }
 
   static __packProto__(object: InviteRescindedEvent): InviteRescindedEventProto {
-    const objectProto: Partial<InviteRescindedEventProto> = { metatype: 522 };
+    const objectProto: Partial<InviteRescindedEventProto> = { metatype: 523 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -946,15 +1370,15 @@ export class InviteRescindedEvent extends Node implements Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE_RESCINDED_EVENT, InviteRescindedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:522 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:523 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:523 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:524 ==== */
 /**
- * A Event regarding an Invite.
+ * An Invite was accepted.
  */
-export class InviteAcceptedEvent extends Node implements Event {
+export class InviteAcceptedEvent extends Node implements InviteEvent {
   static metatype: NodeType = NodeType.INVITE_ACCEPTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -962,7 +1386,7 @@ export class InviteAcceptedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -986,7 +1410,7 @@ export class InviteAcceptedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * InviteAcceptedEvent.node
+   * InviteEvent.node
    */
   get node(): Invite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1001,7 +1425,7 @@ export class InviteAcceptedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * InviteAcceptedEvent.joinable
+   * InviteEvent.joinable
    */
   get joinable(): (Node & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
@@ -1016,7 +1440,7 @@ export class InviteAcceptedEvent extends Node implements Event {
   joinablePtr: NodeReference;
 
   /**
-   * InviteAcceptedEvent.member
+   * InviteEvent.member
    */
   get member(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
@@ -1170,6 +1594,12 @@ export class InviteAcceptedEvent extends Node implements Event {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.rolePtr.id === other.rolePtr.id)) {
+      return false;
+    }
+    if (!(this.roleType === other.roleType)) {
+      return false;
+    }
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
@@ -1177,12 +1607,6 @@ export class InviteAcceptedEvent extends Node implements Event {
       return false;
     }
     if (!(this.memberPtr.id === other.memberPtr.id)) {
-      return false;
-    }
-    if (!(this.rolePtr.id === other.rolePtr.id)) {
-      return false;
-    }
-    if (!(this.roleType === other.roleType)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1194,11 +1618,11 @@ export class InviteAcceptedEvent extends Node implements Event {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.rolePtr.id)) & 0xffffffff;
+    h = (h * 31 + this.roleType) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.rolePtr.id)) & 0xffffffff;
-    h = (h * 31 + this.roleType) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1251,7 +1675,7 @@ export class InviteAcceptedEvent extends Node implements Event {
 
   static __packValue__(object: InviteAcceptedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 523;
+    objectValue["1"] = 524;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1262,8 +1686,8 @@ export class InviteAcceptedEvent extends Node implements Event {
     objectValue["35"] = object.nodePtr.toValue();
     objectValue["40"] = object.joinablePtr.toValue();
     objectValue["41"] = object.memberPtr.toValue();
-    objectValue["42"] = object.rolePtr.toValue();
-    objectValue["43"] = object.roleType;
+    objectValue["50"] = object.rolePtr.toValue();
+    objectValue["51"] = object.roleType;
     return objectValue;
   }
 
@@ -1285,6 +1709,8 @@ export class InviteAcceptedEvent extends Node implements Event {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new InviteAcceptedEvent({
+      role: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      roleType: Number(objectValue["51"]),
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       joinable: NodeReference.fromValue(
         objectValue["40"],
@@ -1300,8 +1726,6 @@ export class InviteAcceptedEvent extends Node implements Event {
         _graph,
         _connection,
       ),
-      role: NodeReference.fromValue(objectValue["42"], _session, _supergraph, _graph, _connection),
-      roleType: Number(objectValue["43"]),
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1332,7 +1756,7 @@ export class InviteAcceptedEvent extends Node implements Event {
   }
 
   static __packProto__(object: InviteAcceptedEvent): InviteAcceptedEventProto {
-    const objectProto: Partial<InviteAcceptedEventProto> = { metatype: 523 };
+    const objectProto: Partial<InviteAcceptedEventProto> = { metatype: 524 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1356,6 +1780,14 @@ export class InviteAcceptedEvent extends Node implements Event {
     _connection?: any | null,
   ): InviteAcceptedEvent {
     return new InviteAcceptedEvent({
+      role: NodeReference.fromProto(
+        objectProto.rolePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      roleType: Number(objectProto.roleType) as RoleType,
       node: NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
@@ -1377,14 +1809,6 @@ export class InviteAcceptedEvent extends Node implements Event {
         _graph,
         _connection,
       ),
-      role: NodeReference.fromProto(
-        objectProto.rolePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      roleType: Number(objectProto.roleType) as RoleType,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -1439,458 +1863,20 @@ export class InviteAcceptedEvent extends Node implements Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE_ACCEPTED_EVENT, InviteAcceptedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:523 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:524 ==== */
-/**
- * A Event regarding an Invite.
- */
-export class InviteRejectedEvent extends Node implements Event {
-  static metatype: NodeType = NodeType.INVITE_REJECTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
-  static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [];
-
-  /**
-   * Spatial.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly spacePtr: NodeReference | null;
-
-  /**
-   * InviteRejectedEvent.node
-   */
-  get node(): Invite | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Invite | null;
-    }
-    return null;
-  }
-  set node(node: Invite) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
-
-  /**
-   * InviteRejectedEvent.joinable
-   */
-  get joinable(): (Node & IsJoinable) | null {
-    const nodePtr: NodeReference | null = this.joinablePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
-    }
-    return null;
-  }
-  set joinable(node: Node & IsJoinable) {
-    this.joinablePtr = node.toRef();
-  }
-  joinablePtr: NodeReference;
-
-  /**
-   * InviteRejectedEvent.member
-   */
-  get member(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.memberPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  set member(node: Node & IsSubject) {
-    this.memberPtr = node.toRef();
-  }
-  memberPtr: NodeReference;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    node: Invite | NodeReference;
-    joinable: (Node & IsJoinable) | NodeReference;
-    member: (Node & IsSubject) | NodeReference;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    if (_node === null) {
-      throw new Error(`InviteRejectedEvent.node is required`);
-    }
-    this.nodePtr = _node;
-    let _joinable = options.joinable;
-    if (_joinable != null && _joinable instanceof Node) {
-      _joinable = _joinable.toRef();
-    }
-    if (_joinable === null) {
-      throw new Error(`InviteRejectedEvent.joinable is required`);
-    }
-    this.joinablePtr = _joinable;
-    let _member = options.member;
-    if (_member != null && _member instanceof Node) {
-      _member = _member.toRef();
-    }
-    if (_member === null) {
-      throw new Error(`InviteRejectedEvent.member is required`);
-    }
-    this.memberPtr = _member;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.nodePtr.id === other.nodePtr.id)) {
-      return false;
-    }
-    if (!(this.joinablePtr.id === other.joinablePtr.id)) {
-      return false;
-    }
-    if (!(this.memberPtr.id === other.memberPtr.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.INVITE_REJECTED_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "InviteRejectedEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<InviteRejectedEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return InviteRejectedEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: InviteRejectedEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 524;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    objectValue["35"] = object.nodePtr.toValue();
-    objectValue["40"] = object.joinablePtr.toValue();
-    objectValue["41"] = object.memberPtr.toValue();
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): InviteRejectedEvent {
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new InviteRejectedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      joinable: NodeReference.fromValue(
-        objectValue["40"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      member: NodeReference.fromValue(
-        objectValue["41"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): InviteRejectedEvent {
-    return InviteRejectedEvent.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): InviteRejectedEventProto {
-    return InviteRejectedEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: InviteRejectedEvent): InviteRejectedEventProto {
-    const objectProto: Partial<InviteRejectedEventProto> = { metatype: 524 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.nodePtr = object.nodePtr.toProto();
-    objectProto.joinablePtr = object.joinablePtr.toProto();
-    objectProto.memberPtr = object.memberPtr.toProto();
-    return objectProto as InviteRejectedEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: InviteRejectedEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): InviteRejectedEvent {
-    return new InviteRejectedEvent({
-      node: NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      joinable: NodeReference.fromProto(
-        objectProto.joinablePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      member: NodeReference.fromProto(
-        objectProto.memberPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: InviteRejectedEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): InviteRejectedEvent {
-    return InviteRejectedEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): InviteRejectedEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = InviteRejectedEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.INVITE_REJECTED_EVENT, InviteRejectedEvent);
 /* ==== DESTACK_GENERATED_END:NODE:524 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:520 ==== */
 /**
  * An Invite to a Joinable.
  */
-export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, IsDeletable {
+export class Invite extends Node implements IsGlobal, IsSpatial, IsOwnable, IsDeletable, Entity {
   static metatype: NodeType = NodeType.INVITE;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.OWNABLE,
     TraitType.DELETABLE,
-    TraitType.INVITE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
@@ -2175,6 +2161,12 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -2182,12 +2174,6 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
-    }
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
 
     return h;
@@ -2298,16 +2284,6 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -2317,6 +2293,16 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Invite({
       parent: unpackedParentPtr,
@@ -2331,12 +2317,12 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
       roleType: unpackedRoleType,
       id: String(objectValue["2"]),
       space: unpackedSpacePtr,
+      ownedBy: unpackedOwnedByPtr,
+      deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      ownedBy: unpackedOwnedByPtr,
-      deletedAt: unpackedDeletedAt,
       _session,
       _graph,
       _connection,
@@ -2438,6 +2424,18 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
               _connection,
             )
           : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -2460,18 +2458,6 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
               _connection,
             )
           : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,
@@ -2500,3 +2486,439 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
 }
 registerNodeClass(NodeType.INVITE, Invite);
 /* ==== DESTACK_GENERATED_END:NODE:520 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:525 ==== */
+/**
+ * An Invite was rejected.
+ */
+export class InviteRejectedEvent extends Node implements InviteEvent {
+  static metatype: NodeType = NodeType.INVITE_REJECTED_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * InviteEvent.node
+   */
+  get node(): Invite | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Invite | null;
+    }
+    return null;
+  }
+  set node(node: Invite) {
+    this.nodePtr = node.toRef();
+  }
+  nodePtr: NodeReference;
+
+  /**
+   * InviteEvent.joinable
+   */
+  get joinable(): (Node & IsJoinable) | null {
+    const nodePtr: NodeReference | null = this.joinablePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
+    }
+    return null;
+  }
+  set joinable(node: Node & IsJoinable) {
+    this.joinablePtr = node.toRef();
+  }
+  joinablePtr: NodeReference;
+
+  /**
+   * InviteEvent.member
+   */
+  get member(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.memberPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  set member(node: Node & IsSubject) {
+    this.memberPtr = node.toRef();
+  }
+  memberPtr: NodeReference;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    node: Invite | NodeReference;
+    joinable: (Node & IsJoinable) | NodeReference;
+    member: (Node & IsSubject) | NodeReference;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`InviteRejectedEvent.node is required`);
+    }
+    this.nodePtr = _node;
+    let _joinable = options.joinable;
+    if (_joinable != null && _joinable instanceof Node) {
+      _joinable = _joinable.toRef();
+    }
+    if (_joinable === null) {
+      throw new Error(`InviteRejectedEvent.joinable is required`);
+    }
+    this.joinablePtr = _joinable;
+    let _member = options.member;
+    if (_member != null && _member instanceof Node) {
+      _member = _member.toRef();
+    }
+    if (_member === null) {
+      throw new Error(`InviteRejectedEvent.member is required`);
+    }
+    this.memberPtr = _member;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.joinablePtr.id === other.joinablePtr.id)) {
+      return false;
+    }
+    if (!(this.memberPtr.id === other.memberPtr.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.INVITE_REJECTED_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "InviteRejectedEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<InviteRejectedEvent '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return InviteRejectedEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: InviteRejectedEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 525;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["35"] = object.nodePtr.toValue();
+    objectValue["40"] = object.joinablePtr.toValue();
+    objectValue["41"] = object.memberPtr.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): InviteRejectedEvent {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new InviteRejectedEvent({
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      joinable: NodeReference.fromValue(
+        objectValue["40"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      member: NodeReference.fromValue(
+        objectValue["41"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): InviteRejectedEvent {
+    return InviteRejectedEvent.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): InviteRejectedEventProto {
+    return InviteRejectedEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: InviteRejectedEvent): InviteRejectedEventProto {
+    const objectProto: Partial<InviteRejectedEventProto> = { metatype: 525 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    objectProto.joinablePtr = object.joinablePtr.toProto();
+    objectProto.memberPtr = object.memberPtr.toProto();
+    return objectProto as InviteRejectedEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: InviteRejectedEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): InviteRejectedEvent {
+    return new InviteRejectedEvent({
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      joinable: NodeReference.fromProto(
+        objectProto.joinablePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      member: NodeReference.fromProto(
+        objectProto.memberPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: InviteRejectedEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): InviteRejectedEvent {
+    return InviteRejectedEvent.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): InviteRejectedEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = InviteRejectedEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.INVITE_REJECTED_EVENT, InviteRejectedEvent);
+/* ==== DESTACK_GENERATED_END:NODE:525 ==== */

@@ -5,11 +5,11 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    Global,
     HasIcon,
     HasName,
     HasSlug,
     IsFollowable,
+    IsGlobal,
     IsOwner,
     IsSubject,
     NodeType,
@@ -34,7 +34,7 @@ class UserStatus(Enum):
 
 @builtin_node(NodeType.USER, root_type=None)
 class User(
-    Global,
+    IsGlobal,
     HasName,
     HasIcon,
     HasSlug,

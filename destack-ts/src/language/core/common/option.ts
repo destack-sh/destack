@@ -1,20 +1,24 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   HasIcon,
   HasName,
   IsDeletable,
   IsSourceable,
+  IsSpatial,
   IsSubject,
   IsTaggable,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { CustomProperty, CustomStructDefinition, Icon } from "@destack/language/core/common";
+import {
+  CustomProperty,
+  CustomStructDefinition,
+  Entity,
+  Icon,
+} from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -29,14 +33,13 @@ import { Temporal } from "temporal-polyfill";
  */
 export class CustomOption
   extends Node
-  implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable
+  implements IsSpatial, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable, Entity
 {
   static metatype: NodeType = NodeType.CUSTOM_OPTION;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
     TraitType.SOURCEABLE,
@@ -49,35 +52,36 @@ export class CustomOption
   static __childTypes__: NodeType[] = [NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
+    NodeType.SHAPE,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
     NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.WIZARD_VIEW,
+    NodeType.INPUT_VIEW,
     NodeType.RUN,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
     NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
+    NodeType.POLYGON_SHAPE,
+    NodeType.NUMBER_INPUT_VIEW,
     NodeType.SCRIPT,
     NodeType.SCENE,
     NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.INTERRUPTION,
+    NodeType.ARROW_SHAPE,
+    NodeType.SLIDER_INPUT_VIEW,
     NodeType.SERVICE,
+    NodeType.FRAME_VIEW,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.LAYER,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
     NodeType.CUSTOM_PROPERTY,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
+    NodeType.ANNOTATION_SHAPE,
     NodeType.ACTION,
+    NodeType.LABEL_VIEW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
     NodeType.AGENT,
+    NodeType.TEXT_VIEW,
+    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
@@ -309,14 +313,6 @@ export class CustomOption
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
@@ -328,6 +324,14 @@ export class CustomOption
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
 
     return h;
   }
@@ -422,16 +426,6 @@ export class CustomOption
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
@@ -447,19 +441,29 @@ export class CustomOption
       sourcePtrValue != undefined
         ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new CustomOption({
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       orderKey: objectValue["22"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -540,6 +544,24 @@ export class CustomOption
             )
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      orderKey: objectProto.orderKey,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -562,24 +584,6 @@ export class CustomOption
               _connection,
             )
           : null,
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,

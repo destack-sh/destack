@@ -1,21 +1,19 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   HasIcon,
   HasName,
   IsDeletable,
   IsOrdered,
+  IsSpatial,
   IsSubject,
   IsTaggable,
-  LikeTag,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Icon } from "@destack/language/core/common";
+import { Entity, Icon } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -30,16 +28,14 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Tag
   extends Node
-  implements Spatial, Entity, LikeTag, HasName, HasIcon, IsOrdered, IsDeletable
+  implements IsSpatial, HasName, HasIcon, IsOrdered, IsDeletable, Entity
 {
   static metatype: NodeType = NodeType.TAG;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TAG,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.DELETABLE,
     TraitType.ORDERED,
+    TraitType.SPATIAL,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.FOLDER];
@@ -253,14 +249,6 @@ export class Tag
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
@@ -268,6 +256,14 @@ export class Tag
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -360,16 +356,6 @@ export class Tag
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
@@ -380,18 +366,28 @@ export class Tag
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Tag({
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       icon: unpackedIcon,
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -469,6 +465,14 @@ export class Tag
             )
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      orderKey: objectProto.orderKey,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -491,14 +495,6 @@ export class Tag
               _connection,
             )
           : null,
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      orderKey: objectProto.orderKey,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,
@@ -532,110 +528,112 @@ registerNodeClass(NodeType.TAG, Tag);
 /**
  * A Tagging of a Node by a Tag.
  */
-export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrdered, IsDeletable {
+export class Tagging extends Node implements IsSpatial, IsTaggable, IsOrdered, IsDeletable, Entity {
   static metatype: NodeType = NodeType.TAGGING;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.FONT_STYLE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
+    NodeType.STYLE,
+    NodeType.VIEW,
+    NodeType.SHAPE,
+    NodeType.CONTAINER_VIEW,
     NodeType.MESSAGE,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
     NodeType.BORDER_STYLE,
-    NodeType.WIZARD_VIEW,
-    NodeType.SHADOW_STYLE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.GRADIENT_STYLE,
-    NodeType.LABEL_VIEW,
+    NodeType.INPUT_VIEW,
+    NodeType.LINE_SHAPE,
     NodeType.TRANSITION_STYLE,
-    NodeType.SPLIT_VIEW,
     NodeType.EFFECT_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.POLYGON_SHAPE,
     NodeType.SCENE,
     NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.STROKE_STYLE,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.ARROW_SHAPE,
+    NodeType.FRAME_VIEW,
     NodeType.SERVICE,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.LAYER,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
     NodeType.CUSTOM_PROPERTY,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.LABEL_VIEW,
     NodeType.ACTION,
-    NodeType.THEME,
     NodeType.CUSTOM_OPTION,
-    NodeType.THREAD_VIEW,
+    NodeType.THEME,
+    NodeType.INTERNAL_VIEW,
     NodeType.FOLDER,
-    NodeType.EDIT_EVENT,
-    NodeType.PALETTE,
+    NodeType.TEXT_VIEW,
     NodeType.TAGGING,
+    NodeType.SPLIT_VIEW,
     NodeType.ROUTE,
-    NodeType.COLOR_STYLE,
+    NodeType.PALETTE,
     NodeType.CANVAS,
     NodeType.THREAD,
-    NodeType.FILL_STYLE,
   ];
   static __childTypes__: NodeType[] = [NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.FONT_STYLE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.BORDER_STYLE,
+    NodeType.STYLE,
+    NodeType.SHAPE,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
     NodeType.MESSAGE,
-    NodeType.WIZARD_VIEW,
-    NodeType.SHADOW_STYLE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.LINE_SHAPE,
+    NodeType.INPUT_VIEW,
     NodeType.RUN,
-    NodeType.FRAME_VIEW,
+    NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
     NodeType.GRADIENT_STYLE,
-    NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.TRANSITION_STYLE,
-    NodeType.SPLIT_VIEW,
-    NodeType.SCRIPT,
     NodeType.EFFECT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.WINDOW,
+    NodeType.POLYGON_SHAPE,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SCRIPT,
     NodeType.SCENE,
     NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.STROKE_STYLE,
-    NodeType.INTERRUPTION,
+    NodeType.ARROW_SHAPE,
+    NodeType.SLIDER_INPUT_VIEW,
     NodeType.SERVICE,
+    NodeType.FRAME_VIEW,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.LAYER,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
-    NodeType.TEXT_VIEW,
     NodeType.CUSTOM_PROPERTY,
+    NodeType.CONTENT_VIEW,
+    NodeType.ANNOTATION_SHAPE,
     NodeType.THEME,
     NodeType.ACTION,
     NodeType.CUSTOM_OPTION,
+    NodeType.LABEL_VIEW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
-    NodeType.PALETTE,
-    NodeType.EDIT_EVENT,
+    NodeType.INTERNAL_VIEW,
+    NodeType.TEXT_VIEW,
     NodeType.AGENT,
     NodeType.TAGGING,
-    NodeType.COLOR_STYLE,
+    NodeType.PALETTE,
     NodeType.ROUTE,
+    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
     NodeType.THREAD,
-    NodeType.FILL_STYLE,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
@@ -848,6 +846,10 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -855,10 +857,6 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
 
     return h;
@@ -953,6 +951,11 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -963,22 +966,17 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     return new Tagging({
       parent: unpackedParentPtr,
       tag: unpackedTagPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      orderKey: objectValue["22"],
-      deletedAt: unpackedDeletedAt,
       _session,
       _graph,
       _connection,
@@ -1059,6 +1057,9 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
             )
           : null,
       id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1081,9 +1082,6 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

@@ -4,11 +4,10 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     ClientType,
     Entity,
-    Global,
     HasName,
     IsDeletable,
+    IsGlobal,
     IsSubject,
-    Node,
     NodeReference,
     NodeType,
     StructFrozen,
@@ -30,10 +29,9 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.CLIENT)
 class Client(
     HasName,
-    Global,
-    Entity,
+    IsGlobal,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Client to connect with the system."""
 

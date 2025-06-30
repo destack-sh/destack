@@ -4,13 +4,13 @@ from contextlib import asynccontextmanager
 import asyncpg
 import asyncpg.transaction
 
-from destack.language import DatabaseBase
+from destack.language import Database, DatabaseInfo
 
 # NOTE: we never expire/remove Pools since we assume only a few connections
 _pool_by_url: dict[str, asyncpg.Pool] = {}
 
 
-async def _get_pool(database: DatabaseBase) -> asyncpg.Pool:
+async def _get_pool(database: DatabaseInfo | Database) -> asyncpg.Pool:
     """Get a pool for a database."""
 
     assert database.connection_url, f"no connection_url for {database!r}"
@@ -27,7 +27,9 @@ async def _get_pool(database: DatabaseBase) -> asyncpg.Pool:
 
 
 @asynccontextmanager
-async def pg_connection(database: DatabaseBase) -> AsyncGenerator[asyncpg.Connection, None]:
+async def pg_connection(
+    database: DatabaseInfo | Database,
+) -> AsyncGenerator[asyncpg.Connection, None]:
     """
     Context manager for an asyncpg.Connection.
     """
@@ -41,7 +43,7 @@ async def pg_connection(database: DatabaseBase) -> AsyncGenerator[asyncpg.Connec
 
 @asynccontextmanager
 async def pg_transaction(
-    database: DatabaseBase,
+    database: DatabaseInfo | Database,
 ) -> AsyncGenerator[tuple[asyncpg.Connection, asyncpg.transaction.Transaction], None]:
     """
     Context manager for an asyncpg.Transaction.

@@ -1,21 +1,20 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   HasName,
   IsDeletable,
   IsExtensible,
   IsOrdered,
   IsRunnable,
   IsScriptable,
+  IsSpatial,
   IsSubject,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Value } from "@destack/language/core/common";
+import { Entity, Value } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -30,13 +29,12 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Script
   extends Node
-  implements Spatial, Entity, HasName, IsOrdered, IsDeletable, IsRunnable, IsExtensible
+  implements IsSpatial, HasName, IsOrdered, IsDeletable, IsRunnable, IsExtensible, Entity
 {
   static metatype: NodeType = NodeType.SCRIPT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.EXTENSIBLE,
     TraitType.ORDERED,
@@ -44,54 +42,58 @@ export class Script
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
+    NodeType.VIEW,
+    NodeType.SHAPE,
+    NodeType.CONTAINER_VIEW,
+    NodeType.INPUT_VIEW,
     NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.WIZARD_VIEW,
     NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
+    NodeType.POLYGON_SHAPE,
     NodeType.SCRIPT,
     NodeType.SCENE,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.ARROW_SHAPE,
+    NodeType.FRAME_VIEW,
     NodeType.SERVICE,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.LAYER,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.LABEL_VIEW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
+    NodeType.TEXT_VIEW,
     NodeType.AGENT,
+    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
   ];
   static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.SCRIPT];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
+    NodeType.SHAPE,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
     NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
+    NodeType.INPUT_VIEW,
     NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
+    NodeType.POLYGON_SHAPE,
+    NodeType.NUMBER_INPUT_VIEW,
     NodeType.SCRIPT,
     NodeType.SCENE,
+    NodeType.ARROW_SHAPE,
+    NodeType.SLIDER_INPUT_VIEW,
     NodeType.SERVICE,
+    NodeType.FRAME_VIEW,
     NodeType.LAYER,
     NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.LABEL_VIEW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
     NodeType.AGENT,
+    NodeType.TEXT_VIEW,
+    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
   ];
   static __descendantTypes__: NodeType[] = [
@@ -329,14 +331,6 @@ export class Script
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
@@ -347,6 +341,14 @@ export class Script
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -448,16 +450,6 @@ export class Script
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
@@ -472,19 +464,29 @@ export class Script
         );
       }
     }
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Script({
       parent: unpackedParentPtr,
       code: unpackedCode,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
       value: unpackedValue,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -578,6 +580,11 @@ export class Script
             )
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      value: unpackedValue,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -600,11 +607,6 @@ export class Script
               _connection,
             )
           : null,
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      value: unpackedValue,
       _session,
       _graph,
       _connection,

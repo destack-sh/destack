@@ -19,11 +19,11 @@ from ..builtin import (
     NODE_TYPES,
     BuiltinObjectBase,
     Node,
+    NodeReference,
     NodeType,
     PropertyDeclaration,
     StructType,
 )
-from ..common import NodeReference
 from .graph import Supergraph
 
 if TYPE_CHECKING:

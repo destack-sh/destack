@@ -2,13 +2,12 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
-    Global,
     HasIcon,
     HasName,
     HasSlug,
+    IsGlobal,
     IsJoinable,
     IsOwner,
-    Node,
     NodeType,
     builtin_node,
     property_parent_,
@@ -21,16 +20,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.TEAM, root_type=None)
-class Team(
-    Global,
-    Entity,
-    HasSlug,
-    HasIcon,
-    HasName,
-    IsOwner,
-    IsJoinable,
-    Node,
-):
+class Team(IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable, Entity):
     """
     An Team with Users and Teams.
     """

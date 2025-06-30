@@ -1,5 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { IsShape } from "@destack/language/canvas";
+import { Shape } from "@destack/language/canvas";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
@@ -9,107 +9,102 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Align, Dimension, Position, Vector2 } from "@destack/language/core/common";
+import {
+  Align,
+  Axis2,
+  Axis3,
+  Corners,
+  Dimension,
+  Direction,
+  Distribute,
+  Grid,
+  GridSpan,
+  Insets,
+  Layout,
+  Position,
+  Value,
+  Vector2,
+} from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
+import { Border, Fill, Shadow } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
-import { ContentView } from "@destack/language/view/content";
-import { AlignProto, ArrowHeadTypeProto, ArrowShapeProto } from "@destack/proto";
+import {
+  AlignProto,
+  ArrowHeadTypeProto,
+  ArrowShapeProto,
+  DirectionProto,
+  DistributeProto,
+  LayoutProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:11012 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:11011 ==== */
+/**
+ * ArrowHeadType
+ */
+export enum ArrowHeadType {
+  ARROW = 1,
+  TRIANGLE = 2,
+  DOT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
+/* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:11080 ==== */
 /**
  * An ArrowShape is a shape that represents an arrow.
  */
-export class ArrowShape extends Node implements ContentView, IsShape {
+export class ArrowShape extends Node implements Shape {
   static metatype: NodeType = NodeType.ARROW_SHAPE;
   static __traits__: TraitType[] = [
-    TraitType.SCRIPTABLE,
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
-    TraitType.VIEW,
     TraitType.TAGGABLE,
-    TraitType.SHAPE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
-    TraitType.CONTENT_VIEW,
+    TraitType.EXTENSIBLE,
     TraitType.ORDERED,
+    TraitType.SCRIPTABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CONTAINER_VIEW,
     NodeType.LAYER,
-    NodeType.CUSTOM_VIEW,
-    NodeType.CANVAS,
-    NodeType.SPLIT_VIEW,
     NodeType.SCENE,
   ];
-  static __childTypes__: NodeType[] = [
-    NodeType.TAGGING,
-    NodeType.SCRIPT,
-    NodeType.COLOR_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.EFFECT_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.STROKE_STYLE,
-  ];
+  static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.TAGGING, NodeType.SCRIPT];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.LABEL_VIEW,
-    NodeType.CANVAS,
-    NodeType.CUSTOM_VIEW,
     NodeType.LAYER,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.SPLIT_VIEW,
+    NodeType.CONTAINER_VIEW,
+    NodeType.CANVAS,
     NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [
-    NodeType.CUSTOM_OPTION,
-    NodeType.STROKE_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.FONT_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.TAGGING,
-    NodeType.COLOR_STYLE,
     NodeType.SCRIPT,
-    NodeType.EFFECT_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.FILL_STYLE,
+    NodeType.CUSTOM_OPTION,
+    NodeType.TAGGING,
+    NodeType.CUSTOM_PROPERTY,
   ];
 
   /**
    * View.parent
    */
-  get parent(): Window | Scene | Layer | (Node & ContainerView) | null {
+  get parent(): Window | Scene | Layer | ContainerView | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | Window
-        | Scene
-        | Layer
-        | (Node & ContainerView)
-        | null;
+      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | ContainerView | null;
     }
     return null;
   }
@@ -167,6 +162,11 @@ export class ArrowShape extends Node implements ContentView, IsShape {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * IsExtensible.value
+   */
+  value: Map<string, Value>;
+
+  /**
    * IsOrdered.orderKey
    */
   readonly orderKey: string;
@@ -212,19 +212,99 @@ export class ArrowShape extends Node implements ContentView, IsShape {
   maxHeight: Dimension | null;
 
   /**
-   * ContentView.align
+   * ContainerView.layout
+   */
+  layout: Layout | null;
+
+  /**
+   * ContainerView.direction
+   */
+  direction: Direction | null;
+
+  /**
+   * ContainerView.distribute
+   */
+  distribute: Distribute | null;
+
+  /**
+   * ContainerView.align
    */
   align: Align | null;
 
   /**
-   * ContentView.isVisible
+   * ContainerView.gap
+   */
+  gap: Axis2 | null;
+
+  /**
+   * ContainerView.padding
+   */
+  padding: Insets | null;
+
+  /**
+   * ContainerView.grid
+   */
+  grid: Grid | null;
+
+  /**
+   * ContainerView.gridSpan
+   */
+  gridSpan: GridSpan | null;
+
+  /**
+   * ContainerView.aspectRatio
+   */
+  aspectRatio: number | null;
+
+  /**
+   * ContainerView.isWrap
+   */
+  isWrap: boolean | null;
+
+  /**
+   * ContainerView.isVisible
    */
   isVisible: boolean | null;
 
   /**
-   * ContentView.opacity
+   * ContainerView.opacity
    */
   opacity: number | null;
+
+  /**
+   * ContainerView.fill
+   */
+  fill: Fill | null;
+
+  /**
+   * ContainerView.rotation
+   */
+  rotation: Axis3 | null;
+
+  /**
+   * ContainerView.skew
+   */
+  skew: Vector2 | null;
+
+  /**
+   * ContainerView.scale
+   */
+  scale: number | null;
+
+  /**
+   * ContainerView.shadow
+   */
+  shadow: Shadow | null;
+
+  /**
+   * ContainerView.border
+   */
+  border: Border | null;
+
+  /**
+   * ContainerView.radius
+   */
+  radius: Corners | null;
 
   /**
    * ArrowShape.startType
@@ -267,13 +347,14 @@ export class ArrowShape extends Node implements ContentView, IsShape {
 
   constructor(options: {
     id?: string;
-    parent?: Window | Scene | Layer | (Node & ContainerView) | NodeReference | null;
+    parent?: Window | Scene | Layer | ContainerView | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    value?: Map<string, Value>;
     orderKey?: string;
     name: string;
     position?: Position | null;
@@ -283,9 +364,25 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     minHeight?: Dimension | null;
     maxWidth?: Dimension | null;
     maxHeight?: Dimension | null;
+    layout?: Layout | null;
+    direction?: Direction | null;
+    distribute?: Distribute | null;
     align?: Align | null;
+    gap?: Axis2 | null;
+    padding?: Insets | null;
+    grid?: Grid | null;
+    gridSpan?: GridSpan | null;
+    aspectRatio?: number | null;
+    isWrap?: boolean | null;
     isVisible?: boolean | null;
     opacity?: number | null;
+    fill?: Fill | null;
+    rotation?: Axis3 | null;
+    skew?: Vector2 | null;
+    scale?: number | null;
+    shadow?: Shadow | null;
+    border?: Border | null;
+    radius?: Corners | null;
     startType: ArrowHeadType;
     start: Vector2;
     endType: ArrowHeadType;
@@ -332,6 +429,11 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      _value = new Map();
+    }
+    this.value = _value;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -359,12 +461,44 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     this.maxWidth = _maxWidth;
     let _maxHeight = options.maxHeight ?? null;
     this.maxHeight = _maxHeight;
+    let _layout = options.layout ?? null;
+    this.layout = _layout;
+    let _direction = options.direction ?? null;
+    this.direction = _direction;
+    let _distribute = options.distribute ?? null;
+    this.distribute = _distribute;
     let _align = options.align ?? null;
     this.align = _align;
+    let _gap = options.gap ?? null;
+    this.gap = _gap;
+    let _padding = options.padding ?? null;
+    this.padding = _padding;
+    let _grid = options.grid ?? null;
+    this.grid = _grid;
+    let _gridSpan = options.gridSpan ?? null;
+    this.gridSpan = _gridSpan;
+    let _aspectRatio = options.aspectRatio ?? null;
+    this.aspectRatio = _aspectRatio;
+    let _isWrap = options.isWrap ?? null;
+    this.isWrap = _isWrap;
     let _isVisible = options.isVisible ?? null;
     this.isVisible = _isVisible;
     let _opacity = options.opacity ?? null;
     this.opacity = _opacity;
+    let _fill = options.fill ?? null;
+    this.fill = _fill;
+    let _rotation = options.rotation ?? null;
+    this.rotation = _rotation;
+    let _skew = options.skew ?? null;
+    this.skew = _skew;
+    let _scale = options.scale ?? null;
+    this.scale = _scale;
+    let _shadow = options.shadow ?? null;
+    this.shadow = _shadow;
+    let _border = options.border ?? null;
+    this.border = _border;
+    let _radius = options.radius ?? null;
+    this.radius = _radius;
     let _startType = options.startType;
     if (_startType === null) {
       throw new Error(`ArrowShape.startType is required`);
@@ -437,7 +571,53 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     if (!this.end.equals(other.end)) {
       return false;
     }
+    if (!(this.layout === other.layout)) {
+      return false;
+    }
+    if (!(this.direction === other.direction)) {
+      return false;
+    }
+    if (!(this.distribute === other.distribute)) {
+      return false;
+    }
     if (!(this.align === other.align)) {
+      return false;
+    }
+    if (
+      (this.gap == null) !== (other.gap == null) ||
+      (this.gap != null && !this.gap.equals(other.gap))
+    ) {
+      return false;
+    }
+    if (
+      (this.padding == null) !== (other.padding == null) ||
+      (this.padding != null && !this.padding.equals(other.padding))
+    ) {
+      return false;
+    }
+    if (
+      (this.grid == null) !== (other.grid == null) ||
+      (this.grid != null && !this.grid.equals(other.grid))
+    ) {
+      return false;
+    }
+    if (
+      (this.gridSpan == null) !== (other.gridSpan == null) ||
+      (this.gridSpan != null && !this.gridSpan.equals(other.gridSpan))
+    ) {
+      return false;
+    }
+    if (
+      (this.aspectRatio == null) !== (other.aspectRatio == null) ||
+      (this.aspectRatio != null &&
+        !(
+          this.aspectRatio === other.aspectRatio ||
+          Math.abs(this.aspectRatio - other.aspectRatio) < 1e-10
+        ))
+    ) {
+      return false;
+    }
+    if (!(this.isWrap === other.isWrap)) {
       return false;
     }
     if (!(this.isVisible === other.isVisible)) {
@@ -447,6 +627,49 @@ export class ArrowShape extends Node implements ContentView, IsShape {
       (this.opacity == null) !== (other.opacity == null) ||
       (this.opacity != null &&
         !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.fill == null) !== (other.fill == null) ||
+      (this.fill != null && !this.fill.equals(other.fill))
+    ) {
+      return false;
+    }
+    if (
+      (this.rotation == null) !== (other.rotation == null) ||
+      (this.rotation != null && !this.rotation.equals(other.rotation))
+    ) {
+      return false;
+    }
+    if (
+      (this.skew == null) !== (other.skew == null) ||
+      (this.skew != null && !this.skew.equals(other.skew))
+    ) {
+      return false;
+    }
+    if (
+      (this.scale == null) !== (other.scale == null) ||
+      (this.scale != null &&
+        !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.shadow == null) !== (other.shadow == null) ||
+      (this.shadow != null && !this.shadow.equals(other.shadow))
+    ) {
+      return false;
+    }
+    if (
+      (this.border == null) !== (other.border == null) ||
+      (this.border != null && !this.border.equals(other.border))
+    ) {
+      return false;
+    }
+    if (
+      (this.radius == null) !== (other.radius == null) ||
+      (this.radius != null && !this.radius.equals(other.radius))
     ) {
       return false;
     }
@@ -501,6 +724,17 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -511,14 +745,62 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     h = (h * 31 + this.start.hash()) & 0xffffffff;
     h = (h * 31 + this.endType) & 0xffffffff;
     h = (h * 31 + this.end.hash()) & 0xffffffff;
+    if (this.layout !== null) {
+      h = (h * 31 + this.layout) & 0xffffffff;
+    }
+    if (this.direction !== null) {
+      h = (h * 31 + this.direction) & 0xffffffff;
+    }
+    if (this.distribute !== null) {
+      h = (h * 31 + this.distribute) & 0xffffffff;
+    }
     if (this.align !== null) {
       h = (h * 31 + this.align) & 0xffffffff;
+    }
+    if (this.gap !== null) {
+      h = (h * 31 + this.gap.hash()) & 0xffffffff;
+    }
+    if (this.padding !== null) {
+      h = (h * 31 + this.padding.hash()) & 0xffffffff;
+    }
+    if (this.grid !== null) {
+      h = (h * 31 + this.grid.hash()) & 0xffffffff;
+    }
+    if (this.gridSpan !== null) {
+      h = (h * 31 + this.gridSpan.hash()) & 0xffffffff;
+    }
+    if (this.aspectRatio !== null) {
+      h = (h * 31 + hashFloat(this.aspectRatio)) & 0xffffffff;
+    }
+    if (this.isWrap !== null) {
+      h = (h * 31 + hashBool(this.isWrap)) & 0xffffffff;
     }
     if (this.isVisible !== null) {
       h = (h * 31 + hashBool(this.isVisible)) & 0xffffffff;
     }
     if (this.opacity !== null) {
       h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
+    }
+    if (this.fill !== null) {
+      h = (h * 31 + this.fill.hash()) & 0xffffffff;
+    }
+    if (this.rotation !== null) {
+      h = (h * 31 + this.rotation.hash()) & 0xffffffff;
+    }
+    if (this.skew !== null) {
+      h = (h * 31 + this.skew.hash()) & 0xffffffff;
+    }
+    if (this.scale !== null) {
+      h = (h * 31 + hashFloat(this.scale)) & 0xffffffff;
+    }
+    if (this.shadow !== null) {
+      h = (h * 31 + this.shadow.hash()) & 0xffffffff;
+    }
+    if (this.border !== null) {
+      h = (h * 31 + this.border.hash()) & 0xffffffff;
+    }
+    if (this.radius !== null) {
+      h = (h * 31 + this.radius.hash()) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -563,6 +845,12 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
     }
 
     return h;
@@ -611,7 +899,7 @@ export class ArrowShape extends Node implements ContentView, IsShape {
 
   static __packValue__(object: ArrowShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 11012;
+    objectValue["1"] = 11080;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -629,6 +917,13 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     }
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+    }
+    if (object.value.size > 0) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of object.value) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
     }
     objectValue["22"] = object.orderKey;
     objectValue["31"] = object.name;
@@ -653,14 +948,62 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     if (object.maxHeight != null) {
       objectValue["46"] = object.maxHeight.toValue();
     }
+    if (object.layout != null) {
+      objectValue["50"] = object.layout;
+    }
+    if (object.direction != null) {
+      objectValue["51"] = object.direction;
+    }
+    if (object.distribute != null) {
+      objectValue["52"] = object.distribute;
+    }
     if (object.align != null) {
       objectValue["53"] = object.align;
+    }
+    if (object.gap != null) {
+      objectValue["54"] = object.gap.toValue();
+    }
+    if (object.padding != null) {
+      objectValue["55"] = object.padding.toValue();
+    }
+    if (object.grid != null) {
+      objectValue["56"] = object.grid.toValue();
+    }
+    if (object.gridSpan != null) {
+      objectValue["57"] = object.gridSpan.toValue();
+    }
+    if (object.aspectRatio != null) {
+      objectValue["58"] = object.aspectRatio;
+    }
+    if (object.isWrap != null) {
+      objectValue["59"] = object.isWrap;
     }
     if (object.isVisible != null) {
       objectValue["60"] = object.isVisible;
     }
     if (object.opacity != null) {
       objectValue["61"] = object.opacity;
+    }
+    if (object.fill != null) {
+      objectValue["62"] = object.fill.toValue();
+    }
+    if (object.rotation != null) {
+      objectValue["63"] = object.rotation.toValue();
+    }
+    if (object.skew != null) {
+      objectValue["64"] = object.skew.toValue();
+    }
+    if (object.scale != null) {
+      objectValue["65"] = object.scale;
+    }
+    if (object.shadow != null) {
+      objectValue["66"] = object.shadow.toValue();
+    }
+    if (object.border != null) {
+      objectValue["67"] = object.border.toValue();
+    }
+    if (object.radius != null) {
+      objectValue["68"] = object.radius.toValue();
     }
     objectValue["100"] = object.startType;
     objectValue["101"] = object.start.toValue();
@@ -679,12 +1022,74 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     _graph?: any | null,
     _connection?: any | null,
   ): ArrowShape {
+    const layoutValue = objectValue["50"];
+    const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
+    const directionValue = objectValue["51"];
+    const unpackedDirection = directionValue != undefined ? Number(directionValue) : null;
+    const distributeValue = objectValue["52"];
+    const unpackedDistribute = distributeValue != undefined ? Number(distributeValue) : null;
     const alignValue = objectValue["53"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
+    const gapValue = objectValue["54"];
+    const unpackedGap =
+      gapValue != undefined
+        ? Axis2.fromValue(gapValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const paddingValue = objectValue["55"];
+    const unpackedPadding =
+      paddingValue != undefined
+        ? Insets.fromValue(paddingValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const gridValue = objectValue["56"];
+    const unpackedGrid =
+      gridValue != undefined
+        ? Grid.fromValue(gridValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const gridSpanValue = objectValue["57"];
+    const unpackedGridSpan =
+      gridSpanValue != undefined
+        ? GridSpan.fromValue(gridSpanValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const aspectRatioValue = objectValue["58"];
+    const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
+    const isWrapValue = objectValue["59"];
+    const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
     const isVisibleValue = objectValue["60"];
     const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
     const opacityValue = objectValue["61"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+    const fillValue = objectValue["62"];
+    const unpackedFill =
+      fillValue != undefined
+        ? Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const rotationValue = objectValue["63"];
+    const unpackedRotation =
+      rotationValue != undefined
+        ? Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const skewValue = objectValue["64"];
+    const unpackedSkew =
+      skewValue != undefined
+        ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scaleValue = objectValue["65"];
+    const unpackedScale = scaleValue != undefined ? scaleValue : null;
+    const shadowValue = objectValue["66"];
+    const unpackedShadow =
+      shadowValue != undefined
+        ? Shadow.fromValue(shadowValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const borderValue = objectValue["67"];
+    const unpackedBorder =
+      borderValue != undefined
+        ? Border.fromValue(borderValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const radiusValue = objectValue["68"];
+    const unpackedRadius =
+      radiusValue != undefined
+        ? Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -750,14 +1155,39 @@ export class ArrowShape extends Node implements ContentView, IsShape {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new ArrowShape({
       startType: Number(objectValue["100"]),
       start: Vector2.fromValue(objectValue["101"], _session, _supergraph, _graph, _connection),
       endType: Number(objectValue["110"]),
       end: Vector2.fromValue(objectValue["111"], _session, _supergraph, _graph, _connection),
+      layout: unpackedLayout,
+      direction: unpackedDirection,
+      distribute: unpackedDistribute,
       align: unpackedAlign,
+      gap: unpackedGap,
+      padding: unpackedPadding,
+      grid: unpackedGrid,
+      gridSpan: unpackedGridSpan,
+      aspectRatio: unpackedAspectRatio,
+      isWrap: unpackedIsWrap,
       isVisible: unpackedIsVisible,
       opacity: unpackedOpacity,
+      fill: unpackedFill,
+      rotation: unpackedRotation,
+      skew: unpackedSkew,
+      scale: unpackedScale,
+      shadow: unpackedShadow,
+      border: unpackedBorder,
+      radius: unpackedRadius,
       parent: unpackedParentPtr,
       position: unpackedPosition,
       width: unpackedWidth,
@@ -776,6 +1206,7 @@ export class ArrowShape extends Node implements ContentView, IsShape {
       orderKey: objectValue["22"],
       script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
+      value: unpackedValue,
       _session,
       _graph,
       _connection,
@@ -797,7 +1228,7 @@ export class ArrowShape extends Node implements ContentView, IsShape {
   }
 
   static __packProto__(object: ArrowShape): ArrowShapeProto {
-    const objectProto: Partial<ArrowShapeProto> = { metatype: 11012 };
+    const objectProto: Partial<ArrowShapeProto> = { metatype: 11080 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -815,6 +1246,12 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     }
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    if (object.value) {
+      objectProto.value = {};
+      for (const [key, value] of object.value) {
+        objectProto.value![String(key)] = value.toProto();
+      }
     }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object.name;
@@ -839,14 +1276,62 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     if (object.maxHeight != null) {
       objectProto.maxHeight = object.maxHeight.toProto();
     }
+    if (object.layout != null) {
+      objectProto.layout = Number(object.layout) as LayoutProto;
+    }
+    if (object.direction != null) {
+      objectProto.direction = Number(object.direction) as DirectionProto;
+    }
+    if (object.distribute != null) {
+      objectProto.distribute = Number(object.distribute) as DistributeProto;
+    }
     if (object.align != null) {
       objectProto.align = Number(object.align) as AlignProto;
+    }
+    if (object.gap != null) {
+      objectProto.gap = object.gap.toProto();
+    }
+    if (object.padding != null) {
+      objectProto.padding = object.padding.toProto();
+    }
+    if (object.grid != null) {
+      objectProto.grid = object.grid.toProto();
+    }
+    if (object.gridSpan != null) {
+      objectProto.gridSpan = object.gridSpan.toProto();
+    }
+    if (object.aspectRatio != null) {
+      objectProto.aspectRatio = object.aspectRatio;
+    }
+    if (object.isWrap != null) {
+      objectProto.isWrap = object.isWrap;
     }
     if (object.isVisible != null) {
       objectProto.isVisible = object.isVisible;
     }
     if (object.opacity != null) {
       objectProto.opacity = object.opacity;
+    }
+    if (object.fill != null) {
+      objectProto.fill = object.fill.toProto();
+    }
+    if (object.rotation != null) {
+      objectProto.rotation = object.rotation.toProto();
+    }
+    if (object.skew != null) {
+      objectProto.skew = object.skew.toProto();
+    }
+    if (object.scale != null) {
+      objectProto.scale = object.scale;
+    }
+    if (object.shadow != null) {
+      objectProto.shadow = object.shadow.toProto();
+    }
+    if (object.border != null) {
+      objectProto.border = object.border.toProto();
+    }
+    if (object.radius != null) {
+      objectProto.radius = object.radius.toProto();
     }
     objectProto.startType = Number(object.startType) as ArrowHeadTypeProto;
     objectProto.start = object.start.toProto();
@@ -865,14 +1350,71 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     _graph?: any | null,
     _connection?: any | null,
   ): ArrowShape {
+    const unpackedValue = new Map();
+    if (objectProto.value) {
+      for (const [key, value] of Object.entries(objectProto.value)) {
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new ArrowShape({
       startType: Number(objectProto.startType) as ArrowHeadType,
       start: Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
       endType: Number(objectProto.endType) as ArrowHeadType,
       end: Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
+      direction:
+        objectProto.direction != undefined ? (Number(objectProto.direction) as Direction) : null,
+      distribute:
+        objectProto.distribute != undefined ? (Number(objectProto.distribute) as Distribute) : null,
       align: objectProto.align != undefined ? (Number(objectProto.align) as Align) : null,
+      gap:
+        objectProto.gap != undefined
+          ? Axis2.fromProto(objectProto.gap!, _session, _supergraph, _graph, _connection)
+          : null,
+      padding:
+        objectProto.padding != undefined
+          ? Insets.fromProto(objectProto.padding!, _session, _supergraph, _graph, _connection)
+          : null,
+      grid:
+        objectProto.grid != undefined
+          ? Grid.fromProto(objectProto.grid!, _session, _supergraph, _graph, _connection)
+          : null,
+      gridSpan:
+        objectProto.gridSpan != undefined
+          ? GridSpan.fromProto(objectProto.gridSpan!, _session, _supergraph, _graph, _connection)
+          : null,
+      aspectRatio: objectProto.aspectRatio != undefined ? objectProto.aspectRatio : null,
+      isWrap: objectProto.isWrap != undefined ? objectProto.isWrap : null,
       isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
+      fill:
+        objectProto.fill != undefined
+          ? Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
+          : null,
+      rotation:
+        objectProto.rotation != undefined
+          ? Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
+          : null,
+      skew:
+        objectProto.skew != undefined
+          ? Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          : null,
+      scale: objectProto.scale != undefined ? objectProto.scale : null,
+      shadow:
+        objectProto.shadow != undefined
+          ? Shadow.fromProto(objectProto.shadow!, _session, _supergraph, _graph, _connection)
+          : null,
+      border:
+        objectProto.border != undefined
+          ? Border.fromProto(objectProto.border!, _session, _supergraph, _graph, _connection)
+          : null,
+      radius:
+        objectProto.radius != undefined
+          ? Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -958,6 +1500,7 @@ export class ArrowShape extends Node implements ContentView, IsShape {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      value: unpackedValue,
       _session,
       _graph,
       _connection,
@@ -985,20 +1528,4 @@ export class ArrowShape extends Node implements ContentView, IsShape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ARROW_SHAPE, ArrowShape);
-/* ==== DESTACK_GENERATED_END:NODE:11012 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:11011 ==== */
-/**
- * ArrowHeadType
- */
-export enum ArrowHeadType {
-  ARROW = 1,
-  TRIANGLE = 2,
-  DOT = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
-/* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:11080 ==== */

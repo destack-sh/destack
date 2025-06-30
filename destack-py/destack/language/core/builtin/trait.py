@@ -157,6 +157,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
     __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
     __is_abstract__: ClassVar[bool] = False
+
     __base_type__: ClassVar[NodeType | None] = None
     __extends__: ClassVar[tuple[NodeType, ...]] = ()
     __extended_by__: ClassVar[tuple[NodeType, ...]] = ()
@@ -495,6 +496,9 @@ class IsDeletable(Trait):
 
 @builtin_trait(TraitType.EXTENSIBLE)
 class IsExtensible(Trait):
+    # nocheckin: literally Extensible maybe? (can use as base type)
+    #  related to is_abstract? (IsAbstract .. trait? or just flag?)
+    #  (but then it can't be a trait because it would infect descendants..? Entity should be extensible?)
     """A Node that can be extended with custom Values (one Value per Field)."""
 
     value: dict[UUID, "Value"] = property_(21)
@@ -546,13 +550,6 @@ class IsScriptable(Trait):
 @builtin_trait(TraitType.RUNNABLE)
 class IsRunnable(Trait):
     """A Node that can be run (with Runs)."""
-
-    pass
-
-
-@builtin_trait(TraitType.ACTIONABLE)
-class IsActionable(Trait):
-    """A Node that can define an Action."""
 
     pass
 
@@ -610,14 +607,14 @@ class IsTaggable(Trait):
 
 
 @builtin_trait(TraitType.GLOBAL)
-class Global(Trait):
+class IsGlobal(Trait):
     """A Node that is global."""
 
     pass
 
 
 @builtin_trait(TraitType.SPATIAL)
-class Spatial(Trait):
+class IsSpatial(Trait):
     """A Node in a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)

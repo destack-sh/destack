@@ -4,9 +4,8 @@ from destack.language.core import (
     Enum,
     EnumType,
     Length,
-    Node,
     NodeType,
-    StructMutable,
+    StructFrozen,
     StructType,
     builtin_enum,
     builtin_node,
@@ -81,8 +80,8 @@ class TextTransform(Enum):
     CAPITALIZE = 4
 
 
-@builtin_struct(StructType.FONT)
-class Font(StructMutable):
+@builtin_struct(StructType.FONT, frozen=True)
+class Font(StructFrozen):
     """A font value."""
 
     type: FontType = property_(30, default=FontType.SANS, is_repr=True)
@@ -98,10 +97,7 @@ class Font(StructMutable):
 
 
 @builtin_node(NodeType.FONT_STYLE)
-class FontStyle(
-    Style,
-    Node,
-):
+class FontStyle(Style):
     """A font style."""
 
     type: FontType = property_(30, default=FontType.SANS, is_repr=True)

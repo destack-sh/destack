@@ -8,10 +8,9 @@ from destack.language.core import (
     IsDeletable,
     IsJoinable,
     IsOwnable,
+    IsSpatial,
     IsTaggable,
-    Node,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -32,14 +31,13 @@ class ThreadStatus(Enum):
 
 @builtin_node(NodeType.THREAD)
 class Thread(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     IsTaggable,
     IsDeletable,
     IsJoinable,
     IsOwnable,
-    Node,
+    Entity,
 ):
     """
     A Thread for communicating with Messages.

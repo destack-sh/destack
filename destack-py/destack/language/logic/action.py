@@ -5,15 +5,14 @@ from destack.language.core import (
     Enum,
     EnumType,
     HasName,
-    IsActionable,
     IsDeletable,
     IsExtensible,
     IsRunnable,
+    IsScriptable,
     IsSourceable,
+    IsSpatial,
     IsTaggable,
-    Node,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -38,22 +37,21 @@ class ActionCardinality(Enum):
 
 @builtin_node(NodeType.ACTION)
 class Action(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     IsTaggable,
     IsSourceable,
     IsExtensible,
     IsDeletable,
     IsRunnable,
-    Node,
+    Entity,
 ):
     """
     An implementation of a unit of work, usually expressed with Code or some tool.
     May defer to a builtin or some other service in a separate system.
     """
 
-    parent: Union["IsActionable", None] = property_parent_(node_is_customizable=True)
+    parent: Union["IsScriptable", None] = property_parent_(node_is_customizable=True)
 
     cardinality: ActionCardinality = property_(40, default=ActionCardinality.UNARY)
     text: Optional["Text"] = property_(41)

@@ -1,11 +1,10 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
-  Global,
   HasIcon,
   HasName,
   HasSlug,
+  IsGlobal,
   IsJoinable,
   IsOwner,
   IsSubject,
@@ -14,7 +13,7 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Icon } from "@destack/language/core/common";
+import { Entity, Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { TeamProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -27,15 +26,14 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Team
   extends Node
-  implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable
+  implements IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable, Entity
 {
   static metatype: NodeType = NodeType.TEAM;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.JOINABLE,
     TraitType.OWNER,
+    TraitType.TRACKED,
+    TraitType.JOINABLE,
   ];
   static __rootType__: NodeType | null = null;
   static __parentTypes__: NodeType[] = [];
@@ -228,6 +226,13 @@ export class Team
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.slug !== null) {
+      h = (h * 31 + hashString(this.slug)) & 0xffffffff;
+    }
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -236,13 +241,6 @@ export class Team
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    if (this.slug !== null) {
-      h = (h * 31 + hashString(this.slug)) & 0xffffffff;
-    }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
 
     return h;
   }
@@ -318,6 +316,13 @@ export class Team
       parentPtrValue != undefined
         ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const slugValue = objectValue["33"];
+    const unpackedSlug = slugValue != undefined ? slugValue : null;
+    const iconValue = objectValue["34"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -328,23 +333,16 @@ export class Team
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue != undefined ? slugValue : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Team({
       parent: unpackedParentPtr,
       id: String(objectValue["2"]),
+      slug: unpackedSlug,
+      icon: unpackedIcon,
+      name: objectValue["31"],
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      slug: unpackedSlug,
-      icon: unpackedIcon,
-      name: objectValue["31"],
       _session,
       _graph,
       _connection,
@@ -408,6 +406,12 @@ export class Team
             )
           : null,
       id: String(objectProto.id),
+      slug: objectProto.slug != undefined ? objectProto.slug : null,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      name: objectProto.name,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -430,12 +434,6 @@ export class Team
               _connection,
             )
           : null,
-      slug: objectProto.slug != undefined ? objectProto.slug : null,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      name: objectProto.name,
       _session,
       _graph,
       _connection,

@@ -6,9 +6,8 @@ from destack.language.core import (
     EnumType,
     Event,
     IsOwnable,
-    Node,
+    IsSpatial,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -31,63 +30,50 @@ class NotificationStatus(Enum):
     RESCINDED = 5, "Rescinded", "Rescinded", "fas fa-times"
 
 
-@builtin_node(NodeType.NOTIFICATION_SENT_EVENT)
-class NotificationSentEvent(
-    Event["Notification"],
-    Node,
-):
+@builtin_node(NodeType.NOTIFICATION_EVENT, is_abstract=True)
+class NotificationEvent(Event["Notification"]):
     """A Event regarding a Notification."""
 
     node: "Notification" = property_(35)
+
+
+@builtin_node(NodeType.NOTIFICATION_SENT_EVENT)
+class NotificationSentEvent(NotificationEvent):
+    """A Notification was sent."""
+
+    pass
 
 
 @builtin_node(NodeType.NOTIFICATION_RESCINDED_EVENT)
-class NotificationRescindedEvent(
-    Event["Notification"],
-    Node,
-):
-    """A Event regarding a Notification."""
+class NotificationRescindedEvent(NotificationEvent):
+    """A Notification was rescinded."""
 
-    node: "Notification" = property_(35)
+    pass
 
 
 @builtin_node(NodeType.NOTIFICATION_READ_EVENT)
-class NotificationReadEvent(
-    Event["Notification"],
-    Node,
-):
-    """A Event regarding a Notification."""
+class NotificationReadEvent(NotificationEvent):
+    """A Notification was read."""
 
-    node: "Notification" = property_(35)
+    pass
 
 
 @builtin_node(NodeType.NOTIFICATION_DISMISSED_EVENT)
-class NotificationDismissedEvent(
-    Event["Notification"],
-    Node,
-):
-    """A Event regarding a Notification."""
+class NotificationDismissedEvent(NotificationEvent):
+    """A Notification was dismissed."""
 
-    node: "Notification" = property_(35)
+    pass
 
 
 @builtin_node(NodeType.NOTIFICATION_EXPIRED_EVENT)
-class NotificationExpiredEvent(
-    Event["Notification"],
-    Node,
-):
-    """A Event regarding a Notification."""
+class NotificationExpiredEvent(NotificationEvent):
+    """A Notification was expired."""
 
-    node: "Notification" = property_(35)
+    pass
 
 
 @builtin_node(NodeType.NOTIFICATION)
-class Notification(
-    Spatial,
-    Entity,
-    IsOwnable,
-    Node,
-):
+class Notification(IsSpatial, IsOwnable, Entity):
     """A Notification is a message about something."""
 
     status: NotificationStatus = property_(40)

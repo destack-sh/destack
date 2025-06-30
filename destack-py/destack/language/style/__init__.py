@@ -1,4 +1,4 @@
-from .border import Border, BorderBase, BorderStyle, BorderType
+from .border import Border, BorderStyle, BorderType
 from .color import (
     Color,
     ColorHue,
@@ -36,7 +36,6 @@ from .transition import Transition, TransitionStyle, TransitionType
 
 __all__ = [
     "Border",
-    "BorderBase",
     "BorderStyle",
     "BorderType",
     "Color",

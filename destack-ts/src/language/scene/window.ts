@@ -1,21 +1,20 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
   HasName,
   IsDeletable,
   IsOrdered,
   IsOwnable,
   IsOwner,
+  IsSpatial,
   IsSubject,
-  IsVisual,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Entity } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { WindowProto, WindowTypeProto } from "@destack/proto";
@@ -45,14 +44,12 @@ registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
  */
 export class Window
   extends Node
-  implements Spatial, Entity, HasName, IsVisual, IsOwnable, IsOrdered, IsDeletable
+  implements IsSpatial, HasName, IsOwnable, IsOrdered, IsDeletable, Entity
 {
   static metatype: NodeType = NodeType.WINDOW;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.VISUAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.OWNABLE,
     TraitType.DELETABLE,
     TraitType.ORDERED,
@@ -60,15 +57,18 @@ export class Window
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [
-    NodeType.CUSTOM_VIEW,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
     NodeType.FRAME_VIEW,
     NodeType.LABEL_VIEW,
     NodeType.SPLIT_VIEW,
+    NodeType.CONTENT_VIEW,
     NodeType.TEXT_VIEW,
+    NodeType.INPUT_VIEW,
     NodeType.NUMBER_INPUT_VIEW,
     NodeType.SLIDER_INPUT_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
+    NodeType.SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.CANVAS,
@@ -78,42 +78,45 @@ export class Window
   ];
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
+    NodeType.STYLE,
+    NodeType.SHAPE,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
     NodeType.FONT_STYLE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
     NodeType.BORDER_STYLE,
-    NodeType.WIZARD_VIEW,
     NodeType.SHADOW_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.STROKE_STYLE,
+    NodeType.LINE_SHAPE,
+    NodeType.INPUT_VIEW,
+    NodeType.POLYGON_SHAPE,
     NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SCRIPT,
+    NodeType.SCENE,
+    NodeType.ARROW_SHAPE,
     NodeType.SLIDER_INPUT_VIEW,
     NodeType.FRAME_VIEW,
-    NodeType.GRADIENT_STYLE,
-    NodeType.LABEL_VIEW,
-    NodeType.TRANSITION_STYLE,
-    NodeType.SCRIPT,
-    NodeType.SPLIT_VIEW,
-    NodeType.EFFECT_STYLE,
-    NodeType.SCENE,
-    NodeType.STROKE_STYLE,
     NodeType.LAYER,
     NodeType.CUSTOM_PROPERTY,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.LABEL_VIEW,
     NodeType.CUSTOM_OPTION,
     NodeType.VARIANT,
-    NodeType.THREAD_VIEW,
-    NodeType.PALETTE,
+    NodeType.INTERNAL_VIEW,
+    NodeType.TEXT_VIEW,
     NodeType.TAGGING,
-    NodeType.COLOR_STYLE,
+    NodeType.PALETTE,
+    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
-    NodeType.FILL_STYLE,
   ];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -347,14 +350,6 @@ export class Window
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
@@ -362,6 +357,14 @@ export class Window
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -458,16 +461,6 @@ export class Window
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -478,19 +471,29 @@ export class Window
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Window({
       type: Number(objectValue["30"]),
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -570,6 +573,20 @@ export class Window
             )
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      orderKey: objectProto.orderKey,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -592,20 +609,6 @@ export class Window
               _connection,
             )
           : null,
-      name: objectProto.name,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      orderKey: objectProto.orderKey,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

@@ -2,14 +2,13 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Entity,
-    Global,
     IndexIn,
     IsDeletable,
+    IsGlobal,
     IsOwnable,
+    IsSpatial,
     IsSubject,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
@@ -26,12 +25,11 @@ if TYPE_CHECKING:
     index=(IndexIn(columns=("parent_id", "owned_by_id"), is_unique=True),),
 )
 class Follow(
-    Global,
-    Spatial,
-    Entity,
+    IsGlobal,
+    IsSpatial,
     IsDeletable,
     IsOwnable,
-    Node,
+    Entity,
 ):
     """A Follow is a relationship between a Subject and an IsFollowable Node."""
 

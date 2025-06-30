@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Event,
   HasIcon,
   IsOwnable,
   IsOwner,
@@ -19,6 +18,7 @@ import {
   Dimension,
   Direction,
   Distribute,
+  Event,
   Grid,
   GridSpan,
   Icon,
@@ -41,6 +41,7 @@ import {
   DistributeProto,
   LayoutProto,
   SceneEnteredEventProto,
+  SceneEventProto,
   SceneExitedEventProto,
   SceneProto,
 } from "@destack/proto";
@@ -50,11 +51,11 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:9030 ==== */
 /**
- * A Event regarding a Scene.
+ * A Scene was entered.
  */
-export class SceneEnteredEvent extends Node implements Event {
+export class SceneEnteredEvent extends Node implements SceneEvent {
   static metatype: NodeType = NodeType.SCENE_ENTERED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -62,7 +63,7 @@ export class SceneEnteredEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -398,11 +399,11 @@ registerNodeClass(NodeType.SCENE_ENTERED_EVENT, SceneEnteredEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:9031 ==== */
 /**
- * A Event regarding a Scene.
+ * A Scene was exited.
  */
-export class SceneExitedEvent extends Node implements Event {
+export class SceneExitedEvent extends Node implements SceneEvent {
   static metatype: NodeType = NodeType.SCENE_EXITED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -410,7 +411,7 @@ export class SceneExitedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -748,18 +749,14 @@ registerNodeClass(NodeType.SCENE_EXITED_EVENT, SceneExitedEvent);
 /**
  * A Scene is a container for a specific interaction point.
  */
-export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
+export class Scene extends Node implements HasIcon, IsOwnable, ContainerView {
   static metatype: NodeType = NodeType.SCENE;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
-    TraitType.VIEW,
     TraitType.TAGGABLE,
-    TraitType.CONTAINER_VIEW,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.DELETABLE,
     TraitType.OWNABLE,
+    TraitType.DELETABLE,
     TraitType.EXTENSIBLE,
     TraitType.ORDERED,
     TraitType.SCRIPTABLE,
@@ -768,16 +765,18 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
   static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.WINDOW, NodeType.SCENE];
   static __childTypes__: NodeType[] = [
     NodeType.CUSTOM_PROPERTY,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
     NodeType.FRAME_VIEW,
     NodeType.LABEL_VIEW,
     NodeType.SPLIT_VIEW,
+    NodeType.CONTENT_VIEW,
     NodeType.TEXT_VIEW,
+    NodeType.INPUT_VIEW,
     NodeType.NUMBER_INPUT_VIEW,
     NodeType.SLIDER_INPUT_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
+    NodeType.SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.CANVAS,
@@ -788,6 +787,7 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
     NodeType.LAYER,
     NodeType.SCENE,
     NodeType.VARIANT,
+    NodeType.STYLE,
     NodeType.COLOR_STYLE,
     NodeType.BORDER_STYLE,
     NodeType.TRANSITION_STYLE,
@@ -806,38 +806,41 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
     NodeType.FOLDER,
   ];
   static __descendantTypes__: NodeType[] = [
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
+    NodeType.STYLE,
+    NodeType.SHAPE,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
     NodeType.FONT_STYLE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
     NodeType.BORDER_STYLE,
-    NodeType.WIZARD_VIEW,
     NodeType.SHADOW_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.STROKE_STYLE,
+    NodeType.LINE_SHAPE,
+    NodeType.INPUT_VIEW,
+    NodeType.POLYGON_SHAPE,
     NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SCRIPT,
+    NodeType.SCENE,
+    NodeType.ARROW_SHAPE,
     NodeType.SLIDER_INPUT_VIEW,
     NodeType.FRAME_VIEW,
-    NodeType.GRADIENT_STYLE,
-    NodeType.LABEL_VIEW,
-    NodeType.TRANSITION_STYLE,
-    NodeType.SCRIPT,
-    NodeType.SPLIT_VIEW,
-    NodeType.EFFECT_STYLE,
-    NodeType.SCENE,
-    NodeType.STROKE_STYLE,
     NodeType.LAYER,
     NodeType.CUSTOM_PROPERTY,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.LABEL_VIEW,
     NodeType.CUSTOM_OPTION,
     NodeType.VARIANT,
-    NodeType.THREAD_VIEW,
-    NodeType.PALETTE,
+    NodeType.INTERNAL_VIEW,
+    NodeType.TEXT_VIEW,
     NodeType.TAGGING,
-    NodeType.COLOR_STYLE,
+    NodeType.PALETTE,
+    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
-    NodeType.FILL_STYLE,
   ];
 
   /**
@@ -1075,14 +1078,14 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
   /**
    * The root view of the Scene.
    */
-  get rootView(): (Node & ContainerView) | null {
+  get rootView(): ContainerView | null {
     const nodePtr: NodeReference | null = this.rootViewPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & ContainerView) | null;
+      return this._supergraph.get(nodePtr.id) as ContainerView | null;
     }
     return null;
   }
-  set rootView(node: (Node & ContainerView) | null) {
+  set rootView(node: ContainerView | null) {
     if (node === null) {
       this.rootViewPtr = null;
     } else {
@@ -1150,7 +1153,7 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
-    rootView?: (Node & ContainerView) | NodeReference | null;
+    rootView?: ContainerView | NodeReference | null;
     script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1318,6 +1321,15 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
     if (!(this.rootViewPtr?.id === other.rootViewPtr?.id)) {
       return false;
     }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+      return false;
+    }
     if (!(this.layout === other.layout)) {
       return false;
     }
@@ -1482,15 +1494,6 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
         return false;
       }
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
-      return false;
-    }
     return true;
   }
 
@@ -1502,6 +1505,13 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
     }
     if (this.rootViewPtr !== null) {
       h = (h * 31 + hashString(this.rootViewPtr.id)) & 0xffffffff;
+    }
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
     if (this.layout !== null) {
       h = (h * 31 + this.layout) & 0xffffffff;
@@ -1584,7 +1594,6 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1606,12 +1615,6 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
-    }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -1650,10 +1653,10 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
     }
+    propertyReprs.push(`name=${this.name}`);
     return `<Scene '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -1801,6 +1804,16 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
       rootViewPtrValue != undefined
         ? NodeReference.fromValue(rootViewPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const iconValue = objectValue["34"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByPtrValue = objectValue["25"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const layoutValue = objectValue["50"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
     const directionValue = objectValue["51"];
@@ -1938,19 +1951,12 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
         );
       }
     }
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByPtrValue = objectValue["25"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Scene({
       parent: unpackedParentPtr,
       rootView: unpackedRootViewPtr,
+      icon: unpackedIcon,
+      id: String(objectValue["2"]),
+      ownedBy: unpackedOwnedByPtr,
       layout: unpackedLayout,
       direction: unpackedDirection,
       distribute: unpackedDistribute,
@@ -1978,7 +1984,6 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
@@ -1988,8 +1993,6 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
       script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
       value: unpackedValue,
-      icon: unpackedIcon,
-      ownedBy: unpackedOwnedByPtr,
       _session,
       _graph,
       _connection,
@@ -2168,6 +2171,21 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
               _connection,
             )
           : null,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      id: String(objectProto.id),
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
       direction:
         objectProto.direction != undefined ? (Number(objectProto.direction) as Direction) : null,
@@ -2257,7 +2275,6 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -2295,20 +2312,6 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       value: unpackedValue,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -2337,3 +2340,339 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
 }
 registerNodeClass(NodeType.SCENE, Scene);
 /* ==== DESTACK_GENERATED_END:NODE:9020 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:9021 ==== */
+/**
+ * A Event regarding a Scene.
+ */
+export class SceneEvent extends Node implements Event {
+  static metatype: NodeType = NodeType.SCENE_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * SceneEvent.node
+   */
+  get node(): Scene | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Scene | null;
+    }
+    return null;
+  }
+  set node(node: Scene) {
+    this.nodePtr = node.toRef();
+  }
+  nodePtr: NodeReference;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    node: Scene | NodeReference;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`SceneEvent.node is required`);
+    }
+    this.nodePtr = _node;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.SCENE_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "SceneEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<SceneEvent '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return SceneEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: SceneEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 9021;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["35"] = object.nodePtr.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): SceneEvent {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new SceneEvent({
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): SceneEvent {
+    return SceneEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): SceneEventProto {
+    return SceneEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: SceneEvent): SceneEventProto {
+    const objectProto: Partial<SceneEventProto> = { metatype: 9021 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    return objectProto as SceneEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: SceneEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): SceneEvent {
+    return new SceneEvent({
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: SceneEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): SceneEvent {
+    return SceneEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): SceneEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SceneEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
+/* ==== DESTACK_GENERATED_END:NODE:9021 ==== */

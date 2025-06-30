@@ -10,10 +10,9 @@ from opentelemetry import trace
 from destack.language.core import (
     Enum,
     EnumType,
-    Node,
+    IsSpatial,
     NodeType,
     Resource,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -34,11 +33,7 @@ class LinkType(Enum):
 
 
 @builtin_node(NodeType.LINK)
-class Link(
-    Spatial,
-    Resource,
-    Node,
-):
+class Link(IsSpatial, Resource):
     """
     A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).
     """

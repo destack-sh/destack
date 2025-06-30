@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-# nocheckin: separate different Polygons? add base shapes as plain Structs?
+# nocheckin: separate different Polygons? add base shapes as plain Structs? abstract PolygonShape?
 #  (Ellipse/EllipseShape, Rectangle/..., Triangle/..., Polygon/..., )
 
 

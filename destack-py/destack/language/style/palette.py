@@ -6,10 +6,9 @@ from destack.language.core import (
     HasName,
     IsDeletable,
     IsOrdered,
+    IsSpatial,
     IsTaggable,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
     property_parent_,
 )
@@ -21,16 +20,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.PALETTE)
-class Palette(
-    Spatial,
-    Entity,
-    HasName,
-    HasIcon,
-    IsOrdered,
-    IsTaggable,
-    IsDeletable,
-    Node,
-):
+class Palette(IsSpatial, Entity, HasName, HasIcon, IsOrdered, IsTaggable, IsDeletable):
     """A Palette with common ColorStyles."""
 
     parent: Union["Scene", "Theme", None] = property_parent_(node_is_customizable=True)

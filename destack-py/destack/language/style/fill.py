@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
-    Node,
     NodeType,
     StructFrozen,
     StructType,
@@ -73,10 +72,7 @@ class Fill(StructFrozen):
 
 
 @builtin_node(NodeType.FILL_STYLE)
-class FillStyle(
-    Style,
-    Node,
-):
+class FillStyle(Style):
     """A fill style."""
 
     type: FillType = property_(30, is_repr=True)

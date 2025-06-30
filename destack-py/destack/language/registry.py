@@ -27,8 +27,8 @@ if TYPE_CHECKING:
         Node,
         NodeBase,
         NodeDefinition,
-        ObjectReference,
-        RelationReference,
+        NodeDefinitionReference,
+        ObjectDefinitionReference,
         StructBase,
         StructDefinition,
         Trait,
@@ -49,8 +49,8 @@ NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
 STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
 
-RELATION_REF_BY_CLASS: dict[type["NodeBase"], "RelationReference"] = {}
-OBJECT_REF_BY_CLASS: dict[type["BuiltinObjectBase"], "ObjectReference"] = {}
+RELATION_REF_BY_CLASS: dict[type["NodeBase"], "NodeDefinitionReference"] = {}
+OBJECT_REF_BY_CLASS: dict[type["BuiltinObjectBase"], "ObjectDefinitionReference"] = {}
 ENUM_DEFINITION_BY_TYPE: dict[EnumType, "EnumDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict[StructType, "StructDefinition"] = {}
 TRAIT_DEFINITION_BY_TYPE: dict[TraitType, "TraitDefinition"] = {}
@@ -107,7 +107,7 @@ def finalize():
     # index node types by store type
     node_types_by_store_type: dict[StoreType, list[NodeType]] = defaultdict(list)
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        if NodeType.ENTITY in node_cls.__extends__:
+        if NodeType.ENTITY in node_cls.__extends__ and not node_cls.__is_abstract__:
             if TraitType.GLOBAL in node_cls.__traits__:
                 node_types_by_store_type[StoreType.GLOBAL_ENTITY].append(node_cls.metatype)
             elif TraitType.SPATIAL in node_cls.__traits__:
@@ -228,16 +228,16 @@ def finalize():
         setattr(cls, "from_value", cls_dict_copy["from_value"])
 
     # generate relation refs
-    from destack.language.core import ObjectReference, RelationReference
+    from destack.language.core import NodeDefinitionReference, ObjectDefinitionReference
 
     for cls in NODE_CLASS_BY_TYPE.values():
-        RELATION_REF_BY_CLASS[cls] = RelationReference.of(cls)
-        OBJECT_REF_BY_CLASS[cls] = ObjectReference.of(cls)
+        RELATION_REF_BY_CLASS[cls] = NodeDefinitionReference.of(cls)
+        OBJECT_REF_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
     for cls in TRAIT_CLASS_BY_TYPE.values():
-        RELATION_REF_BY_CLASS[cls] = RelationReference.of(cls)
-        OBJECT_REF_BY_CLASS[cls] = ObjectReference.of(cls)
+        RELATION_REF_BY_CLASS[cls] = NodeDefinitionReference.of(cls)
+        OBJECT_REF_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
     for cls in STRUCT_CLASS_BY_TYPE.values():
-        OBJECT_REF_BY_CLASS[cls] = ObjectReference.of(cls)
+        OBJECT_REF_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
 
     # generate meta info
     from destack.language.core import (
@@ -269,15 +269,12 @@ def finalize():
 
     # sanity check stuff
     if IS_DEV or IS_TEST:
-        from destack.language.core.builtin.trait import (
-            AT_LEAST_ONE_TRAITS,
-            INFECTIOUS_TRAITS,
-        )
+        from destack.language.core.builtin.trait import AT_LEAST_ONE_TRAITS, INFECTIOUS_TRAITS
 
         # check traits
         for cls in NODE_CLASS_BY_TYPE.values():
             for traits in AT_LEAST_ONE_TRAITS:
-                if not any(trait in cls.__traits__ for trait in traits):
+                if not cls.__is_abstract__ and not any(trait in cls.__traits__ for trait in traits):
                     raise AssertionError(
                         f"{cls.__name__} must have at least one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
                     )

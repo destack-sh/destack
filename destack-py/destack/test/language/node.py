@@ -17,6 +17,8 @@ def test_node_inheritance(session: Session):
     assert Node.__is_abstract__
     assert Cursor.__is_abstract__
     assert EventCursor.__base_type__ == Cursor.metatype
+    assert Cursor.__extends__ == (NodeType.NODE, NodeType.ENTITY)
+    assert EventCursor.__extends__ == (NodeType.NODE, NodeType.ENTITY, NodeType.CURSOR)
     assert Cursor.__extended_by__ == (
         NodeType.EVENT_CURSOR,
         NodeType.SCREEN_CURSOR,

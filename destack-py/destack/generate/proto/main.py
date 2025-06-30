@@ -1,13 +1,14 @@
-from collections.abc import Collection
+from collections.abc import Sequence
 from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from destack.language import (
-    NODE_TYPES,
     BuiltinObjectBase,
+    Entity,
     Enum,
     EnumType,
+    Event,
     NodeType,
     StructType,
 )
@@ -36,7 +37,7 @@ if TYPE_CHECKING:
 
 def _generate_proto_schema(
     name: str,
-    unions: dict[str, tuple[str, Collection[EnumType | NodeType | StructType]]],
+    unions: dict[str, tuple[str, Sequence[EnumType | NodeType | StructType]]],
     extras: list[ProtoEnum | ProtoMessage],
     postfix: str,
 ) -> ProtoSchema:
@@ -86,7 +87,32 @@ def _generate_proto_schema(
 def generate():
     proto_schema = _generate_proto_schema(
         name="symbol.destack",
-        unions={"SomeNode": ("node", NODE_TYPES)},
+        unions={
+            "SomeNode": (
+                "node",
+                [
+                    NodeType(cls.metatype)
+                    for cls in NODE_CLASS_BY_TYPE.values()
+                    if not cls.__is_abstract__
+                ],
+            ),
+            "SomeEntity": (
+                "node",
+                [
+                    NodeType(cls.metatype)
+                    for cls in NODE_CLASS_BY_TYPE.values()
+                    if issubclass(cls, Entity) and not cls.__is_abstract__
+                ],
+            ),
+            "SomeEvent": (
+                "node",
+                [
+                    NodeType(cls.metatype)
+                    for cls in NODE_CLASS_BY_TYPE.values()
+                    if issubclass(cls, Event) and not cls.__is_abstract__
+                ],
+            ),
+        },
         extras=[],
         postfix="Proto",
     )

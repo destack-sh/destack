@@ -1,26 +1,25 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
-  Global,
   HasIcon,
   HasName,
   HasSlug,
   IsFollowable,
+  IsGlobal,
   IsJoinable,
   IsOwnable,
   IsOwner,
+  IsSpatial,
   IsStarable,
   IsSubject,
   Node,
   NodeType,
   Region,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Icon } from "@destack/language/core/common";
+import { Entity, Icon } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
 import { Database } from "@destack/language/infra";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
@@ -54,8 +53,7 @@ registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
 export class Space
   extends Node
   implements
-    Global,
-    Entity,
+    IsGlobal,
     HasName,
     HasSlug,
     HasIcon,
@@ -63,15 +61,15 @@ export class Space
     IsJoinable,
     IsOwnable,
     IsStarable,
-    Spatial
+    IsSpatial,
+    Entity
 {
   static metatype: NodeType = NodeType.SPACE;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.OWNABLE,
+    TraitType.TRACKED,
     TraitType.JOINABLE,
     TraitType.STARABLE,
     TraitType.FOLLOWABLE,
@@ -79,36 +77,44 @@ export class Space
   static __rootType__: NodeType | null = null;
   static __parentTypes__: NodeType[] = [];
   static __childTypes__: NodeType[] = [
+    NodeType.METRIC,
     NodeType.CUSTOM_ENUM_DEFINITION,
-    NodeType.EDIT_EVENT,
+    NodeType.EVENT,
     NodeType.CUSTOM_EVENT_DEFINITION,
     NodeType.CUSTOM_EVENT,
+    NodeType.EDIT_EVENT,
+    NodeType.MEASUREMENT_EVENT,
     NodeType.GAUGE_METRIC,
-    NodeType.GAUGE_MEASUREMENT,
+    NodeType.GAUGE_MEASUREMENT_EVENT,
     NodeType.COUNTER_METRIC,
-    NodeType.COUNTER_MEASUREMENT,
+    NodeType.COUNTER_MEASUREMENT_EVENT,
     NodeType.HISTOGRAM_METRIC,
-    NodeType.HISTOGRAM_MEASUREMENT,
+    NodeType.HISTOGRAM_MEASUREMENT_EVENT,
     NodeType.SNAPSHOT,
     NodeType.BRANCH,
     NodeType.CUSTOM_STRUCT_DEFINITION,
+    NodeType.ENTITLEMENT_EVENT,
     NodeType.ENTITLEMENT_REQUESTED_EVENT,
     NodeType.ENTITLEMENT_GRANTED_EVENT,
     NodeType.ENTITLEMENT_REVOKED_EVENT,
     NodeType.ENTITLEMENT_EXPIRED_EVENT,
     NodeType.ENTITLEMENT,
+    NodeType.INVITE_EVENT,
     NodeType.INVITE_SENT_EVENT,
     NodeType.INVITE_RESCINDED_EVENT,
     NodeType.INVITE_ACCEPTED_EVENT,
     NodeType.INVITE_REJECTED_EVENT,
     NodeType.INVITE,
+    NodeType.MEMBERSHIP_EVENT,
     NodeType.MEMBERSHIP_JOINED_EVENT,
     NodeType.MEMBERSHIP_LEFT_EVENT,
     NodeType.MEMBERSHIP,
     NodeType.PERMISSION,
+    NodeType.ROLE_EVENT,
     NodeType.ROLE_ASSIGNED_EVENT,
     NodeType.ROLE_UNASSIGNED_EVENT,
     NodeType.ROLE,
+    NodeType.SANCTION_EVENT,
     NodeType.SANCTION_REQUESTED_EVENT,
     NodeType.SANCTION_GRANTED_EVENT,
     NodeType.SANCTION_REVOKED_EVENT,
@@ -120,6 +126,8 @@ export class Space
     NodeType.FOLDER,
     NodeType.DATABASE,
     NodeType.MACHINE,
+    NodeType.INPUT_EVENT,
+    NodeType.POINTER_EVENT,
     NodeType.POINTER_DOWN_EVENT,
     NodeType.POINTER_UP_EVENT,
     NodeType.POINTER_MOVE_EVENT,
@@ -127,36 +135,45 @@ export class Space
     NodeType.POINTER_OVER_EVENT,
     NodeType.POINTER_LEAVE_EVENT,
     NodeType.LONG_PRESS_EVENT,
+    NodeType.MOUSE_EVENT,
+    NodeType.CLICK_EVENT,
     NodeType.LEFT_CLICK_EVENT,
     NodeType.RIGHT_CLICK_EVENT,
     NodeType.MIDDLE_CLICK_EVENT,
     NodeType.DOUBLE_CLICK_EVENT,
     NodeType.WHEEL_EVENT,
+    NodeType.KEYBOARD_EVENT,
     NodeType.KEY_DOWN_EVENT,
     NodeType.KEY_UP_EVENT,
     NodeType.KEY_PRESS_EVENT,
+    NodeType.DRAG_EVENT,
     NodeType.DRAG_START_EVENT,
     NodeType.DRAG_END_EVENT,
     NodeType.DRAG_OVER_EVENT,
     NodeType.DRAG_ENTER_EVENT,
     NodeType.DRAG_LEAVE_EVENT,
     NodeType.DROP_EVENT,
+    NodeType.CLIPBOARD_EVENT,
     NodeType.COPY_EVENT,
     NodeType.CUT_EVENT,
     NodeType.PASTE_EVENT,
+    NodeType.FOCUS_EVENT,
     NodeType.FOCUS_IN_EVENT,
     NodeType.FOCUS_OUT_EVENT,
+    NodeType.CURSOR,
     NodeType.EVENT_CURSOR,
     NodeType.SCREEN_CURSOR,
     NodeType.THREAD_CURSOR,
     NodeType.SERVICE,
+    NodeType.TIMER_EVENT,
     NodeType.TIMER_STARTED_EVENT,
-    NodeType.TIMER_STOPPED_EVENT,
+    NodeType.TIMER_COMPLETED_EVENT,
+    NodeType.TIMER_CANCELLED_EVENT,
     NodeType.TIMER,
-    NodeType.TRIGGER_STARTED_EVENT,
-    NodeType.TRIGGER_STOPPED_EVENT,
+    NodeType.TRIGGER_EVENT,
     NodeType.TRIGGER,
-    NodeType.LOG,
+    NodeType.LOG_EVENT,
+    NodeType.RUN_EVENT,
     NodeType.RUN_STARTED_EVENT,
     NodeType.RUN_PAUSE_REQUESTED_EVENT,
     NodeType.RUN_PAUSED_EVENT,
@@ -166,10 +183,12 @@ export class Space
     NodeType.RUN_FAILED_EVENT,
     NodeType.RUN_COMPLETED_EVENT,
     NodeType.RUN,
+    NodeType.SCENE_EVENT,
     NodeType.SCENE_ENTERED_EVENT,
     NodeType.SCENE_EXITED_EVENT,
     NodeType.WINDOW,
     NodeType.FOLLOW,
+    NodeType.NOTIFICATION_EVENT,
     NodeType.NOTIFICATION_SENT_EVENT,
     NodeType.NOTIFICATION_RESCINDED_EVENT,
     NodeType.NOTIFICATION_READ_EVENT,
@@ -177,6 +196,7 @@ export class Space
     NodeType.NOTIFICATION_EXPIRED_EVENT,
     NodeType.NOTIFICATION,
     NodeType.STAR,
+    NodeType.FRIENDSHIP_INVITE_EVENT,
     NodeType.FRIENDSHIP_INVITE_SENT_EVENT,
     NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT,
     NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT,
@@ -186,37 +206,38 @@ export class Space
   ];
   static __ancestorTypes__: NodeType[] = [];
   static __descendantTypes__: NodeType[] = [
-    NodeType.LOG,
+    NodeType.LOG_EVENT,
     NodeType.MEMBERSHIP_JOINED_EVENT,
     NodeType.NOTIFICATION_DISMISSED_EVENT,
     NodeType.TRIGGER,
+    NodeType.TRIGGER_EVENT,
     NodeType.INVITE,
     NodeType.INVITE_ACCEPTED_EVENT,
     NodeType.INVITE_REJECTED_EVENT,
     NodeType.INVITE_RESCINDED_EVENT,
     NodeType.INVITE_SENT_EVENT,
-    NodeType.GAUGE_MEASUREMENT,
-    NodeType.COUNTER_METRIC,
-    NodeType.COUNTER_MEASUREMENT,
+    NodeType.INVITE_EVENT,
     NodeType.NOTIFICATION_EXPIRED_EVENT,
-    NodeType.TRIGGER_STOPPED_EVENT,
     NodeType.HANDLE,
-    NodeType.TRIGGER_STARTED_EVENT,
-    NodeType.HISTOGRAM_MEASUREMENT,
-    NodeType.HISTOGRAM_METRIC,
     NodeType.TIMER,
+    NodeType.TIMER_EVENT,
     NodeType.ROLE,
+    NodeType.ROLE_EVENT,
     NodeType.TIMER_STARTED_EVENT,
-    NodeType.TIMER_STOPPED_EVENT,
+    NodeType.TIMER_COMPLETED_EVENT,
+    NodeType.TIMER_CANCELLED_EVENT,
     NodeType.ROLE_UNASSIGNED_EVENT,
     NodeType.ROLE_ASSIGNED_EVENT,
     NodeType.PERMISSION,
     NodeType.SANCTION,
+    NodeType.SANCTION_EVENT,
     NodeType.SANCTION_REQUESTED_EVENT,
     NodeType.SANCTION_GRANTED_EVENT,
     NodeType.SANCTION_REVOKED_EVENT,
+    NodeType.FRIENDSHIP_INVITE_EVENT,
     NodeType.SANCTION_EXPIRED_EVENT,
     NodeType.ENTITLEMENT,
+    NodeType.ENTITLEMENT_EVENT,
     NodeType.FRIENDSHIP_INVITE_SENT_EVENT,
     NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT,
     NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT,
@@ -225,77 +246,99 @@ export class Space
     NodeType.ENTITLEMENT_GRANTED_EVENT,
     NodeType.ENTITLEMENT_REVOKED_EVENT,
     NodeType.ENTITLEMENT_EXPIRED_EVENT,
-    NodeType.CUSTOM_EVENT_DEFINITION,
-    NodeType.CUSTOM_EVENT,
-    NodeType.EDIT_EVENT,
+    NodeType.METRIC,
     NodeType.AGENT,
+    NodeType.MEASUREMENT_EVENT,
+    NodeType.CURSOR,
     NodeType.EVENT_CURSOR,
     NodeType.SCREEN_CURSOR,
     NodeType.THREAD_CURSOR,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
     NodeType.GAUGE_METRIC,
+    NodeType.GAUGE_MEASUREMENT_EVENT,
+    NodeType.INPUT_VIEW,
+    NodeType.COUNTER_METRIC,
+    NodeType.COUNTER_MEASUREMENT_EVENT,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.INPUT_EVENT,
+    NodeType.HISTOGRAM_METRIC,
+    NodeType.HISTOGRAM_MEASUREMENT_EVENT,
+    NodeType.SLIDER_INPUT_VIEW,
     NodeType.CLIENT,
+    NodeType.CUSTOM_EVENT_DEFINITION,
+    NodeType.CUSTOM_EVENT,
+    NodeType.EDIT_EVENT,
     NodeType.THEME,
     NodeType.PALETTE,
-    NodeType.COLOR_STYLE,
     NodeType.CANVAS,
+    NodeType.STYLE,
+    NodeType.SHAPE,
+    NodeType.CONTAINER_VIEW,
+    NodeType.COLOR_STYLE,
     NodeType.FILL_STYLE,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.FONT_STYLE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
     NodeType.BORDER_STYLE,
     NodeType.SHADOW_STYLE,
-    NodeType.POINTER_UP_EVENT,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.STROKE_STYLE,
+    NodeType.LINE_SHAPE,
+    NodeType.POINTER_EVENT,
+    NodeType.POINTER_DOWN_EVENT,
+    NodeType.WINDOW,
     NodeType.POINTER_MOVE_EVENT,
     NodeType.POINTER_ENTER_EVENT,
     NodeType.POINTER_OVER_EVENT,
     NodeType.POINTER_LEAVE_EVENT,
     NodeType.LONG_PRESS_EVENT,
-    NodeType.POINTER_DOWN_EVENT,
-    NodeType.FRAME_VIEW,
-    NodeType.GRADIENT_STYLE,
+    NodeType.POINTER_UP_EVENT,
+    NodeType.MOUSE_EVENT,
+    NodeType.CLICK_EVENT,
+    NodeType.LEFT_CLICK_EVENT,
     NodeType.RIGHT_CLICK_EVENT,
-    NodeType.WINDOW,
+    NodeType.POLYGON_SHAPE,
     NodeType.DOUBLE_CLICK_EVENT,
     NodeType.WHEEL_EVENT,
     NodeType.MIDDLE_CLICK_EVENT,
-    NodeType.LEFT_CLICK_EVENT,
-    NodeType.LABEL_VIEW,
-    NodeType.TRANSITION_STYLE,
-    NodeType.KEY_UP_EVENT,
-    NodeType.KEY_PRESS_EVENT,
+    NodeType.KEYBOARD_EVENT,
     NodeType.KEY_DOWN_EVENT,
-    NodeType.SPLIT_VIEW,
-    NodeType.EFFECT_STYLE,
-    NodeType.DRAG_END_EVENT,
     NodeType.SCENE,
-    NodeType.DRAG_ENTER_EVENT,
-    NodeType.DRAG_LEAVE_EVENT,
-    NodeType.DROP_EVENT,
-    NodeType.DRAG_OVER_EVENT,
+    NodeType.SCENE_EVENT,
+    NodeType.KEY_PRESS_EVENT,
+    NodeType.KEY_UP_EVENT,
+    NodeType.RESOURCE,
+    NodeType.EVENT,
+    NodeType.DRAG_EVENT,
     NodeType.DRAG_START_EVENT,
-    NodeType.STROKE_STYLE,
-    NodeType.CUT_EVENT,
     NodeType.SCENE_ENTERED_EVENT,
     NodeType.SCENE_EXITED_EVENT,
-    NodeType.PASTE_EVENT,
+    NodeType.ARROW_SHAPE,
+    NodeType.DRAG_LEAVE_EVENT,
+    NodeType.DROP_EVENT,
+    NodeType.DRAG_ENTER_EVENT,
+    NodeType.FRAME_VIEW,
+    NodeType.DRAG_OVER_EVENT,
+    NodeType.CLIPBOARD_EVENT,
     NodeType.COPY_EVENT,
-    NodeType.DATABASE,
     NodeType.LAYER,
-    NodeType.FOCUS_OUT_EVENT,
+    NodeType.PASTE_EVENT,
+    NodeType.CUT_EVENT,
+    NodeType.DATABASE,
+    NodeType.FOCUS_EVENT,
     NodeType.FOCUS_IN_EVENT,
+    NodeType.FOCUS_OUT_EVENT,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.LABEL_VIEW,
     NodeType.VARIANT,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
+    NodeType.SPLIT_VIEW,
     NodeType.THREAD,
+    NodeType.DRAG_END_EVENT,
+    NodeType.VIEW,
     NodeType.MESSAGE,
     NodeType.ENVIRONMENT,
-    NodeType.WIZARD_VIEW,
     NodeType.RUN,
+    NodeType.RUN_EVENT,
     NodeType.REACTION,
     NodeType.RUN_STARTED_EVENT,
     NodeType.RUN_PAUSE_REQUESTED_EVENT,
@@ -306,7 +349,7 @@ export class Space
     NodeType.RUN_FAILED_EVENT,
     NodeType.RUN_COMPLETED_EVENT,
     NodeType.MACHINE,
-    NodeType.SPAN,
+    NodeType.SPAN_EVENT,
     NodeType.STAR,
     NodeType.SCRIPT,
     NodeType.CUSTOM_STRUCT_DEFINITION,
@@ -316,15 +359,18 @@ export class Space
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
+    NodeType.CUSTOM_TRAIT_DEFINITION,
     NodeType.CUSTOM_PROPERTY,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
     NodeType.SNAPSHOT,
     NodeType.NOTIFICATION,
-    NodeType.ACTION,
+    NodeType.NOTIFICATION_EVENT,
     NodeType.CUSTOM_OPTION,
+    NodeType.ACTION,
     NodeType.BRANCH,
     NodeType.FOLDER,
     NodeType.NOTIFICATION_SENT_EVENT,
+    NodeType.TEXT_VIEW,
     NodeType.FILE,
     NodeType.TAG,
     NodeType.TAGGING,
@@ -332,6 +378,7 @@ export class Space
     NodeType.MEMBERSHIP,
     NodeType.ROUTE,
     NodeType.LINK,
+    NodeType.MEMBERSHIP_EVENT,
     NodeType.NOTIFICATION_READ_EVENT,
     NodeType.MEMBERSHIP_LEFT_EVENT,
   ];
@@ -701,14 +748,6 @@ export class Space
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
@@ -717,6 +756,14 @@ export class Space
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -839,16 +886,6 @@ export class Space
       parentPtrValue != undefined
         ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
@@ -864,6 +901,16 @@ export class Space
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Space({
       name: objectValue["31"],
       slug: objectValue["33"],
@@ -876,13 +923,13 @@ export class Space
       database: unpackedDatabasePtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
+      icon: unpackedIcon,
+      ownedBy: unpackedOwnedByPtr,
+      space: unpackedSpacePtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      icon: unpackedIcon,
-      ownedBy: unpackedOwnedByPtr,
-      space: unpackedSpacePtr,
       _session,
       _graph,
       _connection,
@@ -1012,28 +1059,6 @@ export class Space
               _connection,
             )
           : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       icon:
         objectProto.icon != undefined
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -1052,6 +1077,28 @@ export class Space
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
               objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
               _session,
               _supergraph,
               _graph,

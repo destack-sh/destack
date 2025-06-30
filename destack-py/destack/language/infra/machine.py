@@ -4,12 +4,11 @@ from destack.language.core import (
     VERSION,
     Enum,
     EnumType,
-    Node,
+    IsSpatial,
     NodeReference,
     NodeType,
     Resource,
     RoleType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -31,11 +30,7 @@ class MachineType(Enum):
 
 
 @builtin_node(NodeType.MACHINE)
-class Machine(
-    Spatial,
-    Resource,
-    Node,
-):
+class Machine(IsSpatial, Resource):
     """
     A Machine provides physical compute.
     NOTE :RichComputing: Machines also need Deployments/Endpoints/...?

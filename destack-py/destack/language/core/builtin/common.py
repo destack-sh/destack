@@ -203,7 +203,7 @@ class EnumType(Enum):
     STRUCT_TYPE = 50002
     TRAIT_TYPE = 50003
     RELATION_TYPE = 50010
-    OBJECT_TYPE = 50011
+    OBJECT_DEFINITION_TYPE = 50011
     PROPERTY_REFERENCE_TYPE = 50012
     MATERIALIZATION_TYPE = 50013
     STORE_ZONE = 50020
@@ -362,8 +362,8 @@ class StructType(Enum):
     CONDITION = 50104
     SORT = 50105
     SELECT = 50106
-    RELATION_REFERENCE = 50107
-    OBJECT_REFERENCE = 50108
+    NODE_DEFINITION_REFERENCE = 50107
+    OBJECT_DEFINITION_REFERENCE = 50108
     QUERY = 50110
     QUERY_RESULT = 50111
     QUERY_RESULT_GROUP = 50112
@@ -403,11 +403,9 @@ class TraitType(Enum):
     # ...
 
     # logic [3000-3500]
-    ACTIONABLE = 3000, "Actionable", "Can define an Action", "fas fa-play"
     RUNNABLE = 3001, "Runnable", "Can be run", "fas fa-play"
     SCRIPTABLE = 3002, "Scriptable", "Can be scripted", "fas fa-code"
     SOURCEABLE = 3003, "Sourcable", "Can be defined in a Script", "fas fa-code"
-    # PAUSEABLE?
 
     # test [3500-4000]
     # ...
@@ -422,7 +420,6 @@ class TraitType(Enum):
     # ...
 
     # social [5500-6000]
-    # MESSAGE, THREAD, ...
     STARABLE = 5530, "Starable", "Can be starred", "fas fa-star"
     REACTABLE = 5532, "Reactable", "Can be reacted to", "fas fa-heart"
     FOLLOWABLE = 5534, "Followable", "Can be followed", "fas fa-plus"
@@ -507,6 +504,7 @@ class NodeType(Enum):
         "Invite to be friends with another User",
         "fas fa-user-plus",
     )
+    FRIENDSHIP_INVITE_EVENT = 81, "Friendship Invite Event", None, "fas fa-user-plus"
     FRIENDSHIP_INVITE_SENT_EVENT = 90, "Friendship Invite Sent Event", None, "fas fa-user-plus"
     FRIENDSHIP_INVITE_RESCINDED_EVENT = (
         91,
@@ -533,23 +531,28 @@ class NodeType(Enum):
 
     # access [500-1000]
     MEMBERSHIP = 500, "Membership", "Membership in a Space/Folder", "fas fa-user-group"
+    MEMBERSHIP_EVENT = 501, "Membership Event", None, "fas fa-user-group"
     MEMBERSHIP_JOINED_EVENT = 510, "Membership Join Event", None, "fas fa-user-group"
     MEMBERSHIP_LEFT_EVENT = 511, "Membership Leave Event", None, "fas fa-user-group"
     INVITE = 520, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
-    INVITE_SENT_EVENT = 521, "Invite Sent Event", None, "fas fa-user-plus"
-    INVITE_RESCINDED_EVENT = 522, "Invite Rescinded Event", None, "fas fa-user-plus"
-    INVITE_ACCEPTED_EVENT = 523, "Invite Accepted Event", None, "fas fa-user-plus"
-    INVITE_REJECTED_EVENT = 524, "Invite Rejected Event", None, "fas fa-user-plus"
+    INVITE_EVENT = 521, "Invite Event", None, "fas fa-user-plus"
+    INVITE_SENT_EVENT = 522, "Invite Sent Event", None, "fas fa-user-plus"
+    INVITE_RESCINDED_EVENT = 523, "Invite Rescinded Event", None, "fas fa-user-plus"
+    INVITE_ACCEPTED_EVENT = 524, "Invite Accepted Event", None, "fas fa-user-plus"
+    INVITE_REJECTED_EVENT = 525, "Invite Rejected Event", None, "fas fa-user-plus"
     ROLE = 540, "Role", "Role in something", "fas fa-user-tag"
+    ROLE_EVENT = 541, "Role Event", None, "fas fa-user-tag"
     ROLE_ASSIGNED_EVENT = 550, "Role Assigned Event", None, "fas fa-user-tag"
     ROLE_UNASSIGNED_EVENT = 551, "Role Unassigned Event", None, "fas fa-user-tag"
     PERMISSION = 560, "Permission", "Permission for something", "fas fa-user-shield"
     SANCTION = 580, "Sanction", "Temporary or permanent restriction", "fas fa-user-minus"
+    SANCTION_EVENT = 581, "Sanction Event", None, "fas fa-user-minus"
     SANCTION_REQUESTED_EVENT = 590, "Sanction Requested Event", None, "fas fa-user-minus"
     SANCTION_GRANTED_EVENT = 591, "Sanction Granted Event", None, "fas fa-user-minus"
     SANCTION_REVOKED_EVENT = 592, "Sanction Revoked Event", None, "fas fa-user-minus"
     SANCTION_EXPIRED_EVENT = 593, "Sanction Expired Event", None, "fas fa-user-minus"
     ENTITLEMENT = 600, "Entitlement", "Temporary or permanent grant", "fas fa-user-check"
+    ENTITLEMENT_EVENT = 601, "Entitlement Event", None, "fas fa-user-check"
     ENTITLEMENT_REQUESTED_EVENT = 610, "Entitlement Requested Event", None, "fas fa-user-check"
     ENTITLEMENT_GRANTED_EVENT = 611, "Entitlement Granted Event", None, "fas fa-user-check"
     ENTITLEMENT_REVOKED_EVENT = 612, "Entitlement Revoked Event", None, "fas fa-user-check"
@@ -570,8 +573,6 @@ class NodeType(Enum):
     # FORK, ...
 
     # entity [2000-2500]
-    CUSTOM_ENTITY_DEFINITION = 2000, "Custom Node Definition", None, "fas fa-table"
-    CUSTOM_ENTITY = 2001, "Custom Node Instance", None, "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
     # MIRROR/SYNC, ...
     # TRAIT_DEFINITION/TRAIT_IMPLEMENTATION, INTERFACE, ...
@@ -591,11 +592,12 @@ class NodeType(Enum):
     ACTION = 3040, "Action", None, "fas fa-step-forward"
     ROUTE = 3060, "Route", None, "fas fa-route"
     TRIGGER = 3080, "Trigger", None, "fas fa-bolt"
-    TRIGGER_STARTED_EVENT = 3090, "Trigger Started Event", None, "fas fa-bolt"
-    TRIGGER_STOPPED_EVENT = 3091, "Trigger Stopped Event", None, "fas fa-bolt"
+    TRIGGER_EVENT = 3081, "Trigger Event", None, "fas fa-bolt"
     TIMER = 3100, "Timer", None, "fas fa-clock"
+    TIMER_EVENT = 3101, "Timer Event", None, "fas fa-clock"
     TIMER_STARTED_EVENT = 3110, "Timer Started Event", None, "fas fa-clock"
-    TIMER_STOPPED_EVENT = 3111, "Timer Stopped Event", None, "fas fa-clock"
+    TIMER_COMPLETED_EVENT = 3111, "Timer Completed Event", None, "fas fa-clock"
+    TIMER_CANCELLED_EVENT = 3112, "Timer Cancelled Event", None, "fas fa-clock"
     # BREAKPOINT, ...
     CURSOR = 3200, "Cursor", None, "fas fa-mouse-pointer"
     EVENT_CURSOR = 3201, "Event Cursor", None, "fas fa-signal"
@@ -623,21 +625,20 @@ class NodeType(Enum):
     RUN_FAILED_EVENT = 4017, "Run Failed Event", None, "fas fa-play"
     RUN_COMPLETED_EVENT = 4018, "Run Completed Event", None, "fas fa-play"
     # RUN_QUEUE = 4001, "Run Queue", "Run Queue", "fas fa-list-check"
-    SPAN = 4020, "Span", None, "fas fa-ruler-horizontal"
+    SPAN_EVENT = 4020, "Span", None, "fas fa-ruler-horizontal"
     INTERRUPTION = 4040, "Interruption", None, "fas fa-hand"
     # JOB, ...
-    LOG = 4100, "Log", None, "fas fa-file-lines"
+    LOG_EVENT = 4100, "Log", None, "fas fa-file-lines"
     METRIC = 4200, "Metric", None, "fas fa-gauge"
-    MEASUREMENT = 4220, "Measurement", None, "fas fa-gauge"
+    MEASUREMENT_EVENT = 4220, "Measurement", None, "fas fa-gauge"
     GAUGE_METRIC = 4240, "Gauge Metric", None, "fas fa-gauge"
-    GAUGE_MEASUREMENT = 4241, "Gauge Measurement", None, "fas fa-gauge"
+    GAUGE_MEASUREMENT_EVENT = 4241, "Gauge Measurement", None, "fas fa-gauge"
     COUNTER_METRIC = 4260, "Counter Metric", None, "fas fa-gauge"
-    COUNTER_MEASUREMENT = 4261, "Counter Measurement", None, "fas fa-gauge"
+    COUNTER_MEASUREMENT_EVENT = 4261, "Counter Measurement", None, "fas fa-gauge"
     HISTOGRAM_METRIC = 4280, "Histogram Metric", None, "fas fa-gauge"
-    HISTOGRAM_MEASUREMENT = 4281, "Histogram Measurement", None, "fas fa-gauge"
+    HISTOGRAM_MEASUREMENT_EVENT = 4281, "Histogram Measurement", None, "fas fa-gauge"
     # event
-    CUSTOM_EVENT_DEFINITION = 4300, "Custom Event Definition", None, "fas fa-signal"
-    CUSTOM_EVENT = 4301, "Custom Event", None, "fas fa-signal"
+
     EDIT_EVENT = 4302, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT, QUERY_EVENT, ...
 
@@ -661,6 +662,7 @@ class NodeType(Enum):
     STAR = 5560, "Star", None, "fas fa-star"
     FOLLOW = 5580, "Follow", None, "fas fa-plus"
     NOTIFICATION = 5600, "Notification", None, "fas fa-bell"
+    NOTIFICATION_EVENT = 5601, "Notification Event", None, "fas fa-bell"
     NOTIFICATION_SENT_EVENT = 5610, "Notification Sent Event", None, "fas fa-bell"
     NOTIFICATION_RESCINDED_EVENT = 5620, "Notification Rescinded Event", None, "fas fa-bell"
     NOTIFICATION_READ_EVENT = 5630, "Notification Read Event", None, "fas fa-bell"
@@ -700,6 +702,7 @@ class NodeType(Enum):
     # scene [9000-9500]
     WINDOW = 9000, "Window", None, "fas fa-galaxy"
     SCENE = 9020, "Scene", "Scene of an Application", "fas fa-masks-theater"
+    SCENE_EVENT = 9021, "Scene Event", None, "fas fa-masks-theater"
     SCENE_ENTERED_EVENT = 9030, "Scene Entered Event", None, "fas fa-masks-theater"
     SCENE_EXITED_EVENT = 9031, "Scene Exited Event", None, "fas fa-masks-theater"
     LAYER = 9040, "Layer", "Layer of a Scene", "fas fa-layer-group"
@@ -758,8 +761,6 @@ class NodeType(Enum):
 
     # container views [10000-10200]
     CONTAINER_VIEW = 10000, "Container View", None, "fas fa-table"
-    CUSTOM_VIEW_DEFINITION = 10020, "Custom View Definition", None, "fas fa-table"
-    CUSTOM_VIEW = 10040, "Custom View", None, "fas fa-table"
     FRAME_VIEW = 10060, "Frame View", "Fixed Container", "fas fa-frame"
     LABEL_VIEW = 10080, "Label View", "Label Container", "fas fa-font-case"
     SPLIT_VIEW = 10100, "Split View", "Split Container", "fas fa-columns"
@@ -816,18 +817,18 @@ class NodeType(Enum):
     # SHADER, MATERIAL, ...
 
     # meta [50000-51000]
-    # nocheckin: move meta into 1-1000 range
+    # nocheckin: move meta into 1-1000 range (and increase spacing.. again?)
     NODE = 51000, "Node", "Root of all Node types", "fas fa-dot"
     ENTITY = 51001, "Entity", "Is an Entity", "fas fa-dot"
     EVENT = 51002, "Event", "Is an Event", "fas fa-dot"
     RESOURCE = 51003, "Resource", "Is a Resource", "fas fa-dot"
-    CUSTOM_NODE_DEFINITION = (
-        50040,
-        "Custom Node Definition",
-        "Is a Custom Node Definition",
-        "fas fa-dot",
-    )
-    CUSTOM_NODE = 50041, "Custom Node", "Is a Custom Node", "fas fa-dot"
+
+    CUSTOM_ENTITY_DEFINITION = 2000, "Custom Node Definition", None, "fas fa-table"
+    CUSTOM_ENTITY = 2001, "Custom Node Instance", None, "fas fa-database"
+    CUSTOM_TRAIT_DEFINITION = 2002, "Custom Trait Definition", None, "fas fa-table"
+
+    CUSTOM_EVENT_DEFINITION = 4300, "Custom Event Definition", None, "fas fa-signal"
+    CUSTOM_EVENT = 4301, "Custom Event", None, "fas fa-signal"
 
 
 ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)

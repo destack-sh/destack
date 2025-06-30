@@ -1,21 +1,21 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
   HasName,
   IsDeletable,
   IsJoinable,
   IsOwnable,
   IsOwner,
+  IsSpatial,
   IsSubject,
   IsTaggable,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Entity } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -47,17 +47,16 @@ registerEnumClass(EnumType.THREAD_STATUS, ThreadStatus);
  */
 export class Thread
   extends Node
-  implements Spatial, Entity, HasName, IsTaggable, IsDeletable, IsJoinable, IsOwnable
+  implements IsSpatial, HasName, IsTaggable, IsDeletable, IsJoinable, IsOwnable, Entity
 {
   static metatype: NodeType = NodeType.THREAD;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
+    TraitType.OWNABLE,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.JOINABLE,
-    TraitType.OWNABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.THREAD];
@@ -293,6 +292,12 @@ export class Thread
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -300,12 +305,6 @@ export class Thread
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -400,16 +399,6 @@ export class Thread
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
@@ -420,17 +409,27 @@ export class Thread
       ownedByPtrValue != undefined
         ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Thread({
       parent: unpackedParentPtr,
       name: objectValue["31"],
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      deletedAt: unpackedDeletedAt,
+      ownedBy: unpackedOwnedByPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
-      ownedBy: unpackedOwnedByPtr,
       _session,
       _graph,
       _connection,
@@ -508,6 +507,18 @@ export class Thread
             )
           : null,
       id: String(objectProto.id),
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -524,18 +535,6 @@ export class Thread
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(
               objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
               _session,
               _supergraph,
               _graph,

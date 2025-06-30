@@ -28,7 +28,7 @@ from ..builtin import (
     property_,
     property_runtime_,
 )
-from .relation import NodeReference
+from ..builtin.relation import NodeReference
 from .type import Json, ScalarType, Type, TypeCardinality, to_type
 
 if TYPE_CHECKING:

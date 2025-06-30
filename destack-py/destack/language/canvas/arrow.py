@@ -1,7 +1,6 @@
 from destack.language.core import (
     Enum,
     EnumType,
-    Node,
     NodeType,
     Vector2,
     builtin_enum,
@@ -9,7 +8,6 @@ from destack.language.core import (
     property_,
 )
 
-from ..view import ContentView
 from .shape import Shape
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -23,7 +21,7 @@ class ArrowHeadType(Enum):
 
 
 @builtin_node(NodeType.ARROW_SHAPE, pretend_frozen=True)
-class ArrowShape(ContentView, Shape, Node):
+class ArrowShape(Shape):
     """An ArrowShape is a shape that represents an arrow."""
 
     # content

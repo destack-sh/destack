@@ -15,6 +15,7 @@ from destack.language import (
     Function,
     FunctionType,
     JoinType,
+    NodeDefinitionReference,
     NodeReference,
     PrimitiveType,
     PropertyReference,
@@ -23,7 +24,6 @@ from destack.language import (
     QueryResult,
     QueryResultGroup,
     QueryType,
-    RelationReference,
     RelationType,
     ScalarType,
     Select,
@@ -310,7 +310,7 @@ def _is_id_condition(condition: Condition) -> tuple[bool, Sequence[UUID]]:
 @tracer.start_as_current_span("memory.walk_node")
 def _walk_node(
     context: MemoryContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     roots_ptr: Sequence[NodeReference],
     roots_parents_ptr: Sequence[NodeReference],
     direction: EdgeDirection,
@@ -385,7 +385,7 @@ def _walk_node(
 @tracer.start_as_current_span("memory.query_node")
 def _query_node(
     context: MemoryContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     select: Select | None,
     where: Condition | None,
     sort: Sequence[Sort] | None,
@@ -394,7 +394,7 @@ def _query_node(
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
     # handle multi-relations
-    if relation.type == RelationType.TRAIT:
+    if relation.type == RelationType.BUILTIN_TRAIT:
         # fan out trait relations
         if limit is not None or offset is not None:
             raise NotImplementedError(f"cannot limit/offset for multi relation: {relation!r}")
@@ -454,13 +454,13 @@ def _query_node(
 @tracer.start_as_current_span("memory.query_scalar")
 def _query_scalar(
     context: MemoryContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
 ) -> Value:
     """Execute a scalar Query."""
     # handle multi-relations
-    if relation.type == RelationType.TRAIT:
+    if relation.type == RelationType.BUILTIN_TRAIT:
         relations = context.resolve(relation)
         filtered_rows: list[MemoryRow] = []
         for rel in relations:
@@ -490,7 +490,7 @@ def _query_scalar(
 @tracer.start_as_current_span("memory.query_grouped_node")
 def _query_grouped_node(
     context: MemoryContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     select: Select | None,
     where: Condition | None,
     having: Condition | None,
@@ -500,7 +500,7 @@ def _query_grouped_node(
     offset: int | None,
 ) -> list[tuple[Value, list[Value], list[NodeReference]]]:
     """Execute a grouped node Query."""
-    if relation.type == RelationType.TRAIT:
+    if relation.type == RelationType.BUILTIN_TRAIT:
         raise NotImplementedError("grouped node queries not supported for trait relations")
 
     table = context.get(relation)
@@ -568,14 +568,14 @@ def _query_grouped_node(
 @tracer.start_as_current_span("memory.query_grouped_scalar")
 def _query_grouped_scalar(
     context: MemoryContext,
-    relation: RelationReference,
+    relation: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
     having: Condition | None,
     group_by: Sequence[Expression],
 ) -> list[tuple[Value, Value]]:
     """Execute a grouped scalar Query."""
-    if relation.type == RelationType.TRAIT:
+    if relation.type == RelationType.BUILTIN_TRAIT:
         raise NotImplementedError("grouped scalar queries not supported for trait relations")
 
     table = context.get(relation)

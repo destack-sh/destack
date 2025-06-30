@@ -1,12 +1,11 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
-  Global,
   HasIcon,
   HasName,
   HasSlug,
+  IsGlobal,
   IsJoinable,
   IsOwner,
   IsSubject,
@@ -15,7 +14,7 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Icon } from "@destack/language/core/common";
+import { Entity, Icon } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
 import { OrganizationProto, OrganizationStatusProto } from "@destack/proto";
@@ -44,15 +43,14 @@ registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
  */
 export class Organization
   extends Node
-  implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable
+  implements IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable, Entity
 {
   static metatype: NodeType = NodeType.ORGANIZATION;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.JOINABLE,
     TraitType.OWNER,
+    TraitType.TRACKED,
+    TraitType.JOINABLE,
   ];
   static __rootType__: NodeType | null = null;
   static __parentTypes__: NodeType[] = [];
@@ -316,6 +314,10 @@ export class Organization
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -324,10 +326,6 @@ export class Organization
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
 
     return h;
   }
@@ -410,6 +408,11 @@ export class Organization
       parentPtrValue != undefined
         ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const iconValue = objectValue["34"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -420,11 +423,6 @@ export class Organization
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Organization({
       slug: objectValue["33"],
       status: Number(objectValue["40"]),
@@ -432,12 +430,12 @@ export class Organization
       handle: unpackedHandlePtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
+      icon: unpackedIcon,
+      name: objectValue["31"],
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      icon: unpackedIcon,
-      name: objectValue["31"],
       _session,
       _graph,
       _connection,
@@ -523,6 +521,11 @@ export class Organization
               _connection,
             )
           : null,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      name: objectProto.name,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -545,11 +548,6 @@ export class Organization
               _connection,
             )
           : null,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      name: objectProto.name,
       _session,
       _graph,
       _connection,

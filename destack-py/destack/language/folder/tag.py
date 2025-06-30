@@ -6,10 +6,9 @@ from destack.language.core import (
     HasName,
     IsDeletable,
     IsOrdered,
+    IsSpatial,
     IsTaggable,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
@@ -23,13 +22,12 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.TAG)
 class Tag(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     HasIcon,
     IsOrdered,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Tag to tag something."""
 
@@ -38,12 +36,11 @@ class Tag(
 
 @builtin_node(NodeType.TAGGING)
 class Tagging(
-    Spatial,
-    Entity,
+    IsSpatial,
     IsTaggable,
     IsOrdered,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Tagging of a Node by a Tag."""
 

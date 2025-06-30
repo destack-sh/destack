@@ -13,11 +13,10 @@ from destack.language.core import (
     IsJoinable,
     IsOrdered,
     IsOwnable,
+    IsSpatial,
     IsStarable,
     IsTaggable,
-    Node,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -45,8 +44,7 @@ class FolderType(Enum):
     index=(IndexIn(columns=("space_id", "slug"), is_unique=True),),
 )
 class Folder(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasIcon,
     HasSlug,
     HasName,
@@ -57,7 +55,7 @@ class Folder(
     IsDeletable,
     IsStarable,
     IsFollowable,
-    Node,
+    Entity,
 ):
     """A Folder is a sub-space of a Space."""
 

@@ -1,18 +1,17 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from ..builtin import (
-    Entity,
     HasName,
     HasSlug,
     IsDeletable,
     IsOwnable,
-    Node,
+    IsSpatial,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
 )
+from .entity import Entity
 
 if TYPE_CHECKING:
     from destack.language import Space
@@ -22,13 +21,12 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.SNAPSHOT)
 class Snapshot(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     HasSlug,
     IsOwnable,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Snapshot is a point in Space time."""
 
@@ -37,13 +35,12 @@ class Snapshot(
 
 @builtin_node(NodeType.BRANCH)
 class Branch(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     HasSlug,
     IsOwnable,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Branch is a version of a Snapshot."""
 

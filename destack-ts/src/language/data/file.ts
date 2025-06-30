@@ -7,17 +7,17 @@ import {
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
-  Global,
   HasName,
+  IsGlobal,
+  IsSpatial,
   IsSubject,
   Node,
   NodeType,
-  Resource,
   ResourceStatus,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Resource } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
@@ -194,14 +194,13 @@ registerEnumClass(EnumType.FILE_FORMAT, FileFormat);
 /**
  * A File stored somewhere.
  */
-export class File extends Node implements Spatial, Global, Resource, HasName {
+export class File extends Node implements IsSpatial, IsGlobal, HasName, Resource {
   static metatype: NodeType = NodeType.FILE;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.RESOURCE,
+    TraitType.DELETABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -210,7 +209,7 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -266,6 +265,11 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
    * File.type
@@ -380,6 +384,7 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
     type: FileType;
     name: string;
     status?: ResourceStatus;
@@ -440,6 +445,8 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`File.type is required`);
@@ -596,13 +603,13 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
     if (!(this.targetStatus === other.targetStatus)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
       return false;
     }
     return true;
@@ -668,9 +675,13 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.targetStatus !== null) {
       h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -680,7 +691,6 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
 
     return h;
   }
@@ -757,6 +767,9 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt != null) {
+      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -873,6 +886,11 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
       targetStatusValue != undefined
         ? Temporal.Instant.from(targetStatusValue).toZonedDateTimeISO("UTC")
         : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -905,13 +923,14 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      name: objectValue["31"],
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
+      deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
       _session,
       _graph,
       _connection,
@@ -948,6 +967,9 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.type = Number(object.type) as FileTypeProto;
     objectProto.name = object.name;
@@ -1057,11 +1079,14 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
             )
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
       status: Number(objectProto.status) as ResourceStatus,
       targetStatus:
         objectProto.targetStatus != undefined
           ? unpackProtoTimestamp(objectProto.targetStatus!)
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1084,7 +1109,6 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
               _connection,
             )
           : null,
-      name: objectProto.name,
       _session,
       _graph,
       _connection,

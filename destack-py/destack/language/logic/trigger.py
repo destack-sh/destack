@@ -7,10 +7,9 @@ from destack.language.core import (
     Event,
     HasName,
     IsRunnable,
-    Node,
+    IsSpatial,
+    NodeDefinitionReference,
     NodeType,
-    RelationReference,
-    Spatial,
     Value,
     builtin_enum,
     builtin_node,
@@ -24,22 +23,9 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.TRIGGER_STARTED_EVENT)
-class TriggerStartedEvent(
-    Event["Trigger"],
-    Node,
-):
-    """A Event regarding a Trigger."""
-
-    node: "Trigger" = property_(35)
-
-
-@builtin_node(NodeType.TRIGGER_STOPPED_EVENT)
-class TriggerStoppedEvent(
-    Event["Trigger"],
-    Node,
-):
-    """A Event regarding a Trigger."""
+@builtin_node(NodeType.TRIGGER_EVENT, is_abstract=True)
+class TriggerEvent(Event["Trigger"]):
+    """A TriggerEvent is an Event that corresponds to a Trigger."""
 
     node: "Trigger" = property_(35)
 
@@ -50,16 +36,11 @@ class TriggerType(Enum):
 
 
 @builtin_node(NodeType.TRIGGER)
-class Trigger(
-    Spatial,
-    Entity,
-    HasName,
-    Node,
-):
+class Trigger(IsSpatial, HasName, Entity):
     """A Trigger is a dynamic event to run something."""
 
     # when
-    event: Optional[RelationReference] = property_(40)
+    event: Optional[NodeDefinitionReference] = property_(40)
     where: Optional["Condition"] = property_(41)
     # sampling?
 

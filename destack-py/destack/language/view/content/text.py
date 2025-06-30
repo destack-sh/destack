@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Node,
     NodeType,
     builtin_node,
     property_,
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.TEXT_VIEW)
-class TextView(ContentView, Node):
+class TextView(ContentView):
     """A (rich) text view."""
 
     # appearance

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from destack.language.core import Node, NodeType, builtin_node, property_
+from destack.language.core import NodeType, builtin_node, property_
 
 from .input import InputView
 
@@ -8,10 +8,7 @@ from .input import InputView
 
 
 @builtin_node(NodeType.SLIDER_INPUT_VIEW)
-class SliderInputView(
-    InputView,
-    Node,
-):
+class SliderInputView(InputView):
     """A slider input View."""
 
     value: Optional[float] = property_(100)

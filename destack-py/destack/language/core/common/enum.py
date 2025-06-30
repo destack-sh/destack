@@ -1,18 +1,17 @@
 from typing import TYPE_CHECKING
 
 from ..builtin import (
-    Entity,
     HasIcon,
     HasName,
     IsDeletable,
     IsExtensible,
     IsSourceable,
+    IsSpatial,
     IsTaggable,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
 )
+from .entity import Entity
 
 if TYPE_CHECKING:
     pass
@@ -22,15 +21,14 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
 class CustomEnumDefinition(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     HasIcon,
     IsTaggable,
     IsDeletable,
     IsSourceable,
     IsExtensible,
-    Node,
+    Entity,
 ):
     """A CustomEnumDefinition describes a custom Enum with Options."""
 

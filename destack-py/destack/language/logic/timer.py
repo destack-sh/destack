@@ -6,9 +6,8 @@ from destack.language.core import (
     EnumType,
     Event,
     HasName,
-    Node,
+    IsSpatial,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -22,24 +21,32 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
+@builtin_node(NodeType.TIMER_EVENT, is_abstract=True)
+class TimerEvent(Event["Timer"]):
+    """A TimerEvent is an Event that corresponds to a Timer."""
+
+    node: "Timer" = property_(35)
+
+
 @builtin_node(NodeType.TIMER_STARTED_EVENT)
-class TimerStartedEvent(
-    Event["Timer"],
-    Node,
-):
-    """A Event regarding a Timer."""
+class TimerStartedEvent(TimerEvent):
+    """A Timer was started."""
 
-    node: "Timer" = property_(35)
+    pass
 
 
-@builtin_node(NodeType.TIMER_STOPPED_EVENT)
-class TimerStoppedEvent(
-    Event["Timer"],
-    Node,
-):
-    """A Event regarding a Timer."""
+@builtin_node(NodeType.TIMER_COMPLETED_EVENT)
+class TimerCompletedEvent(TimerEvent):
+    """A Timer was completed."""
 
-    node: "Timer" = property_(35)
+    pass
+
+
+@builtin_node(NodeType.TIMER_CANCELLED_EVENT)
+class TimerCancelledEvent(TimerEvent):
+    """A Timer was cancelled."""
+
+    pass
 
 
 @builtin_enum(EnumType.TIMER_TYPE)
@@ -49,12 +56,7 @@ class TimerType(Enum):
 
 
 @builtin_node(NodeType.TIMER)
-class Timer(
-    Spatial,
-    Entity,
-    HasName,
-    Node,
-):
+class Timer(IsSpatial, HasName, Entity):
     """A Timer."""
 
     type: TimerType = property_(30)

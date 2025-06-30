@@ -5,9 +5,8 @@ from destack.language.core import (
     Axis3,
     Enum,
     EnumType,
-    Node,
     NodeType,
-    StructMutable,
+    StructFrozen,
     StructType,
     Vector2,
     builtin_enum,
@@ -63,8 +62,8 @@ class OffscreenBehavior(Enum):
     PAUSE = 2, "Pause", "Pause the animation"
 
 
-@builtin_struct(StructType.EFFECT)
-class Effect(StructMutable):
+@builtin_struct(StructType.EFFECT, frozen=True)
+class Effect(StructFrozen):
     """An effect value."""
 
     type: EffectType = property_(30, is_repr=True)
@@ -86,10 +85,7 @@ class Effect(StructMutable):
 
 
 @builtin_node(NodeType.EFFECT_STYLE)
-class EffectStyle(
-    Style,
-    Node,
-):
+class EffectStyle(Style):
     """An effect style."""
 
     type: EffectType = property_(30, is_repr=True)

@@ -366,6 +366,8 @@ class PropertyDeclaration(TypeDeclaration):
     is_eq: bool = True  # included BuiltinObject.equals check
     is_managed: bool = False  # set automatically by the system
     is_computed: bool = False  # set automatically at runtime
+    is_readonly: bool = False  # can only be set once (at init time)
+    is_static: bool = False
 
     can_read: RoleType = RoleType.SPECTATOR
     can_write: RoleType | None = RoleType.SPECTATOR
@@ -397,7 +399,7 @@ class PropertyDeclaration(TypeDeclaration):
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
 
         if self._ref is None:
-            from ..common import PropertyReference, PropertyReferenceType
+            from .relation import PropertyReference, PropertyReferenceType
 
             assert self.component is not None, f"{self!r} has no component"
             assert self.id is not None, f"{self!r} has no id"
@@ -518,16 +520,17 @@ class PropertyDeclaration(TypeDeclaration):
     def finalize(self, object_type: NodeType | StructType | None) -> None:
         """Finalize the Property after all BuiltinObjects are defined."""
         if self.scalar_type == ScalarType.NODE_REFERENCE:
-            from .trait import Spatial, expand_node_types
+            from .trait import IsSpatial, expand_node_types
 
             node_types = expand_node_types(self.node_types or ())
             self.node_has_type = len(node_types) > 1
             self.node_has_definition = self.node_is_customizable and any(
-                NodeType.CUSTOM_NODE in NODE_CLASS_BY_TYPE[node_type].__extends__
+                NodeType.CUSTOM_EVENT in NODE_CLASS_BY_TYPE[node_type].__extends__
+                or NodeType.CUSTOM_ENTITY in NODE_CLASS_BY_TYPE[node_type].__extends__
                 for node_type in node_types
             )
             self.node_has_space = self.node_space_from is None and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], Spatial) for node_type in node_types
+                issubclass(NODE_CLASS_BY_TYPE[node_type], IsSpatial) for node_type in node_types
             )
 
     #

@@ -1,13 +1,12 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
-  Global,
   HasIcon,
   HasName,
   HasSlug,
   IsFollowable,
+  IsGlobal,
   IsOwner,
   IsSubject,
   Node,
@@ -15,7 +14,7 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Icon } from "@destack/language/core/common";
+import { Entity, Icon } from "@destack/language/core/common";
 import { Cursor } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
@@ -45,13 +44,12 @@ registerEnumClass(EnumType.USER_STATUS, UserStatus);
  */
 export class User
   extends Node
-  implements Global, Entity, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject
+  implements IsGlobal, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject, Entity
 {
   static metatype: NodeType = NodeType.USER;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.SUBJECT,
     TraitType.OWNER,
     TraitType.FOLLOWABLE,
@@ -175,10 +173,10 @@ export class User
   /**
    * User.cursor
    */
-  get cursor(): (Node & Cursor) | null {
+  get cursor(): Cursor | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null;
+      return this._supergraph.get(nodePtr.id) as Cursor | null;
     }
     return null;
   }
@@ -214,7 +212,7 @@ export class User
     isStaff?: boolean;
     space: Space | NodeReference;
     handle?: Handle | NodeReference | null;
-    cursor?: (Node & Cursor) | NodeReference | null;
+    cursor?: Cursor | NodeReference | null;
     email?: string | null;
     passwordSalt?: Uint8Array | null;
     passwordHash?: Uint8Array | null;
@@ -408,6 +406,9 @@ export class User
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -415,9 +416,6 @@ export class User
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
 
     return h;
@@ -535,6 +533,11 @@ export class User
       parentPtrValue != undefined
         ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const iconValue = objectValue["34"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -544,11 +547,6 @@ export class User
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     return new User({
       name: objectValue["31"],
@@ -564,11 +562,11 @@ export class User
       passwordHash: unpackedPasswordHash,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
+      icon: unpackedIcon,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      icon: unpackedIcon,
       _session,
       _graph,
       _connection,
@@ -689,6 +687,10 @@ export class User
               _connection,
             )
           : null,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -710,10 +712,6 @@ export class User
               _graph,
               _connection,
             )
-          : null,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       _session,
       _graph,

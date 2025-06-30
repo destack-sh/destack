@@ -9,11 +9,10 @@ from destack.language.core import (
     Event,
     IsDeletable,
     IsJoinable,
+    IsSpatial,
     IsSubject,
-    Node,
     NodeReference,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -26,40 +25,30 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SANCTION_REQUESTED_EVENT)
-class SanctionRequestedEvent(
-    Event["Sanction"],
-    Node,
-):
+@builtin_node(NodeType.SANCTION_EVENT, is_abstract=True)
+class SanctionEvent(Event["Sanction"]):
     node: "Sanction" = property_(35)
     target: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.SANCTION_REQUESTED_EVENT)
+class SanctionRequestedEvent(SanctionEvent):
+    pass
 
 
 @builtin_node(NodeType.SANCTION_GRANTED_EVENT)
-class SanctionGrantedEvent(
-    Event["Sanction"],
-    Node,
-):
-    node: "Sanction" = property_(35)
-    target: "IsSubject" = property_(40)
+class SanctionGrantedEvent(SanctionEvent):
+    pass
 
 
 @builtin_node(NodeType.SANCTION_REVOKED_EVENT)
-class SanctionRevokedEvent(
-    Event["Sanction"],
-    Node,
-):
-    node: "Sanction" = property_(35)
-    target: "IsSubject" = property_(40)
+class SanctionRevokedEvent(SanctionEvent):
+    pass
 
 
 @builtin_node(NodeType.SANCTION_EXPIRED_EVENT)
-class SanctionExpiredEvent(
-    Event["Sanction"],
-    Node,
-):
-    node: "Sanction" = property_(35)
-    target: "IsSubject" = property_(40)
+class SanctionExpiredEvent(SanctionEvent):
+    pass
 
 
 @builtin_enum(EnumType.SANCTION_TYPE)
@@ -71,12 +60,7 @@ class SanctionType(Enum):
 
 
 @builtin_node(NodeType.SANCTION)
-class Sanction(
-    Spatial,
-    Entity,
-    IsDeletable,
-    Node,
-):
+class Sanction(IsSpatial, IsDeletable, Entity):
     """A Sanction on some Subject."""
 
     parent: Union["IsSubject", "IsJoinable", None] = property_parent_(node_is_customizable=True)
