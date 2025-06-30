@@ -1,5 +1,6 @@
-import { Session, Supergraph } from "@destack/language/core";
-import { StructFrozen, StructType } from "@destack/language/core/builtin";
+import { StructType } from "@destack/language/core/builtin/common";
+import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { Session, Supergraph } from "@destack/language/core/runtime";
 import { registerStructClass } from "@destack/language/registry";
 import {
   Vector2Proto,

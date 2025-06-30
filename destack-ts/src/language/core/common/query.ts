@@ -1,20 +1,16 @@
-import { NodeClass, toValue } from "@destack/language";
-import { Session, Supergraph } from "@destack/language/core";
+import { toValue } from "@destack/language";
+import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
+import { NodeClass } from "@destack/language/core/builtin/node";
 import {
-  EnumType,
   NodeDefinitionReference,
-  NodeType,
   PropertyReference,
-  Struct,
-  StructFrozen,
-  StructType,
-} from "@destack/language/core/builtin";
-import {
-  CustomEntityDefinition,
-  CustomProperty,
-  PropertyDefinition,
-  Value,
-} from "@destack/language/core/common";
+} from "@destack/language/core/builtin/relation";
+import { Struct, StructFrozen } from "@destack/language/core/builtin/struct";
+import { PropertyDefinition } from "@destack/language/core/common/meta";
+import { CustomProperty } from "@destack/language/core/common/property";
+import { Value } from "@destack/language/core/common/value";
+import { Session, Supergraph } from "@destack/language/core/runtime";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   AggregationProto,

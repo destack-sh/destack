@@ -1,18 +1,23 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
+  Entity,
+  Graph,
   HasIcon,
   HasName,
   HasSlug,
+  Icon,
   IsGlobal,
   IsJoinable,
   IsOwner,
   IsSubject,
   Node,
+  NodeReference,
   NodeType,
+  QueryConnection,
+  Session,
   StructType,
-} from "@destack/language/core/builtin";
-import { Entity, Icon } from "@destack/language/core/common";
+  Supergraph,
+} from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import { TeamProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";

@@ -1,4 +1,4 @@
-import { Session } from "@destack/language";
+import type { Session } from "@destack/language/core/runtime";
 import { ContextVar } from "@destack/utils/context";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuidv4 } from "uuid";

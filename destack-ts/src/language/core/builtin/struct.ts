@@ -5,8 +5,8 @@ import {
   StructType,
   Supergraph,
 } from "@destack/language/core";
+import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import { AnyStructProto } from "@destack/proto";
-import { BuiltinObject, BuiltinObjectClass } from "./object";
 
 /** A Struct is an ordered collection of Properties. */
 export abstract class Struct extends BuiltinObject {

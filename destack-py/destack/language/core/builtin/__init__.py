@@ -56,7 +56,16 @@ from .const import (
     get_active_session,
 )
 from .constant import CONSTANT_DECLARATIONS, ConstantDeclaration, register_constant
+from .entity import (
+    CustomEntity,
+    CustomEntityDefinition,
+    CustomTraitDefinition,
+    Entity,
+    Metric,
+    Resource,
+)
 from .enum import Enum, builtin_enum
+from .event import CustomEvent, CustomEventDefinition, EditEvent, Event, MeasurementEvent
 from .node import IndexIn, Node, builtin_node
 from .object import (
     BuiltinObjectBase,
@@ -145,13 +154,21 @@ __all__ = [
     "ClientType",
     "Cloud",
     "ConstantDeclaration",
+    "CustomEntity",
+    "CustomEntityDefinition",
+    "CustomEvent",
+    "CustomEventDefinition",
+    "CustomTraitDefinition",
     "DefaultFactory",
     "DestackError",
     "EdgeDirection",
     "EdgeType",
+    "EditEvent",
+    "Entity",
     "Enum",
     "EnumType",
     "EnvironmentType",
+    "Event",
     "HasIcon",
     "HasName",
     "HasSlug",
@@ -175,6 +192,8 @@ __all__ = [
     "IsTaggable",
     "JoinablePermission",
     "MaterializationType",
+    "MeasurementEvent",
+    "Metric",
     "Node",
     "NodeBase",
     "NodeDefinitionReference",
@@ -193,6 +212,7 @@ __all__ = [
     "Region",
     "RegionArea",
     "RegionContinent",
+    "Resource",
     "ResourceStatus",
     "RoleType",
     "RuntimeType",

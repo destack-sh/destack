@@ -9,7 +9,11 @@ from typing import (
     dataclass_transform,
 )
 
-from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS
+from destack.language.registry import (
+    NODE_CLASS_BY_TYPE,
+    NODE_DEFINITION_REFERENCE_BY_CLASS,
+    NODE_TYPE_BY_CLASS,
+)
 from destack.proto import AnyNodeProto
 from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
@@ -34,10 +38,16 @@ from .trait import (
 
 if TYPE_CHECKING:
     from destack.language import (
+        Condition,
+        ExpressionIn,
         Graph,
+        JoinIn,
+        Node,
         NodeReference,
+        Query,
         QueryConnection,
         Session,
+        Sort,
         Supergraph,
     )
 
@@ -366,3 +376,195 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
             _connection=_connection,
         )
         return cast(Self, node)
+
+    @classmethod
+    def get(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["JoinIn"] = None,
+        **subqueries: "Query",
+    ) -> "Query[Self]":  # type: ignore
+        """Make a get Query for this Node/Trait type."""
+        from ..common.query import Join, Query, QueryType, to_subqueries
+
+        query = Query(
+            type=QueryType.NODE,
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            name=name or cls.metatype.camel_name,
+            join=Join.of(join) if join is not None else None,
+            where=where,
+            subqueries=to_subqueries(subqueries),
+            # limit=1?
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def search(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["JoinIn"] = None,
+        having: Optional["Condition"] = None,
+        sort: Optional[list["Sort"]] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        **subqueries: "Query",
+    ) -> "Query[Self]":  # type: ignore
+        """Make a search Query for this Node/Trait type."""
+        from ..common.query import Expression, Join, Query, QueryType, to_subqueries
+
+        query = Query(
+            type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            name=name or cls.metatype.camel_name,
+            join=Join.of(join) if join is not None else None,
+            where=where,
+            having=having,
+            group_by=[Expression.of(expr) for expr in group_by or ()],
+            sort=sort or [],
+            limit=limit,
+            offset=offset,
+            subqueries=to_subqueries(subqueries),
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def exists(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["JoinIn"] = None,
+    ) -> "Query[Self]":  # type: ignore
+        """Make a count Query for this Node/Trait type."""
+        from ..common.query import (
+            Aggregation,
+            AggregationType,
+            Join,
+            Query,
+            QueryType,
+        )
+
+        query = Query(
+            type=QueryType.SCALAR,
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            name=name or cls.metatype.camel_name,
+            join=Join.of(join) if join is not None else None,
+            where=where,
+            aggregation=Aggregation(type=AggregationType.EXISTS),
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def count(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["JoinIn"] = None,
+        sort: Optional[list["Sort"]] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+        having: Optional["Condition"] = None,
+    ) -> "Query[Self]":  # type: ignore
+        """Make a min Query for this Node/Trait type."""
+        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
+
+        query = Query(
+            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            name=name or cls.metatype.camel_name,
+            join=Join.of(join) if join is not None else None,
+            where=where,
+            having=having,
+            group_by=[Expression.of(expr) for expr in group_by or ()],
+            aggregation=Aggregation(type=AggregationType.COUNT),
+            sort=sort or [],
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def min(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["JoinIn"] = None,
+        where: Optional["Condition"] = None,
+        having: Optional["Condition"] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+        sort: Optional[list["Sort"]] = None,
+    ) -> "Query[Self]":  # type: ignore
+        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
+
+        query = Query(
+            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            name=name or cls.metatype.camel_name,
+            join=Join.of(join) if join is not None else None,
+            where=where,
+            having=having,
+            group_by=[Expression.of(expr) for expr in group_by or ()],
+            aggregation=Aggregation(type=AggregationType.MIN, expression=Expression.of(expression)),
+            sort=sort or [],
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def max(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["JoinIn"] = None,
+        where: Optional["Condition"] = None,
+        having: Optional["Condition"] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+        sort: Optional[list["Sort"]] = None,
+    ) -> "Query[Self]":  # type: ignore
+        """Make an average Query for this Node/Trait type."""
+        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
+
+        query = Query(
+            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            name=name or cls.metatype.camel_name,
+            join=Join.of(join) if join is not None else None,
+            where=where,
+            having=having,
+            group_by=[Expression.of(expr) for expr in group_by or ()],
+            aggregation=Aggregation(type=AggregationType.MAX, expression=Expression.of(expression)),
+            sort=sort or [],
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def sum(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["JoinIn"] = None,
+        where: Optional["Condition"] = None,
+        having: Optional["Condition"] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+        sort: Optional[list["Sort"]] = None,
+    ) -> "Query[Self]":  # type: ignore
+        """Make an average Query for this Node/Trait type."""
+        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
+
+        query = Query(
+            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
+            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            name=name or cls.metatype.camel_name,
+            join=Join.of(join) if join is not None else None,
+            where=where,
+            having=having,
+            group_by=[Expression.of(expr) for expr in group_by or ()],
+            aggregation=Aggregation(type=AggregationType.SUM, expression=Expression.of(expression)),
+            sort=sort or [],
+        )
+        return query  # type: ignore

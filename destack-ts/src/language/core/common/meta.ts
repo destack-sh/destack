@@ -1,34 +1,33 @@
-import { Session, Supergraph } from "@destack/language/core";
 import {
   CascadeAction,
   DefaultFactory,
   EdgeType,
   EnumType,
   NodeType,
-  ObjectDefinitionReference,
-  ObjectDefinitionType,
   PrimitiveType,
-  PropertyReference,
-  PropertyReferenceType,
   ScalarType,
-  StructFrozen,
   StructType,
   TraitType,
   TypeCardinality,
-} from "@destack/language/core/builtin";
+} from "@destack/language/core/builtin/common";
+import {
+  ObjectDefinitionReference,
+  ObjectDefinitionType,
+  PropertyReference,
+  PropertyReferenceType,
+} from "@destack/language/core/builtin/relation";
+import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { Icon } from "@destack/language/core/common/icon";
+import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
 import {
   CollectionConstraint,
-  Condition,
-  ConditionalType,
-  Icon,
   NodeConstraint,
   NumberConstraint,
-  Sort,
-  SortType,
   StringConstraint,
   Type,
-  Value,
-} from "@destack/language/core/common";
+} from "@destack/language/core/common/type";
+import { Value } from "@destack/language/core/common/value";
+import { Session, Supergraph } from "@destack/language/core/runtime";
 import { registerStructClass } from "@destack/language/registry";
 import {
   CascadeActionProto,

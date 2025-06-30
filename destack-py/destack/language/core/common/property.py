@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from ..builtin import (
     CascadeAction,
     EdgeType,
+    Entity,
     Enum,
     EnumType,
     HasIcon,
@@ -18,7 +19,6 @@ from ..builtin import (
     property_,
     property_parent_,
 )
-from .entity import Entity
 from .query import Condition, ConditionalType, Sort, SortType
 from .type import (
     CollectionConstraint,

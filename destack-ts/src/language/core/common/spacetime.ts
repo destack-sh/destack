@@ -1,5 +1,8 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import { Entity } from "@destack/language/core/builtin/entity";
+import { Node } from "@destack/language/core/builtin/node";
+import { NodeReference } from "@destack/language/core/builtin/relation";
 import {
   HasName,
   HasSlug,
@@ -8,11 +11,8 @@ import {
   IsOwner,
   IsSpatial,
   IsSubject,
-  Node,
-  NodeType,
-  StructType,
-} from "@destack/language/core/builtin";
-import { Entity } from "@destack/language/core/common";
+} from "@destack/language/core/builtin/trait";
+import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { BranchProto, SnapshotProto } from "@destack/proto";

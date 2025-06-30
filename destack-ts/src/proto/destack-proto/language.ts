@@ -3476,7 +3476,7 @@ export interface EntitlementRevokedEventProto {
     targetPtr?: NodeReferenceProto;
 }
 /**
- * An Entity is a versioned Node in primary relational storage (OLTP).
+ * An Entity is a versioned, stateful Node.
  *
  * @generated from protobuf message symbol.destack.EntityProto
  */
@@ -3595,7 +3595,7 @@ export interface EnvironmentProto {
     icon?: IconProto;
 }
 /**
- * An Event represents something happening in a Space.
+ * An Event is an immutable record of something happening to an Entity.
  *
  * @generated from protobuf message symbol.destack.EventProto
  */
@@ -13722,12 +13722,6 @@ export interface SomeNodeProto {
          */
         customTraitDefinition: CustomTraitDefinitionProto;
     } | {
-        oneofKind: "customEnumDefinition";
-        /**
-         * @generated from protobuf field: symbol.destack.CustomEnumDefinitionProto custom_enum_definition = 2510
-         */
-        customEnumDefinition: CustomEnumDefinitionProto;
-    } | {
         oneofKind: "customEventDefinition";
         /**
          * @generated from protobuf field: symbol.destack.CustomEventDefinitionProto custom_event_definition = 4300
@@ -13739,6 +13733,12 @@ export interface SomeNodeProto {
          * @generated from protobuf field: symbol.destack.EditEventProto edit_event = 4302
          */
         editEvent: EditEventProto;
+    } | {
+        oneofKind: "customEnumDefinition";
+        /**
+         * @generated from protobuf field: symbol.destack.CustomEnumDefinitionProto custom_enum_definition = 2510
+         */
+        customEnumDefinition: CustomEnumDefinitionProto;
     } | {
         oneofKind: "gaugeMetric";
         /**
@@ -14621,17 +14621,17 @@ export interface SomeEntityProto {
          */
         customTraitDefinition: CustomTraitDefinitionProto;
     } | {
-        oneofKind: "customEnumDefinition";
-        /**
-         * @generated from protobuf field: symbol.destack.CustomEnumDefinitionProto custom_enum_definition = 2510
-         */
-        customEnumDefinition: CustomEnumDefinitionProto;
-    } | {
         oneofKind: "customEventDefinition";
         /**
          * @generated from protobuf field: symbol.destack.CustomEventDefinitionProto custom_event_definition = 4300
          */
         customEventDefinition: CustomEventDefinitionProto;
+    } | {
+        oneofKind: "customEnumDefinition";
+        /**
+         * @generated from protobuf field: symbol.destack.CustomEnumDefinitionProto custom_enum_definition = 2510
+         */
+        customEnumDefinition: CustomEnumDefinitionProto;
     } | {
         oneofKind: "gaugeMetric";
         /**
@@ -53408,9 +53408,9 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         super("symbol.destack.SomeNodeProto", [
             { no: 2000, name: "custom_entity_definition", kind: "message", oneof: "node", T: () => CustomEntityDefinitionProto },
             { no: 2002, name: "custom_trait_definition", kind: "message", oneof: "node", T: () => CustomTraitDefinitionProto },
-            { no: 2510, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
             { no: 4300, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionProto },
             { no: 4302, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
+            { no: 2510, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
             { no: 4240, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
             { no: 4241, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
             { no: 4260, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
@@ -53580,12 +53580,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         customTraitDefinition: CustomTraitDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customTraitDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomEnumDefinitionProto custom_enum_definition */ 2510:
-                    message.node = {
-                        oneofKind: "customEnumDefinition",
-                        customEnumDefinition: CustomEnumDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEnumDefinition)
-                    };
-                    break;
                 case /* symbol.destack.CustomEventDefinitionProto custom_event_definition */ 4300:
                     message.node = {
                         oneofKind: "customEventDefinition",
@@ -53596,6 +53590,12 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                     message.node = {
                         oneofKind: "editEvent",
                         editEvent: EditEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).editEvent)
+                    };
+                    break;
+                case /* symbol.destack.CustomEnumDefinitionProto custom_enum_definition */ 2510:
+                    message.node = {
+                        oneofKind: "customEnumDefinition",
+                        customEnumDefinition: CustomEnumDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEnumDefinition)
                     };
                     break;
                 case /* symbol.destack.GaugeMetricProto gauge_metric */ 4240:
@@ -54928,8 +54928,8 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         super("symbol.destack.SomeEntityProto", [
             { no: 2000, name: "custom_entity_definition", kind: "message", oneof: "node", T: () => CustomEntityDefinitionProto },
             { no: 2002, name: "custom_trait_definition", kind: "message", oneof: "node", T: () => CustomTraitDefinitionProto },
-            { no: 2510, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
             { no: 4300, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionProto },
+            { no: 2510, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
             { no: 4240, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
             { no: 4260, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
             { no: 4280, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
@@ -55030,16 +55030,16 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         customTraitDefinition: CustomTraitDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customTraitDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomEnumDefinitionProto custom_enum_definition */ 2510:
-                    message.node = {
-                        oneofKind: "customEnumDefinition",
-                        customEnumDefinition: CustomEnumDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEnumDefinition)
-                    };
-                    break;
                 case /* symbol.destack.CustomEventDefinitionProto custom_event_definition */ 4300:
                     message.node = {
                         oneofKind: "customEventDefinition",
                         customEventDefinition: CustomEventDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEventDefinition)
+                    };
+                    break;
+                case /* symbol.destack.CustomEnumDefinitionProto custom_enum_definition */ 2510:
+                    message.node = {
+                        oneofKind: "customEnumDefinition",
+                        customEnumDefinition: CustomEnumDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEnumDefinition)
                     };
                     break;
                 case /* symbol.destack.GaugeMetricProto gauge_metric */ 4240:
@@ -56490,7 +56490,7 @@ export const SomeEventProto = new SomeEventProto$Type();
 //
 
 // Any...
-export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomEntityProto | CustomTraitDefinitionProto | ResourceProto | MetricProto | CustomEnumDefinitionProto | EventProto | CustomEventDefinitionProto | CustomEventProto | EditEventProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomOptionProto | CustomPropertyProto | SnapshotProto | BranchProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | PolygonShapeProto | FileProto | LinkProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
-export type AnyStructProto = ScopeProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | TextSpanProto | TextProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | LineProto | PolygonProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
+export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomEntityProto | CustomTraitDefinitionProto | ResourceProto | MetricProto | EventProto | CustomEventDefinitionProto | CustomEventProto | EditEventProto | MeasurementEventProto | CustomEnumDefinitionProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomOptionProto | CustomPropertyProto | SnapshotProto | BranchProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | PolygonShapeProto | FileProto | LinkProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
+export type AnyStructProto = ScopeProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | TextSpanProto | TextProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | LineProto | PolygonProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

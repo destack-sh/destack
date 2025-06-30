@@ -1,18 +1,12 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from ..builtin import (
-    UNSET,
-    HasName,
-    IsSourceable,
-    IsSpatial,
-    Node,
-    NodeType,
-    RoleType,
-    builtin_node,
-    property_,
-)
+from .common import RoleType
+from .const import UNSET
 from .entity import Entity
+from .node import Node, NodeType, builtin_node
+from .property import property_
+from .trait import HasName, IsSourceable, IsSpatial
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -32,7 +26,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.EVENT, pretend_frozen=True, is_abstract=True)
 class Event[N: Node = Node](IsSpatial, Node):
     """
-    An Event represents something happening in a Space.
+    An Event is an immutable record of something happening to an Entity.
     """
 
     created_at: datetime = property_(15, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)

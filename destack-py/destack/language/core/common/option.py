@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Union
 
 from ..builtin import (
+    Entity,
     HasIcon,
     HasName,
     IsDeletable,
@@ -11,7 +12,6 @@ from ..builtin import (
     builtin_node,
     property_parent_,
 )
-from .entity import Entity
 
 if TYPE_CHECKING:
     from destack.language import CustomProperty, CustomStructDefinition

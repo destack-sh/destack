@@ -1,16 +1,21 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
+  Entity,
   EnumType,
+  Graph,
   IsOwnable,
   IsOwner,
   IsSpatial,
   IsSubject,
   Node,
+  NodeReference,
   NodeType,
+  QueryConnection,
+  Session,
   StructType,
-} from "@destack/language/core/builtin";
-import { Entity, Vector2i } from "@destack/language/core/common";
+  Supergraph,
+  Vector2i,
+} from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {

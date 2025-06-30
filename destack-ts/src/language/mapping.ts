@@ -54,6 +54,55 @@ import type {
   EdgeType,
   EnumType,
   EnvironmentType,
+  MaterializationType,
+  ModeType,
+  NodePermission,
+  NodeType,
+  OperatingSystem,
+  PlatformType,
+  PrimitiveType,
+  Region,
+  RegionArea,
+  RegionContinent,
+  ResourceStatus,
+  RoleType,
+  RuntimeType,
+  ScalarType,
+  StoreImplementation,
+  StoreType,
+  StoreZone,
+  StructType,
+  Tenancy,
+  ToolType,
+  TraitType,
+  TypeCardinality,
+} from "@destack/language/core/builtin/common";
+import type {
+  CustomEntity,
+  CustomEntityDefinition,
+  CustomTraitDefinition,
+  Entity,
+  Metric,
+  Resource,
+} from "@destack/language/core/builtin/entity";
+import type {
+  CustomEvent,
+  CustomEventDefinition,
+  EditEvent,
+  Event,
+  MeasurementEvent,
+} from "@destack/language/core/builtin/event";
+import type {
+  NodeDefinitionReference,
+  NodeDefinitionType,
+  NodeReference,
+  ObjectDefinitionReference,
+  ObjectDefinitionType,
+  PropertyReference,
+  PropertyReferenceType,
+  Scope,
+} from "@destack/language/core/builtin/relation";
+import type {
   HasIcon,
   HasName,
   HasSlug,
@@ -75,136 +124,102 @@ import type {
   IsSubject,
   IsTaggable,
   JoinablePermission,
-  MaterializationType,
-  ModeType,
-  NodeDefinitionReference,
-  NodeDefinitionType,
-  NodePermission,
-  NodeReference,
-  NodeType,
-  ObjectDefinitionReference,
-  ObjectDefinitionType,
-  OperatingSystem,
-  PlatformType,
-  PrimitiveType,
-  PropertyReference,
-  PropertyReferenceType,
-  Region,
-  RegionArea,
-  RegionContinent,
-  ResourceStatus,
-  RoleType,
-  RuntimeType,
-  ScalarType,
-  Scope,
-  StoreImplementation,
-  StoreType,
-  StoreZone,
-  StructType,
-  Tenancy,
-  ToolType,
-  TraitType,
-  TypeCardinality,
-} from "@destack/language/core/builtin";
+} from "@destack/language/core/builtin/trait";
 import type {
-  Aggregation,
-  AggregationType,
-  Align,
-  Axis2,
-  Axis3,
-  Branch,
   Change,
   ChangeDebounce,
   ChangeResult,
   ChangeStatus,
-  CollectionConstraint,
-  Condition,
-  ConditionalType,
-  ConstantDefinition,
-  Corners,
-  CounterMeasurementEvent,
-  CounterMetric,
-  CustomEntity,
-  CustomEntityDefinition,
-  CustomEnumDefinition,
-  CustomEvent,
-  CustomEventDefinition,
-  CustomOption,
-  CustomProperty,
-  CustomPropertyType,
-  CustomStructDefinition,
-  CustomTraitDefinition,
-  Dimension,
-  DimensionType,
-  Direction,
-  Distribute,
   Edit,
-  EditEvent,
   EditOperation,
   EditType,
-  Entity,
+} from "@destack/language/core/common/edit";
+import type { CustomEnumDefinition } from "@destack/language/core/common/enum";
+import type { Icon, IconType } from "@destack/language/core/common/icon";
+import type {
+  ConstantDefinition,
   EnumDefinition,
-  Event,
+  NodeDefinition,
+  OptionDefinition,
+  PermissionDefinition,
+  PropertyDefinition,
+  StructDefinition,
+  TraitDefinition,
+} from "@destack/language/core/common/meta";
+import type {
+  CounterMeasurementEvent,
+  CounterMetric,
+  GaugeMeasurementEvent,
+  GaugeMetric,
+  HistogramMeasurementEvent,
+  HistogramMetric,
+} from "@destack/language/core/common/metric";
+import type { CustomOption } from "@destack/language/core/common/option";
+import type { CustomProperty, CustomPropertyType } from "@destack/language/core/common/property";
+import type {
+  Aggregation,
+  AggregationType,
+  Condition,
+  ConditionalType,
   Expression,
   ExpressionType,
   Function,
   FunctionType,
-  GaugeMeasurementEvent,
-  GaugeMetric,
-  Grid,
-  GridSpan,
   Histogram,
-  HistogramMeasurementEvent,
-  HistogramMetric,
-  Icon,
-  IconType,
-  Insets,
   Join,
   JoinType,
-  Layout,
-  Length,
-  LengthUnit,
-  MeasurementEvent,
-  Metric,
-  NodeConstraint,
-  NodeDefinition,
-  NumberConstraint,
-  NumberFormat,
-  OptionDefinition,
-  Overflow,
-  PermissionDefinition,
-  Position,
-  PositionType,
-  PropertyDefinition,
   Query,
   QueryResult,
   QueryResultGroup,
   QueryType,
   QueryUpdate,
   QueryUpdateType,
-  Resource,
   Select,
   Selection,
-  Snapshot,
   Sort,
   SortMode,
   SortType,
+} from "@destack/language/core/common/query";
+import type { Branch, Snapshot } from "@destack/language/core/common/spacetime";
+import type { CustomStructDefinition } from "@destack/language/core/common/struct";
+import type { Text, TextSpan, TextSpanType } from "@destack/language/core/common/text";
+import type {
+  CollectionConstraint,
+  NodeConstraint,
+  NumberConstraint,
+  NumberFormat,
   StringConstraint,
   StringFormat,
-  StructDefinition,
-  Text,
-  TextSpan,
-  TextSpanType,
-  TraitDefinition,
   Type,
-  Value,
+} from "@destack/language/core/common/type";
+import type { Value } from "@destack/language/core/common/value";
+import type {
   Vector2,
   Vector2i,
   Vector3,
   Vector3i,
   Vector4,
   Vector4i,
-} from "@destack/language/core/common";
+} from "@destack/language/core/common/vector";
+import type {
+  Align,
+  Axis2,
+  Axis3,
+  Corners,
+  Dimension,
+  DimensionType,
+  Direction,
+  Distribute,
+  Grid,
+  GridSpan,
+  Insets,
+  Layout,
+  Length,
+  LengthUnit,
+  Overflow,
+  Position,
+  PositionType,
+} from "@destack/language/core/common/view";
 import type {
   File,
   FileFormat,
@@ -426,12 +441,12 @@ export type NodeTypeMapping = {
   [NodeType.CUSTOM_TRAIT_DEFINITION]: CustomTraitDefinition;
   [NodeType.RESOURCE]: Resource;
   [NodeType.METRIC]: Metric;
-  [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
   [NodeType.EVENT]: Event;
   [NodeType.CUSTOM_EVENT_DEFINITION]: CustomEventDefinition;
   [NodeType.CUSTOM_EVENT]: CustomEvent;
   [NodeType.EDIT_EVENT]: EditEvent;
   [NodeType.MEASUREMENT_EVENT]: MeasurementEvent;
+  [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
   [NodeType.GAUGE_METRIC]: GaugeMetric;
   [NodeType.GAUGE_MEASUREMENT_EVENT]: GaugeMeasurementEvent;
   [NodeType.COUNTER_METRIC]: CounterMetric;
@@ -636,6 +651,14 @@ export type StructTypeMapping = {
   [StructType.CHANGE]: Change;
   [StructType.CHANGE_RESULT]: ChangeResult;
   [StructType.ICON]: Icon;
+  [StructType.PROPERTY_DEFINITION]: PropertyDefinition;
+  [StructType.TRAIT_DEFINITION]: TraitDefinition;
+  [StructType.NODE_DEFINITION]: NodeDefinition;
+  [StructType.STRUCT_DEFINITION]: StructDefinition;
+  [StructType.ENUM_DEFINITION]: EnumDefinition;
+  [StructType.OPTION_DEFINITION]: OptionDefinition;
+  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
+  [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
   [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
@@ -655,14 +678,6 @@ export type StructTypeMapping = {
   [StructType.QUERY_RESULT_GROUP]: QueryResultGroup;
   [StructType.QUERY_UPDATE]: QueryUpdate;
   [StructType.SELECTION]: Selection;
-  [StructType.PROPERTY_DEFINITION]: PropertyDefinition;
-  [StructType.TRAIT_DEFINITION]: TraitDefinition;
-  [StructType.NODE_DEFINITION]: NodeDefinition;
-  [StructType.STRUCT_DEFINITION]: StructDefinition;
-  [StructType.ENUM_DEFINITION]: EnumDefinition;
-  [StructType.OPTION_DEFINITION]: OptionDefinition;
-  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
-  [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;
   [StructType.VECTOR2]: Vector2;

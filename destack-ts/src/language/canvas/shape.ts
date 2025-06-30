@@ -1,5 +1,3 @@
-import { NodeReference } from "@destack/language/core";
-import { IsSubject, Node, NodeType } from "@destack/language/core/builtin";
 import {
   Align,
   Axis2,
@@ -11,11 +9,15 @@ import {
   Grid,
   GridSpan,
   Insets,
+  IsSubject,
   Layout,
+  Node,
+  NodeReference,
+  NodeType,
   Position,
   Value,
   Vector2,
-} from "@destack/language/core/common";
+} from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
