@@ -12,7 +12,9 @@ import {
   IsSpatial,
   IsSubject,
 } from "@destack/language/core/builtin/trait";
-import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
+import { QueryConnection } from "@destack/language/core/runtime/connection";
+import { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import { Session } from "@destack/language/core/runtime/session";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { BranchProto, SnapshotProto } from "@destack/proto";

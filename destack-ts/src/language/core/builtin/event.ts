@@ -7,7 +7,9 @@ import { HasName, IsSourceable, IsSpatial, IsSubject } from "@destack/language/c
 import { EditOperation, EditType } from "@destack/language/core/common/edit";
 import { CustomProperty } from "@destack/language/core/common/property";
 import { Value } from "@destack/language/core/common/value";
-import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
+import { QueryConnection } from "@destack/language/core/runtime/connection";
+import { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import { Session } from "@destack/language/core/runtime/session";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";

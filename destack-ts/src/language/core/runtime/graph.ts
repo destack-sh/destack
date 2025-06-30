@@ -1,8 +1,16 @@
-import { Session } from "@destack/language/core/runtime/session";
+import {
+  hasTrait,
+  IsOrdered,
+  Node,
+  NodeClass,
+  NodeType,
+  TraitClass,
+  TraitType,
+} from "@destack/language/core/builtin";
+import type { Session } from "@destack/language/core/runtime/session";
 import { NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/lookup";
-import { TraitTypeMapping } from "@destack/language/mapping";
+import type { TraitTypeMapping } from "@destack/language/mapping";
 import { INTEGER_ZERO } from "@destack/utils/fractional";
-import { hasTrait, IsOrdered, Node, NodeClass, NodeType, TraitClass, TraitType } from "../builtin";
 
 /** A Graph is a collection of Nodes. */
 export abstract class Graph {
