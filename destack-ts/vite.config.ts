@@ -8,14 +8,11 @@ const defaultConfig = defineConfig({
   plugins: [
     babel({
       babelConfig: {
+        compact: true,
         plugins: [
+          ["@babel/plugin-transform-typescript", { allowDeclareFields: true }],
           ["@babel/plugin-proposal-decorators", { version: "2023-11" }],
-          ["@babel/plugin-proposal-class-static-block", { loose: true }],
-          ["@babel/plugin-proposal-class-properties", { loose: true }],
         ],
-        parserOpts: {
-          plugins: ["decorators", "classProperties", "classStaticBlock"],
-        },
       },
     }),
   ],

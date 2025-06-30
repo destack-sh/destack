@@ -148,13 +148,27 @@ def finalize():
         if trait_type not in NODE_TYPES_BY_TRAIT_TYPE:
             NODE_TYPES_BY_TRAIT_TYPE[trait_type] = ()
 
-    # index extended_by
+    # index extended_by (direct) / inherited_by (direct and indirect)
     extended_by_by_type: dict[NodeType, list[NodeType]] = defaultdict(list)
     for node_cls in NODE_CLASS_BY_TYPE.values():
         for extended_type in node_cls.__extends__:
             extended_by_by_type[extended_type].append(node_cls.metatype)
     for node_type, extended_by in extended_by_by_type.items():
         NODE_CLASS_BY_TYPE[node_type].__extended_by__ = tuple(extended_by)
+
+    # index inherited_by (recursive)
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        # collect all types that inherit from this node recursively
+        inherited_by = set()
+        to_visit = list(node_cls.__extended_by__)
+        while to_visit:
+            inheriting_type = to_visit.pop()
+            if inheriting_type not in inherited_by:
+                inherited_by.add(inheriting_type)
+                inheriting_cls = NODE_CLASS_BY_TYPE[inheriting_type]
+                to_visit.extend(inheriting_cls.__extended_by__)
+
+        node_cls.__inherited_by__ = tuple(inherited_by)
 
     from destack.language.core.builtin.trait import expand_node_types
 
