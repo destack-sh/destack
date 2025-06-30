@@ -4,13 +4,12 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    Global,
     HasIcon,
     HasName,
     HasSlug,
+    IsGlobal,
     IsJoinable,
     IsOwner,
-    Node,
     NodeReference,
     NodeType,
     RoleType,
@@ -32,16 +31,7 @@ class OrganizationStatus(Enum):
 
 
 @builtin_node(NodeType.ORGANIZATION, root_type=None)
-class Organization(
-    Global,
-    Entity,
-    HasSlug,
-    HasIcon,
-    HasName,
-    IsOwner,
-    IsJoinable,
-    Node,
-):
+class Organization(IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable, Entity):
     """
     An Organization with Users and Teams.
     """

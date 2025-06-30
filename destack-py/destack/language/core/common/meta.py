@@ -25,8 +25,13 @@ from ..builtin import (
     property_runtime_,
     register_constant,
 )
+from ..builtin.relation import (
+    ObjectDefinitionReference,
+    ObjectDefinitionType,
+    PropertyReference,
+    PropertyReferenceType,
+)
 from .query import Condition, ConditionalType, Sort, SortType
-from .relation import ObjectReference, ObjectType, PropertyReference, PropertyReferenceType
 from .type import (
     CollectionConstraint,
     DefaultFactory,
@@ -39,7 +44,7 @@ from .type import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Icon, Node, NodeBase, ObjectReference, Type, Value
+    from destack.language import Icon, Node, NodeBase, ObjectDefinitionReference, Type, Value
 
 
 _type = type
@@ -53,10 +58,10 @@ class PropertyDefinition(StructFrozen):
     name: str = property_(31, is_repr=True)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36, is_repr=True)
-    object: "ObjectReference" = property_(
+    object: "ObjectDefinitionReference" = property_(
         37, description="The object that this property is defined on."
     )
-    original_object: "ObjectReference" = property_(
+    original_object: "ObjectDefinitionReference" = property_(
         38, description="The original object that this property was defined on."
     )
 
@@ -81,6 +86,7 @@ class PropertyDefinition(StructFrozen):
     number_constraint: Optional["NumberConstraint"] = property_(62)
     node_constraint: Optional["NodeConstraint"] = property_(63)
 
+    # relationship
     node_is_customizable: bool = property_(73)
     node_has_type: bool = property_(74)
     node_has_space: bool = property_(75)
@@ -88,6 +94,7 @@ class PropertyDefinition(StructFrozen):
     edge_type: EdgeType | None = property_(77)
     cascade: CascadeAction | None = property_(78)
 
+    # flags
     is_wired: bool = property_(80)
     is_stored: bool = property_(81)
     is_repr: bool = property_(82)
@@ -95,6 +102,8 @@ class PropertyDefinition(StructFrozen):
     is_eq: bool = property_(84)
     is_managed: bool = property_(85)
     is_computed: bool = property_(86)
+    is_readonly: bool = property_(87)
+    is_static: bool = property_(88)
 
     @classmethod
     def from_property(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
@@ -141,29 +150,35 @@ class PropertyDefinition(StructFrozen):
             is_eq=prop.is_eq,
             is_managed=prop.is_managed,
             is_computed=prop.is_computed,
+            is_readonly=prop.is_readonly,
+            is_static=prop.is_static,
         )
 
     def to_ref(self) -> PropertyReference:
-        if self.object.type == ObjectType.BUILTIN_NODE:
+        if self.object.type == ObjectDefinitionType.BUILTIN_NODE:
             return PropertyReference(
                 type=PropertyReferenceType.BUILTIN,
                 node_type=self.object.node_type,
                 id=self.id,
             )
-        elif self.object.type == ObjectType.BUILTIN_STRUCT:
+        elif self.object.type == ObjectDefinitionType.BUILTIN_STRUCT:
             return PropertyReference(
                 type=PropertyReferenceType.BUILTIN,
                 struct_type=self.object.struct_type,
                 id=self.id,
             )
-        elif self.object.type == ObjectType.TRAIT:
+        elif self.object.type == ObjectDefinitionType.BUILTIN_TRAIT:
             return PropertyReference(
                 type=PropertyReferenceType.BUILTIN,
                 trait_type=self.object.trait_type,
                 id=self.id,
             )
-        elif self.object.type == ObjectType.CUSTOM_NODE:
-            raise RuntimeError(f"{self!r} cannot be associated with a custom node")
+        elif (
+            self.object.type == ObjectDefinitionType.CUSTOM_NODE
+            or self.object.type == ObjectDefinitionType.CUSTOM_TRAIT
+            or self.object.type == ObjectDefinitionType.CUSTOM_STRUCT
+        ):
+            raise RuntimeError(f"{self!r} cannot be associated with a custom object")
         else:
             assert_never(self.object.type)
 
@@ -269,7 +284,11 @@ class NodeDefinition(StructFrozen):
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36, is_repr=True)
     is_abstract: bool = property_(37, is_repr=True)
+    is_global: bool = property_(38, is_repr=True)
+    is_spatial: bool = property_(39, is_repr=True)
+
     properties: list["PropertyDefinition"] = property_(40)
+
     base_type: NodeType | None = property_(50, description="The base type this Node extends.")
     extends: list[NodeType] = property_(51, description="Nodes that this Node extends.")
     extended_by: list[NodeType] = property_(52, description="Nodes that extend this Node type.")
@@ -279,6 +298,7 @@ class NodeDefinition(StructFrozen):
     traits: list[TraitType] = property_(
         54, description="Traits directly and indirectly inherited by this Node."
     )
+
     root_type: NodeType | None = property_(60)
     parent_types: list[NodeType] = property_(61)
     child_types: list[NodeType] = property_(62)
@@ -297,6 +317,8 @@ class NodeDefinition(StructFrozen):
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
             is_abstract=node_cls.__is_abstract__,
+            is_global=TraitType.GLOBAL in node_cls.__traits__,
+            is_spatial=TraitType.SPATIAL in node_cls.__traits__,
             properties=[
                 prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
             ],

@@ -9,11 +9,10 @@ from destack.language.core import (
     Event,
     IsDeletable,
     IsJoinable,
+    IsSpatial,
     IsSubject,
-    Node,
     NodeReference,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -26,40 +25,30 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.ENTITLEMENT_REQUESTED_EVENT)
-class EntitlementRequestedEvent(
-    Event["Entitlement"],
-    Node,
-):
+@builtin_node(NodeType.ENTITLEMENT_EVENT, is_abstract=True)
+class EntitlementEvent(Event["Entitlement"]):
     node: "Entitlement" = property_(35)
     target: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.ENTITLEMENT_REQUESTED_EVENT)
+class EntitlementRequestedEvent(EntitlementEvent):
+    pass
 
 
 @builtin_node(NodeType.ENTITLEMENT_GRANTED_EVENT)
-class EntitlementGrantedEvent(
-    Event["Entitlement"],
-    Node,
-):
-    node: "Entitlement" = property_(35)
-    target: "IsSubject" = property_(40)
+class EntitlementGrantedEvent(EntitlementEvent):
+    pass
 
 
 @builtin_node(NodeType.ENTITLEMENT_REVOKED_EVENT)
-class EntitlementRevokedEvent(
-    Event["Entitlement"],
-    Node,
-):
-    node: "Entitlement" = property_(35)
-    target: "IsSubject" = property_(40)
+class EntitlementRevokedEvent(EntitlementEvent):
+    pass
 
 
 @builtin_node(NodeType.ENTITLEMENT_EXPIRED_EVENT)
-class EntitlementExpiredEvent(
-    Event["Entitlement"],
-    Node,
-):
-    node: "Entitlement" = property_(35)
-    target: "IsSubject" = property_(40)
+class EntitlementExpiredEvent(EntitlementEvent):
+    pass
 
 
 @builtin_enum(EnumType.ENTITLEMENT_TYPE)
@@ -71,12 +60,7 @@ class EntitlementType(Enum):
 
 
 @builtin_node(NodeType.ENTITLEMENT)
-class Entitlement(
-    Spatial,
-    Entity,
-    IsDeletable,
-    Node,
-):
+class Entitlement(IsSpatial, IsDeletable, Entity):
     """A Entitlement to some Subject."""
 
     parent: Union["IsSubject", "IsJoinable", None] = property_parent_(node_is_customizable=True)

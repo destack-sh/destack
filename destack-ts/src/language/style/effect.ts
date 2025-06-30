@@ -10,7 +10,7 @@ import {
   IsSubject,
   Node,
   NodeType,
-  Struct,
+  StructFrozen,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
@@ -40,14 +40,14 @@ import { Temporal } from "temporal-polyfill";
 /**
  * An effect value.
  */
-export class Effect extends Struct {
+export class Effect extends StructFrozen {
   static metatype: StructType = StructType.EFFECT;
-  static __isFrozen__: boolean = false;
+  static __isFrozen__: boolean = true;
 
   /**
    * Effect.type
    */
-  type: EffectType;
+  readonly type: EffectType;
 
   /**
    * style
@@ -62,84 +62,77 @@ export class Effect extends Struct {
     }
     return null;
   }
-  set style(value: EffectStyle | null) {
-    if (value == null) {
-      this.stylePtr = null;
-    } else {
-      this.stylePtr = value.toRef();
-    }
-  }
-  stylePtr: NodeReference | null;
+  readonly stylePtr: NodeReference | null;
 
   /**
    * Effect.opacity
    */
-  opacity: number | null;
+  readonly opacity: number | null;
 
   /**
    * Effect.offset
    */
-  offset: Vector2 | null;
+  readonly offset: Vector2 | null;
 
   /**
    * Effect.scale
    */
-  scale: number | null;
+  readonly scale: number | null;
 
   /**
    * Effect.rotate
    */
-  rotate: Axis3 | null;
+  readonly rotate: Axis3 | null;
 
   /**
    * Effect.skew
    */
-  skew: Vector2 | null;
+  readonly skew: Vector2 | null;
 
   /**
    * Effect.perspective
    */
-  perspective: number | null;
+  readonly perspective: number | null;
 
   /**
    * Effect.delay
    */
-  delay: Temporal.Duration | null;
+  readonly delay: Temporal.Duration | null;
 
   /**
    * Effect.duration
    */
-  duration: number | null;
+  readonly duration: number | null;
 
   /**
    * Effect.threshold
    */
-  threshold: number | null;
+  readonly threshold: number | null;
 
   /**
    * Effect.once
    */
-  once: boolean | null;
+  readonly once: boolean | null;
 
   /**
    * Effect.repeat
    */
-  repeat: RepeatType | null;
+  readonly repeat: RepeatType | null;
 
   /**
    * Effect.split
    */
-  split: TextSplitType | null;
+  readonly split: TextSplitType | null;
 
   /**
    * Effect.offscreen
    */
-  offscreen: OffscreenBehavior | null;
+  readonly offscreen: OffscreenBehavior | null;
 
   /**
    * Effect.transition
    */
-  transition: Transition | null;
+  readonly transition: Transition | null;
 
   constructor(options: {
     type: EffectType;
@@ -160,6 +153,10 @@ export class Effect extends Struct {
     transition?: Transition | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -209,7 +206,14 @@ export class Effect extends Struct {
     this.transition = _transition;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -303,57 +307,65 @@ export class Effect extends Struct {
   }
 
   repr(): string {
-    const propertyReprs: string[] = [];
-    propertyReprs.push(`type=${EffectType[this.type]}`);
-    if (this.style !== null) {
-      propertyReprs.push(`style=${this.style.repr()}`);
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${EffectType[this.type]}`);
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style.repr()}`);
+      }
+      if (this.opacity !== null) {
+        propertyReprs.push(`opacity=${this.opacity}`);
+      }
+      if (this.offset !== null) {
+        propertyReprs.push(`offset=${this.offset.repr()}`);
+      }
+      if (this.scale !== null) {
+        propertyReprs.push(`scale=${this.scale}`);
+      }
+      if (this.rotate !== null) {
+        propertyReprs.push(`rotate=${this.rotate.repr()}`);
+      }
+      if (this.skew !== null) {
+        propertyReprs.push(`skew=${this.skew.repr()}`);
+      }
+      if (this.perspective !== null) {
+        propertyReprs.push(`perspective=${this.perspective}`);
+      }
+      if (this.delay !== null) {
+        propertyReprs.push(`delay=${this.delay}`);
+      }
+      if (this.duration !== null) {
+        propertyReprs.push(`duration=${this.duration}`);
+      }
+      if (this.threshold !== null) {
+        propertyReprs.push(`threshold=${this.threshold}`);
+      }
+      if (this.once !== null) {
+        propertyReprs.push(`once=${this.once}`);
+      }
+      if (this.repeat !== null) {
+        propertyReprs.push(`repeat=${RepeatType[this.repeat]}`);
+      }
+      if (this.split !== null) {
+        propertyReprs.push(`split=${TextSplitType[this.split]}`);
+      }
+      if (this.offscreen !== null) {
+        propertyReprs.push(`offscreen=${OffscreenBehavior[this.offscreen]}`);
+      }
+      if (this.transition !== null) {
+        propertyReprs.push(`transition=${this.transition.repr()}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Effect ${propertyReprs.join(" ")}>`;
     }
-    if (this.opacity !== null) {
-      propertyReprs.push(`opacity=${this.opacity}`);
-    }
-    if (this.offset !== null) {
-      propertyReprs.push(`offset=${this.offset.repr()}`);
-    }
-    if (this.scale !== null) {
-      propertyReprs.push(`scale=${this.scale}`);
-    }
-    if (this.rotate !== null) {
-      propertyReprs.push(`rotate=${this.rotate.repr()}`);
-    }
-    if (this.skew !== null) {
-      propertyReprs.push(`skew=${this.skew.repr()}`);
-    }
-    if (this.perspective !== null) {
-      propertyReprs.push(`perspective=${this.perspective}`);
-    }
-    if (this.delay !== null) {
-      propertyReprs.push(`delay=${this.delay}`);
-    }
-    if (this.duration !== null) {
-      propertyReprs.push(`duration=${this.duration}`);
-    }
-    if (this.threshold !== null) {
-      propertyReprs.push(`threshold=${this.threshold}`);
-    }
-    if (this.once !== null) {
-      propertyReprs.push(`once=${this.once}`);
-    }
-    if (this.repeat !== null) {
-      propertyReprs.push(`repeat=${RepeatType[this.repeat]}`);
-    }
-    if (this.split !== null) {
-      propertyReprs.push(`split=${TextSplitType[this.split]}`);
-    }
-    if (this.offscreen !== null) {
-      propertyReprs.push(`offscreen=${OffscreenBehavior[this.offscreen]}`);
-    }
-    if (this.transition !== null) {
-      propertyReprs.push(`transition=${this.transition.repr()}`);
-    }
-    return `<Effect ${propertyReprs.join(" ")}>`;
+    return this._repr;
   }
 
   hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -403,6 +415,8 @@ export class Effect extends Struct {
       h = (h * 31 + this.transition.hash()) & 0xffffffff;
     }
 
+    // @ts-expect-error(readonly)
+    this._hash = h;
     return h;
   }
 
@@ -411,7 +425,11 @@ export class Effect extends Struct {
   }
 
   toValue(): { [key: string]: any } {
-    return Effect.__packValue__(this);
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Effect.__packValue__(this);
+    }
+    return this._value;
   }
 
   static __packValue__(object: Effect): { [key: string]: any } {
@@ -535,6 +553,7 @@ export class Effect extends Struct {
       split: unpackedSplit,
       offscreen: unpackedOffscreen,
       transition: unpackedTransition,
+      _value: objectValue,
       _supergraph,
     });
   }
@@ -550,7 +569,11 @@ export class Effect extends Struct {
   }
 
   toProto(): EffectProto {
-    return Effect.__packProto__(this);
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Effect.__packProto__(this);
+    }
+    return this._proto as EffectProto;
   }
 
   static __packProto__(object: Effect): EffectProto {
@@ -658,6 +681,7 @@ export class Effect extends Struct {
               _connection,
             )
           : null,
+      _proto: objectProto,
       _supergraph,
     });
   }
@@ -753,76 +777,42 @@ export enum OffscreenBehavior {
 registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
 /* ==== DESTACK_GENERATED_END:ENUM:12120 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12090 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12067 ==== */
 /**
  * An effect style.
  */
 export class EffectStyle extends Node implements Style {
   static metatype: NodeType = NodeType.EFFECT_STYLE;
   static __traits__: TraitType[] = [
-    TraitType.STYLE,
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.THEME,
-    NodeType.THREAD_VIEW,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.CANVAS,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.SCENE,
-  ];
+  static __parentTypes__: NodeType[] = [NodeType.THEME, NodeType.VIEW, NodeType.SCENE];
   static __childTypes__: NodeType[] = [NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.SCENE,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
     NodeType.THEME,
+    NodeType.SPACE,
+    NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
+    NodeType.VIEW,
+    NodeType.LAYER,
+    NodeType.CONTAINER_VIEW,
     NodeType.CANVAS,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
   /**
    * Style.parent
    */
-  get parent(): Scene | (Node & View) | Theme | null {
+  get parent(): Scene | View | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
     }
     return null;
   }
@@ -966,7 +956,7 @@ export class EffectStyle extends Node implements Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | (Node & View) | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1357,7 +1347,7 @@ export class EffectStyle extends Node implements Style {
 
   static __packValue__(object: EffectStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12090;
+    objectValue["1"] = 12067;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1543,7 +1533,7 @@ export class EffectStyle extends Node implements Style {
   }
 
   static __packProto__(object: EffectStyle): EffectStyleProto {
-    const objectProto: Partial<EffectStyleProto> = { metatype: 12090 };
+    const objectProto: Partial<EffectStyleProto> = { metatype: 12067 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1728,4 +1718,4 @@ export class EffectStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EFFECT_STYLE, EffectStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12090 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12067 ==== */

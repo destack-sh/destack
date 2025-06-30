@@ -4,7 +4,6 @@ from destack.language.core import (
     Event,
     HasIcon,
     IsOwnable,
-    Node,
     NodeType,
     builtin_node,
     property_,
@@ -19,33 +18,29 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SCENE_ENTERED_EVENT)
-class SceneEnteredEvent(
-    Event["Scene"],
-    Node,
-):
+@builtin_node(NodeType.SCENE_EVENT, is_abstract=True)
+class SceneEvent(Event["Scene"]):
     """A Event regarding a Scene."""
+
+    node: "Scene" = property_(35)
+
+
+@builtin_node(NodeType.SCENE_ENTERED_EVENT)
+class SceneEnteredEvent(SceneEvent):
+    """A Scene was entered."""
 
     node: "Scene" = property_(35)
 
 
 @builtin_node(NodeType.SCENE_EXITED_EVENT)
-class SceneExitedEvent(
-    Event["Scene"],
-    Node,
-):
-    """A Event regarding a Scene."""
+class SceneExitedEvent(SceneEvent):
+    """A Scene was exited."""
 
     node: "Scene" = property_(35)
 
 
 @builtin_node(NodeType.SCENE)
-class Scene(
-    ContainerView,
-    HasIcon,
-    IsOwnable,
-    Node,
-):
+class Scene(HasIcon, IsOwnable, ContainerView):
     """A Scene is a container for a specific interaction point."""
 
     parent: Union["Folder", "Scene", "Window", None] = property_parent_(node_is_customizable=True)

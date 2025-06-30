@@ -2,15 +2,15 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
+  IsSpatial,
   IsSubject,
   Node,
   NodeType,
-  Resource,
   ResourceStatus,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Resource } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { LinkProto, LinkTypeProto, ResourceStatusProto } from "@destack/proto";
@@ -36,14 +36,9 @@ registerEnumClass(EnumType.LINK_TYPE, LinkType);
 /**
  * A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).
  */
-export class Link extends Node implements Spatial, Resource {
+export class Link extends Node implements IsSpatial, Resource {
   static metatype: NodeType = NodeType.LINK;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.RESOURCE,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -51,7 +46,7 @@ export class Link extends Node implements Spatial, Resource {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -107,6 +102,11 @@ export class Link extends Node implements Spatial, Resource {
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
    * Link.type
@@ -196,6 +196,7 @@ export class Link extends Node implements Spatial, Resource {
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
     type: LinkType;
     status?: ResourceStatus;
     targetStatus?: Temporal.ZonedDateTime | null;
@@ -251,6 +252,8 @@ export class Link extends Node implements Spatial, Resource {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Link.type is required`);
@@ -445,6 +448,9 @@ export class Link extends Node implements Spatial, Resource {
     if (this.targetStatus !== null) {
       h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -521,6 +527,9 @@ export class Link extends Node implements Spatial, Resource {
     objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt != null) {
+      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["30"] = object.type;
     objectValue["40"] = object.status;
@@ -633,6 +642,11 @@ export class Link extends Node implements Spatial, Resource {
       targetStatusValue != undefined
         ? Temporal.Instant.from(targetStatusValue).toZonedDateTimeISO("UTC")
         : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -663,6 +677,7 @@ export class Link extends Node implements Spatial, Resource {
       id: String(objectValue["2"]),
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
+      deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
@@ -703,6 +718,9 @@ export class Link extends Node implements Spatial, Resource {
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.type = Number(object.type) as LinkTypeProto;
     objectProto.status = Number(object.status) as ResourceStatusProto;
@@ -815,6 +833,8 @@ export class Link extends Node implements Spatial, Resource {
         objectProto.targetStatus != undefined
           ? unpackProtoTimestamp(objectProto.targetStatus!)
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

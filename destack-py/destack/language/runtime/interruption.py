@@ -2,12 +2,11 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
+    Entity,
     Enum,
     EnumType,
-    Event,
-    IsExtensible,
     IsRunnable,
-    Node,
+    IsSpatial,
     NodeReference,
     NodeType,
     builtin_enum,
@@ -17,7 +16,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Message, Run, Span
+    from destack.language import Message, Run, SpanEvent
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -52,18 +51,14 @@ class InterruptionResponse(Enum):
 
 
 @builtin_node(NodeType.INTERRUPTION)
-class Interruption(
-    Event,
-    IsExtensible,
-    Node,
-):
+class Interruption(IsSpatial, Entity):
     """An Interruption in run of something."""
 
     # meta
     parent: Optional["Run"] = property_parent_(node_is_customizable=False)
     type: InterruptionType = property_(30)
     runnable: Optional["IsRunnable"] = property_(32)
-    span: Optional["Span"] = property_(37)
+    span: Optional["SpanEvent"] = property_(37)
     if TYPE_CHECKING:
         runnable_ptr: Optional[NodeReference] = None
         span_ptr: Optional[NodeReference] = None

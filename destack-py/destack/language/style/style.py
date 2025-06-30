@@ -5,9 +5,9 @@ from destack.language.core import (
     HasName,
     IsDeletable,
     IsOrdered,
+    IsSpatial,
     IsTaggable,
     NodeType,
-    Spatial,
     builtin_node,
     property_parent_,
 )
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.STYLE)
 class Style(
-    Spatial,
+    IsSpatial,
     Entity,
     HasName,
     IsOrdered,

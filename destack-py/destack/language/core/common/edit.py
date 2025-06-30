@@ -18,7 +18,7 @@ from ..builtin import (
     builtin_struct,
     property_,
 )
-from .relation import NodeReference, PropertyReference
+from ..builtin.relation import NodeReference, PropertyReference
 
 if TYPE_CHECKING:
     from destack.language import CustomProperty, IsSubject, Origin, Value

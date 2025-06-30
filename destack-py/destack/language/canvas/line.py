@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Node,
     NodeType,
     StructFrozen,
     StructType,
@@ -12,7 +11,6 @@ from destack.language.core import (
 )
 from destack.proto import LineProto
 
-from ..view import ContentView
 from .shape import Shape
 
 if TYPE_CHECKING:
@@ -30,7 +28,7 @@ class Line(StructFrozen[LineProto]):
 
 
 @builtin_node(NodeType.LINE_SHAPE, pretend_frozen=True)
-class LineShape(ContentView, Shape, Node):
+class LineShape(Shape):
     """A LineShape is a shape that represents a line."""
 
     points: list[Vector2] = property_(100)

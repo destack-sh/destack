@@ -6,9 +6,8 @@ from destack.language.core import (
     Enum,
     EnumType,
     IsOwnable,
-    Node,
+    IsSpatial,
     NodeType,
-    Spatial,
     Vector2i,
     builtin_enum,
     builtin_node,
@@ -44,7 +43,7 @@ class CursorStatus(Enum):
 
 
 @builtin_node(NodeType.CURSOR, is_abstract=True)
-class Cursor(Spatial, IsOwnable, Entity, Node):
+class Cursor(IsSpatial, IsOwnable, Entity):
     """A Node that is a Cursor."""
 
     status: CursorStatus = property_(40, default=CursorStatus.CREATED, is_repr=True)

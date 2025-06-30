@@ -4,19 +4,18 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    Global,
     HasIcon,
     HasName,
     HasSlug,
     IsFollowable,
+    IsGlobal,
     IsJoinable,
     IsOwnable,
+    IsSpatial,
     IsStarable,
-    Node,
     NodeType,
     Region,
     RoleType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -40,8 +39,7 @@ class SpaceStatus(Enum):
 
 @builtin_node(NodeType.SPACE, root_type=None)
 class Space(
-    Global,
-    Entity,
+    IsGlobal,
     HasName,
     HasSlug,
     HasIcon,
@@ -49,8 +47,8 @@ class Space(
     IsJoinable,
     IsOwnable,
     IsStarable,
-    Spatial,
-    Node,
+    IsSpatial,
+    Entity,
 ):
     """
     A Space is the home of your personal software studio.

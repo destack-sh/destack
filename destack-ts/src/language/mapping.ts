@@ -1,5 +1,6 @@
 import type {
   Entitlement,
+  EntitlementEvent,
   EntitlementExpiredEvent,
   EntitlementGrantedEvent,
   EntitlementRequestedEvent,
@@ -7,10 +8,12 @@ import type {
   EntitlementType,
   Invite,
   InviteAcceptedEvent,
+  InviteEvent,
   InviteRejectedEvent,
   InviteRescindedEvent,
   InviteSentEvent,
   Membership,
+  MembershipEvent,
   MembershipJoinedEvent,
   MembershipLeftEvent,
   MembershipPermission,
@@ -18,8 +21,10 @@ import type {
   PermissionType,
   Role,
   RoleAssignedEvent,
+  RoleEvent,
   RoleUnassignedEvent,
   Sanction,
+  SanctionEvent,
   SanctionExpiredEvent,
   SanctionGrantedEvent,
   SanctionRequestedEvent,
@@ -32,13 +37,14 @@ import type {
   ArrowShape,
   Canvas,
   CanvasType,
-  IsShape,
   Line,
   LineShape,
   Polygon,
   PolygonShape,
   PolygonShapeType,
+  Shape,
 } from "@destack/language/canvas";
+import type { Node } from "@destack/language/core";
 import type {
   CascadeAction,
   ClientType,
@@ -46,21 +52,17 @@ import type {
   DefaultFactory,
   EdgeDirection,
   EdgeType,
-  Entity,
   EnumType,
   EnvironmentType,
-  Event,
-  Global,
   HasIcon,
   HasName,
   HasSlug,
   IsActionable,
   IsArchivable,
-  IsCustomNode,
-  IsCustomNodeDefinition,
   IsDeletable,
   IsExtensible,
   IsFollowable,
+  IsGlobal,
   IsJoinable,
   IsOrdered,
   IsOwnable,
@@ -68,36 +70,35 @@ import type {
   IsReactable,
   IsRunnable,
   IsScriptable,
-  IsSettings,
   IsSourceable,
+  IsSpatial,
   IsStarable,
   IsSubject,
   IsTaggable,
   IsTracked,
-  IsVisual,
   JoinablePermission,
-  LikeFollow,
-  LikeInvite,
-  LikeMembership,
-  LikeTag,
   MaterializationType,
-  Measurement,
-  Metric,
   ModeType,
+  NodeDefinitionReference,
   NodePermission,
+  NodeReference,
   NodeType,
+  ObjectDefinitionReference,
+  ObjectDefinitionType,
   OperatingSystem,
   PlatformType,
   PrimitiveType,
+  PropertyReference,
+  PropertyReferenceType,
   Region,
   RegionArea,
   RegionContinent,
-  Resource,
+  RelationType,
   ResourceStatus,
   RoleType,
   RuntimeType,
   ScalarType,
-  Spatial,
+  Scope,
   StoreImplementation,
   StoreType,
   StoreZone,
@@ -123,7 +124,7 @@ import type {
   ConditionalType,
   ConstantDefinition,
   Corners,
-  CounterMeasurement,
+  CounterMeasurementEvent,
   CounterMetric,
   CustomEntity,
   CustomEntityDefinition,
@@ -134,6 +135,7 @@ import type {
   CustomProperty,
   CustomPropertyType,
   CustomStructDefinition,
+  CustomTraitDefinition,
   Dimension,
   DimensionType,
   Direction,
@@ -142,17 +144,19 @@ import type {
   EditEvent,
   EditOperation,
   EditType,
+  Entity,
   EnumDefinition,
+  Event,
   Expression,
   ExpressionType,
   Function,
   FunctionType,
-  GaugeMeasurement,
+  GaugeMeasurementEvent,
   GaugeMetric,
   Grid,
   GridSpan,
   Histogram,
-  HistogramMeasurement,
+  HistogramMeasurementEvent,
   HistogramMetric,
   Icon,
   IconType,
@@ -162,30 +166,25 @@ import type {
   Layout,
   Length,
   LengthUnit,
+  MeasurementEvent,
+  Metric,
   NodeConstraint,
   NodeDefinition,
-  NodeReference,
   NumberConstraint,
   NumberFormat,
-  ObjectReference,
-  ObjectType,
   OptionDefinition,
   Overflow,
   PermissionDefinition,
   Position,
   PositionType,
   PropertyDefinition,
-  PropertyReference,
-  PropertyReferenceType,
   Query,
   QueryResult,
   QueryResultGroup,
   QueryType,
   QueryUpdate,
   QueryUpdateType,
-  RelationReference,
-  RelationType,
-  Scope,
+  Resource,
   Select,
   Selection,
   Snapshot,
@@ -281,12 +280,13 @@ import type {
   Service,
   ThreadCursor,
   Timer,
+  TimerCancelledEvent,
+  TimerCompletedEvent,
+  TimerEvent,
   TimerStartedEvent,
-  TimerStoppedEvent,
   TimerType,
   Trigger,
-  TriggerStartedEvent,
-  TriggerStoppedEvent,
+  TriggerEvent,
   TriggerType,
 } from "@destack/language/logic";
 import type {
@@ -294,10 +294,11 @@ import type {
   InterruptionResponse,
   InterruptionStatus,
   InterruptionType,
-  Log,
+  LogEvent,
   LogLevel,
   Run,
   RunCompletedEvent,
+  RunEvent,
   RunFailedEvent,
   RunPauseRequestedEvent,
   RunPausedEvent,
@@ -306,13 +307,14 @@ import type {
   RunStartedEvent,
   RunStatus,
   RunStopRequestedEvent,
-  Span,
+  SpanEvent,
 } from "@destack/language/runtime";
 import type {
   Layer,
   LayerType,
   Scene,
   SceneEnteredEvent,
+  SceneEvent,
   SceneExitedEvent,
   Variant,
   VariantStateType,
@@ -325,6 +327,7 @@ import type {
   Message,
   Notification,
   NotificationDismissedEvent,
+  NotificationEvent,
   NotificationExpiredEvent,
   NotificationReadEvent,
   NotificationRescindedEvent,
@@ -341,6 +344,7 @@ import type {
   Friendship,
   FriendshipInvite,
   FriendshipInviteAcceptedEvent,
+  FriendshipInviteEvent,
   FriendshipInviteRejectedEvent,
   FriendshipInviteRescindedEvent,
   FriendshipInviteSentEvent,
@@ -409,67 +413,78 @@ import type {
 import type { View } from "@destack/language/view";
 import type {
   ContainerView,
-  CustomView,
-  CustomViewDefinition,
   FrameView,
   LabelView,
   SplitView,
 } from "@destack/language/view/container";
 import type { ContentView, TextView } from "@destack/language/view/content";
 import type { InputView, NumberInputView, SliderInputView } from "@destack/language/view/input";
-import type { InternalView, WizardView } from "@destack/language/view/internal";
-import type { NodeView, ThreadView } from "@destack/language/view/node";
+import type { InternalView } from "@destack/language/view/internal";
 
 export type NodeTypeMapping = {
+  [NodeType.NODE]: Node;
+  [NodeType.ENTITY]: Entity;
   [NodeType.CUSTOM_ENTITY_DEFINITION]: CustomEntityDefinition;
   [NodeType.CUSTOM_ENTITY]: CustomEntity;
+  [NodeType.CUSTOM_TRAIT_DEFINITION]: CustomTraitDefinition;
+  [NodeType.RESOURCE]: Resource;
+  [NodeType.METRIC]: Metric;
   [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
-  [NodeType.EDIT_EVENT]: EditEvent;
+  [NodeType.EVENT]: Event;
   [NodeType.CUSTOM_EVENT_DEFINITION]: CustomEventDefinition;
   [NodeType.CUSTOM_EVENT]: CustomEvent;
+  [NodeType.EDIT_EVENT]: EditEvent;
+  [NodeType.MEASUREMENT_EVENT]: MeasurementEvent;
   [NodeType.GAUGE_METRIC]: GaugeMetric;
-  [NodeType.GAUGE_MEASUREMENT]: GaugeMeasurement;
+  [NodeType.GAUGE_MEASUREMENT_EVENT]: GaugeMeasurementEvent;
   [NodeType.COUNTER_METRIC]: CounterMetric;
-  [NodeType.COUNTER_MEASUREMENT]: CounterMeasurement;
+  [NodeType.COUNTER_MEASUREMENT_EVENT]: CounterMeasurementEvent;
   [NodeType.HISTOGRAM_METRIC]: HistogramMetric;
-  [NodeType.HISTOGRAM_MEASUREMENT]: HistogramMeasurement;
+  [NodeType.HISTOGRAM_MEASUREMENT_EVENT]: HistogramMeasurementEvent;
   [NodeType.CUSTOM_OPTION]: CustomOption;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
   [NodeType.SNAPSHOT]: Snapshot;
   [NodeType.BRANCH]: Branch;
   [NodeType.CUSTOM_STRUCT_DEFINITION]: CustomStructDefinition;
+  [NodeType.ENTITLEMENT_EVENT]: EntitlementEvent;
   [NodeType.ENTITLEMENT_REQUESTED_EVENT]: EntitlementRequestedEvent;
   [NodeType.ENTITLEMENT_GRANTED_EVENT]: EntitlementGrantedEvent;
   [NodeType.ENTITLEMENT_REVOKED_EVENT]: EntitlementRevokedEvent;
   [NodeType.ENTITLEMENT_EXPIRED_EVENT]: EntitlementExpiredEvent;
   [NodeType.ENTITLEMENT]: Entitlement;
+  [NodeType.INVITE_EVENT]: InviteEvent;
   [NodeType.INVITE_SENT_EVENT]: InviteSentEvent;
   [NodeType.INVITE_RESCINDED_EVENT]: InviteRescindedEvent;
   [NodeType.INVITE_ACCEPTED_EVENT]: InviteAcceptedEvent;
   [NodeType.INVITE_REJECTED_EVENT]: InviteRejectedEvent;
   [NodeType.INVITE]: Invite;
+  [NodeType.MEMBERSHIP_EVENT]: MembershipEvent;
   [NodeType.MEMBERSHIP_JOINED_EVENT]: MembershipJoinedEvent;
   [NodeType.MEMBERSHIP_LEFT_EVENT]: MembershipLeftEvent;
   [NodeType.MEMBERSHIP]: Membership;
   [NodeType.PERMISSION]: Permission;
+  [NodeType.ROLE_EVENT]: RoleEvent;
   [NodeType.ROLE_ASSIGNED_EVENT]: RoleAssignedEvent;
   [NodeType.ROLE_UNASSIGNED_EVENT]: RoleUnassignedEvent;
   [NodeType.ROLE]: Role;
+  [NodeType.SANCTION_EVENT]: SanctionEvent;
   [NodeType.SANCTION_REQUESTED_EVENT]: SanctionRequestedEvent;
   [NodeType.SANCTION_GRANTED_EVENT]: SanctionGrantedEvent;
   [NodeType.SANCTION_REVOKED_EVENT]: SanctionRevokedEvent;
   [NodeType.SANCTION_EXPIRED_EVENT]: SanctionExpiredEvent;
   [NodeType.SANCTION]: Sanction;
-  [NodeType.CUSTOM_VIEW_DEFINITION]: CustomViewDefinition;
-  [NodeType.CUSTOM_VIEW]: CustomView;
+  [NodeType.VIEW]: View;
+  [NodeType.CONTAINER_VIEW]: ContainerView;
   [NodeType.FRAME_VIEW]: FrameView;
   [NodeType.LABEL_VIEW]: LabelView;
   [NodeType.SPLIT_VIEW]: SplitView;
+  [NodeType.CONTENT_VIEW]: ContentView;
   [NodeType.TEXT_VIEW]: TextView;
+  [NodeType.INPUT_VIEW]: InputView;
   [NodeType.NUMBER_INPUT_VIEW]: NumberInputView;
   [NodeType.SLIDER_INPUT_VIEW]: SliderInputView;
-  [NodeType.WIZARD_VIEW]: WizardView;
-  [NodeType.THREAD_VIEW]: ThreadView;
+  [NodeType.INTERNAL_VIEW]: InternalView;
+  [NodeType.SHAPE]: Shape;
   [NodeType.ANNOTATION_SHAPE]: AnnotationShape;
   [NodeType.ARROW_SHAPE]: ArrowShape;
   [NodeType.CANVAS]: Canvas;
@@ -483,6 +498,8 @@ export type NodeTypeMapping = {
   [NodeType.TAGGING]: Tagging;
   [NodeType.DATABASE]: Database;
   [NodeType.MACHINE]: Machine;
+  [NodeType.INPUT_EVENT]: InputEvent;
+  [NodeType.POINTER_EVENT]: PointerEvent;
   [NodeType.POINTER_DOWN_EVENT]: PointerDownEvent;
   [NodeType.POINTER_UP_EVENT]: PointerUpEvent;
   [NodeType.POINTER_MOVE_EVENT]: PointerMoveEvent;
@@ -490,40 +507,49 @@ export type NodeTypeMapping = {
   [NodeType.POINTER_OVER_EVENT]: PointerOverEvent;
   [NodeType.POINTER_LEAVE_EVENT]: PointerLeaveEvent;
   [NodeType.LONG_PRESS_EVENT]: LongPressEvent;
+  [NodeType.MOUSE_EVENT]: MouseEvent;
+  [NodeType.CLICK_EVENT]: ClickEvent;
   [NodeType.LEFT_CLICK_EVENT]: LeftClickEvent;
   [NodeType.RIGHT_CLICK_EVENT]: RightClickEvent;
   [NodeType.MIDDLE_CLICK_EVENT]: MiddleClickEvent;
   [NodeType.DOUBLE_CLICK_EVENT]: DoubleClickEvent;
   [NodeType.WHEEL_EVENT]: WheelEvent;
+  [NodeType.KEYBOARD_EVENT]: KeyboardEvent;
   [NodeType.KEY_DOWN_EVENT]: KeyDownEvent;
   [NodeType.KEY_UP_EVENT]: KeyUpEvent;
   [NodeType.KEY_PRESS_EVENT]: KeyPressEvent;
+  [NodeType.DRAG_EVENT]: DragEvent;
   [NodeType.DRAG_START_EVENT]: DragStartEvent;
   [NodeType.DRAG_END_EVENT]: DragEndEvent;
   [NodeType.DRAG_OVER_EVENT]: DragOverEvent;
   [NodeType.DRAG_ENTER_EVENT]: DragEnterEvent;
   [NodeType.DRAG_LEAVE_EVENT]: DragLeaveEvent;
   [NodeType.DROP_EVENT]: DropEvent;
+  [NodeType.CLIPBOARD_EVENT]: ClipboardEvent;
   [NodeType.COPY_EVENT]: CopyEvent;
   [NodeType.CUT_EVENT]: CutEvent;
   [NodeType.PASTE_EVENT]: PasteEvent;
+  [NodeType.FOCUS_EVENT]: FocusEvent;
   [NodeType.FOCUS_IN_EVENT]: FocusInEvent;
   [NodeType.FOCUS_OUT_EVENT]: FocusOutEvent;
   [NodeType.ACTION]: Action;
+  [NodeType.CURSOR]: Cursor;
   [NodeType.EVENT_CURSOR]: EventCursor;
   [NodeType.SCREEN_CURSOR]: ScreenCursor;
   [NodeType.THREAD_CURSOR]: ThreadCursor;
   [NodeType.ROUTE]: Route;
   [NodeType.SCRIPT]: Script;
   [NodeType.SERVICE]: Service;
+  [NodeType.TIMER_EVENT]: TimerEvent;
   [NodeType.TIMER_STARTED_EVENT]: TimerStartedEvent;
-  [NodeType.TIMER_STOPPED_EVENT]: TimerStoppedEvent;
+  [NodeType.TIMER_COMPLETED_EVENT]: TimerCompletedEvent;
+  [NodeType.TIMER_CANCELLED_EVENT]: TimerCancelledEvent;
   [NodeType.TIMER]: Timer;
-  [NodeType.TRIGGER_STARTED_EVENT]: TriggerStartedEvent;
-  [NodeType.TRIGGER_STOPPED_EVENT]: TriggerStoppedEvent;
+  [NodeType.TRIGGER_EVENT]: TriggerEvent;
   [NodeType.TRIGGER]: Trigger;
   [NodeType.INTERRUPTION]: Interruption;
-  [NodeType.LOG]: Log;
+  [NodeType.LOG_EVENT]: LogEvent;
+  [NodeType.RUN_EVENT]: RunEvent;
   [NodeType.RUN_STARTED_EVENT]: RunStartedEvent;
   [NodeType.RUN_PAUSE_REQUESTED_EVENT]: RunPauseRequestedEvent;
   [NodeType.RUN_PAUSED_EVENT]: RunPausedEvent;
@@ -533,8 +559,9 @@ export type NodeTypeMapping = {
   [NodeType.RUN_FAILED_EVENT]: RunFailedEvent;
   [NodeType.RUN_COMPLETED_EVENT]: RunCompletedEvent;
   [NodeType.RUN]: Run;
-  [NodeType.SPAN]: Span;
+  [NodeType.SPAN_EVENT]: SpanEvent;
   [NodeType.LAYER]: Layer;
+  [NodeType.SCENE_EVENT]: SceneEvent;
   [NodeType.SCENE_ENTERED_EVENT]: SceneEnteredEvent;
   [NodeType.SCENE_EXITED_EVENT]: SceneExitedEvent;
   [NodeType.SCENE]: Scene;
@@ -542,6 +569,7 @@ export type NodeTypeMapping = {
   [NodeType.WINDOW]: Window;
   [NodeType.FOLLOW]: Follow;
   [NodeType.MESSAGE]: Message;
+  [NodeType.NOTIFICATION_EVENT]: NotificationEvent;
   [NodeType.NOTIFICATION_SENT_EVENT]: NotificationSentEvent;
   [NodeType.NOTIFICATION_RESCINDED_EVENT]: NotificationRescindedEvent;
   [NodeType.NOTIFICATION_READ_EVENT]: NotificationReadEvent;
@@ -554,6 +582,7 @@ export type NodeTypeMapping = {
   [NodeType.AGENT]: Agent;
   [NodeType.CLIENT]: Client;
   [NodeType.FRIENDSHIP]: Friendship;
+  [NodeType.FRIENDSHIP_INVITE_EVENT]: FriendshipInviteEvent;
   [NodeType.FRIENDSHIP_INVITE_SENT_EVENT]: FriendshipInviteSentEvent;
   [NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT]: FriendshipInviteRescindedEvent;
   [NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT]: FriendshipInviteAcceptedEvent;
@@ -564,6 +593,7 @@ export type NodeTypeMapping = {
   [NodeType.SPACE]: Space;
   [NodeType.TEAM]: Team;
   [NodeType.USER]: User;
+  [NodeType.STYLE]: Style;
   [NodeType.COLOR_STYLE]: ColorStyle;
   [NodeType.BORDER_STYLE]: BorderStyle;
   [NodeType.TRANSITION_STYLE]: TransitionStyle;
@@ -582,11 +612,8 @@ export type TraitTypeMapping = {
   [TraitType.HAS_SLUG]: HasSlug;
   [TraitType.HAS_ICON]: HasIcon;
   [TraitType.TRACKED]: IsTracked;
-  [TraitType.VISUAL]: IsVisual;
   [TraitType.ARCHIVABLE]: IsArchivable;
   [TraitType.DELETABLE]: IsDeletable;
-  [TraitType.CUSTOM_NODE_DEFINITION]: IsCustomNodeDefinition;
-  [TraitType.CUSTOM_NODE]: IsCustomNode;
   [TraitType.EXTENSIBLE]: IsExtensible;
   [TraitType.ORDERED]: IsOrdered;
   [TraitType.REACTABLE]: IsReactable;
@@ -597,45 +624,18 @@ export type TraitTypeMapping = {
   [TraitType.RUNNABLE]: IsRunnable;
   [TraitType.ACTIONABLE]: IsActionable;
   [TraitType.OWNABLE]: IsOwnable;
-  [TraitType.SETTINGS]: IsSettings;
   [TraitType.JOINABLE]: IsJoinable;
   [TraitType.SUBJECT]: IsSubject;
   [TraitType.OWNER]: IsOwner;
   [TraitType.TAGGABLE]: IsTaggable;
-  [TraitType.MEMBERSHIP]: LikeMembership;
-  [TraitType.INVITE]: LikeInvite;
-  [TraitType.TAG]: LikeTag;
-  [TraitType.FOLLOW]: LikeFollow;
-  [TraitType.GLOBAL]: Global;
-  [TraitType.SPATIAL]: Spatial;
-  [TraitType.ENTITY]: Entity;
-  [TraitType.EVENT]: Event;
-  [TraitType.RESOURCE]: Resource;
-  [TraitType.METRIC]: Metric;
-  [TraitType.MEASUREMENT]: Measurement;
-  [TraitType.VIEW]: View;
-  [TraitType.CONTAINER_VIEW]: ContainerView;
-  [TraitType.CONTENT_VIEW]: ContentView;
-  [TraitType.INPUT_VIEW]: InputView;
-  [TraitType.INTERNAL_VIEW]: InternalView;
-  [TraitType.NODE_VIEW]: NodeView;
-  [TraitType.SHAPE]: IsShape;
-  [TraitType.INPUT_EVENT]: InputEvent;
-  [TraitType.POINTER_EVENT]: PointerEvent;
-  [TraitType.MOUSE_EVENT]: MouseEvent;
-  [TraitType.CLICK_EVENT]: ClickEvent;
-  [TraitType.KEYBOARD_EVENT]: KeyboardEvent;
-  [TraitType.DRAG_EVENT]: DragEvent;
-  [TraitType.CLIPBOARD_EVENT]: ClipboardEvent;
-  [TraitType.FOCUS_EVENT]: FocusEvent;
-  [TraitType.CURSOR]: Cursor;
-  [TraitType.STYLE]: Style;
+  [TraitType.GLOBAL]: IsGlobal;
+  [TraitType.SPATIAL]: IsSpatial;
 };
 
 export type StructTypeMapping = {
   [StructType.SCOPE]: Scope;
-  [StructType.RELATION_REFERENCE]: RelationReference;
-  [StructType.OBJECT_REFERENCE]: ObjectReference;
+  [StructType.NODE_DEFINITION_REFERENCE]: NodeDefinitionReference;
+  [StructType.OBJECT_DEFINITION_REFERENCE]: ObjectDefinitionReference;
   [StructType.PROPERTY_REFERENCE]: PropertyReference;
   [StructType.NODE_REFERENCE]: NodeReference;
   [StructType.EDIT]: Edit;
@@ -740,7 +740,7 @@ export type EnumTypeMapping = {
   [EnumType.TENANCY]: Tenancy;
   [EnumType.JOINABLE_PERMISSION]: JoinablePermission;
   [EnumType.RELATION_TYPE]: RelationType;
-  [EnumType.OBJECT_TYPE]: ObjectType;
+  [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;

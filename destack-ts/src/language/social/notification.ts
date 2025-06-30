@@ -1,23 +1,22 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
-  Event,
   IsOwnable,
   IsOwner,
+  IsSpatial,
   IsSubject,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Text } from "@destack/language/core/common";
+import { Entity, Event, Text } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   NotificationDismissedEventProto,
+  NotificationEventProto,
   NotificationExpiredEventProto,
   NotificationProto,
   NotificationReadEventProto,
@@ -51,14 +50,9 @@ registerEnumClass(EnumType.NOTIFICATION_STATUS, NotificationStatus);
 /**
  * A Notification is a message about something.
  */
-export class Notification extends Node implements Spatial, Entity, IsOwnable {
+export class Notification extends Node implements IsSpatial, IsOwnable, Entity {
   static metatype: NodeType = NodeType.NOTIFICATION;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.OWNABLE,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.OWNABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -66,7 +60,7 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -296,6 +290,9 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -303,9 +300,6 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -409,6 +403,11 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const ownedByPtrValue = objectValue["25"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -419,11 +418,6 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const ownedByPtrValue = objectValue["25"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Notification({
       status: Number(objectValue["40"]),
       title: objectValue["50"],
@@ -431,11 +425,11 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      ownedBy: unpackedOwnedByPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      ownedBy: unpackedOwnedByPtr,
       _session,
       _graph,
       _connection,
@@ -519,6 +513,16 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
             )
           : null,
       id: String(objectProto.id),
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -535,16 +539,6 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(
               objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -582,11 +576,11 @@ registerNodeClass(NodeType.NOTIFICATION, Notification);
 
 /* ==== DESTACK_GENERATED_START:NODE:5610 ==== */
 /**
- * A Event regarding a Notification.
+ * A Notification was sent.
  */
-export class NotificationSentEvent extends Node implements Event {
+export class NotificationSentEvent extends Node implements NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_SENT_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -594,7 +588,7 @@ export class NotificationSentEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -618,7 +612,7 @@ export class NotificationSentEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * NotificationSentEvent.node
+   * NotificationEvent.node
    */
   get node(): Notification | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -930,11 +924,11 @@ registerNodeClass(NodeType.NOTIFICATION_SENT_EVENT, NotificationSentEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:5620 ==== */
 /**
- * A Event regarding a Notification.
+ * A Notification was rescinded.
  */
-export class NotificationRescindedEvent extends Node implements Event {
+export class NotificationRescindedEvent extends Node implements NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_RESCINDED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -942,7 +936,7 @@ export class NotificationRescindedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -966,7 +960,7 @@ export class NotificationRescindedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * NotificationRescindedEvent.node
+   * NotificationEvent.node
    */
   get node(): Notification | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1278,11 +1272,11 @@ registerNodeClass(NodeType.NOTIFICATION_RESCINDED_EVENT, NotificationRescindedEv
 
 /* ==== DESTACK_GENERATED_START:NODE:5630 ==== */
 /**
- * A Event regarding a Notification.
+ * A Notification was read.
  */
-export class NotificationReadEvent extends Node implements Event {
+export class NotificationReadEvent extends Node implements NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_READ_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1290,7 +1284,7 @@ export class NotificationReadEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1314,7 +1308,7 @@ export class NotificationReadEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * NotificationReadEvent.node
+   * NotificationEvent.node
    */
   get node(): Notification | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1626,11 +1620,11 @@ registerNodeClass(NodeType.NOTIFICATION_READ_EVENT, NotificationReadEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:5640 ==== */
 /**
- * A Event regarding a Notification.
+ * A Notification was dismissed.
  */
-export class NotificationDismissedEvent extends Node implements Event {
+export class NotificationDismissedEvent extends Node implements NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_DISMISSED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1638,7 +1632,7 @@ export class NotificationDismissedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1662,7 +1656,7 @@ export class NotificationDismissedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * NotificationDismissedEvent.node
+   * NotificationEvent.node
    */
   get node(): Notification | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1974,11 +1968,11 @@ registerNodeClass(NodeType.NOTIFICATION_DISMISSED_EVENT, NotificationDismissedEv
 
 /* ==== DESTACK_GENERATED_START:NODE:5650 ==== */
 /**
- * A Event regarding a Notification.
+ * A Notification was expired.
  */
-export class NotificationExpiredEvent extends Node implements Event {
+export class NotificationExpiredEvent extends Node implements NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_EXPIRED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1986,7 +1980,7 @@ export class NotificationExpiredEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -2010,7 +2004,7 @@ export class NotificationExpiredEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * NotificationExpiredEvent.node
+   * NotificationEvent.node
    */
   get node(): Notification | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -2319,3 +2313,351 @@ export class NotificationExpiredEvent extends Node implements Event {
 }
 registerNodeClass(NodeType.NOTIFICATION_EXPIRED_EVENT, NotificationExpiredEvent);
 /* ==== DESTACK_GENERATED_END:NODE:5650 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:5601 ==== */
+/**
+ * A Event regarding a Notification.
+ */
+export class NotificationEvent extends Node implements Event {
+  static metatype: NodeType = NodeType.NOTIFICATION_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * NotificationEvent.node
+   */
+  get node(): Notification | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Notification | null;
+    }
+    return null;
+  }
+  set node(node: Notification) {
+    this.nodePtr = node.toRef();
+  }
+  nodePtr: NodeReference;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    node: Notification | NodeReference;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`NotificationEvent.node is required`);
+    }
+    this.nodePtr = _node;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.NOTIFICATION_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "NotificationEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<NotificationEvent '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return NotificationEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: NotificationEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 5601;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["35"] = object.nodePtr.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NotificationEvent {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new NotificationEvent({
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NotificationEvent {
+    return NotificationEvent.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): NotificationEventProto {
+    return NotificationEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: NotificationEvent): NotificationEventProto {
+    const objectProto: Partial<NotificationEventProto> = { metatype: 5601 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    return objectProto as NotificationEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: NotificationEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NotificationEvent {
+    return new NotificationEvent({
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: NotificationEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NotificationEvent {
+    return NotificationEvent.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): NotificationEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = NotificationEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.NOTIFICATION_EVENT, NotificationEvent);
+/* ==== DESTACK_GENERATED_END:NODE:5601 ==== */

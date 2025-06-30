@@ -20,13 +20,12 @@ from PIL import Image
 from destack.language.core import (
     Enum,
     EnumType,
-    Global,
     HasName,
-    Node,
+    IsGlobal,
+    IsSpatial,
     NodeType,
     PrimitiveType,
     Resource,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -455,13 +454,7 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 
 
 @builtin_node(NodeType.FILE)
-class File(
-    Spatial,
-    Global,
-    Resource,
-    HasName,
-    Node,
-):
+class File(IsSpatial, IsGlobal, HasName, Resource):
     """
     A File stored somewhere.
     """

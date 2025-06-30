@@ -4,20 +4,19 @@ import {
   CascadeAction,
   DefaultFactory,
   EdgeType,
-  Entity,
   EnumType,
   HasIcon,
   HasName,
   IsDeletable,
   IsExtensible,
   IsSourceable,
+  IsSpatial,
   IsSubject,
   IsTaggable,
   Node,
   NodeType,
   PrimitiveType,
   ScalarType,
-  Spatial,
   StructType,
   TraitType,
   TypeCardinality,
@@ -27,6 +26,7 @@ import {
   Condition,
   ConditionalType,
   CustomEntityDefinition,
+  Entity,
   Icon,
   NodeConstraint,
   NumberConstraint,
@@ -78,38 +78,38 @@ registerEnumClass(EnumType.CUSTOM_PROPERTY_TYPE, CustomPropertyType);
  */
 export class CustomProperty
   extends Node
-  implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable
+  implements IsSpatial, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable, Entity
 {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
     TraitType.SOURCEABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
-    NodeType.POLYGON_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
+    NodeType.SHAPE,
+    NodeType.CONTAINER_VIEW,
+    NodeType.LINE_SHAPE,
     NodeType.RUN,
-    NodeType.FRAME_VIEW,
-    NodeType.LABEL_VIEW,
+    NodeType.POLYGON_SHAPE,
     NodeType.SCRIPT,
-    NodeType.SPLIT_VIEW,
     NodeType.SCENE,
     NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.INTERRUPTION,
+    NodeType.ARROW_SHAPE,
+    NodeType.FRAME_VIEW,
     NodeType.SERVICE,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.LAYER,
     NodeType.CUSTOM_ENTITY,
     NodeType.CUSTOM_PROPERTY,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.LABEL_VIEW,
     NodeType.ACTION,
+    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
   ];
   static __childTypes__: NodeType[] = [
@@ -119,35 +119,36 @@ export class CustomProperty
   ];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
+    NodeType.SHAPE,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
     NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.WIZARD_VIEW,
+    NodeType.INPUT_VIEW,
     NodeType.RUN,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
     NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
+    NodeType.POLYGON_SHAPE,
+    NodeType.NUMBER_INPUT_VIEW,
     NodeType.SCRIPT,
     NodeType.SCENE,
     NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.INTERRUPTION,
+    NodeType.ARROW_SHAPE,
+    NodeType.SLIDER_INPUT_VIEW,
     NodeType.SERVICE,
+    NodeType.FRAME_VIEW,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.LAYER,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
     NodeType.CUSTOM_PROPERTY,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
+    NodeType.ANNOTATION_SHAPE,
     NodeType.ACTION,
+    NodeType.LABEL_VIEW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
     NodeType.AGENT,
+    NodeType.TEXT_VIEW,
+    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
   ];
   static __descendantTypes__: NodeType[] = [
@@ -318,6 +319,11 @@ export class CustomProperty
   isRequired: boolean | null;
 
   /**
+   * CustomProperty.isUnique
+   */
+  isUnique: boolean | null;
+
+  /**
    * CustomProperty.defaultValue
    */
   defaultValue: Value | null;
@@ -358,6 +364,16 @@ export class CustomProperty
   cascade: CascadeAction | null;
 
   /**
+   * CustomProperty.isReadonly
+   */
+  isReadonly: boolean | null;
+
+  /**
+   * CustomProperty.isStatic
+   */
+  isStatic: boolean | null;
+
+  /**
    * IsSourceable.source
    */
   get source(): Script | null {
@@ -392,6 +408,7 @@ export class CustomProperty
     baseType?: Node | NodeReference | null;
     keyType?: Type | null;
     isRequired?: boolean | null;
+    isUnique?: boolean | null;
     defaultValue?: Value | null;
     defaultFactory?: DefaultFactory | null;
     collectionConstraint?: CollectionConstraint | null;
@@ -400,6 +417,8 @@ export class CustomProperty
     nodeConstraint?: NodeConstraint | null;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
+    isReadonly?: boolean | null;
+    isStatic?: boolean | null;
     source?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -500,6 +519,8 @@ export class CustomProperty
     this.keyType = _keyType;
     let _isRequired = options.isRequired ?? null;
     this.isRequired = _isRequired;
+    let _isUnique = options.isUnique ?? null;
+    this.isUnique = _isUnique;
     let _defaultValue = options.defaultValue ?? null;
     this.defaultValue = _defaultValue;
     let _defaultFactory = options.defaultFactory ?? null;
@@ -516,6 +537,10 @@ export class CustomProperty
     this.edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
     this.cascade = _cascade;
+    let _isReadonly = options.isReadonly ?? null;
+    this.isReadonly = _isReadonly;
+    let _isStatic = options.isStatic ?? null;
+    this.isStatic = _isStatic;
     let _source = options.source ?? null;
     if (_source != null && _source instanceof Node) {
       _source = _source.toRef();
@@ -592,6 +617,9 @@ export class CustomProperty
     if (!(this.isRequired === other.isRequired)) {
       return false;
     }
+    if (!(this.isUnique === other.isUnique)) {
+      return false;
+    }
     if (
       (this.defaultValue == null) !== (other.defaultValue == null) ||
       (this.defaultValue != null && !this.defaultValue.equals(other.defaultValue))
@@ -630,6 +658,12 @@ export class CustomProperty
       return false;
     }
     if (!(this.cascade === other.cascade)) {
+      return false;
+    }
+    if (!(this.isReadonly === other.isReadonly)) {
+      return false;
+    }
+    if (!(this.isStatic === other.isStatic)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -683,6 +717,9 @@ export class CustomProperty
     if (this.isRequired !== null) {
       h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     }
+    if (this.isUnique !== null) {
+      h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
+    }
     if (this.defaultValue !== null) {
       h = (h * 31 + this.defaultValue.hash()) & 0xffffffff;
     }
@@ -707,18 +744,16 @@ export class CustomProperty
     if (this.cascade !== null) {
       h = (h * 31 + this.cascade) & 0xffffffff;
     }
+    if (this.isReadonly !== null) {
+      h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
+    }
+    if (this.isStatic !== null) {
+      h = (h * 31 + hashBool(this.isStatic)) & 0xffffffff;
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
@@ -730,6 +765,14 @@ export class CustomProperty
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
 
     return h;
   }
@@ -851,6 +894,9 @@ export class CustomProperty
     if (object.isRequired != null) {
       objectValue["50"] = object.isRequired;
     }
+    if (object.isUnique != null) {
+      objectValue["51"] = object.isUnique;
+    }
     if (object.defaultValue != null) {
       objectValue["55"] = object.defaultValue.toValue();
     }
@@ -874,6 +920,12 @@ export class CustomProperty
     }
     if (object.cascade != null) {
       objectValue["71"] = object.cascade;
+    }
+    if (object.isReadonly != null) {
+      objectValue["80"] = object.isReadonly;
+    }
+    if (object.isStatic != null) {
+      objectValue["81"] = object.isStatic;
     }
     if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
@@ -925,6 +977,8 @@ export class CustomProperty
         : null;
     const isRequiredValue = objectValue["50"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
+    const isUniqueValue = objectValue["51"];
+    const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : null;
     const defaultValueValue = objectValue["55"];
     const unpackedDefaultValue =
       defaultValueValue != undefined
@@ -975,20 +1029,14 @@ export class CustomProperty
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
     const cascadeValue = objectValue["71"];
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
+    const isReadonlyValue = objectValue["80"];
+    const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : null;
+    const isStaticValue = objectValue["81"];
+    const unpackedIsStatic = isStaticValue != undefined ? isStaticValue : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
@@ -1005,6 +1053,16 @@ export class CustomProperty
       sourcePtrValue != undefined
         ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new CustomProperty({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
@@ -1018,6 +1076,7 @@ export class CustomProperty
       baseType: unpackedBaseTypePtr,
       keyType: unpackedKeyType,
       isRequired: unpackedIsRequired,
+      isUnique: unpackedIsUnique,
       defaultValue: unpackedDefaultValue,
       defaultFactory: unpackedDefaultFactory,
       collectionConstraint: unpackedCollectionConstraint,
@@ -1026,17 +1085,19 @@ export class CustomProperty
       nodeConstraint: unpackedNodeConstraint,
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
+      isReadonly: unpackedIsReadonly,
+      isStatic: unpackedIsStatic,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       orderKey: objectValue["22"],
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -1109,6 +1170,9 @@ export class CustomProperty
     if (object.isRequired != null) {
       objectProto.isRequired = object.isRequired;
     }
+    if (object.isUnique != null) {
+      objectProto.isUnique = object.isUnique;
+    }
     if (object.defaultValue != null) {
       objectProto.defaultValue = object.defaultValue.toProto();
     }
@@ -1132,6 +1196,12 @@ export class CustomProperty
     }
     if (object.cascade != null) {
       objectProto.cascade = Number(object.cascade) as CascadeActionProto;
+    }
+    if (object.isReadonly != null) {
+      objectProto.isReadonly = object.isReadonly;
+    }
+    if (object.isStatic != null) {
+      objectProto.isStatic = object.isStatic;
     }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
@@ -1195,6 +1265,7 @@ export class CustomProperty
           ? Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
           : null,
       isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
+      isUnique: objectProto.isUnique != undefined ? objectProto.isUnique : null,
       defaultValue:
         objectProto.defaultValue != undefined
           ? Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
@@ -1247,6 +1318,8 @@ export class CustomProperty
         objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
       cascade:
         objectProto.cascade != undefined ? (Number(objectProto.cascade) as CascadeAction) : null,
+      isReadonly: objectProto.isReadonly != undefined ? objectProto.isReadonly : null,
+      isStatic: objectProto.isStatic != undefined ? objectProto.isStatic : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -1258,6 +1331,24 @@ export class CustomProperty
             )
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      orderKey: objectProto.orderKey,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1280,24 +1371,6 @@ export class CustomProperty
               _connection,
             )
           : null,
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,

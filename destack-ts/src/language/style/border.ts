@@ -5,7 +5,7 @@ import {
   IsSubject,
   Node,
   NodeType,
-  Struct,
+  StructFrozen,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
@@ -28,14 +28,14 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A border value.
  */
-export class Border extends Struct {
+export class Border extends StructFrozen {
   static metatype: StructType = StructType.BORDER;
-  static __isFrozen__: boolean = false;
+  static __isFrozen__: boolean = true;
 
   /**
-   * BorderBase.type
+   * Border.type
    */
-  type: BorderType;
+  readonly type: BorderType;
 
   /**
    * style
@@ -50,24 +50,17 @@ export class Border extends Struct {
     }
     return null;
   }
-  set style(value: BorderStyle | null) {
-    if (value == null) {
-      this.stylePtr = null;
-    } else {
-      this.stylePtr = value.toRef();
-    }
-  }
-  stylePtr: NodeReference | null;
+  readonly stylePtr: NodeReference | null;
 
   /**
-   * BorderBase.color
+   * Border.color
    */
-  color: Color | null;
+  readonly color: Color | null;
 
   /**
-   * BorderBase.width
+   * Border.width
    */
-  width: Insets | null;
+  readonly width: Insets | null;
 
   constructor(options: {
     type?: BorderType;
@@ -76,6 +69,10 @@ export class Border extends Struct {
     width?: Insets | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -104,14 +101,18 @@ export class Border extends Struct {
     this.width = _width;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (!(this.type === other.type)) {
@@ -129,30 +130,38 @@ export class Border extends Struct {
     ) {
       return false;
     }
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+      return false;
+    }
     return true;
   }
 
   repr(): string {
-    const propertyReprs: string[] = [];
-    if (this.style !== null) {
-      propertyReprs.push(`style=${this.style.repr()}`);
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${BorderType[this.type]}`);
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      if (this.width !== null) {
+        propertyReprs.push(`width=${this.width.repr()}`);
+      }
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style.repr()}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Border ${propertyReprs.join(" ")}>`;
     }
-    propertyReprs.push(`type=${BorderType[this.type]}`);
-    if (this.color !== null) {
-      propertyReprs.push(`color=${this.color.repr()}`);
-    }
-    if (this.width !== null) {
-      propertyReprs.push(`width=${this.width.repr()}`);
-    }
-    return `<Border ${propertyReprs.join(" ")}>`;
+    return this._repr;
   }
 
   hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.stylePtr !== null) {
-      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this.type) & 0xffffffff;
     if (this.color !== null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
@@ -160,7 +169,12 @@ export class Border extends Struct {
     if (this.width !== null) {
       h = (h * 31 + this.width.hash()) & 0xffffffff;
     }
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
 
+    // @ts-expect-error(readonly)
+    this._hash = h;
     return h;
   }
 
@@ -169,7 +183,11 @@ export class Border extends Struct {
   }
 
   toValue(): { [key: string]: any } {
-    return Border.__packValue__(this);
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Border.__packValue__(this);
+    }
+    return this._value;
   }
 
   static __packValue__(object: Border): { [key: string]: any } {
@@ -195,11 +213,6 @@ export class Border extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): Border {
-    const stylePtrValue = objectValue["41"];
-    const unpackedStylePtr =
-      stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const colorValue = objectValue["50"];
     const unpackedColor =
       colorValue != undefined
@@ -210,11 +223,17 @@ export class Border extends Struct {
       widthValue != undefined
         ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
+    const stylePtrValue = objectValue["41"];
+    const unpackedStylePtr =
+      stylePtrValue != undefined
+        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Border({
-      style: unpackedStylePtr,
       type: Number(objectValue["30"]),
       color: unpackedColor,
       width: unpackedWidth,
+      style: unpackedStylePtr,
+      _value: objectValue,
       _supergraph,
     });
   }
@@ -230,7 +249,11 @@ export class Border extends Struct {
   }
 
   toProto(): BorderProto {
-    return Border.__packProto__(this);
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Border.__packProto__(this);
+    }
+    return this._proto as BorderProto;
   }
 
   static __packProto__(object: Border): BorderProto {
@@ -256,6 +279,15 @@ export class Border extends Struct {
     _connection?: any | null,
   ): Border {
     return new Border({
+      type: Number(objectProto.type) as BorderType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      width:
+        objectProto.width != undefined
+          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          : null,
       style:
         objectProto.stylePtr != undefined
           ? NodeReference.fromProto(
@@ -266,15 +298,7 @@ export class Border extends Struct {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as BorderType,
-      color:
-        objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      width:
-        objectProto.width != undefined
-          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
-          : null,
+      _proto: objectProto,
       _supergraph,
     });
   }
@@ -320,76 +344,42 @@ export enum BorderType {
 registerEnumClass(EnumType.BORDER_TYPE, BorderType);
 /* ==== DESTACK_GENERATED_END:ENUM:12050 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12050 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12063 ==== */
 /**
  * A border style.
  */
 export class BorderStyle extends Node implements Style {
   static metatype: NodeType = NodeType.BORDER_STYLE;
   static __traits__: TraitType[] = [
-    TraitType.STYLE,
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.THEME,
-    NodeType.THREAD_VIEW,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.CANVAS,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.SCENE,
-  ];
+  static __parentTypes__: NodeType[] = [NodeType.THEME, NodeType.VIEW, NodeType.SCENE];
   static __childTypes__: NodeType[] = [NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.SCENE,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
     NodeType.THEME,
+    NodeType.SPACE,
+    NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
+    NodeType.VIEW,
+    NodeType.LAYER,
+    NodeType.CONTAINER_VIEW,
     NodeType.CANVAS,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
   /**
    * Style.parent
    */
-  get parent(): Scene | (Node & View) | Theme | null {
+  get parent(): Scene | View | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
     }
     return null;
   }
@@ -452,7 +442,7 @@ export class BorderStyle extends Node implements Style {
   readonly orderKey: string;
 
   /**
-   * BorderBase.type
+   * BorderStyle.type
    */
   type: BorderType;
 
@@ -462,18 +452,37 @@ export class BorderStyle extends Node implements Style {
   name: string;
 
   /**
-   * BorderBase.color
+   * BorderStyle.style
+   */
+  get style(): BorderStyle | null {
+    const nodePtr: NodeReference | null = this.stylePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as BorderStyle | null;
+    }
+    return null;
+  }
+  set style(node: BorderStyle | null) {
+    if (node === null) {
+      this.stylePtr = null;
+    } else {
+      this.stylePtr = node.toRef();
+    }
+  }
+  stylePtr: NodeReference | null;
+
+  /**
+   * BorderStyle.color
    */
   color: Color | null;
 
   /**
-   * BorderBase.width
+   * BorderStyle.width
    */
   width: Insets | null;
 
   constructor(options: {
     id?: string;
-    parent?: Scene | (Node & View) | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -483,6 +492,7 @@ export class BorderStyle extends Node implements Style {
     orderKey?: string;
     type?: BorderType;
     name: string;
+    style?: BorderStyle | NodeReference | null;
     color?: Color | null;
     width?: Insets | null;
     _session?: Session | null;
@@ -547,6 +557,11 @@ export class BorderStyle extends Node implements Style {
       throw new Error(`BorderStyle.name is required`);
     }
     this.name = _name;
+    let _style = options.style ?? null;
+    if (_style != null && _style instanceof Node) {
+      _style = _style.toRef();
+    }
+    this.stylePtr = _style;
     let _color = options.color ?? null;
     this.color = _color;
     let _width = options.width ?? null;
@@ -586,12 +601,6 @@ export class BorderStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -607,12 +616,31 @@ export class BorderStyle extends Node implements Style {
     ) {
       return false;
     }
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    if (this.width !== null) {
+      h = (h * 31 + this.width.hash()) & 0xffffffff;
+    }
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -632,13 +660,6 @@ export class BorderStyle extends Node implements Style {
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
-    }
-    if (this.width !== null) {
-      h = (h * 31 + this.width.hash()) & 0xffffffff;
     }
 
     return h;
@@ -677,7 +698,6 @@ export class BorderStyle extends Node implements Style {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`type=${BorderType[this.type]}`);
     if (this.color !== null) {
       propertyReprs.push(`color=${this.color.repr()}`);
@@ -685,6 +705,10 @@ export class BorderStyle extends Node implements Style {
     if (this.width !== null) {
       propertyReprs.push(`width=${this.width.repr()}`);
     }
+    if (this.style !== null) {
+      propertyReprs.push(`style=${this.style.repr()}`);
+    }
+    propertyReprs.push(`name=${this.name}`);
     return `<BorderStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -694,7 +718,7 @@ export class BorderStyle extends Node implements Style {
 
   static __packValue__(object: BorderStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12050;
+    objectValue["1"] = 12063;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -716,6 +740,9 @@ export class BorderStyle extends Node implements Style {
     objectValue["22"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
+    if (object.stylePtr != null) {
+      objectValue["41"] = object.stylePtr.toValue();
+    }
     if (object.color != null) {
       objectValue["50"] = object.color.toValue();
     }
@@ -732,6 +759,21 @@ export class BorderStyle extends Node implements Style {
     _graph?: any | null,
     _connection?: any | null,
   ): BorderStyle {
+    const colorValue = objectValue["50"];
+    const unpackedColor =
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const widthValue = objectValue["51"];
+    const unpackedWidth =
+      widthValue != undefined
+        ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const stylePtrValue = objectValue["41"];
+    const unpackedStylePtr =
+      stylePtrValue != undefined
+        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -757,17 +799,11 @@ export class BorderStyle extends Node implements Style {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const colorValue = objectValue["50"];
-    const unpackedColor =
-      colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const widthValue = objectValue["51"];
-    const unpackedWidth =
-      widthValue != undefined
-        ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new BorderStyle({
+      type: Number(objectValue["30"]),
+      color: unpackedColor,
+      width: unpackedWidth,
+      style: unpackedStylePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -778,9 +814,6 @@ export class BorderStyle extends Node implements Style {
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
-      type: Number(objectValue["30"]),
-      color: unpackedColor,
-      width: unpackedWidth,
       _session,
       _graph,
       _connection,
@@ -802,7 +835,7 @@ export class BorderStyle extends Node implements Style {
   }
 
   static __packProto__(object: BorderStyle): BorderStyleProto {
-    const objectProto: Partial<BorderStyleProto> = { metatype: 12050 };
+    const objectProto: Partial<BorderStyleProto> = { metatype: 12063 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -824,6 +857,9 @@ export class BorderStyle extends Node implements Style {
     objectProto.orderKey = object.orderKey;
     objectProto.type = Number(object.type) as BorderTypeProto;
     objectProto.name = object.name;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
     if (object.color != null) {
       objectProto.color = object.color.toProto();
     }
@@ -841,6 +877,25 @@ export class BorderStyle extends Node implements Style {
     _connection?: any | null,
   ): BorderStyle {
     return new BorderStyle({
+      type: Number(objectProto.type) as BorderType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      width:
+        objectProto.width != undefined
+          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          : null,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -888,15 +943,6 @@ export class BorderStyle extends Node implements Style {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      type: Number(objectProto.type) as BorderType,
-      color:
-        objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      width:
-        objectProto.width != undefined
-          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
-          : null,
       _session,
       _graph,
       _connection,
@@ -924,4 +970,4 @@ export class BorderStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.BORDER_STYLE, BorderStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12050 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12063 ==== */

@@ -491,76 +491,42 @@ export enum FillSize {
 registerEnumClass(EnumType.FILL_SIZE, FillSize);
 /* ==== DESTACK_GENERATED_END:ENUM:12032 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12030 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12061 ==== */
 /**
  * A fill style.
  */
 export class FillStyle extends Node implements Style {
   static metatype: NodeType = NodeType.FILL_STYLE;
   static __traits__: TraitType[] = [
-    TraitType.STYLE,
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.THEME,
-    NodeType.THREAD_VIEW,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.CANVAS,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.SCENE,
-  ];
+  static __parentTypes__: NodeType[] = [NodeType.THEME, NodeType.VIEW, NodeType.SCENE];
   static __childTypes__: NodeType[] = [NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.SCENE,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
     NodeType.THEME,
+    NodeType.SPACE,
+    NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
+    NodeType.VIEW,
+    NodeType.LAYER,
+    NodeType.CONTAINER_VIEW,
     NodeType.CANVAS,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
   /**
    * Style.parent
    */
-  get parent(): Scene | (Node & View) | Theme | null {
+  get parent(): Scene | View | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
     }
     return null;
   }
@@ -673,7 +639,7 @@ export class FillStyle extends Node implements Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | (Node & View) | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -930,7 +896,7 @@ export class FillStyle extends Node implements Style {
 
   static __packValue__(object: FillStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12030;
+    objectValue["1"] = 12061;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1059,7 +1025,7 @@ export class FillStyle extends Node implements Style {
   }
 
   static __packProto__(object: FillStyle): FillStyleProto {
-    const objectProto: Partial<FillStyleProto> = { metatype: 12030 };
+    const objectProto: Partial<FillStyleProto> = { metatype: 12061 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1203,4 +1169,4 @@ export class FillStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FILL_STYLE, FillStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12030 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12061 ==== */

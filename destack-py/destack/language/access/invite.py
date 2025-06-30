@@ -3,14 +3,13 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Event,
-    Global,
     IsDeletable,
+    IsGlobal,
     IsJoinable,
     IsOwnable,
+    IsSpatial,
     IsSubject,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
@@ -22,67 +21,47 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.INVITE_SENT_EVENT)
-class InviteSentEvent(
-    Event["Invite"],
-    Node,
-):
+@builtin_node(NodeType.INVITE_EVENT, is_abstract=True)
+class InviteEvent(Event["Invite"]):
     """A Event regarding an Invite."""
 
     node: "Invite" = property_(35)
     joinable: "IsJoinable" = property_(40)
     member: "IsSubject" = property_(41)
-    role: "Role" = property_(42)
-    role_type: "RoleType" = property_(43)
+
+
+@builtin_node(NodeType.INVITE_SENT_EVENT)
+class InviteSentEvent(InviteEvent):
+    """An Invite was sent."""
+
+    role: "Role" = property_(50)
+    role_type: "RoleType" = property_(51)
 
 
 @builtin_node(NodeType.INVITE_RESCINDED_EVENT)
-class InviteRescindedEvent(
-    Event["Invite"],
-    Node,
-):
-    """A Event regarding an Invite."""
+class InviteRescindedEvent(InviteEvent):
+    """An Invite was rescinded."""
 
-    node: "Invite" = property_(35)
-    joinable: "IsJoinable" = property_(40)
-    member: "IsSubject" = property_(41)
+    pass
 
 
 @builtin_node(NodeType.INVITE_ACCEPTED_EVENT)
-class InviteAcceptedEvent(
-    Event["Invite"],
-    Node,
-):
-    """A Event regarding an Invite."""
+class InviteAcceptedEvent(InviteEvent):
+    """An Invite was accepted."""
 
-    node: "Invite" = property_(35)
-    joinable: "IsJoinable" = property_(40)
-    member: "IsSubject" = property_(41)
-    role: "Role" = property_(42)
-    role_type: "RoleType" = property_(43)
+    role: "Role" = property_(50)
+    role_type: "RoleType" = property_(51)
 
 
 @builtin_node(NodeType.INVITE_REJECTED_EVENT)
-class InviteRejectedEvent(
-    Event["Invite"],
-    Node,
-):
-    """A Event regarding an Invite."""
+class InviteRejectedEvent(InviteEvent):
+    """An Invite was rejected."""
 
-    node: "Invite" = property_(35)
-    joinable: "IsJoinable" = property_(40)
-    member: "IsSubject" = property_(41)
+    pass
 
 
 @builtin_node(NodeType.INVITE)
-class Invite(
-    Global,
-    Spatial,
-    Entity,
-    IsOwnable,
-    IsDeletable,
-    Node,
-):
+class Invite(IsGlobal, IsSpatial, IsOwnable, IsDeletable, Entity):
     """An Invite to a Joinable."""
 
     parent: Optional["IsJoinable"] = property_parent_(node_is_customizable=False)

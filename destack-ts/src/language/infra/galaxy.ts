@@ -1,5 +1,5 @@
 import { Session, Supergraph } from "@destack/language/core";
-import { Region, Struct, StructType } from "@destack/language/core/builtin";
+import { Region, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { registerStructClass } from "@destack/language/registry";
 import { GalaxyInfoProto, RegionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -9,24 +9,24 @@ import { hashString } from "@destack/utils/hash";
 /**
  * GalaxyInfo
  */
-export class GalaxyInfo extends Struct {
+export class GalaxyInfo extends StructFrozen {
   static metatype: StructType = StructType.GALAXY_INFO;
-  static __isFrozen__: boolean = false;
+  static __isFrozen__: boolean = true;
 
   /**
-   * GalaxyBase.region
+   * GalaxyInfo.region
    */
-  region: Region;
+  readonly region: Region;
 
   /**
-   * GalaxyBase.name
+   * GalaxyInfo.name
    */
-  name: string;
+  readonly name: string;
 
   /**
-   * GalaxyBase.host
+   * GalaxyInfo.host
    */
-  host: string;
+  readonly host: string;
 
   constructor(options: {
     region: Region;
@@ -34,6 +34,10 @@ export class GalaxyInfo extends Struct {
     host: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -60,7 +64,14 @@ export class GalaxyInfo extends Struct {
     this.host = _host;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -80,20 +91,30 @@ export class GalaxyInfo extends Struct {
   }
 
   repr(): string {
-    const propertyReprs: string[] = [];
-    propertyReprs.push(`region=${Region[this.region]}`);
-    propertyReprs.push(`name=${this.name}`);
-    propertyReprs.push(`host=${this.host}`);
-    return `<GalaxyInfo ${propertyReprs.join(" ")}>`;
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`region=${Region[this.region]}`);
+      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`host=${this.host}`);
+      // @ts-expect-error(readonly)
+      this._repr = `<GalaxyInfo ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.region) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.host)) & 0xffffffff;
 
+    // @ts-expect-error(readonly)
+    this._hash = h;
     return h;
   }
 
@@ -102,7 +123,11 @@ export class GalaxyInfo extends Struct {
   }
 
   toValue(): { [key: string]: any } {
-    return GalaxyInfo.__packValue__(this);
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = GalaxyInfo.__packValue__(this);
+    }
+    return this._value;
   }
 
   static __packValue__(object: GalaxyInfo): { [key: string]: any } {
@@ -125,6 +150,7 @@ export class GalaxyInfo extends Struct {
       region: Number(objectValue["50"]),
       name: objectValue["51"],
       host: objectValue["52"],
+      _value: objectValue,
       _supergraph,
     });
   }
@@ -140,7 +166,11 @@ export class GalaxyInfo extends Struct {
   }
 
   toProto(): GalaxyInfoProto {
-    return GalaxyInfo.__packProto__(this);
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = GalaxyInfo.__packProto__(this);
+    }
+    return this._proto as GalaxyInfoProto;
   }
 
   static __packProto__(object: GalaxyInfo): GalaxyInfoProto {
@@ -162,6 +192,7 @@ export class GalaxyInfo extends Struct {
       region: Number(objectProto.region) as Region,
       name: objectProto.name,
       host: objectProto.host,
+      _proto: objectProto,
       _supergraph,
     });
   }

@@ -5,7 +5,7 @@ import {
   IsSubject,
   Node,
   NodeType,
-  Struct,
+  StructFrozen,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
@@ -32,14 +32,14 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A transition value.
  */
-export class Transition extends Struct {
+export class Transition extends StructFrozen {
   static metatype: StructType = StructType.TRANSITION;
-  static __isFrozen__: boolean = false;
+  static __isFrozen__: boolean = true;
 
   /**
    * Transition.type
    */
-  type: TransitionType;
+  readonly type: TransitionType;
 
   /**
    * style
@@ -54,54 +54,47 @@ export class Transition extends Struct {
     }
     return null;
   }
-  set style(value: TransitionStyle | null) {
-    if (value == null) {
-      this.stylePtr = null;
-    } else {
-      this.stylePtr = value.toRef();
-    }
-  }
-  stylePtr: NodeReference | null;
+  readonly stylePtr: NodeReference | null;
 
   /**
    * Transition.delay
    */
-  delay: number | null;
+  readonly delay: number | null;
 
   /**
    * Transition.duration
    */
-  duration: number | null;
+  readonly duration: number | null;
 
   /**
    * Transition.ease
    */
-  ease: Array<number>;
+  readonly ease: Array<number>;
 
   /**
    * Transition.stiffness
    */
-  stiffness: number | null;
+  readonly stiffness: number | null;
 
   /**
    * Transition.damping
    */
-  damping: number | null;
+  readonly damping: number | null;
 
   /**
    * Transition.mass
    */
-  mass: number | null;
+  readonly mass: number | null;
 
   /**
    * Transition.bounce
    */
-  bounce: number | null;
+  readonly bounce: number | null;
 
   /**
    * Transition.springType
    */
-  springType: SpringType | null;
+  readonly springType: SpringType | null;
 
   constructor(options: {
     type?: TransitionType;
@@ -116,6 +109,10 @@ export class Transition extends Struct {
     springType?: SpringType | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -159,7 +156,14 @@ export class Transition extends Struct {
     this.springType = _springType;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -228,39 +232,47 @@ export class Transition extends Struct {
   }
 
   repr(): string {
-    const propertyReprs: string[] = [];
-    propertyReprs.push(`type=${TransitionType[this.type]}`);
-    if (this.style !== null) {
-      propertyReprs.push(`style=${this.style.repr()}`);
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${TransitionType[this.type]}`);
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style.repr()}`);
+      }
+      if (this.delay !== null) {
+        propertyReprs.push(`delay=${this.delay}`);
+      }
+      if (this.duration !== null) {
+        propertyReprs.push(`duration=${this.duration}`);
+      }
+      if (this.ease.length > 0) {
+        propertyReprs.push(`ease=${this.ease.map((_item) => _item).join(", ")}`);
+      }
+      if (this.stiffness !== null) {
+        propertyReprs.push(`stiffness=${this.stiffness}`);
+      }
+      if (this.damping !== null) {
+        propertyReprs.push(`damping=${this.damping}`);
+      }
+      if (this.mass !== null) {
+        propertyReprs.push(`mass=${this.mass}`);
+      }
+      if (this.bounce !== null) {
+        propertyReprs.push(`bounce=${this.bounce}`);
+      }
+      if (this.springType !== null) {
+        propertyReprs.push(`springType=${SpringType[this.springType]}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Transition ${propertyReprs.join(" ")}>`;
     }
-    if (this.delay !== null) {
-      propertyReprs.push(`delay=${this.delay}`);
-    }
-    if (this.duration !== null) {
-      propertyReprs.push(`duration=${this.duration}`);
-    }
-    if (this.ease.length > 0) {
-      propertyReprs.push(`ease=${this.ease.map((_item) => _item).join(", ")}`);
-    }
-    if (this.stiffness !== null) {
-      propertyReprs.push(`stiffness=${this.stiffness}`);
-    }
-    if (this.damping !== null) {
-      propertyReprs.push(`damping=${this.damping}`);
-    }
-    if (this.mass !== null) {
-      propertyReprs.push(`mass=${this.mass}`);
-    }
-    if (this.bounce !== null) {
-      propertyReprs.push(`bounce=${this.bounce}`);
-    }
-    if (this.springType !== null) {
-      propertyReprs.push(`springType=${SpringType[this.springType]}`);
-    }
-    return `<Transition ${propertyReprs.join(" ")}>`;
+    return this._repr;
   }
 
   hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -294,6 +306,8 @@ export class Transition extends Struct {
       h = (h * 31 + this.springType) & 0xffffffff;
     }
 
+    // @ts-expect-error(readonly)
+    this._hash = h;
     return h;
   }
 
@@ -302,7 +316,11 @@ export class Transition extends Struct {
   }
 
   toValue(): { [key: string]: any } {
-    return Transition.__packValue__(this);
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Transition.__packValue__(this);
+    }
+    return this._value;
   }
 
   static __packValue__(object: Transition): { [key: string]: any } {
@@ -386,6 +404,7 @@ export class Transition extends Struct {
       mass: unpackedMass,
       bounce: unpackedBounce,
       springType: unpackedSpringType,
+      _value: objectValue,
       _supergraph,
     });
   }
@@ -401,7 +420,11 @@ export class Transition extends Struct {
   }
 
   toProto(): TransitionProto {
-    return Transition.__packProto__(this);
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Transition.__packProto__(this);
+    }
+    return this._proto as TransitionProto;
   }
 
   static __packProto__(object: Transition): TransitionProto {
@@ -475,6 +498,7 @@ export class Transition extends Struct {
       bounce: objectProto.bounce != undefined ? objectProto.bounce : null,
       springType:
         objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
+      _proto: objectProto,
       _supergraph,
     });
   }
@@ -532,76 +556,42 @@ export enum SpringType {
 registerEnumClass(EnumType.SPRING_TYPE, SpringType);
 /* ==== DESTACK_GENERATED_END:ENUM:12081 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12080 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12066 ==== */
 /**
  * A transition style.
  */
 export class TransitionStyle extends Node implements Style {
   static metatype: NodeType = NodeType.TRANSITION_STYLE;
   static __traits__: TraitType[] = [
-    TraitType.STYLE,
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.THEME,
-    NodeType.THREAD_VIEW,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.CANVAS,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.SCENE,
-  ];
+  static __parentTypes__: NodeType[] = [NodeType.THEME, NodeType.VIEW, NodeType.SCENE];
   static __childTypes__: NodeType[] = [NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.SCENE,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
     NodeType.THEME,
+    NodeType.SPACE,
+    NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
+    NodeType.VIEW,
+    NodeType.LAYER,
+    NodeType.CONTAINER_VIEW,
     NodeType.CANVAS,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
   /**
    * Style.parent
    */
-  get parent(): Scene | (Node & View) | Theme | null {
+  get parent(): Scene | View | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
     }
     return null;
   }
@@ -715,7 +705,7 @@ export class TransitionStyle extends Node implements Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | (Node & View) | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1035,7 +1025,7 @@ export class TransitionStyle extends Node implements Style {
 
   static __packValue__(object: TransitionStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12080;
+    objectValue["1"] = 12066;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1181,7 +1171,7 @@ export class TransitionStyle extends Node implements Style {
   }
 
   static __packProto__(object: TransitionStyle): TransitionStyleProto {
-    const objectProto: Partial<TransitionStyleProto> = { metatype: 12080 };
+    const objectProto: Partial<TransitionStyleProto> = { metatype: 12066 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1332,4 +1322,4 @@ export class TransitionStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRANSITION_STYLE, TransitionStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12080 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12066 ==== */

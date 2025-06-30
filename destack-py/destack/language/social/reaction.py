@@ -2,15 +2,14 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Entity,
-    Global,
     IndexIn,
     IsDeletable,
+    IsGlobal,
     IsOwnable,
     IsReactable,
+    IsSpatial,
     IsSubject,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
@@ -27,13 +26,12 @@ if TYPE_CHECKING:
     index=(IndexIn(columns=("parent_id", "owned_by_id", "content"), is_unique=True),),
 )
 class Reaction(
-    Global,
-    Spatial,
-    Entity,
+    IsGlobal,
+    IsSpatial,
     IsReactable,
     IsDeletable,
     IsOwnable,
-    Node,
+    Entity,
 ):
     """A Reaction is a relationship between a Subject and a Reaction Node."""
 

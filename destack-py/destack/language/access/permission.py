@@ -9,9 +9,8 @@ from destack.language.core import (
     HasSlug,
     IsDeletable,
     IsJoinable,
-    Node,
+    IsSpatial,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -33,13 +32,12 @@ class PermissionType(Enum):
 
 @builtin_node(NodeType.PERMISSION)
 class Permission(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     HasSlug,
     HasIcon,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Permission for something."""
 

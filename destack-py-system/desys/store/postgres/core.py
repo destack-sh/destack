@@ -12,11 +12,11 @@ from destack.language import (
     CustomProperty,
     Edit,
     IndexIn,
+    NodeDefinitionReference,
     NodeReference,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
-    RelationReference,
 )
 from destack.utils.func import hash_stable
 
@@ -487,13 +487,13 @@ class PostgresContext(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def resolve(self, relation: RelationReference) -> Sequence[RelationReference]:
-        """Expand the specific Relations for a RelationReference."""
+    def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
+        """Expand the specific Definitions for a DefinitionReference."""
         ...
 
     @abc.abstractmethod
-    def get(self, relation: RelationReference | NodeReference) -> PostgresTable:
-        """Get the (single) Table for a node / relation. Doesn't work for multi-relations."""
+    def get(self, definition: NodeDefinitionReference | NodeReference) -> PostgresTable:
+        """Get the (single) Table for a node / definition. Doesn't work for multi-definitions."""
         ...
 
 

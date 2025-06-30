@@ -9,10 +9,9 @@ from destack.language.core import (
     HasSlug,
     IsDeletable,
     IsOwnable,
+    IsSpatial,
     Length,
-    Node,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -43,14 +42,13 @@ class VariantStateType(Enum):
 
 @builtin_node(NodeType.VARIANT)
 class Variant(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     HasSlug,
     HasIcon,
     IsOwnable,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Variant is an alternative presentation of a visual."""
 

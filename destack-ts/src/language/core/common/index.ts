@@ -8,7 +8,6 @@ export * from "@destack/language/core/common/metric";
 export * from "@destack/language/core/common/option";
 export * from "@destack/language/core/common/property";
 export * from "@destack/language/core/common/query";
-export * from "@destack/language/core/common/relation";
 export * from "@destack/language/core/common/spacetime";
 export * from "@destack/language/core/common/struct";
 export * from "@destack/language/core/common/text";

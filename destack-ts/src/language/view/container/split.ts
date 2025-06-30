@@ -34,20 +34,16 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:10040 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10100 ==== */
 /**
  * A split container View.
  */
 export class SplitView extends Node implements ContainerView {
   static metatype: NodeType = NodeType.SPLIT_VIEW;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
-    TraitType.VIEW,
     TraitType.TAGGABLE,
-    TraitType.CONTAINER_VIEW,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.EXTENSIBLE,
     TraitType.ORDERED,
@@ -55,105 +51,35 @@ export class SplitView extends Node implements ContainerView {
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CONTAINER_VIEW,
     NodeType.LAYER,
-    NodeType.CUSTOM_VIEW,
-    NodeType.CANVAS,
-    NodeType.SPLIT_VIEW,
     NodeType.SCENE,
   ];
-  static __childTypes__: NodeType[] = [
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.CUSTOM_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.TEXT_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.THREAD_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.CANVAS,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.TAGGING,
-    NodeType.SCRIPT,
-    NodeType.COLOR_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.EFFECT_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.STROKE_STYLE,
-  ];
+  static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.TAGGING, NodeType.SCRIPT];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.LABEL_VIEW,
-    NodeType.CANVAS,
-    NodeType.CUSTOM_VIEW,
     NodeType.LAYER,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.SPLIT_VIEW,
+    NodeType.CONTAINER_VIEW,
+    NodeType.CANVAS,
     NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.FONT_STYLE,
-    NodeType.CUSTOM_VIEW,
-    NodeType.BORDER_STYLE,
-    NodeType.WIZARD_VIEW,
-    NodeType.SHADOW_STYLE,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.GRADIENT_STYLE,
-    NodeType.LABEL_VIEW,
-    NodeType.TRANSITION_STYLE,
     NodeType.SCRIPT,
-    NodeType.SPLIT_VIEW,
-    NodeType.EFFECT_STYLE,
-    NodeType.STROKE_STYLE,
-    NodeType.LAYER,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.TEXT_VIEW,
     NodeType.CUSTOM_OPTION,
-    NodeType.VARIANT,
-    NodeType.THREAD_VIEW,
     NodeType.TAGGING,
-    NodeType.COLOR_STYLE,
-    NodeType.CANVAS,
-    NodeType.FILL_STYLE,
+    NodeType.CUSTOM_PROPERTY,
   ];
 
   /**
    * View.parent
    */
-  get parent(): Window | Scene | Layer | (Node & ContainerView) | null {
+  get parent(): Window | Scene | Layer | ContainerView | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | Window
-        | Scene
-        | Layer
-        | (Node & ContainerView)
-        | null;
+      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | ContainerView | null;
     }
     return null;
   }
@@ -376,7 +302,7 @@ export class SplitView extends Node implements ContainerView {
 
   constructor(options: {
     id?: string;
-    parent?: Window | Scene | Layer | (Node & ContainerView) | NodeReference | null;
+    parent?: Window | Scene | Layer | ContainerView | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -888,7 +814,7 @@ export class SplitView extends Node implements ContainerView {
 
   static __packValue__(object: SplitView): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10040;
+    objectValue["1"] = 10100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1209,7 +1135,7 @@ export class SplitView extends Node implements ContainerView {
   }
 
   static __packProto__(object: SplitView): SplitViewProto {
-    const objectProto: Partial<SplitViewProto> = { metatype: 10040 };
+    const objectProto: Partial<SplitViewProto> = { metatype: 10100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1501,4 +1427,4 @@ export class SplitView extends Node implements ContainerView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPLIT_VIEW, SplitView);
-/* ==== DESTACK_GENERATED_END:NODE:10040 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10100 ==== */

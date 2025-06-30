@@ -1,18 +1,15 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinObjectMutable,
     Enum,
     EnumType,
     Insets,
-    Node,
     NodeType,
-    StructMutable,
+    StructFrozen,
     StructType,
     builtin_enum,
     builtin_node,
     builtin_struct,
-    object_,
     property_,
 )
 
@@ -37,26 +34,21 @@ class BorderType(Enum):
     DOUBLE = 13
 
 
-@object_()
-class BorderBase(BuiltinObjectMutable):
+@builtin_struct(StructType.BORDER, frozen=True)
+class Border(StructFrozen):
+    """A border value."""
+
     type: BorderType = property_(30, default=BorderType.SOLID, is_repr=True)
     color: Optional["Color"] = property_(50, is_repr=True)
     width: Optional[Insets] = property_(51, is_repr=True)
-
-
-@builtin_struct(StructType.BORDER)
-class Border(BorderBase, StructMutable):
-    """A border value."""
-
     style: Optional["BorderStyle"] = property_(41, is_repr=True)
 
 
 @builtin_node(NodeType.BORDER_STYLE)
-class BorderStyle(
-    Style,
-    BorderBase,
-    Node,
-):
+class BorderStyle(Style):
     """A border style."""
 
-    pass
+    type: BorderType = property_(30, default=BorderType.SOLID, is_repr=True)
+    color: Optional["Color"] = property_(50, is_repr=True)
+    width: Optional[Insets] = property_(51, is_repr=True)
+    style: Optional["BorderStyle"] = property_(41, is_repr=True)

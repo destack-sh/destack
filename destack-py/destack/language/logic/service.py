@@ -3,17 +3,15 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Entity,
     HasName,
-    IsActionable,
     IsDeletable,
     IsExtensible,
     IsOwnable,
     IsRunnable,
     IsScriptable,
     IsSourceable,
+    IsSpatial,
     IsTaggable,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
 )
 
@@ -26,10 +24,8 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.SERVICE)
 class Service(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
-    IsActionable,
     IsDeletable,
     IsOwnable,
     IsTaggable,
@@ -37,7 +33,7 @@ class Service(
     IsScriptable,
     IsSourceable,
     IsExtensible,
-    Node,
+    Entity,
 ):
     """
     A set of Actions for a Node.

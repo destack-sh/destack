@@ -6,9 +6,9 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsScriptable,
+    IsSpatial,
     IsTaggable,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.VIEW)
 class View(
-    Spatial,
+    IsSpatial,
     Entity,
     HasName,
     IsOrdered,

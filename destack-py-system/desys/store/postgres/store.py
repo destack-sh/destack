@@ -13,12 +13,12 @@ from destack.language import (
     DatabaseInfo,
     DatabaseType,
     Edit,
+    NodeDefinitionReference,
     NodeReference,
     NodeType,
     Query,
     QueryResult,
     QueryUpdate,
-    RelationReference,
     RelationType,
     Store,
     StoreImplementation,
@@ -163,40 +163,47 @@ class PostgresStoreContext(PostgresContext):
         return applied_edits
 
     @override
-    def resolve(self, relation: RelationReference) -> Sequence[RelationReference]:
-        if relation.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE):
-            return (relation,)
-        elif relation.type == RelationType.TRAIT:
-            assert relation.trait_type is not None, f"no trait_type for {relation!r}"
-            node_types = NODE_TYPES_BY_TRAIT_TYPE.get(relation.trait_type, ())
+    def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
+        if definition.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE):
+            return (definition,)
+        elif definition.type == RelationType.BUILTIN_TRAIT:
+            assert definition.trait_type is not None, f"no trait_type for {definition!r}"
+            node_types = NODE_TYPES_BY_TRAIT_TYPE.get(definition.trait_type, ())
             return tuple(
                 RELATION_REF_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]] for node_type in node_types
             )
+        elif definition.type == RelationType.CUSTOM_TRAIT:
+            raise NotImplementedError(f"cannot resolve {definition!r}")
         else:
-            assert_never(relation.type)
+            assert_never(definition.type)
 
     @override
-    def get(self, relation: RelationReference | NodeReference) -> PostgresTable:
+    def get(self, definition: NodeDefinitionReference | NodeReference) -> PostgresTable:
         # map relations to table names
-        if isinstance(relation, NodeReference):
-            if relation.node_type != NodeType.CUSTOM_ENTITY:
-                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{relation.node_type.name.lower()}"
+        if isinstance(definition, NodeReference):
+            if definition.node_type != NodeType.CUSTOM_ENTITY:
+                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.node_type.name.lower()}"
             else:
-                assert relation.definition_id is not None, f"no definition_id for {relation!r}"
-                table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{relation.definition_id}"
-        elif isinstance(relation, RelationReference):
-            if relation.type == RelationType.BUILTIN_NODE:
-                assert relation.node_type is not None, f"no node_type for {relation!r}"
-                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{relation.node_type.name.lower()}"
-            elif relation.type == RelationType.CUSTOM_NODE:
-                assert relation.definition_ptr is not None, f"no definition_ptr for {relation!r}"
-                table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{relation.definition_ptr.id}"
-            elif relation.type == RelationType.TRAIT:
-                raise RuntimeError(f"cannot get single table for {relation!r}")
+                assert definition.definition_id is not None, f"no definition_id for {definition!r}"
+                table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{definition.definition_id}"
+        elif isinstance(definition, NodeDefinitionReference):
+            if definition.type == RelationType.BUILTIN_NODE:
+                assert definition.node_type is not None, f"no node_type for {definition!r}"
+                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.node_type.name.lower()}"
+            elif definition.type == RelationType.CUSTOM_NODE:
+                assert definition.definition_ptr is not None, (
+                    f"no definition_ptr for {definition!r}"
+                )
+                table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{definition.definition_ptr.id}"
+            elif (
+                definition.type == RelationType.BUILTIN_TRAIT
+                or definition.type == RelationType.CUSTOM_TRAIT
+            ):
+                raise RuntimeError(f"cannot get {definition!r}")
             else:
-                assert_never(relation.type)
+                assert_never(definition.type)
         else:
-            assert_never(relation)
+            assert_never(definition)
 
         # lookup
         table = self.tables_by_name.get(table_name)

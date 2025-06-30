@@ -4,10 +4,11 @@ import {
   EnumType,
   IsSubject,
   Node,
+  PropertyReference,
   StructFrozen,
   StructType,
 } from "@destack/language/core/builtin";
-import { CustomProperty, PropertyReference, Value } from "@destack/language/core/common";
+import { CustomProperty, Value } from "@destack/language/core/common";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Origin } from "@destack/language/space";
 import {

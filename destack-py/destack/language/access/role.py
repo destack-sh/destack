@@ -3,19 +3,18 @@ from typing import Optional
 from destack.language.core import (
     Entity,
     Event,
-    Global,
     HasIcon,
     HasName,
     HasSlug,
     IsDeletable,
+    IsGlobal,
     IsJoinable,
     IsOrdered,
     IsOwner,
+    IsSpatial,
     IsSubject,
-    Node,
     NodeType,
     RoleType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
@@ -24,38 +23,38 @@ from destack.language.core import (
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.ROLE_ASSIGNED_EVENT)
-class RoleAssignedEvent(
-    Event["Role"],
-    Node,
-):
+@builtin_node(NodeType.ROLE_EVENT, is_abstract=True)
+class RoleEvent(Event["Role"]):
     """A Event regarding a Role."""
 
     subject: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.ROLE_ASSIGNED_EVENT)
+class RoleAssignedEvent(RoleEvent):
+    """A Event regarding a Role."""
+
+    pass
 
 
 @builtin_node(NodeType.ROLE_UNASSIGNED_EVENT)
-class RoleUnassignedEvent(
-    Event["Role"],
-    Node,
-):
+class RoleUnassignedEvent(RoleEvent):
     """A Event regarding a Role."""
 
-    subject: "IsSubject" = property_(40)
+    pass
 
 
 @builtin_node(NodeType.ROLE)
 class Role(
-    Global,
-    Spatial,
-    Entity,
+    IsGlobal,
+    IsSpatial,
     HasSlug,
     HasIcon,
     HasName,
     IsOwner,
     IsOrdered,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Role for Subjects to take."""
 

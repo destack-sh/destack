@@ -3,22 +3,22 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from ..builtin import (
     CascadeAction,
     EdgeType,
-    Entity,
     Enum,
     EnumType,
     HasIcon,
     HasName,
     IsDeletable,
     IsSourceable,
+    IsSpatial,
     IsTaggable,
     Node,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
     property_parent_,
 )
+from .entity import Entity
 from .query import Condition, ConditionalType, Sort, SortType
 from .type import (
     CollectionConstraint,
@@ -36,7 +36,6 @@ if TYPE_CHECKING:
     from destack.language import (
         CustomEntityDefinition,
         IsExtensible,
-        NodeReference,
         Type,
         Value,
     )
@@ -54,14 +53,13 @@ class CustomPropertyType(Enum):
 
 @builtin_node(NodeType.CUSTOM_PROPERTY)
 class CustomProperty(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     HasIcon,
     IsTaggable,
     IsDeletable,
     IsSourceable,
-    Node,
+    Entity,
 ):
     """
     A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.
@@ -83,11 +81,11 @@ class CustomProperty(
     base_type: Optional["Node"] = property_(47, is_repr=True)
     key_type: Optional["Type"] = property_(48, is_repr=True)  # for maps
     if TYPE_CHECKING:
-        base_ptr: Optional["NodeReference"] = None
+        pass
 
     # meta
     is_required: bool | None = property_(50)
-    # is_external
+    is_unique: bool | None = property_(51)
     default_value: Optional["Value"] = property_(55)
     default_factory: Optional[DefaultFactory] = property_(56)
 
@@ -100,6 +98,10 @@ class CustomProperty(
     # relationship
     edge_type: Optional[EdgeType] = property_(70)
     cascade: Optional[CascadeAction] = property_(71)
+
+    # flags
+    is_readonly: bool | None = property_(80)
+    is_static: bool | None = property_(81)
 
     def eq(self, value: Any) -> Condition:
         if value is None:

@@ -2,10 +2,9 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   ClientType,
-  Entity,
-  Global,
   HasName,
   IsDeletable,
+  IsGlobal,
   IsSubject,
   Node,
   NodeType,
@@ -13,6 +12,7 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Entity } from "@destack/language/core/common";
 import { Machine } from "@destack/language/infra";
 import { Cursor } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";
@@ -267,14 +267,9 @@ registerStructClass(StructType.ORIGIN, Origin);
 /**
  * A Client to connect with the system.
  */
-export class Client extends Node implements HasName, Global, Entity, IsDeletable {
+export class Client extends Node implements HasName, IsGlobal, IsDeletable, Entity {
   static metatype: NodeType = NodeType.CLIENT;
-  static __traits__: TraitType[] = [
-    TraitType.GLOBAL,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.DELETABLE,
-  ];
+  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.TRACKED, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.USER, NodeType.AGENT];
   static __childTypes__: NodeType[] = [];
@@ -428,14 +423,14 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
   /**
    * Client.cursor
    */
-  get cursor(): (Node & Cursor) | null {
+  get cursor(): Cursor | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null;
+      return this._supergraph.get(nodePtr.id) as Cursor | null;
     }
     return null;
   }
-  set cursor(node: (Node & Cursor) | null) {
+  set cursor(node: Cursor | null) {
     if (node === null) {
       this.cursorPtr = null;
     } else {
@@ -464,7 +459,7 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     accessToken?: string | null;
     seenAt?: Temporal.ZonedDateTime | null;
     loggedInAt?: Temporal.ZonedDateTime | null;
-    cursor?: (Node & Cursor) | NodeReference | null;
+    cursor?: Cursor | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -661,6 +656,9 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -668,9 +666,6 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
 
     return h;
@@ -821,6 +816,11 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     const unpackedBrowserName = browserNameValue != undefined ? browserNameValue : null;
     const browserVersionValue = objectValue["44"];
     const unpackedBrowserVersion = browserVersionValue != undefined ? browserVersionValue : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -830,11 +830,6 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new Client({
       parent: unpackedParentPtr,
@@ -852,11 +847,11 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       browserVersion: unpackedBrowserVersion,
       name: objectValue["31"],
       id: String(objectValue["2"]),
+      deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
       _session,
       _graph,
       _connection,
@@ -993,6 +988,8 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       browserVersion: objectProto.browserVersion != undefined ? objectProto.browserVersion : null,
       name: objectProto.name,
       id: String(objectProto.id),
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1015,8 +1012,6 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
               _connection,
             )
           : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

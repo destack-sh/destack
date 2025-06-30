@@ -4,7 +4,6 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    Node,
     NodeType,
     Vector2,
     builtin_enum,
@@ -18,7 +17,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.INPUT_EVENT)
+@builtin_node(NodeType.INPUT_EVENT, is_abstract=True)
 class InputEvent[NodeT: View = View](Event[NodeT]):
     """An InputEvent is an Event that corresponds to some direct user input."""
 
@@ -30,7 +29,7 @@ class InputEvent[NodeT: View = View](Event[NodeT]):
 #
 
 
-@builtin_node(NodeType.POINTER_EVENT)
+@builtin_node(NodeType.POINTER_EVENT, is_abstract=True)
 class PointerEvent(InputEvent):
     """A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer."""
 
@@ -107,14 +106,14 @@ class MouseButton(Enum):
     MIDDLE = 3
 
 
-@builtin_node(NodeType.MOUSE_EVENT)
+@builtin_node(NodeType.MOUSE_EVENT, is_abstract=True)
 class MouseEvent(PointerEvent):
     """A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse."""
 
     button: MouseButton = property_(60)
 
 
-@builtin_node(NodeType.CLICK_EVENT)
+@builtin_node(NodeType.CLICK_EVENT, is_abstract=True)
 class ClickEvent(MouseEvent):
     """A ClickEvent is an InputEvent that corresponds to some direct user input with a click (left, right, middle)."""
 
@@ -161,7 +160,7 @@ class WheelEvent(MouseEvent):
 #
 
 
-@builtin_node(NodeType.KEYBOARD_EVENT)
+@builtin_node(NodeType.KEYBOARD_EVENT, is_abstract=True)
 class KeyboardEvent(InputEvent):
     """A KeyboardEvent is an InputEvent that corresponds to some direct user input with a keyboard."""
 
@@ -176,21 +175,21 @@ class KeyboardEvent(InputEvent):
 
 
 @builtin_node(NodeType.KEY_DOWN_EVENT)
-class KeyDownEvent(KeyboardEvent, Node):
+class KeyDownEvent(KeyboardEvent):
     """A KeyDownEvent is a KeyboardEvent when a key is pressed down."""
 
     pass
 
 
 @builtin_node(NodeType.KEY_UP_EVENT)
-class KeyUpEvent(KeyboardEvent, Node):
+class KeyUpEvent(KeyboardEvent):
     """A KeyUpEvent is a KeyboardEvent when a key is released."""
 
     pass
 
 
 @builtin_node(NodeType.KEY_PRESS_EVENT)
-class KeyPressEvent(KeyboardEvent, Node):
+class KeyPressEvent(KeyboardEvent):
     """A KeyPressEvent is a KeyboardEvent when a key is pressed."""
 
     pass
@@ -201,7 +200,7 @@ class KeyPressEvent(KeyboardEvent, Node):
 #
 
 
-@builtin_node(NodeType.DRAG_EVENT)
+@builtin_node(NodeType.DRAG_EVENT, is_abstract=True)
 class DragEvent(InputEvent):
     """A DragEvent is an InputEvent that corresponds to some direct user input with a drag."""
 
@@ -209,42 +208,42 @@ class DragEvent(InputEvent):
 
 
 @builtin_node(NodeType.DRAG_START_EVENT)
-class DragStartEvent(DragEvent, Node):
+class DragStartEvent(DragEvent):
     """A DragStartEvent is a DragEvent when a drag starts."""
 
     pass
 
 
 @builtin_node(NodeType.DRAG_END_EVENT)
-class DragEndEvent(DragEvent, Node):
+class DragEndEvent(DragEvent):
     """A DragEndEvent is a DragEvent when a drag ends."""
 
     pass
 
 
 @builtin_node(NodeType.DRAG_OVER_EVENT)
-class DragOverEvent(DragEvent, Node):
+class DragOverEvent(DragEvent):
     """A DragOverEvent is a DragEvent when a drag is over an element."""
 
     pass
 
 
 @builtin_node(NodeType.DRAG_ENTER_EVENT)
-class DragEnterEvent(DragEvent, Node):
+class DragEnterEvent(DragEvent):
     """A DragEnterEvent is a DragEvent when a drag enters an element."""
 
     pass
 
 
 @builtin_node(NodeType.DRAG_LEAVE_EVENT)
-class DragLeaveEvent(DragEvent, Node):
+class DragLeaveEvent(DragEvent):
     """A DragLeaveEvent is a DragEvent when a drag leaves an element."""
 
     pass
 
 
 @builtin_node(NodeType.DROP_EVENT)
-class DropEvent(DragEvent, Node):
+class DropEvent(DragEvent):
     """A DropEvent is a DragEvent when a drag is dropped on an element."""
 
     pass
@@ -255,7 +254,7 @@ class DropEvent(DragEvent, Node):
 #
 
 
-@builtin_node(NodeType.CLIPBOARD_EVENT)
+@builtin_node(NodeType.CLIPBOARD_EVENT, is_abstract=True)
 class ClipboardEvent(InputEvent):
     """A ClipboardEvent is an InputEvent that corresponds to some direct user input with a clipboard."""
 
@@ -263,21 +262,21 @@ class ClipboardEvent(InputEvent):
 
 
 @builtin_node(NodeType.COPY_EVENT)
-class CopyEvent(ClipboardEvent, Node):
+class CopyEvent(ClipboardEvent):
     """A CopyEvent is a ClipboardEvent when a copy is performed."""
 
     pass
 
 
 @builtin_node(NodeType.CUT_EVENT)
-class CutEvent(ClipboardEvent, Node):
+class CutEvent(ClipboardEvent):
     """A CutEvent is a ClipboardEvent when a cut is performed."""
 
     pass
 
 
 @builtin_node(NodeType.PASTE_EVENT)
-class PasteEvent(ClipboardEvent, Node):
+class PasteEvent(ClipboardEvent):
     """A PasteEvent is a ClipboardEvent when a paste is performed."""
 
     pass
@@ -288,7 +287,7 @@ class PasteEvent(ClipboardEvent, Node):
 #
 
 
-@builtin_node(NodeType.FOCUS_EVENT)
+@builtin_node(NodeType.FOCUS_EVENT, is_abstract=True)
 class FocusEvent(InputEvent):
     """A FocusEvent is an InputEvent that corresponds to some direct user input with a focus."""
 
@@ -296,12 +295,12 @@ class FocusEvent(InputEvent):
 
 
 @builtin_node(NodeType.FOCUS_IN_EVENT)
-class FocusInEvent(FocusEvent, Node):
+class FocusInEvent(FocusEvent):
     """A FocusInEvent is a FocusEvent when a focus is gained."""
 
 
 @builtin_node(NodeType.FOCUS_OUT_EVENT)
-class FocusOutEvent(FocusEvent, Node):
+class FocusOutEvent(FocusEvent):
     """A FocusOutEvent is a FocusEvent when a focus is lost."""
 
     pass

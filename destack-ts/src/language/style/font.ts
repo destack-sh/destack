@@ -5,7 +5,7 @@ import {
   IsSubject,
   Node,
   NodeType,
-  Struct,
+  StructFrozen,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
@@ -37,14 +37,14 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A font value.
  */
-export class Font extends Struct {
+export class Font extends StructFrozen {
   static metatype: StructType = StructType.FONT;
-  static __isFrozen__: boolean = false;
+  static __isFrozen__: boolean = true;
 
   /**
    * Font.type
    */
-  type: FontType;
+  readonly type: FontType;
 
   /**
    * style
@@ -59,54 +59,47 @@ export class Font extends Struct {
     }
     return null;
   }
-  set style(value: FontStyle | null) {
-    if (value == null) {
-      this.stylePtr = null;
-    } else {
-      this.stylePtr = value.toRef();
-    }
-  }
-  stylePtr: NodeReference | null;
+  readonly stylePtr: NodeReference | null;
 
   /**
    * Font.weight
    */
-  weight: FontWeight | null;
+  readonly weight: FontWeight | null;
 
   /**
    * Font.color
    */
-  color: Fill | null;
+  readonly color: Fill | null;
 
   /**
    * Font.size
    */
-  size: FontSize | null;
+  readonly size: FontSize | null;
 
   /**
    * Font.align
    */
-  align: TextAlign | null;
+  readonly align: TextAlign | null;
 
   /**
    * Font.lineHeight
    */
-  lineHeight: Length | null;
+  readonly lineHeight: Length | null;
 
   /**
    * Font.letterSpacing
    */
-  letterSpacing: Length | null;
+  readonly letterSpacing: Length | null;
 
   /**
    * Font.decoration
    */
-  decoration: TextDecoration | null;
+  readonly decoration: TextDecoration | null;
 
   /**
    * Font.transform
    */
-  transform: TextTransform | null;
+  readonly transform: TextTransform | null;
 
   constructor(options: {
     type?: FontType;
@@ -121,6 +114,10 @@ export class Font extends Struct {
     transform?: TextTransform | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -176,7 +173,14 @@ export class Font extends Struct {
     this.transform = _transform;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -226,39 +230,47 @@ export class Font extends Struct {
   }
 
   repr(): string {
-    const propertyReprs: string[] = [];
-    propertyReprs.push(`type=${FontType[this.type]}`);
-    if (this.style !== null) {
-      propertyReprs.push(`style=${this.style.repr()}`);
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${FontType[this.type]}`);
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style.repr()}`);
+      }
+      if (this.weight !== null) {
+        propertyReprs.push(`weight=${FontWeight[this.weight]}`);
+      }
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      if (this.size !== null) {
+        propertyReprs.push(`size=${FontSize[this.size]}`);
+      }
+      if (this.align !== null) {
+        propertyReprs.push(`align=${TextAlign[this.align]}`);
+      }
+      if (this.lineHeight !== null) {
+        propertyReprs.push(`lineHeight=${this.lineHeight.repr()}`);
+      }
+      if (this.letterSpacing !== null) {
+        propertyReprs.push(`letterSpacing=${this.letterSpacing.repr()}`);
+      }
+      if (this.decoration !== null) {
+        propertyReprs.push(`decoration=${TextDecoration[this.decoration]}`);
+      }
+      if (this.transform !== null) {
+        propertyReprs.push(`transform=${TextTransform[this.transform]}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Font ${propertyReprs.join(" ")}>`;
     }
-    if (this.weight !== null) {
-      propertyReprs.push(`weight=${FontWeight[this.weight]}`);
-    }
-    if (this.color !== null) {
-      propertyReprs.push(`color=${this.color.repr()}`);
-    }
-    if (this.size !== null) {
-      propertyReprs.push(`size=${FontSize[this.size]}`);
-    }
-    if (this.align !== null) {
-      propertyReprs.push(`align=${TextAlign[this.align]}`);
-    }
-    if (this.lineHeight !== null) {
-      propertyReprs.push(`lineHeight=${this.lineHeight.repr()}`);
-    }
-    if (this.letterSpacing !== null) {
-      propertyReprs.push(`letterSpacing=${this.letterSpacing.repr()}`);
-    }
-    if (this.decoration !== null) {
-      propertyReprs.push(`decoration=${TextDecoration[this.decoration]}`);
-    }
-    if (this.transform !== null) {
-      propertyReprs.push(`transform=${TextTransform[this.transform]}`);
-    }
-    return `<Font ${propertyReprs.join(" ")}>`;
+    return this._repr;
   }
 
   hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -290,6 +302,8 @@ export class Font extends Struct {
       h = (h * 31 + this.transform) & 0xffffffff;
     }
 
+    // @ts-expect-error(readonly)
+    this._hash = h;
     return h;
   }
 
@@ -298,7 +312,11 @@ export class Font extends Struct {
   }
 
   toValue(): { [key: string]: any } {
-    return Font.__packValue__(this);
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Font.__packValue__(this);
+    }
+    return this._value;
   }
 
   static __packValue__(object: Font): { [key: string]: any } {
@@ -383,6 +401,7 @@ export class Font extends Struct {
       letterSpacing: unpackedLetterSpacing,
       decoration: unpackedDecoration,
       transform: unpackedTransform,
+      _value: objectValue,
       _supergraph,
     });
   }
@@ -398,7 +417,11 @@ export class Font extends Struct {
   }
 
   toProto(): FontProto {
-    return Font.__packProto__(this);
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Font.__packProto__(this);
+    }
+    return this._proto as FontProto;
   }
 
   static __packProto__(object: Font): FontProto {
@@ -476,6 +499,7 @@ export class Font extends Struct {
         objectProto.transform != undefined
           ? (Number(objectProto.transform) as TextTransform)
           : null,
+      _proto: objectProto,
       _supergraph,
     });
   }
@@ -615,76 +639,42 @@ export enum TextTransform {
 registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
 /* ==== DESTACK_GENERATED_END:ENUM:12045 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12040 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12062 ==== */
 /**
  * A font style.
  */
 export class FontStyle extends Node implements Style {
   static metatype: NodeType = NodeType.FONT_STYLE;
   static __traits__: TraitType[] = [
-    TraitType.STYLE,
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.THEME,
-    NodeType.THREAD_VIEW,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.CANVAS,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.SCENE,
-  ];
+  static __parentTypes__: NodeType[] = [NodeType.THEME, NodeType.VIEW, NodeType.SCENE];
   static __childTypes__: NodeType[] = [NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
-    NodeType.SPACE,
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
-    NodeType.FRAME_VIEW,
-    NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.SCENE,
-    NodeType.LAYER,
-    NodeType.TEXT_VIEW,
     NodeType.THEME,
+    NodeType.SPACE,
+    NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.THREAD_VIEW,
+    NodeType.VIEW,
+    NodeType.LAYER,
+    NodeType.CONTAINER_VIEW,
     NodeType.CANVAS,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
   /**
    * Style.parent
    */
-  get parent(): Scene | (Node & View) | Theme | null {
+  get parent(): Scene | View | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
     }
     return null;
   }
@@ -798,7 +788,7 @@ export class FontStyle extends Node implements Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | (Node & View) | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1109,7 +1099,7 @@ export class FontStyle extends Node implements Style {
 
   static __packValue__(object: FontStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12040;
+    objectValue["1"] = 12062;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1256,7 +1246,7 @@ export class FontStyle extends Node implements Style {
   }
 
   static __packProto__(object: FontStyle): FontStyleProto {
-    const objectProto: Partial<FontStyleProto> = { metatype: 12040 };
+    const objectProto: Partial<FontStyleProto> = { metatype: 12062 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1411,4 +1401,4 @@ export class FontStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FONT_STYLE, FontStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12040 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12062 ==== */

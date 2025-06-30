@@ -4,8 +4,8 @@ from .route import Route
 from .schedule import DayOfWeek, Month, Schedule, ScheduleFrequency
 from .script import Script
 from .service import Service
-from .timer import Timer, TimerStartedEvent, TimerStoppedEvent
-from .trigger import Trigger, TriggerStartedEvent, TriggerStoppedEvent, TriggerType
+from .timer import Timer, TimerCancelledEvent, TimerCompletedEvent, TimerStartedEvent
+from .trigger import Trigger, TriggerType
 
 __all__ = [
     "Action",
@@ -23,10 +23,9 @@ __all__ = [
     "Service",
     "ThreadCursor",
     "Timer",
+    "TimerCancelledEvent",
+    "TimerCompletedEvent",
     "TimerStartedEvent",
-    "TimerStoppedEvent",
     "Trigger",
-    "TriggerStartedEvent",
-    "TriggerStoppedEvent",
     "TriggerType",
 ]

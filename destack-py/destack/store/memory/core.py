@@ -5,9 +5,9 @@ from typing import Any, assert_never
 from destack.language import (
     CustomEntityDefinition,
     Edit,
+    NodeDefinitionReference,
     NodeReference,
     NodeType,
-    RelationReference,
     RelationType,
 )
 from destack.language.registry import (
@@ -52,20 +52,22 @@ class MemoryContext:
         """Apply the Edits to the context. Returns the Edits that were applied."""
         ...
 
-    def resolve(self, relation: RelationReference) -> Sequence[RelationReference]:
+    def resolve(self, relation: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
         """Expand the specific Relations for a RelationReference."""
         if relation.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE):
             return (relation,)
-        elif relation.type == RelationType.TRAIT:
+        elif relation.type == RelationType.BUILTIN_TRAIT:
             assert relation.trait_type is not None, f"no trait_type for {relation!r}"
             node_types = NODE_TYPES_BY_TRAIT_TYPE.get(relation.trait_type, ())
             return tuple(
                 RELATION_REF_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]] for node_type in node_types
             )
+        elif relation.type == RelationType.CUSTOM_TRAIT:
+            raise NotImplementedError(f"cannot resolve {relation!r}")
         else:
             assert_never(relation.type)
 
-    def get(self, relation: RelationReference | NodeReference) -> "MemoryTable":
+    def get(self, relation: NodeDefinitionReference | NodeReference) -> "MemoryTable":
         """Get the (single) Table for a node / relation. Doesn't work for multi-relations."""
         assert relation.node_type is not None, f"no node_type for {relation!r}"
         if isinstance(relation, NodeReference):

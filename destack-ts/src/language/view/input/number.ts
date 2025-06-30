@@ -13,94 +13,51 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:10400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10420 ==== */
 /**
  * A general number input View.
  */
 export class NumberInputView extends Node implements InputView {
   static metatype: NodeType = NodeType.NUMBER_INPUT_VIEW;
   static __traits__: TraitType[] = [
-    TraitType.INPUT_VIEW,
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
-    TraitType.VIEW,
     TraitType.TAGGABLE,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
     TraitType.SCRIPTABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
-    NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CONTAINER_VIEW,
     NodeType.LAYER,
-    NodeType.CUSTOM_VIEW,
-    NodeType.CANVAS,
-    NodeType.SPLIT_VIEW,
     NodeType.SCENE,
   ];
-  static __childTypes__: NodeType[] = [
-    NodeType.TAGGING,
-    NodeType.SCRIPT,
-    NodeType.COLOR_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.EFFECT_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.STROKE_STYLE,
-  ];
+  static __childTypes__: NodeType[] = [NodeType.TAGGING, NodeType.SCRIPT];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.LABEL_VIEW,
-    NodeType.CANVAS,
-    NodeType.CUSTOM_VIEW,
     NodeType.LAYER,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.SPLIT_VIEW,
+    NodeType.CONTAINER_VIEW,
+    NodeType.CANVAS,
     NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [
-    NodeType.CUSTOM_OPTION,
-    NodeType.STROKE_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.CUSTOM_PROPERTY,
-    NodeType.FONT_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.TAGGING,
-    NodeType.COLOR_STYLE,
     NodeType.SCRIPT,
-    NodeType.EFFECT_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.FILL_STYLE,
+    NodeType.CUSTOM_OPTION,
+    NodeType.TAGGING,
+    NodeType.CUSTOM_PROPERTY,
   ];
 
   /**
    * View.parent
    */
-  get parent(): Window | Scene | Layer | (Node & ContainerView) | null {
+  get parent(): Window | Scene | Layer | ContainerView | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | Window
-        | Scene
-        | Layer
-        | (Node & ContainerView)
-        | null;
+      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | ContainerView | null;
     }
     return null;
   }
@@ -243,7 +200,7 @@ export class NumberInputView extends Node implements InputView {
 
   constructor(options: {
     id?: string;
-    parent?: Window | Scene | Layer | (Node & ContainerView) | NodeReference | null;
+    parent?: Window | Scene | Layer | ContainerView | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -556,7 +513,7 @@ export class NumberInputView extends Node implements InputView {
 
   static __packValue__(object: NumberInputView): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10400;
+    objectValue["1"] = 10420;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -740,7 +697,7 @@ export class NumberInputView extends Node implements InputView {
   }
 
   static __packProto__(object: NumberInputView): NumberInputViewProto {
-    const objectProto: Partial<NumberInputViewProto> = { metatype: 10400 };
+    const objectProto: Partial<NumberInputViewProto> = { metatype: 10420 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -924,4 +881,4 @@ export class NumberInputView extends Node implements InputView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NUMBER_INPUT_VIEW, NumberInputView);
-/* ==== DESTACK_GENERATED_END:NODE:10400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10420 ==== */

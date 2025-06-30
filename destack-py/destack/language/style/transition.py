@@ -3,9 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
-    Node,
     NodeType,
-    StructMutable,
+    StructFrozen,
     StructType,
     builtin_enum,
     builtin_node,
@@ -38,8 +37,8 @@ class SpringType(Enum):
     PHYSICS = 2
 
 
-@builtin_struct(StructType.TRANSITION)
-class Transition(StructMutable):
+@builtin_struct(StructType.TRANSITION, frozen=True)
+class Transition(StructFrozen):
     """A transition value."""
 
     type: TransitionType = property_(30, default=TransitionType.TWEEN, is_repr=True)
@@ -55,10 +54,7 @@ class Transition(StructMutable):
 
 
 @builtin_node(NodeType.TRANSITION_STYLE)
-class TransitionStyle(
-    Style,
-    Node,
-):
+class TransitionStyle(Style):
     """A transition style."""
 
     type: TransitionType = property_(30, default=TransitionType.TWEEN, is_repr=True)

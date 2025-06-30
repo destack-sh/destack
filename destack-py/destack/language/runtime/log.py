@@ -5,7 +5,6 @@ from destack.language.core import (
     EnumType,
     Event,
     Json,
-    Node,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -29,11 +28,8 @@ class LogLevel(Enum):
     PANIC = 6
 
 
-@builtin_node(NodeType.LOG, pretend_frozen=True)
-class Log(
-    Event,
-    Node,
-):
+@builtin_node(NodeType.LOG_EVENT, pretend_frozen=True)
+class LogEvent(Event):
     """A Log message."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)

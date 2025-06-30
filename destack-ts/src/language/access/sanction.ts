@@ -1,21 +1,21 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
   EnumType,
-  Event,
   IsDeletable,
   IsJoinable,
+  IsSpatial,
   IsSubject,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Entity, Event } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
+  SanctionEventProto,
   SanctionExpiredEventProto,
   SanctionGrantedEventProto,
   SanctionProto,
@@ -46,9 +46,9 @@ registerEnumClass(EnumType.SANCTION_TYPE, SanctionType);
 /**
  * SanctionRequestedEvent
  */
-export class SanctionRequestedEvent extends Node implements Event {
+export class SanctionRequestedEvent extends Node implements SanctionEvent {
   static metatype: NodeType = NodeType.SANCTION_REQUESTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -56,7 +56,7 @@ export class SanctionRequestedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -80,7 +80,7 @@ export class SanctionRequestedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * SanctionRequestedEvent.node
+   * SanctionEvent.node
    */
   get node(): Sanction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -95,7 +95,7 @@ export class SanctionRequestedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * SanctionRequestedEvent.target
+   * SanctionEvent.target
    */
   get target(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -438,9 +438,9 @@ registerNodeClass(NodeType.SANCTION_REQUESTED_EVENT, SanctionRequestedEvent);
 /**
  * SanctionGrantedEvent
  */
-export class SanctionGrantedEvent extends Node implements Event {
+export class SanctionGrantedEvent extends Node implements SanctionEvent {
   static metatype: NodeType = NodeType.SANCTION_GRANTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -448,7 +448,7 @@ export class SanctionGrantedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -472,7 +472,7 @@ export class SanctionGrantedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * SanctionGrantedEvent.node
+   * SanctionEvent.node
    */
   get node(): Sanction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -487,7 +487,7 @@ export class SanctionGrantedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * SanctionGrantedEvent.target
+   * SanctionEvent.target
    */
   get target(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -830,9 +830,9 @@ registerNodeClass(NodeType.SANCTION_GRANTED_EVENT, SanctionGrantedEvent);
 /**
  * SanctionRevokedEvent
  */
-export class SanctionRevokedEvent extends Node implements Event {
+export class SanctionRevokedEvent extends Node implements SanctionEvent {
   static metatype: NodeType = NodeType.SANCTION_REVOKED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -840,7 +840,7 @@ export class SanctionRevokedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -864,7 +864,7 @@ export class SanctionRevokedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * SanctionRevokedEvent.node
+   * SanctionEvent.node
    */
   get node(): Sanction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -879,7 +879,7 @@ export class SanctionRevokedEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * SanctionRevokedEvent.target
+   * SanctionEvent.target
    */
   get target(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -1222,9 +1222,9 @@ registerNodeClass(NodeType.SANCTION_REVOKED_EVENT, SanctionRevokedEvent);
 /**
  * SanctionExpiredEvent
  */
-export class SanctionExpiredEvent extends Node implements Event {
+export class SanctionExpiredEvent extends Node implements SanctionEvent {
   static metatype: NodeType = NodeType.SANCTION_EXPIRED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1232,7 +1232,7 @@ export class SanctionExpiredEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1256,7 +1256,7 @@ export class SanctionExpiredEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * SanctionExpiredEvent.node
+   * SanctionEvent.node
    */
   get node(): Sanction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1271,7 +1271,7 @@ export class SanctionExpiredEvent extends Node implements Event {
   nodePtr: NodeReference;
 
   /**
-   * SanctionExpiredEvent.target
+   * SanctionEvent.target
    */
   get target(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -1614,14 +1614,9 @@ registerNodeClass(NodeType.SANCTION_EXPIRED_EVENT, SanctionExpiredEvent);
 /**
  * A Sanction on some Subject.
  */
-export class Sanction extends Node implements Spatial, Entity, IsDeletable {
+export class Sanction extends Node implements IsSpatial, IsDeletable, Entity {
   static metatype: NodeType = NodeType.SANCTION;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.DELETABLE,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
     NodeType.SPACE,
@@ -1865,6 +1860,9 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1872,9 +1870,6 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
 
     return h;
@@ -1970,6 +1965,11 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1979,11 +1979,6 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new Sanction({
       parent: unpackedParentPtr,
@@ -1998,11 +1993,11 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
       ),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
       _session,
       _graph,
       _connection,
@@ -2090,6 +2085,8 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
             )
           : null,
       id: String(objectProto.id),
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -2112,8 +2109,6 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
               _connection,
             )
           : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,
@@ -2142,3 +2137,383 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
 }
 registerNodeClass(NodeType.SANCTION, Sanction);
 /* ==== DESTACK_GENERATED_END:NODE:580 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:581 ==== */
+/**
+ * SanctionEvent
+ */
+export class SanctionEvent extends Node implements Event {
+  static metatype: NodeType = NodeType.SANCTION_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * SanctionEvent.node
+   */
+  get node(): Sanction | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Sanction | null;
+    }
+    return null;
+  }
+  set node(node: Sanction) {
+    this.nodePtr = node.toRef();
+  }
+  nodePtr: NodeReference;
+
+  /**
+   * SanctionEvent.target
+   */
+  get target(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.targetPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  set target(node: Node & IsSubject) {
+    this.targetPtr = node.toRef();
+  }
+  targetPtr: NodeReference;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    node: Sanction | NodeReference;
+    target: (Node & IsSubject) | NodeReference;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`SanctionEvent.node is required`);
+    }
+    this.nodePtr = _node;
+    let _target = options.target;
+    if (_target != null && _target instanceof Node) {
+      _target = _target.toRef();
+    }
+    if (_target === null) {
+      throw new Error(`SanctionEvent.target is required`);
+    }
+    this.targetPtr = _target;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.targetPtr.id === other.targetPtr.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.SANCTION_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "SanctionEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<SanctionEvent '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return SanctionEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: SanctionEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 581;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["35"] = object.nodePtr.toValue();
+    objectValue["40"] = object.targetPtr.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): SanctionEvent {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new SanctionEvent({
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      target: NodeReference.fromValue(
+        objectValue["40"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): SanctionEvent {
+    return SanctionEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): SanctionEventProto {
+    return SanctionEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: SanctionEvent): SanctionEventProto {
+    const objectProto: Partial<SanctionEventProto> = { metatype: 581 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    objectProto.targetPtr = object.targetPtr.toProto();
+    return objectProto as SanctionEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: SanctionEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): SanctionEvent {
+    return new SanctionEvent({
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      target: NodeReference.fromProto(
+        objectProto.targetPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: SanctionEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): SanctionEvent {
+    return SanctionEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): SanctionEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SanctionEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.SANCTION_EVENT, SanctionEvent);
+/* ==== DESTACK_GENERATED_END:NODE:581 ==== */

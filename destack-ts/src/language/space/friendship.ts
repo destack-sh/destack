@@ -1,21 +1,20 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Entity,
-  Event,
-  Global,
+  IsGlobal,
   IsOwnable,
   IsSubject,
-  LikeInvite,
   Node,
   NodeType,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
+import { Entity, Event } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space, User } from "@destack/language/space";
 import {
   FriendshipInviteAcceptedEventProto,
+  FriendshipInviteEventProto,
   FriendshipInviteProto,
   FriendshipInviteRejectedEventProto,
   FriendshipInviteRescindedEventProto,
@@ -30,9 +29,9 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Friendship between two Users.
  */
-export class Friendship extends Node implements Global, Entity {
+export class Friendship extends Node implements IsGlobal, Entity {
   static metatype: NodeType = NodeType.FRIENDSHIP;
-  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.TRACKED, TraitType.ENTITY];
+  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.TRACKED];
   static __rootType__: NodeType | null = null;
   static __parentTypes__: NodeType[] = [];
   static __childTypes__: NodeType[] = [];
@@ -441,11 +440,11 @@ registerNodeClass(NodeType.FRIENDSHIP, Friendship);
 
 /* ==== DESTACK_GENERATED_START:NODE:90 ==== */
 /**
- * A Event regarding a Friendship Invite.
+ * A FriendshipInvite was sent.
  */
-export class FriendshipInviteSentEvent extends Node implements Event {
+export class FriendshipInviteSentEvent extends Node implements FriendshipInviteEvent {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_SENT_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -453,7 +452,7 @@ export class FriendshipInviteSentEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -477,7 +476,7 @@ export class FriendshipInviteSentEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * FriendshipInviteSentEvent.node
+   * FriendshipInviteEvent.node
    */
   get node(): FriendshipInvite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -789,11 +788,11 @@ registerNodeClass(NodeType.FRIENDSHIP_INVITE_SENT_EVENT, FriendshipInviteSentEve
 
 /* ==== DESTACK_GENERATED_START:NODE:91 ==== */
 /**
- * A Event regarding a Friendship Invite.
+ * A FriendshipInvite was rescinded.
  */
-export class FriendshipInviteRescindedEvent extends Node implements Event {
+export class FriendshipInviteRescindedEvent extends Node implements FriendshipInviteEvent {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -801,7 +800,7 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -825,7 +824,7 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * FriendshipInviteRescindedEvent.node
+   * FriendshipInviteEvent.node
    */
   get node(): FriendshipInvite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1139,11 +1138,11 @@ registerNodeClass(NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT, FriendshipInviteRe
 
 /* ==== DESTACK_GENERATED_START:NODE:92 ==== */
 /**
- * A Event regarding a Friendship Invite.
+ * A FriendshipInvite was accepted.
  */
-export class FriendshipInviteAcceptedEvent extends Node implements Event {
+export class FriendshipInviteAcceptedEvent extends Node implements FriendshipInviteEvent {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1151,7 +1150,7 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1175,7 +1174,7 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * FriendshipInviteAcceptedEvent.node
+   * FriendshipInviteEvent.node
    */
   get node(): FriendshipInvite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1487,11 +1486,11 @@ registerNodeClass(NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT, FriendshipInviteAcc
 
 /* ==== DESTACK_GENERATED_START:NODE:93 ==== */
 /**
- * A Event regarding a Friendship Invite.
+ * A FriendshipInvite was rejected.
  */
-export class FriendshipInviteRejectedEvent extends Node implements Event {
+export class FriendshipInviteRejectedEvent extends Node implements FriendshipInviteEvent {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_REJECTED_EVENT;
-  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1499,7 +1498,7 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
   static __descendantTypes__: NodeType[] = [];
 
   /**
-   * Spatial.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1523,7 +1522,7 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * FriendshipInviteRejectedEvent.node
+   * FriendshipInviteEvent.node
    */
   get node(): FriendshipInvite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1837,15 +1836,9 @@ registerNodeClass(NodeType.FRIENDSHIP_INVITE_REJECTED_EVENT, FriendshipInviteRej
 /**
  * An invite to be friends with another User.
  */
-export class FriendshipInvite extends Node implements Global, Entity, LikeInvite, IsOwnable {
+export class FriendshipInvite extends Node implements IsGlobal, IsOwnable, Entity {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE;
-  static __traits__: TraitType[] = [
-    TraitType.GLOBAL,
-    TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.OWNABLE,
-    TraitType.INVITE,
-  ];
+  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.TRACKED, TraitType.OWNABLE];
   static __rootType__: NodeType | null = null;
   static __parentTypes__: NodeType[] = [];
   static __childTypes__: NodeType[] = [];
@@ -1913,21 +1906,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
   }
   ownedByPtr: NodeReference;
 
-  /**
-   * LikeInvite.member
-   */
-  get member(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.memberPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  set member(node: Node & IsSubject) {
-    this.memberPtr = node.toRef();
-  }
-  memberPtr: NodeReference;
-
   constructor(options: {
     id?: string;
     parent?: Node | NodeReference | null;
@@ -1936,7 +1914,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     ownedBy: (Node & IsSubject) | NodeReference;
-    member: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1979,14 +1956,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
       throw new Error(`FriendshipInvite.ownedBy is required`);
     }
     this.ownedByPtr = _ownedBy;
-    let _member = options.member;
-    if (_member != null && _member instanceof Node) {
-      _member = _member.toRef();
-    }
-    if (_member === null) {
-      throw new Error(`FriendshipInvite.member is required`);
-    }
-    this.memberPtr = _member;
 
     // identity
     if (options.id == null) {
@@ -2025,9 +1994,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
     if (!(this.ownedByPtr.id === other.ownedByPtr.id)) {
       return false;
     }
-    if (!(this.memberPtr.id === other.memberPtr.id)) {
-      return false;
-    }
     return true;
   }
 
@@ -2047,7 +2013,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2099,7 +2064,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["25"] = object.ownedByPtr.toValue();
-    objectValue["40"] = object.memberPtr.toValue();
     return objectValue;
   }
 
@@ -2139,13 +2103,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      member: NodeReference.fromValue(
-        objectValue["40"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       _session,
       _graph,
       _connection,
@@ -2187,7 +2144,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.ownedByPtr = object.ownedByPtr.toProto();
-    objectProto.memberPtr = object.memberPtr.toProto();
     return objectProto as FriendshipInviteProto;
   }
 
@@ -2239,13 +2195,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
               _connection,
             )
           : null,
-      member: NodeReference.fromProto(
-        objectProto.memberPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       _session,
       _graph,
       _connection,
@@ -2280,3 +2229,351 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE, FriendshipInvite);
 /* ==== DESTACK_GENERATED_END:NODE:80 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:81 ==== */
+/**
+ * A Event regarding a Friendship Invite.
+ */
+export class FriendshipInviteEvent extends Node implements Event {
+  static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_EVENT;
+  static __traits__: TraitType[] = [TraitType.SPATIAL];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * FriendshipInviteEvent.node
+   */
+  get node(): FriendshipInvite | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as FriendshipInvite | null;
+    }
+    return null;
+  }
+  set node(node: FriendshipInvite) {
+    this.nodePtr = node.toRef();
+  }
+  nodePtr: NodeReference;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    node: FriendshipInvite | NodeReference;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`FriendshipInviteEvent.node is required`);
+    }
+    this.nodePtr = _node;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.FRIENDSHIP_INVITE_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "FriendshipInviteEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<FriendshipInviteEvent '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return FriendshipInviteEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: FriendshipInviteEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 81;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["35"] = object.nodePtr.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FriendshipInviteEvent {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new FriendshipInviteEvent({
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FriendshipInviteEvent {
+    return FriendshipInviteEvent.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): FriendshipInviteEventProto {
+    return FriendshipInviteEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: FriendshipInviteEvent): FriendshipInviteEventProto {
+    const objectProto: Partial<FriendshipInviteEventProto> = { metatype: 81 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    return objectProto as FriendshipInviteEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: FriendshipInviteEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FriendshipInviteEvent {
+    return new FriendshipInviteEvent({
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: FriendshipInviteEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FriendshipInviteEvent {
+    return FriendshipInviteEvent.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): FriendshipInviteEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FriendshipInviteEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.FRIENDSHIP_INVITE_EVENT, FriendshipInviteEvent);
+/* ==== DESTACK_GENERATED_END:NODE:81 ==== */

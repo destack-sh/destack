@@ -5,14 +5,13 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    Global,
     IsDeletable,
+    IsGlobal,
     IsJoinable,
     IsOwnable,
+    IsSpatial,
     IsSubject,
-    Node,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -25,32 +24,28 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.MEMBERSHIP_JOINED_EVENT)
-class MembershipJoinedEvent(
-    Event["Membership"],
-    Node,
-):
-    """A Event regarding a Membership Join."""
+@builtin_node(NodeType.MEMBERSHIP_EVENT, is_abstract=True)
+class MembershipEvent(Event["Membership"]):
+    """A Event regarding a Membership."""
 
     node: "Membership" = property_(35)
     joinable: "IsJoinable" = property_(40)
     member: "IsSubject" = property_(41)
-    role: "Role" = property_(42)
-    role_type: "RoleType" = property_(43)
+
+
+@builtin_node(NodeType.MEMBERSHIP_JOINED_EVENT)
+class MembershipJoinedEvent(MembershipEvent):
+    """A Event regarding a Membership Join."""
+
+    role: "Role" = property_(50)
+    role_type: "RoleType" = property_(51)
 
 
 @builtin_node(NodeType.MEMBERSHIP_LEFT_EVENT)
-class MembershipLeftEvent(
-    Event["Membership"],
-    Node,
-):
+class MembershipLeftEvent(MembershipEvent):
     """A Event regarding a Membership Leave."""
 
-    node: "Membership" = property_(35)
-    joinable: "IsJoinable" = property_(40)
-    member: "IsSubject" = property_(41)
-    role: "Role" = property_(42)
-    role_type: "RoleType" = property_(43)
+    pass
 
 
 @builtin_enum(EnumType.MEMBERSHIP_PERMISSION)
@@ -63,12 +58,11 @@ class MembershipPermission(Enum):
 
 @builtin_node(NodeType.MEMBERSHIP)
 class Membership(
-    Global,
-    Spatial,
-    Entity,
+    IsGlobal,
+    IsSpatial,
     IsOwnable,
     IsDeletable,
-    Node,
+    Entity,
 ):
     """A Membership of a Subject in a Joinable."""
 

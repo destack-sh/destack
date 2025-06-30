@@ -66,18 +66,14 @@ registerEnumClass(EnumType.LAYER_TYPE, LayerType);
 /**
  * A Layer is a named container for Views.
  */
-export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
+export class Layer extends Node implements HasIcon, IsOwnable, ContainerView {
   static metatype: NodeType = NodeType.LAYER;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.VISUAL,
-    TraitType.VIEW,
     TraitType.TAGGABLE,
-    TraitType.CONTAINER_VIEW,
+    TraitType.SPATIAL,
     TraitType.TRACKED,
-    TraitType.ENTITY,
-    TraitType.DELETABLE,
     TraitType.OWNABLE,
+    TraitType.DELETABLE,
     TraitType.EXTENSIBLE,
     TraitType.ORDERED,
     TraitType.SCRIPTABLE,
@@ -86,15 +82,18 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
   static __parentTypes__: NodeType[] = [NodeType.CANVAS, NodeType.SCENE];
   static __childTypes__: NodeType[] = [
     NodeType.CUSTOM_PROPERTY,
-    NodeType.CUSTOM_VIEW,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
     NodeType.FRAME_VIEW,
     NodeType.LABEL_VIEW,
     NodeType.SPLIT_VIEW,
+    NodeType.CONTENT_VIEW,
     NodeType.TEXT_VIEW,
+    NodeType.INPUT_VIEW,
     NodeType.NUMBER_INPUT_VIEW,
     NodeType.SLIDER_INPUT_VIEW,
-    NodeType.WIZARD_VIEW,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
+    NodeType.SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.CANVAS,
@@ -103,61 +102,50 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     NodeType.TAGGING,
     NodeType.SCRIPT,
     NodeType.VARIANT,
-    NodeType.COLOR_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.EFFECT_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.STROKE_STYLE,
   ];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.LABEL_VIEW,
     NodeType.LAYER,
-    NodeType.CUSTOM_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CONTAINER_VIEW,
     NodeType.CANVAS,
     NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [
-    NodeType.LINE_SHAPE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.ARROW_SHAPE,
-    NodeType.ANNOTATION_SHAPE,
+    NodeType.STYLE,
+    NodeType.SHAPE,
+    NodeType.VIEW,
+    NodeType.CONTAINER_VIEW,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
     NodeType.FONT_STYLE,
-    NodeType.CUSTOM_VIEW,
     NodeType.BORDER_STYLE,
-    NodeType.WIZARD_VIEW,
+    NodeType.LINE_SHAPE,
+    NodeType.INPUT_VIEW,
     NodeType.SHADOW_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.STROKE_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.POLYGON_SHAPE,
     NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SCRIPT,
+    NodeType.ARROW_SHAPE,
     NodeType.SLIDER_INPUT_VIEW,
     NodeType.FRAME_VIEW,
-    NodeType.GRADIENT_STYLE,
-    NodeType.LABEL_VIEW,
-    NodeType.TRANSITION_STYLE,
-    NodeType.SCRIPT,
-    NodeType.SPLIT_VIEW,
-    NodeType.EFFECT_STYLE,
-    NodeType.STROKE_STYLE,
     NodeType.LAYER,
     NodeType.CUSTOM_PROPERTY,
-    NodeType.TEXT_VIEW,
+    NodeType.CONTENT_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.LABEL_VIEW,
     NodeType.CUSTOM_OPTION,
     NodeType.VARIANT,
-    NodeType.THREAD_VIEW,
+    NodeType.INTERNAL_VIEW,
+    NodeType.TEXT_VIEW,
     NodeType.TAGGING,
-    NodeType.COLOR_STYLE,
+    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
-    NodeType.FILL_STYLE,
   ];
 
   /**
@@ -627,6 +615,15 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+      return false;
+    }
     if (!(this.layout === other.layout)) {
       return false;
     }
@@ -791,15 +788,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
         return false;
       }
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
-      return false;
-    }
     return true;
   }
 
@@ -810,6 +798,13 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
     if (this.layout !== null) {
       h = (h * 31 + this.layout) & 0xffffffff;
     }
@@ -891,7 +886,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -913,12 +907,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
-    }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -957,10 +945,10 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
     }
+    propertyReprs.push(`name=${this.name}`);
     return `<Layer '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -1101,6 +1089,16 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
       parentPtrValue != undefined
         ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const iconValue = objectValue["34"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByPtrValue = objectValue["25"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const layoutValue = objectValue["50"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
     const directionValue = objectValue["51"];
@@ -1238,19 +1236,12 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
         );
       }
     }
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByPtrValue = objectValue["25"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Layer({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
+      icon: unpackedIcon,
+      id: String(objectValue["2"]),
+      ownedBy: unpackedOwnedByPtr,
       layout: unpackedLayout,
       direction: unpackedDirection,
       distribute: unpackedDistribute,
@@ -1278,7 +1269,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
@@ -1288,8 +1278,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
       script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
       value: unpackedValue,
-      icon: unpackedIcon,
-      ownedBy: unpackedOwnedByPtr,
       _session,
       _graph,
       _connection,
@@ -1457,6 +1445,21 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
             )
           : null,
       type: Number(objectProto.type) as LayerType,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      id: String(objectProto.id),
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
       direction:
         objectProto.direction != undefined ? (Number(objectProto.direction) as Direction) : null,
@@ -1546,7 +1549,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1584,20 +1586,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       value: unpackedValue,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

@@ -9,10 +9,9 @@ from destack.language.core import (
     IsFollowable,
     IsOwner,
     IsScriptable,
+    IsSpatial,
     IsSubject,
-    Node,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
     property_parent_,
@@ -26,8 +25,7 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.AGENT)
 class Agent(
-    Spatial,
-    Entity,
+    IsSpatial,
     HasName,
     HasIcon,
     HasSlug,
@@ -36,7 +34,7 @@ class Agent(
     IsScriptable,
     IsDeletable,
     IsSubject,
-    Node,
+    Entity,
 ):
     """An Agent is an identity for a bot."""
 

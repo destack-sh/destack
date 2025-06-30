@@ -900,7 +900,7 @@ __toRef__(): NodeReference {{
   }});
 }}
 """
-    elif NodeType.CUSTOM_NODE in cls.__extends__:
+    elif NodeType.CUSTOM_ENTITY in cls.__extends__ or NodeType.CUSTOM_EVENT in cls.__extends__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
   return new NodeReference({{
@@ -1208,7 +1208,13 @@ def _get_builtin_object_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, 
                 and super_cls != Trait
                 and super_cls != NodeBase
             ):
-                dependencies[super_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[super_cls.metatype]
+                super_type = super_cls.metatype
+                if isinstance(super_type, TraitType):
+                    dependencies[super_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[super_type]
+                elif isinstance(super_type, NodeType):
+                    dependencies[super_cls.__name__] = NODE_DEFINITION_BY_TYPE[super_type]
+                else:
+                    assert_never(super_type)
 
     # properties
     for prop in _get_properties(cls):

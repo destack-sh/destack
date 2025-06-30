@@ -1,15 +1,15 @@
 from .interruption import Interruption, InterruptionResponse, InterruptionStatus, InterruptionType
-from .log import Log
+from .log import LogEvent
 from .run import Run, RunStatus
-from .span import Span
+from .span import SpanEvent
 
 __all__ = [
     "Interruption",
     "InterruptionResponse",
     "InterruptionStatus",
     "InterruptionType",
-    "Log",
+    "LogEvent",
     "Run",
     "RunStatus",
-    "Span",
+    "SpanEvent",
 ]

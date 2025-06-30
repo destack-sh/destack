@@ -4,9 +4,8 @@ from destack.language.core import (
     Axis2,
     Enum,
     EnumType,
-    Node,
     NodeType,
-    StructMutable,
+    StructFrozen,
     StructType,
     builtin_enum,
     builtin_node,
@@ -39,8 +38,8 @@ class ShadowPosition(Enum):
     INSIDE = 2
 
 
-@builtin_struct(StructType.SHADOW)
-class Shadow(StructMutable):
+@builtin_struct(StructType.SHADOW, frozen=True)
+class Shadow(StructFrozen):
     """A shadow value."""
 
     type: ShadowType = property_(30, default=ShadowType.BOX, is_repr=True)
@@ -54,10 +53,7 @@ class Shadow(StructMutable):
 
 
 @builtin_node(NodeType.SHADOW_STYLE)
-class ShadowStyle(
-    Style,
-    Node,
-):
+class ShadowStyle(Style):
     """A shadow style."""
 
     type: ShadowType = property_(30, default=ShadowType.BOX, is_repr=True)

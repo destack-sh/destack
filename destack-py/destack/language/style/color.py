@@ -3,9 +3,8 @@ from typing import TYPE_CHECKING, Optional, Union, assert_never
 from destack.language.core import (
     Enum,
     EnumType,
-    Node,
     NodeType,
-    StructMutable,
+    StructFrozen,
     StructType,
     builtin_enum,
     builtin_node,
@@ -88,8 +87,8 @@ class ColorIntent(Enum):
     ERROR = 13
 
 
-@builtin_struct(StructType.COLOR)
-class Color(StructMutable):
+@builtin_struct(StructType.COLOR, frozen=True)
+class Color(StructFrozen):
     """A color value."""
 
     type: ColorType = property_(30, is_repr=True)
@@ -113,10 +112,7 @@ class Color(StructMutable):
 
 
 @builtin_node(NodeType.COLOR_STYLE)
-class ColorStyle(
-    Style,
-    Node,
-):
+class ColorStyle(Style):
     """A color style, with an optional dark variant."""
 
     parent: Union["Scene", "View", "Theme", "Palette", None] = property_parent_(
