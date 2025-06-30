@@ -24,6 +24,12 @@ def test_node_inheritance(session: Session):
         NodeType.SCREEN_CURSOR,
         NodeType.THREAD_CURSOR,
     )
+    assert Cursor.__inherited_by__ == (
+        NodeType.EVENT_CURSOR,
+        NodeType.SCREEN_CURSOR,
+        NodeType.THREAD_CURSOR,
+    )
+    assert len(Node.__inherited_by__) == len(NodeType) - 1
 
 
 def test_node_space_ptr(session: Session):

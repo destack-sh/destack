@@ -5,7 +5,6 @@ export * from "@destack/language/style/effect";
 export * from "@destack/language/style/fill";
 export * from "@destack/language/style/font";
 export * from "@destack/language/style/gradient";
-export * from "@destack/language/style/palette";
 export * from "@destack/language/style/shadow";
 export * from "@destack/language/style/stroke";
 export * from "@destack/language/style/style";
