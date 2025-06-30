@@ -360,7 +360,6 @@ export class Folder
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
@@ -383,6 +382,7 @@ export class Folder
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -528,7 +528,6 @@ export class Folder
       type: Number(objectValue["30"]),
       mainScene: unpackedMainScenePtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       icon: unpackedIcon,
       slug: unpackedSlug,
       name: objectValue["31"],
@@ -539,6 +538,7 @@ export class Folder
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -636,7 +636,6 @@ export class Folder
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       icon:
         objectProto.icon != undefined
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -678,6 +677,7 @@ export class Folder
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

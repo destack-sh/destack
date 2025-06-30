@@ -165,6 +165,8 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
     __extends__: ClassVar[tuple[NodeType, ...]] = ()
     """Nodes that extend this Node type (directly)."""
     __extended_by__: ClassVar[tuple[NodeType, ...]] = ()
+    """Nodes that extend this Node type (directly and indirectly)."""
+    __inherited_by__: ClassVar[tuple[NodeType, ...]] = ()
     """Traits directly inherited by this Node (directly)."""
     __base_traits__: ClassVar[tuple[TraitType, ...]] = ()
     """Traits directly and indirectly inherited by this Node (directly and indirectly)."""
@@ -595,7 +597,6 @@ class IsGlobal(Trait):
 class IsSpatial(Trait):
     """A Node in a Space."""
 
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
     space: "Space | None" = property_(
         5,
         is_managed=True,

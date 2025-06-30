@@ -456,7 +456,6 @@ export class CustomEntityDefinition
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
@@ -470,7 +469,6 @@ export class CustomEntityDefinition
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -479,6 +477,8 @@ export class CustomEntityDefinition
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
 
     return h;
   }
@@ -654,17 +654,17 @@ export class CustomEntityDefinition
       baseTraits: unpackedBaseTraits,
       isAbstract: objectValue["45"],
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
       source: unpackedSourcePtr,
-      orderKey: objectValue["22"],
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      orderKey: objectValue["22"],
       _session,
       _graph,
       _connection,
@@ -797,7 +797,6 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       ownedBy:
         objectProto.ownedByPtr != undefined
@@ -831,7 +830,6 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -854,6 +852,8 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
+      id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,
@@ -1292,12 +1292,10 @@ export class CustomTraitDefinition
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -1312,6 +1310,8 @@ export class CustomTraitDefinition
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
 
     return h;
   }
@@ -1467,16 +1467,16 @@ export class CustomTraitDefinition
       baseTraits: unpackedBaseTraits,
       isAbstract: objectValue["45"],
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       source: unpackedSourcePtr,
-      orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      orderKey: objectValue["22"],
       _session,
       _graph,
       _connection,
@@ -1593,7 +1593,6 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
@@ -1605,7 +1604,6 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       script:
@@ -1640,6 +1638,8 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
+      id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,
@@ -1684,12 +1684,12 @@ export abstract class Resource extends Entity implements IsDeletable {
   static metatype: NodeType = NodeType.RESOURCE;
 
   /**
-   * Resource.parent
+   * Trait.parent
    */
-  get parent(): Folder | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -1759,12 +1759,12 @@ export abstract class Metric extends Entity implements IsSpatial, HasName, IsSou
   static metatype: NodeType = NodeType.METRIC;
 
   /**
-   * IsSpatial.parent
+   * Trait.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }

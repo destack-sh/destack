@@ -1793,6 +1793,11 @@ export class NodeDefinition extends StructFrozen {
   readonly extendedBy: Array<NodeType>;
 
   /**
+   * Nodes that inherit this Node type (directly and indirectly).
+   */
+  readonly inheritedBy: Array<NodeType>;
+
+  /**
    * Traits directly inherited by this Node (directly).
    */
   readonly baseTraits: Array<TraitType>;
@@ -1840,6 +1845,7 @@ export class NodeDefinition extends StructFrozen {
     baseType?: NodeType | null;
     extends?: Array<NodeType>;
     extendedBy?: Array<NodeType>;
+    inheritedBy?: Array<NodeType>;
     baseTraits?: Array<TraitType>;
     traits?: Array<TraitType>;
     rootType?: NodeType | null;
@@ -1913,6 +1919,11 @@ export class NodeDefinition extends StructFrozen {
       _extendedBy = [];
     }
     this.extendedBy = _extendedBy;
+    let _inheritedBy = options.inheritedBy ?? null;
+    if (_inheritedBy === null) {
+      _inheritedBy = [];
+    }
+    this.inheritedBy = _inheritedBy;
     let _baseTraits = options.baseTraits ?? null;
     if (_baseTraits === null) {
       _baseTraits = [];
@@ -2012,6 +2023,14 @@ export class NodeDefinition extends StructFrozen {
     }
     for (let i = 0; i < this.extendedBy.length; i++) {
       if (!(this.extendedBy[i] === other.extendedBy[i])) {
+        return false;
+      }
+    }
+    if (this.inheritedBy.length !== other.inheritedBy.length) {
+      return false;
+    }
+    for (let i = 0; i < this.inheritedBy.length; i++) {
+      if (!(this.inheritedBy[i] === other.inheritedBy[i])) {
         return false;
       }
     }
@@ -2124,6 +2143,11 @@ export class NodeDefinition extends StructFrozen {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
+    if (this.inheritedBy && this.inheritedBy.length > 0) {
+      for (const _item of this.inheritedBy) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
     if (this.baseTraits && this.baseTraits.length > 0) {
       for (const _item of this.baseTraits) {
         h = (h * 31 + _item) & 0xffffffff;
@@ -2214,19 +2238,26 @@ export class NodeDefinition extends StructFrozen {
       }
       objectValue["52"] = packedExtendedBy;
     }
+    if (object.inheritedBy.length > 0) {
+      const packedInheritedBy: any[] = [];
+      for (const item of object.inheritedBy) {
+        packedInheritedBy.push(item);
+      }
+      objectValue["53"] = packedInheritedBy;
+    }
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
         packedBaseTraits.push(item);
       }
-      objectValue["53"] = packedBaseTraits;
+      objectValue["55"] = packedBaseTraits;
     }
     if (object.traits.length > 0) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
         packedTraits.push(item);
       }
-      objectValue["54"] = packedTraits;
+      objectValue["56"] = packedTraits;
     }
     if (object.rootType != null) {
       objectValue["60"] = object.rootType;
@@ -2298,15 +2329,21 @@ export class NodeDefinition extends StructFrozen {
         unpackedExtendedBy.push(Number(item));
       }
     }
-    const unpackedBaseTraits: any[] = [];
+    const unpackedInheritedBy: any[] = [];
     if (objectValue["53"] != undefined) {
       for (const item of objectValue["53"]) {
+        unpackedInheritedBy.push(Number(item));
+      }
+    }
+    const unpackedBaseTraits: any[] = [];
+    if (objectValue["55"] != undefined) {
+      for (const item of objectValue["55"]) {
         unpackedBaseTraits.push(Number(item));
       }
     }
     const unpackedTraits: any[] = [];
-    if (objectValue["54"] != undefined) {
-      for (const item of objectValue["54"]) {
+    if (objectValue["56"] != undefined) {
+      for (const item of objectValue["56"]) {
         unpackedTraits.push(Number(item));
       }
     }
@@ -2349,6 +2386,7 @@ export class NodeDefinition extends StructFrozen {
       baseType: unpackedBaseType,
       extends: unpackedExtends,
       extendedBy: unpackedExtendedBy,
+      inheritedBy: unpackedInheritedBy,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,
       rootType: unpackedRootType,
@@ -2416,6 +2454,13 @@ export class NodeDefinition extends StructFrozen {
         packedExtendedBy.push(Number(item) as NodeTypeProto);
       }
       objectProto.extendedBy = packedExtendedBy;
+    }
+    if (object.inheritedBy) {
+      const packedInheritedBy: any[] = [];
+      for (const item of object.inheritedBy) {
+        packedInheritedBy.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.inheritedBy = packedInheritedBy;
     }
     if (object.baseTraits) {
       const packedBaseTraits: any[] = [];
@@ -2492,6 +2537,12 @@ export class NodeDefinition extends StructFrozen {
         unpackedExtendedBy.push(Number(item) as NodeType);
       }
     }
+    const unpackedInheritedBy: any[] = [];
+    if (objectProto.inheritedBy) {
+      for (const item of objectProto.inheritedBy) {
+        unpackedInheritedBy.push(Number(item) as NodeType);
+      }
+    }
     const unpackedBaseTraits: any[] = [];
     if (objectProto.baseTraits) {
       for (const item of objectProto.baseTraits) {
@@ -2545,6 +2596,7 @@ export class NodeDefinition extends StructFrozen {
         objectProto.baseType != undefined ? (Number(objectProto.baseType) as NodeType) : null,
       extends: unpackedExtends,
       extendedBy: unpackedExtendedBy,
+      inheritedBy: unpackedInheritedBy,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,
       rootType:

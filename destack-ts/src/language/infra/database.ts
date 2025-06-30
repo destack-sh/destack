@@ -681,12 +681,12 @@ export class Database extends Resource implements IsSpatial, HasName {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.targetStatus !== null) {
       h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -849,10 +849,10 @@ export class Database extends Resource implements IsSpatial, HasName {
       tenancy: Number(objectValue["55"]),
       connectionUrl: unpackedConnectionUrl,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
+      id: String(objectValue["2"]),
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -955,13 +955,13 @@ export class Database extends Resource implements IsSpatial, HasName {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       status: Number(objectProto.status) as ResourceStatus,
       targetStatus:
         objectProto.targetStatus != undefined
           ? unpackProtoTimestamp(objectProto.targetStatus!)
           : null,
+      id: String(objectProto.id),
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),

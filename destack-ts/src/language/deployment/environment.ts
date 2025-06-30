@@ -216,7 +216,6 @@ export class Environment extends Entity implements IsSpatial, HasName, HasIcon, 
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
@@ -232,6 +231,7 @@ export class Environment extends Entity implements IsSpatial, HasName, HasIcon, 
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -345,7 +345,6 @@ export class Environment extends Entity implements IsSpatial, HasName, HasIcon, 
     return new Environment({
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
@@ -353,6 +352,7 @@ export class Environment extends Entity implements IsSpatial, HasName, HasIcon, 
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -428,7 +428,6 @@ export class Environment extends Entity implements IsSpatial, HasName, HasIcon, 
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
@@ -458,6 +457,7 @@ export class Environment extends Entity implements IsSpatial, HasName, HasIcon, 
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

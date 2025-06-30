@@ -1,6 +1,7 @@
 import { NodeReference } from "@destack/language/core";
 import { IsSubject, Node, NodeType } from "@destack/language/core/builtin";
 import { Align, Dimension, Position } from "@destack/language/core/common";
+import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
@@ -19,10 +20,16 @@ export abstract class ContentView extends View {
   /**
    * View.parent
    */
-  get parent(): Window | Scene | Layer | ContainerView | null {
+  get parent(): Window | Scene | Layer | ContainerView | Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | ContainerView | null;
+      return this._supergraph.get(nodePtr.id) as
+        | Window
+        | Scene
+        | Layer
+        | ContainerView
+        | Folder
+        | null;
     }
     return null;
   }

@@ -199,7 +199,6 @@ export class Team
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.slug !== null) {
       h = (h * 31 + hashString(this.slug)) & 0xffffffff;
     }
@@ -215,6 +214,7 @@ export class Team
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -309,7 +309,6 @@ export class Team
         : null;
     return new Team({
       parent: unpackedParentPtr,
-      id: String(objectValue["2"]),
       slug: unpackedSlug,
       icon: unpackedIcon,
       name: objectValue["31"],
@@ -317,6 +316,7 @@ export class Team
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -379,7 +379,6 @@ export class Team
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       slug: objectProto.slug != undefined ? objectProto.slug : null,
       icon:
         objectProto.icon != undefined
@@ -408,6 +407,7 @@ export class Team
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

@@ -63,11 +63,15 @@ DESCENDANT_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 ANCESTOR_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 
 
-def get_builtin_object_cls(object_type: NodeType | StructType) -> type["BuiltinObjectBase"]:
+def get_builtin_object_cls(
+    object_type: NodeType | StructType | TraitType,
+) -> type["BuiltinObjectBase"]:
     if isinstance(object_type, NodeType):
         return NODE_CLASS_BY_TYPE[object_type]
     elif isinstance(object_type, StructType):
         return STRUCT_CLASS_BY_TYPE[object_type]
+    elif isinstance(object_type, TraitType):
+        return TRAIT_CLASS_BY_TYPE[object_type]
     else:
         assert_never(object_type)
 
@@ -87,15 +91,26 @@ def get_builtin_class(
 
 def get_builtin_type(
     cls: type["BuiltinObjectBase"] | type["Enum"],
-) -> NodeType | StructType | EnumType:
-    from .core import Enum, Node, StructBase
+) -> NodeType | StructType | TraitType | EnumType:
+    from .core import Enum, Node, StructBase, Trait
 
-    if issubclass(cls, (Node, StructBase)):
+    if issubclass(cls, (Node, StructBase, Trait)):
         return cls.metatype
     elif issubclass(cls, Enum):
         return ENUM_TYPE_BY_CLASS[cls]
     else:
         raise ValueError(f"invalid destack type: {cls!r}")
+
+
+def get_node_or_trait_cls(
+    node_type: NodeType | TraitType,
+) -> type["NodeBase"] | type["Trait"]:
+    if isinstance(node_type, NodeType):
+        return NODE_CLASS_BY_TYPE[node_type]
+    elif isinstance(node_type, TraitType):
+        return TRAIT_CLASS_BY_TYPE[node_type]
+    else:
+        assert_never(node_type)
 
 
 def finalize():
@@ -146,7 +161,7 @@ def finalize():
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
         assert node_cls.__parent_property__ is not UNSET
-        if node_cls.__root_type__ is None:
+        if node_cls.__root_type__ is None and not node_cls.__is_abstract__:
             node_cls.__parent_types__ = ()
             if node_cls.__parent_property__ is not None:
                 node_cls.__parent_property__.node_types = ()
@@ -279,6 +294,7 @@ def finalize():
 
     # sanity check stuff
     if IS_DEV or IS_TEST:
+        from destack.language.core import PropertyDeclaration
         from destack.language.core.builtin.trait import AT_LEAST_ONE_TRAITS, INFECTIOUS_TRAITS
 
         # check traits
@@ -296,6 +312,33 @@ def finalize():
                     if trait_type not in descendant_cls.__traits__:
                         raise AssertionError(
                             f"{descendant_type.name} must inherit {trait_type.name} trait from {node_type.name} (has {[t.name for t in descendant_cls.__traits__]}, parents: {[t.name for t in ANCESTOR_NODE_TYPES_BY_TYPE[descendant_type]]})"
+                        )
+
+        # check parent types
+        for node_cls in NODE_CLASS_BY_TYPE.values():
+            # check if parent is compatible with bases
+            parent_node_types = node_cls.__parent_property__.node_types or ()
+            for base_cls in node_cls.__bases__:
+                if isinstance(
+                    base_parent_property := getattr(base_cls, "__parent_property__", None),
+                    PropertyDeclaration,
+                ):
+                    base_parent_node_types = base_parent_property.node_types or ()
+                    if NodeType.NODE in base_parent_node_types:
+                        continue
+                    missing_node_types: list[NodeType | TraitType] = []
+                    for parent_node_type in parent_node_types:
+                        if not any(
+                            issubclass(
+                                get_node_or_trait_cls(parent_node_type),
+                                get_node_or_trait_cls(base_parent_node_type),
+                            )
+                            for base_parent_node_type in base_parent_node_types
+                        ):
+                            missing_node_types.append(parent_node_type)
+                    if missing_node_types:
+                        raise ValueError(
+                            f"{node_cls.__name__}.parent is not compatible with {base_cls.__name__}.parent (missing {[t.name for t in missing_node_types]})"
                         )
 
     _set_finalized()

@@ -377,7 +377,6 @@ export class Message
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
@@ -392,6 +391,7 @@ export class Message
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -564,13 +564,13 @@ export class Message
       text: unpackedText,
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -709,7 +709,6 @@ export class Message
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? NodeReference.fromProto(
@@ -744,6 +743,7 @@ export class Message
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

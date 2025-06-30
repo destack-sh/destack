@@ -233,7 +233,6 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
@@ -250,6 +249,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -364,7 +364,6 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     return new Tag({
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       name: objectValue["31"],
       icon: unpackedIcon,
       orderKey: objectValue["22"],
@@ -373,6 +372,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -449,7 +449,6 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
@@ -480,6 +479,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,
@@ -724,7 +724,6 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -737,6 +736,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -849,13 +849,13 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       parent: unpackedParentPtr,
       tag: unpackedTagPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -935,7 +935,6 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -961,6 +960,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

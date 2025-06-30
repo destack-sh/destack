@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import { IsSubject, Node, NodeType, StructType } from "@destack/language/core/builtin";
 import { Dimension, Position } from "@destack/language/core/common";
+import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
@@ -23,10 +24,16 @@ export class InternalView extends View {
   /**
    * View.parent
    */
-  get parent(): Window | Scene | Layer | ContainerView | null {
+  get parent(): Window | Scene | Layer | ContainerView | Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | ContainerView | null;
+      return this._supergraph.get(nodePtr.id) as
+        | Window
+        | Scene
+        | Layer
+        | ContainerView
+        | Folder
+        | null;
     }
     return null;
   }
@@ -149,7 +156,7 @@ export class InternalView extends View {
 
   constructor(options: {
     id?: string;
-    parent?: Window | Scene | Layer | ContainerView | NodeReference | null;
+    parent?: Window | Scene | Layer | ContainerView | Folder | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -358,7 +365,6 @@ export class InternalView extends View {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -375,6 +381,7 @@ export class InternalView extends View {
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -552,7 +559,6 @@ export class InternalView extends View {
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
@@ -561,6 +567,7 @@ export class InternalView extends View {
       orderKey: objectValue["22"],
       script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -686,7 +693,6 @@ export class InternalView extends View {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -723,6 +729,7 @@ export class InternalView extends View {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

@@ -214,7 +214,6 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -229,6 +228,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -338,13 +338,13 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
         _graph,
         _connection,
       ),
-      id: String(objectValue["2"]),
       space: unpackedSpacePtr,
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
       _session,
       _graph,
       _connection,
@@ -414,7 +414,6 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
         _graph,
         _connection,
       ),
-      id: String(objectProto.id),
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -449,6 +448,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,

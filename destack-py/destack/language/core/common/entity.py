@@ -192,7 +192,6 @@ class Resource(IsDeletable, Entity):
     The lifecycle of a Resource may be managed by some provisioner.
     """
 
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
     status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
     target_status: Optional[datetime] = property_(41)
 

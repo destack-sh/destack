@@ -973,7 +973,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
 
     # determine property types
     for prop in tuple(properties.values()):
-        prop.determine(object_type, is_root_node=is_root_node)
+        prop.determine(object_type, is_root_node=is_root_node and not is_abstract)
 
     # index properties
     cls.__properties__ = frozendict(properties)
@@ -1046,13 +1046,13 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             # validate
             validate_str, validate_glbls = _generate_validate(cls)
             exec_(validate_str, {**glbls, **validate_glbls}, cls_dict, f"{cls.__name__}:validate")
-        if is_node:
-            # __to_ref__
-            ref_str, ref_glbls = _generate_ref(cast(type["Node"], cls), NodeType(object_type))
-            exec_(ref_str, {**glbls, **ref_glbls}, cls_dict, f"{cls.__name__}:to_ref")
-            # path
-            path_str, path_glbls = _generate_path(cast(type["Node"], cls))
-            exec_(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}:path")
+            if is_node:
+                # __to_ref__
+                ref_str, ref_glbls = _generate_ref(cast(type["Node"], cls), NodeType(object_type))
+                exec_(ref_str, {**glbls, **ref_glbls}, cls_dict, f"{cls.__name__}:to_ref")
+                # path
+                path_str, path_glbls = _generate_path(cast(type["Node"], cls))
+                exec_(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}:path")
         # pack/unpack are generated after setup because we need all classes
 
         # add computed properties to concrete classes

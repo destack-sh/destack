@@ -887,7 +887,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
         elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
             return f"hashString({value_expr}.toString())"
         elif prop.primitive_type == PrimitiveType.DURATION:
-            return f"hashFloat({value_expr}.totalSeconds())"
+            return f"hashFloat({value_expr}.total('seconds'))"
         elif prop.primitive_type == PrimitiveType.JSON:
             return f"hashString(JSON.stringify({value_expr}))"
         else:

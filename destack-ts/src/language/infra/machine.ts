@@ -44,12 +44,12 @@ export class Machine extends Resource implements IsSpatial {
   static metatype: NodeType = NodeType.MACHINE;
 
   /**
-   * IsSpatial.parent
+   * Trait.parent
    */
-  get parent(): Space | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -197,7 +197,7 @@ export class Machine extends Resource implements IsSpatial {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -455,16 +455,16 @@ export class Machine extends Resource implements IsSpatial {
     h = (h * 31 + hashInt(this.width)) & 0xffffffff;
     h = (h * 31 + hashInt(this.height)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isHeadless)) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.targetStatus !== null) {
       h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -595,11 +595,6 @@ export class Machine extends Resource implements IsSpatial {
       clientPtrValue != undefined
         ? NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -609,6 +604,11 @@ export class Machine extends Resource implements IsSpatial {
     const unpackedTargetStatus =
       targetStatusValue != undefined
         ? Temporal.Instant.from(targetStatusValue).toZonedDateTimeISO("UTC")
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -639,11 +639,11 @@ export class Machine extends Resource implements IsSpatial {
       width: Number(objectValue["75"]),
       height: Number(objectValue["76"]),
       isHeadless: objectValue["77"],
-      parent: unpackedParentPtr,
       space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
+      id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -751,16 +751,6 @@ export class Machine extends Resource implements IsSpatial {
       width: Number(objectProto.width),
       height: Number(objectProto.height),
       isHeadless: objectProto.isHeadless,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -771,11 +761,21 @@ export class Machine extends Resource implements IsSpatial {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       status: Number(objectProto.status) as ResourceStatus,
       targetStatus:
         objectProto.targetStatus != undefined
           ? unpackProtoTimestamp(objectProto.targetStatus!)
+          : null,
+      id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,

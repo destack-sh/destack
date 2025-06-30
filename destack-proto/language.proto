@@ -1015,7 +1015,6 @@ enum NodeTypeProto {
   NODE_TYPE_ARROW_SHAPE = 11080;
   NODE_TYPE_ANNOTATION_SHAPE = 11100;
   NODE_TYPE_THEME = 12000;
-  NODE_TYPE_PALETTE = 12020;
   NODE_TYPE_STYLE = 12040;
   NODE_TYPE_COLOR_STYLE = 12060;
   NODE_TYPE_FILL_STYLE = 12061;
@@ -3764,8 +3763,9 @@ message NodeDefinitionProto {
   optional NodeTypeProto base_type = 50;
   repeated NodeTypeProto extends = 51;
   repeated NodeTypeProto extended_by = 52;
-  repeated TraitTypeProto base_traits = 53;
-  repeated TraitTypeProto traits = 54;
+  repeated NodeTypeProto inherited_by = 53;
+  repeated TraitTypeProto base_traits = 55;
+  repeated TraitTypeProto traits = 56;
   optional NodeTypeProto root_type = 60;
   repeated NodeTypeProto parent_types = 61;
   repeated NodeTypeProto child_types = 62;
@@ -3949,22 +3949,6 @@ message OriginProto {
   optional string id = 31;
   optional string ck = 32;
   optional string nonce = 33;
-}
-
-// A Palette with common ColorStyles.
-message PaletteProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  google.protobuf.Timestamp created_at = 15;
-  optional NodeReferenceProto created_by_ptr = 16;
-  google.protobuf.Timestamp updated_at = 17;
-  optional NodeReferenceProto updated_by_ptr = 18;
-  optional google.protobuf.Timestamp deleted_at = 20;
-  string order_key = 22;
-  string name = 31;
-  optional IconProto icon = 34;
 }
 
 // A PasteEvent is a ClipboardEvent when a paste is performed.
@@ -4935,6 +4919,7 @@ message SpanEventProto {
   google.protobuf.Timestamp created_at = 15;
   optional NodeReferenceProto created_by_ptr = 16;
   optional NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto run_ptr = 40;
 }
 
 // A split container View.
@@ -5693,7 +5678,6 @@ message SomeNodeProto {
     GradientStyleProto gradient_style = 12065;
     FillStyleProto fill_style = 12061;
     FontStyleProto font_style = 12062;
-    PaletteProto palette = 12020;
     ShadowStyleProto shadow_style = 12064;
     StrokeStyleProto stroke_style = 12068;
     ThemeProto theme = 12000;
@@ -5777,7 +5761,6 @@ message SomeEntityProto {
     GradientStyleProto gradient_style = 12065;
     FillStyleProto fill_style = 12061;
     FontStyleProto font_style = 12062;
-    PaletteProto palette = 12020;
     ShadowStyleProto shadow_style = 12064;
     StrokeStyleProto stroke_style = 12068;
     ThemeProto theme = 12000;
