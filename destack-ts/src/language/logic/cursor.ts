@@ -419,7 +419,7 @@ export class EventCursor extends Cursor {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${CursorStatus[this.status]}`);
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<EventCursor '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -934,7 +934,7 @@ export class ScreenCursor extends Cursor {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${CursorStatus[this.status]}`);
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<ScreenCursor '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1448,7 +1448,7 @@ export class ThreadCursor extends Cursor {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${CursorStatus[this.status]}`);
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<ThreadCursor '${this.path}' ${propertyReprs.join(" ")}>`;
   }

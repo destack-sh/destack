@@ -199,7 +199,7 @@ export class Shadow extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${ShadowType[this.type]}`);
       if (this.style !== null) {
-        propertyReprs.push(`style=${this.style.repr()}`);
+        propertyReprs.push(`style=${this.style?.repr()}`);
       }
       if (this.color !== null) {
         propertyReprs.push(`color=${this.color.repr()}`);

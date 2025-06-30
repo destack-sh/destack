@@ -40,6 +40,91 @@ export enum EntitlementType {
 registerEnumClass(EnumType.ENTITLEMENT_TYPE, EntitlementType);
 /* ==== DESTACK_GENERATED_END:ENUM:550 ==== */
 
+/* ==== DESTACK_GENERATED_START:NODE:601 ==== */
+/**
+ * EntitlementEvent
+ */
+export abstract class EntitlementEvent extends Event {
+  static metatype: NodeType = NodeType.ENTITLEMENT_EVENT;
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * EntitlementEvent.node
+   */
+  get node(): Entitlement | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Entitlement | null;
+    }
+    return null;
+  }
+  set node(node: Entitlement) {
+    this.nodePtr = node.toRef();
+  }
+  declare nodePtr: NodeReference;
+
+  /**
+   * EntitlementEvent.target
+   */
+  get target(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.targetPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  set target(node: Node & IsSubject) {
+    this.targetPtr = node.toRef();
+  }
+  declare targetPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.ENTITLEMENT_EVENT, EntitlementEvent);
+/* ==== DESTACK_GENERATED_END:NODE:601 ==== */
+
 /* ==== DESTACK_GENERATED_START:NODE:610 ==== */
 /**
  * EntitlementRequestedEvent
@@ -2241,88 +2326,3 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
 }
 registerNodeClass(NodeType.ENTITLEMENT, Entitlement);
 /* ==== DESTACK_GENERATED_END:NODE:600 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:601 ==== */
-/**
- * EntitlementEvent
- */
-export abstract class EntitlementEvent extends Event {
-  static metatype: NodeType = NodeType.ENTITLEMENT_EVENT;
-
-  /**
-   * IsSpatial.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly spacePtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * EntitlementEvent.node
-   */
-  get node(): Entitlement | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entitlement | null;
-    }
-    return null;
-  }
-  set node(node: Entitlement) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
-
-  /**
-   * EntitlementEvent.target
-   */
-  get target(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.targetPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  set target(node: Node & IsSubject) {
-    this.targetPtr = node.toRef();
-  }
-  declare targetPtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.ENTITLEMENT_EVENT, EntitlementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:601 ==== */

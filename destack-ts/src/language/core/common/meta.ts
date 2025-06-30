@@ -1,4 +1,3 @@
-import { ObjectType } from "@destack/language";
 import { Session, Supergraph } from "@destack/language/core";
 import {
   CascadeAction,
@@ -7,6 +6,7 @@ import {
   EnumType,
   NodeType,
   ObjectDefinitionReference,
+  ObjectDefinitionType,
   PrimitiveType,
   PropertyReference,
   PropertyReferenceType,
@@ -1165,26 +1165,30 @@ export class PropertyDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_START ==== */
 
   toRef(): PropertyReference {
-    if (this.object.type === ObjectType.BUILTIN_NODE) {
+    if (this.object.type === ObjectDefinitionType.BUILTIN_NODE) {
       return new PropertyReference({
         type: PropertyReferenceType.BUILTIN,
         nodeType: this.object.nodeType,
         id: this.id,
       });
-    } else if (this.object.type === ObjectType.BUILTIN_STRUCT) {
+    } else if (this.object.type === ObjectDefinitionType.BUILTIN_STRUCT) {
       return new PropertyReference({
         type: PropertyReferenceType.BUILTIN,
         structType: this.object.structType,
         id: this.id,
       });
-    } else if (this.object.type === ObjectType.TRAIT) {
+    } else if (this.object.type === ObjectDefinitionType.BUILTIN_TRAIT) {
       return new PropertyReference({
         type: PropertyReferenceType.BUILTIN,
         traitType: this.object.traitType,
         id: this.id,
       });
-    } else if (this.object.type === ObjectType.CUSTOM_NODE) {
-      throw new Error(`${this.repr()} cannot be associated with a custom node`);
+    } else if (
+      this.object.type === ObjectDefinitionType.CUSTOM_NODE ||
+      this.object.type === ObjectDefinitionType.CUSTOM_STRUCT ||
+      this.object.type === ObjectDefinitionType.CUSTOM_TRAIT
+    ) {
+      throw new Error(`${this.repr()} cannot be associated with a custom object`);
     } else {
       assertNever(this.object.type);
     }

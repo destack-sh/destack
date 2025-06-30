@@ -247,8 +247,8 @@ export class Friendship extends Entity implements IsGlobal {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`userA=${this.userA.repr()}`);
-    propertyReprs.push(`userB=${this.userB.repr()}`);
+    propertyReprs.push(`userA=${this.userA?.repr()}`);
+    propertyReprs.push(`userB=${this.userB?.repr()}`);
     return `<Friendship '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -429,6 +429,76 @@ export class Friendship extends Entity implements IsGlobal {
 }
 registerNodeClass(NodeType.FRIENDSHIP, Friendship);
 /* ==== DESTACK_GENERATED_END:NODE:60 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:81 ==== */
+/**
+ * A Event regarding a Friendship Invite.
+ */
+export abstract class FriendshipInviteEvent extends Event {
+  static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_EVENT;
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * FriendshipInviteEvent.node
+   */
+  get node(): FriendshipInvite | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as FriendshipInvite | null;
+    }
+    return null;
+  }
+  set node(node: FriendshipInvite) {
+    this.nodePtr = node.toRef();
+  }
+  declare nodePtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.FRIENDSHIP_INVITE_EVENT, FriendshipInviteEvent);
+/* ==== DESTACK_GENERATED_END:NODE:81 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:90 ==== */
 /**
@@ -2154,7 +2224,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     return `<FriendshipInvite '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -2343,73 +2413,3 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE, FriendshipInvite);
 /* ==== DESTACK_GENERATED_END:NODE:80 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:81 ==== */
-/**
- * A Event regarding a Friendship Invite.
- */
-export abstract class FriendshipInviteEvent extends Event {
-  static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_EVENT;
-
-  /**
-   * IsSpatial.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly spacePtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * FriendshipInviteEvent.node
-   */
-  get node(): FriendshipInvite | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as FriendshipInvite | null;
-    }
-    return null;
-  }
-  set node(node: FriendshipInvite) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.FRIENDSHIP_INVITE_EVENT, FriendshipInviteEvent);
-/* ==== DESTACK_GENERATED_END:NODE:81 ==== */

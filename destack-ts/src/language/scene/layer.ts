@@ -866,7 +866,7 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
   repr(): string {
     const propertyReprs: string[] = [];
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     propertyReprs.push(`name=${this.name}`);
     return `<Layer '${this.path}' ${propertyReprs.join(" ")}>`;

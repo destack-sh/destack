@@ -430,7 +430,7 @@ export class Message
   repr(): string {
     const propertyReprs: string[] = [];
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     if (propertyReprs.length > 0) {
       return `<Message '${this.path}' ${propertyReprs.join(" ")}>`;

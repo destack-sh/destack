@@ -235,7 +235,7 @@ export class Transition extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${TransitionType[this.type]}`);
       if (this.style !== null) {
-        propertyReprs.push(`style=${this.style.repr()}`);
+        propertyReprs.push(`style=${this.style?.repr()}`);
       }
       if (this.delay !== null) {
         propertyReprs.push(`delay=${this.delay}`);

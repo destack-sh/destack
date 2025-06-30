@@ -529,8 +529,10 @@ repr(): string {{
             assert prop.enum_type is not None, f"no enum type for {prop!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
             return f"{enum_cls.__name__}[{value_expr}]"
-        elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
+        elif prop.scalar_type == ScalarType.STRUCT:
             return f"{value_expr}.repr()"
+        elif prop.scalar_type == ScalarType.NODE_REFERENCE:
+            return f"{value_expr}?.repr()"
         elif prop.scalar_type in (ScalarType.PRIMITIVE, ScalarType.NODE_VALUE):
             if prop.primitive_type == PrimitiveType.DATETIME:
                 return f"{value_expr}.toString({{ timeZoneName: 'never'}})"
@@ -1556,6 +1558,17 @@ def _generate_file(
         "ACTIVE_SESSION",
         "activeSession",
         "TraitClass",
+    }
+    language_imports_by_module["core/common"] = {
+        "Entity",
+        "Event",
+        "Resource",
+        "Metric",
+        "CustomEntityDefinition",
+        "CustomEntity",
+        "CustomTraitDefinition",
+        "CustomEventDefinition",
+        "CustomEvent",
     }
     language_imports_by_module["registry"] = {
         "registerNodeClass",

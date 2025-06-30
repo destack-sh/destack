@@ -56,15 +56,15 @@ export enum RunStatus {
 registerEnumClass(EnumType.RUN_STATUS, RunStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:4000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:4001 ==== */
 /**
- * Run something somewhere, somehow.
+ * An Event regarding a Run.
  */
-export class Run extends Entity implements IsSpatial, IsExtensible {
-  static metatype: NodeType = NodeType.RUN;
+export abstract class RunEvent extends Event {
+  static metatype: NodeType = NodeType.RUN_EVENT;
 
   /**
-   * Run.parent
+   * IsSpatial.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -73,7 +73,7 @@ export class Run extends Entity implements IsSpatial, IsExtensible {
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -85,15 +85,15 @@ export class Run extends Entity implements IsSpatial, IsExtensible {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * Event.createdAt
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * Event.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -102,32 +102,25 @@ export class Run extends Entity implements IsSpatial, IsExtensible {
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * RunEvent.node
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
+  get node(): Run | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
-  readonly updatedByPtr: NodeReference | null;
+  set node(node: Run) {
+    this.nodePtr = node.toRef();
+  }
+  declare nodePtr: NodeReference;
 
   /**
-   * IsExtensible.value
-   */
-  value: Map<string, Value>;
-
-  /**
-   * Run.target
+   * RunEvent.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -143,677 +136,14 @@ export class Run extends Entity implements IsSpatial, IsExtensible {
       this.targetPtr = node.toRef();
     }
   }
-  targetPtr: NodeReference | null;
-
-  /**
-   * Run.status
-   */
-  status: RunStatus;
-
-  /**
-   * Duration from first attempt start to last attempt termination.
-   */
-  duration: Temporal.Duration | null;
-
-  /**
-   * When the Run is scheduled to start.
-   */
-  scheduledAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * When the Run first started.
-   */
-  startedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * When the Run was last active.
-   */
-  seenAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * When the Run was interrupted.
-   */
-  interruptedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * When the Run was last terminated.
-   */
-  terminatedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * The latest Interruption.
-   */
-  get interruption(): Interruption | null {
-    const nodePtr: NodeReference | null = this.interruptionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Interruption | null;
-    }
-    return null;
-  }
-  set interruption(node: Interruption | null) {
-    if (node === null) {
-      this.interruptionPtr = null;
-    } else {
-      this.interruptionPtr = node.toRef();
-    }
-  }
-  interruptionPtr: NodeReference | null;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
-    value?: Map<string, Value>;
-    target?: (Node & IsRunnable) | NodeReference | null;
-    status: RunStatus;
-    duration?: Temporal.Duration | null;
-    scheduledAt?: Temporal.ZonedDateTime | null;
-    startedAt?: Temporal.ZonedDateTime | null;
-    seenAt?: Temporal.ZonedDateTime | null;
-    interruptedAt?: Temporal.ZonedDateTime | null;
-    terminatedAt?: Temporal.ZonedDateTime | null;
-    interruption?: Interruption | NodeReference | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _value = options.value ?? null;
-    if (_value === null) {
-      _value = new Map();
-    }
-    this.value = _value;
-    let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
-    }
-    this.targetPtr = _target;
-    let _status = options.status;
-    if (_status === null) {
-      throw new Error(`Run.status is required`);
-    }
-    this.status = _status;
-    let _duration = options.duration ?? null;
-    this.duration = _duration;
-    let _scheduledAt = options.scheduledAt ?? null;
-    this.scheduledAt = _scheduledAt;
-    let _startedAt = options.startedAt ?? null;
-    this.startedAt = _startedAt;
-    let _seenAt = options.seenAt ?? null;
-    this.seenAt = _seenAt;
-    let _interruptedAt = options.interruptedAt ?? null;
-    this.interruptedAt = _interruptedAt;
-    let _terminatedAt = options.terminatedAt ?? null;
-    this.terminatedAt = _terminatedAt;
-    let _interruption = options.interruption ?? null;
-    if (_interruption != null && _interruption instanceof Node) {
-      _interruption = _interruption.toRef();
-    }
-    this.interruptionPtr = _interruption;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.targetPtr?.id === other.targetPtr?.id)) {
-      return false;
-    }
-    if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.duration === other.duration)) {
-      return false;
-    }
-    if (!(this.scheduledAt === other.scheduledAt)) {
-      return false;
-    }
-    if (!(this.startedAt === other.startedAt)) {
-      return false;
-    }
-    if (!(this.seenAt === other.seenAt)) {
-      return false;
-    }
-    if (!(this.interruptedAt === other.interruptedAt)) {
-      return false;
-    }
-    if (!(this.terminatedAt === other.terminatedAt)) {
-      return false;
-    }
-    if (!(this.interruptionPtr?.id === other.interruptionPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
-      return false;
-    }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
-        return false;
-      }
-      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.targetPtr !== null) {
-      h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + this.status) & 0xffffffff;
-    if (this.duration !== null) {
-      h = (h * 31 + hashFloat(this.duration.totalSeconds())) & 0xffffffff;
-    }
-    if (this.scheduledAt !== null) {
-      h = (h * 31 + hashString(this.scheduledAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    if (this.startedAt !== null) {
-      h = (h * 31 + hashString(this.startedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    if (this.seenAt !== null) {
-      h = (h * 31 + hashString(this.seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    if (this.interruptedAt !== null) {
-      h =
-        (h * 31 + hashString(this.interruptedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    if (this.terminatedAt !== null) {
-      h = (h * 31 + hashString(this.terminatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    if (this.interruptionPtr !== null) {
-      h = (h * 31 + hashString(this.interruptionPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.RUN,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "Run[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    const propertyReprs: string[] = [];
-    propertyReprs.push(`status=${RunStatus[this.status]}`);
-    if (this.duration !== null) {
-      propertyReprs.push(`duration=${this.duration}`);
-    }
-    if (this.startedAt !== null) {
-      propertyReprs.push(`startedAt=${this.startedAt.toString({ timeZoneName: "never" })}`);
-    }
-    if (this.interruption !== null) {
-      propertyReprs.push(`interruption=${this.interruption.repr()}`);
-    }
-    return `<Run '${this.path}' ${propertyReprs.join(" ")}>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return Run.__packValue__(this);
-  }
-
-  static __packValue__(object: Run): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4000;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
-    if (object.value.size > 0) {
-      const packedValue: { [key: string]: any } = {};
-      for (const [key, value] of object.value) {
-        packedValue[String(String(key))] = value.toValue();
-      }
-      objectValue["21"] = packedValue;
-    }
-    if (object.targetPtr != null) {
-      objectValue["40"] = object.targetPtr.toValue();
-    }
-    objectValue["41"] = object.status;
-    if (object.duration != null) {
-      objectValue["42"] = timedeltaToISOFormat(object.duration);
-    }
-    if (object.scheduledAt != null) {
-      objectValue["45"] = object.scheduledAt.toString({ timeZoneName: "never" });
-    }
-    if (object.startedAt != null) {
-      objectValue["46"] = object.startedAt.toString({ timeZoneName: "never" });
-    }
-    if (object.seenAt != null) {
-      objectValue["47"] = object.seenAt.toString({ timeZoneName: "never" });
-    }
-    if (object.interruptedAt != null) {
-      objectValue["48"] = object.interruptedAt.toString({ timeZoneName: "never" });
-    }
-    if (object.terminatedAt != null) {
-      objectValue["49"] = object.terminatedAt.toString({ timeZoneName: "never" });
-    }
-    if (object.interruptionPtr != null) {
-      objectValue["51"] = object.interruptionPtr.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Run {
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const targetPtrValue = objectValue["40"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const durationValue = objectValue["42"];
-    const unpackedDuration =
-      durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
-    const scheduledAtValue = objectValue["45"];
-    const unpackedScheduledAt =
-      scheduledAtValue != undefined
-        ? Temporal.Instant.from(scheduledAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const startedAtValue = objectValue["46"];
-    const unpackedStartedAt =
-      startedAtValue != undefined
-        ? Temporal.Instant.from(startedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const seenAtValue = objectValue["47"];
-    const unpackedSeenAt =
-      seenAtValue != undefined
-        ? Temporal.Instant.from(seenAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const interruptedAtValue = objectValue["48"];
-    const unpackedInterruptedAt =
-      interruptedAtValue != undefined
-        ? Temporal.Instant.from(interruptedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const terminatedAtValue = objectValue["49"];
-    const unpackedTerminatedAt =
-      terminatedAtValue != undefined
-        ? Temporal.Instant.from(terminatedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const interruptionPtrValue = objectValue["51"];
-    const unpackedInterruptionPtr =
-      interruptionPtrValue != undefined
-        ? NodeReference.fromValue(interruptionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
-          String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new Run({
-      parent: unpackedParentPtr,
-      target: unpackedTargetPtr,
-      status: Number(objectValue["41"]),
-      duration: unpackedDuration,
-      scheduledAt: unpackedScheduledAt,
-      startedAt: unpackedStartedAt,
-      seenAt: unpackedSeenAt,
-      interruptedAt: unpackedInterruptedAt,
-      terminatedAt: unpackedTerminatedAt,
-      interruption: unpackedInterruptionPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      value: unpackedValue,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Run {
-    return Run.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): RunProto {
-    return Run.__packProto__(this);
-  }
-
-  static __packProto__(object: Run): RunProto {
-    const objectProto: Partial<RunProto> = { metatype: 4000 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.value) {
-      objectProto.value = {};
-      for (const [key, value] of object.value) {
-        objectProto.value![String(key)] = value.toProto();
-      }
-    }
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    objectProto.status = Number(object.status) as RunStatusProto;
-    if (object.duration != null) {
-      objectProto.duration = packProtoDuration(object.duration);
-    }
-    if (object.scheduledAt != null) {
-      objectProto.scheduledAt = packProtoTimestamp(object.scheduledAt);
-    }
-    if (object.startedAt != null) {
-      objectProto.startedAt = packProtoTimestamp(object.startedAt);
-    }
-    if (object.seenAt != null) {
-      objectProto.seenAt = packProtoTimestamp(object.seenAt);
-    }
-    if (object.interruptedAt != null) {
-      objectProto.interruptedAt = packProtoTimestamp(object.interruptedAt);
-    }
-    if (object.terminatedAt != null) {
-      objectProto.terminatedAt = packProtoTimestamp(object.terminatedAt);
-    }
-    if (object.interruptionPtr != null) {
-      objectProto.interruptionPtr = object.interruptionPtr.toProto();
-    }
-    return objectProto as RunProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Run {
-    const unpackedValue = new Map();
-    if (objectProto.value) {
-      for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(
-          String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    return new Run({
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      target:
-        objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      status: Number(objectProto.status) as RunStatus,
-      duration:
-        objectProto.duration != undefined ? unpackProtoDuration(objectProto.duration!) : null,
-      scheduledAt:
-        objectProto.scheduledAt != undefined
-          ? unpackProtoTimestamp(objectProto.scheduledAt!)
-          : null,
-      startedAt:
-        objectProto.startedAt != undefined ? unpackProtoTimestamp(objectProto.startedAt!) : null,
-      seenAt: objectProto.seenAt != undefined ? unpackProtoTimestamp(objectProto.seenAt!) : null,
-      interruptedAt:
-        objectProto.interruptedAt != undefined
-          ? unpackProtoTimestamp(objectProto.interruptedAt!)
-          : null,
-      terminatedAt:
-        objectProto.terminatedAt != undefined
-          ? unpackProtoTimestamp(objectProto.terminatedAt!)
-          : null,
-      interruption:
-        objectProto.interruptionPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.interruptionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      value: unpackedValue,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Run {
-    return Run.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Run {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  declare targetPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.RUN, Run);
-/* ==== DESTACK_GENERATED_END:NODE:4000 ==== */
+registerNodeClass(NodeType.RUN_EVENT, RunEvent);
+/* ==== DESTACK_GENERATED_END:NODE:4001 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4011 ==== */
 /**
@@ -4231,15 +3561,15 @@ export class RunCompletedEvent extends RunEvent {
 registerNodeClass(NodeType.RUN_COMPLETED_EVENT, RunCompletedEvent);
 /* ==== DESTACK_GENERATED_END:NODE:4018 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:4000 ==== */
 /**
- * An Event regarding a Run.
+ * Run something somewhere, somehow.
  */
-export abstract class RunEvent extends Event {
-  static metatype: NodeType = NodeType.RUN_EVENT;
+export class Run extends Entity implements IsSpatial, IsExtensible {
+  static metatype: NodeType = NodeType.RUN;
 
   /**
-   * IsSpatial.parent
+   * Run.parent
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -4248,7 +3578,7 @@ export abstract class RunEvent extends Event {
     }
     return null;
   }
-  declare readonly parentPtr: NodeReference | null;
+  readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -4260,15 +3590,15 @@ export abstract class RunEvent extends Event {
     }
     return null;
   }
-  declare readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * Entity.createdAt
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * Entity.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -4277,25 +3607,32 @@ export abstract class RunEvent extends Event {
     }
     return null;
   }
-  declare readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference | null;
 
   /**
-   * RunEvent.node
+   * Entity.updatedAt
    */
-  get node(): Run | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * Entity.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Run | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
+  readonly updatedByPtr: NodeReference | null;
 
   /**
-   * RunEvent.target
+   * IsExtensible.value
+   */
+  value: Map<string, Value>;
+
+  /**
+   * Run.target
    */
   get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
@@ -4311,11 +3648,674 @@ export abstract class RunEvent extends Event {
       this.targetPtr = node.toRef();
     }
   }
-  declare targetPtr: NodeReference | null;
+  targetPtr: NodeReference | null;
+
+  /**
+   * Run.status
+   */
+  status: RunStatus;
+
+  /**
+   * Duration from first attempt start to last attempt termination.
+   */
+  duration: Temporal.Duration | null;
+
+  /**
+   * When the Run is scheduled to start.
+   */
+  scheduledAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * When the Run first started.
+   */
+  startedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * When the Run was last active.
+   */
+  seenAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * When the Run was interrupted.
+   */
+  interruptedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * When the Run was last terminated.
+   */
+  terminatedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * The latest Interruption.
+   */
+  get interruption(): Interruption | null {
+    const nodePtr: NodeReference | null = this.interruptionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Interruption | null;
+    }
+    return null;
+  }
+  set interruption(node: Interruption | null) {
+    if (node === null) {
+      this.interruptionPtr = null;
+    } else {
+      this.interruptionPtr = node.toRef();
+    }
+  }
+  interruptionPtr: NodeReference | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    updatedAt?: Temporal.ZonedDateTime;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    value?: Map<string, Value>;
+    target?: (Node & IsRunnable) | NodeReference | null;
+    status: RunStatus;
+    duration?: Temporal.Duration | null;
+    scheduledAt?: Temporal.ZonedDateTime | null;
+    startedAt?: Temporal.ZonedDateTime | null;
+    seenAt?: Temporal.ZonedDateTime | null;
+    interruptedAt?: Temporal.ZonedDateTime | null;
+    terminatedAt?: Temporal.ZonedDateTime | null;
+    interruption?: Interruption | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      _value = new Map();
+    }
+    this.value = _value;
+    let _target = options.target ?? null;
+    if (_target != null && _target instanceof Node) {
+      _target = _target.toRef();
+    }
+    this.targetPtr = _target;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`Run.status is required`);
+    }
+    this.status = _status;
+    let _duration = options.duration ?? null;
+    this.duration = _duration;
+    let _scheduledAt = options.scheduledAt ?? null;
+    this.scheduledAt = _scheduledAt;
+    let _startedAt = options.startedAt ?? null;
+    this.startedAt = _startedAt;
+    let _seenAt = options.seenAt ?? null;
+    this.seenAt = _seenAt;
+    let _interruptedAt = options.interruptedAt ?? null;
+    this.interruptedAt = _interruptedAt;
+    let _terminatedAt = options.terminatedAt ?? null;
+    this.terminatedAt = _terminatedAt;
+    let _interruption = options.interruption ?? null;
+    if (_interruption != null && _interruption instanceof Node) {
+      _interruption = _interruption.toRef();
+    }
+    this.interruptionPtr = _interruption;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.targetPtr?.id === other.targetPtr?.id)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.duration === other.duration)) {
+      return false;
+    }
+    if (!(this.scheduledAt === other.scheduledAt)) {
+      return false;
+    }
+    if (!(this.startedAt === other.startedAt)) {
+      return false;
+    }
+    if (!(this.seenAt === other.seenAt)) {
+      return false;
+    }
+    if (!(this.interruptedAt === other.interruptedAt)) {
+      return false;
+    }
+    if (!(this.terminatedAt === other.terminatedAt)) {
+      return false;
+    }
+    if (!(this.interruptionPtr?.id === other.interruptionPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.targetPtr !== null) {
+      h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.duration !== null) {
+      h = (h * 31 + hashFloat(this.duration.totalSeconds())) & 0xffffffff;
+    }
+    if (this.scheduledAt !== null) {
+      h = (h * 31 + hashString(this.scheduledAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.startedAt !== null) {
+      h = (h * 31 + hashString(this.startedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.seenAt !== null) {
+      h = (h * 31 + hashString(this.seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.interruptedAt !== null) {
+      h =
+        (h * 31 + hashString(this.interruptedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.terminatedAt !== null) {
+      h = (h * 31 + hashString(this.terminatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.interruptionPtr !== null) {
+      h = (h * 31 + hashString(this.interruptionPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.RUN,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "Run[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${RunStatus[this.status]}`);
+    if (this.duration !== null) {
+      propertyReprs.push(`duration=${this.duration}`);
+    }
+    if (this.startedAt !== null) {
+      propertyReprs.push(`startedAt=${this.startedAt.toString({ timeZoneName: "never" })}`);
+    }
+    if (this.interruption !== null) {
+      propertyReprs.push(`interruption=${this.interruption?.repr()}`);
+    }
+    return `<Run '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return Run.__packValue__(this);
+  }
+
+  static __packValue__(object: Run): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 4000;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.updatedByPtr != null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.value.size > 0) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of object.value) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
+    }
+    if (object.targetPtr != null) {
+      objectValue["40"] = object.targetPtr.toValue();
+    }
+    objectValue["41"] = object.status;
+    if (object.duration != null) {
+      objectValue["42"] = timedeltaToISOFormat(object.duration);
+    }
+    if (object.scheduledAt != null) {
+      objectValue["45"] = object.scheduledAt.toString({ timeZoneName: "never" });
+    }
+    if (object.startedAt != null) {
+      objectValue["46"] = object.startedAt.toString({ timeZoneName: "never" });
+    }
+    if (object.seenAt != null) {
+      objectValue["47"] = object.seenAt.toString({ timeZoneName: "never" });
+    }
+    if (object.interruptedAt != null) {
+      objectValue["48"] = object.interruptedAt.toString({ timeZoneName: "never" });
+    }
+    if (object.terminatedAt != null) {
+      objectValue["49"] = object.terminatedAt.toString({ timeZoneName: "never" });
+    }
+    if (object.interruptionPtr != null) {
+      objectValue["51"] = object.interruptionPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Run {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const targetPtrValue = objectValue["40"];
+    const unpackedTargetPtr =
+      targetPtrValue != undefined
+        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const durationValue = objectValue["42"];
+    const unpackedDuration =
+      durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
+    const scheduledAtValue = objectValue["45"];
+    const unpackedScheduledAt =
+      scheduledAtValue != undefined
+        ? Temporal.Instant.from(scheduledAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const startedAtValue = objectValue["46"];
+    const unpackedStartedAt =
+      startedAtValue != undefined
+        ? Temporal.Instant.from(startedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const seenAtValue = objectValue["47"];
+    const unpackedSeenAt =
+      seenAtValue != undefined
+        ? Temporal.Instant.from(seenAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const interruptedAtValue = objectValue["48"];
+    const unpackedInterruptedAt =
+      interruptedAtValue != undefined
+        ? Temporal.Instant.from(interruptedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const terminatedAtValue = objectValue["49"];
+    const unpackedTerminatedAt =
+      terminatedAtValue != undefined
+        ? Temporal.Instant.from(terminatedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const interruptionPtrValue = objectValue["51"];
+    const unpackedInterruptionPtr =
+      interruptionPtrValue != undefined
+        ? NodeReference.fromValue(interruptionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Run({
+      parent: unpackedParentPtr,
+      target: unpackedTargetPtr,
+      status: Number(objectValue["41"]),
+      duration: unpackedDuration,
+      scheduledAt: unpackedScheduledAt,
+      startedAt: unpackedStartedAt,
+      seenAt: unpackedSeenAt,
+      interruptedAt: unpackedInterruptedAt,
+      terminatedAt: unpackedTerminatedAt,
+      interruption: unpackedInterruptionPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      value: unpackedValue,
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Run {
+    return Run.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): RunProto {
+    return Run.__packProto__(this);
+  }
+
+  static __packProto__(object: Run): RunProto {
+    const objectProto: Partial<RunProto> = { metatype: 4000 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.value) {
+      objectProto.value = {};
+      for (const [key, value] of object.value) {
+        objectProto.value![String(key)] = value.toProto();
+      }
+    }
+    if (object.targetPtr != null) {
+      objectProto.targetPtr = object.targetPtr.toProto();
+    }
+    objectProto.status = Number(object.status) as RunStatusProto;
+    if (object.duration != null) {
+      objectProto.duration = packProtoDuration(object.duration);
+    }
+    if (object.scheduledAt != null) {
+      objectProto.scheduledAt = packProtoTimestamp(object.scheduledAt);
+    }
+    if (object.startedAt != null) {
+      objectProto.startedAt = packProtoTimestamp(object.startedAt);
+    }
+    if (object.seenAt != null) {
+      objectProto.seenAt = packProtoTimestamp(object.seenAt);
+    }
+    if (object.interruptedAt != null) {
+      objectProto.interruptedAt = packProtoTimestamp(object.interruptedAt);
+    }
+    if (object.terminatedAt != null) {
+      objectProto.terminatedAt = packProtoTimestamp(object.terminatedAt);
+    }
+    if (object.interruptionPtr != null) {
+      objectProto.interruptionPtr = object.interruptionPtr.toProto();
+    }
+    return objectProto as RunProto;
+  }
+
+  static __unpackProto__(
+    objectProto: RunProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Run {
+    const unpackedValue = new Map();
+    if (objectProto.value) {
+      for (const [key, value] of Object.entries(objectProto.value)) {
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new Run({
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      target:
+        objectProto.targetPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      status: Number(objectProto.status) as RunStatus,
+      duration:
+        objectProto.duration != undefined ? unpackProtoDuration(objectProto.duration!) : null,
+      scheduledAt:
+        objectProto.scheduledAt != undefined
+          ? unpackProtoTimestamp(objectProto.scheduledAt!)
+          : null,
+      startedAt:
+        objectProto.startedAt != undefined ? unpackProtoTimestamp(objectProto.startedAt!) : null,
+      seenAt: objectProto.seenAt != undefined ? unpackProtoTimestamp(objectProto.seenAt!) : null,
+      interruptedAt:
+        objectProto.interruptedAt != undefined
+          ? unpackProtoTimestamp(objectProto.interruptedAt!)
+          : null,
+      terminatedAt:
+        objectProto.terminatedAt != undefined
+          ? unpackProtoTimestamp(objectProto.terminatedAt!)
+          : null,
+      interruption:
+        objectProto.interruptionPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.interruptionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      value: unpackedValue,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: RunProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Run {
+    return Run.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Run {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = RunProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.RUN_EVENT, RunEvent);
-/* ==== DESTACK_GENERATED_END:NODE:4001 ==== */
+registerNodeClass(NodeType.RUN, Run);
+/* ==== DESTACK_GENERATED_END:NODE:4000 ==== */

@@ -367,7 +367,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   repr(): string {
     const propertyReprs: string[] = [];
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     if (propertyReprs.length > 0) {
       return `<Membership '${this.path}' ${propertyReprs.join(" ")}>`;
@@ -640,6 +640,106 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
 }
 registerNodeClass(NodeType.MEMBERSHIP, Membership);
 /* ==== DESTACK_GENERATED_END:NODE:500 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:501 ==== */
+/**
+ * A Event regarding a Membership.
+ */
+export abstract class MembershipEvent extends Event {
+  static metatype: NodeType = NodeType.MEMBERSHIP_EVENT;
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * MembershipEvent.node
+   */
+  get node(): Membership | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Membership | null;
+    }
+    return null;
+  }
+  set node(node: Membership) {
+    this.nodePtr = node.toRef();
+  }
+  declare nodePtr: NodeReference;
+
+  /**
+   * MembershipEvent.joinable
+   */
+  get joinable(): (Node & IsJoinable) | null {
+    const nodePtr: NodeReference | null = this.joinablePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
+    }
+    return null;
+  }
+  set joinable(node: Node & IsJoinable) {
+    this.joinablePtr = node.toRef();
+  }
+  declare joinablePtr: NodeReference;
+
+  /**
+   * MembershipEvent.member
+   */
+  get member(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.memberPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  set member(node: Node & IsSubject) {
+    this.memberPtr = node.toRef();
+  }
+  declare memberPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.MEMBERSHIP_EVENT, MembershipEvent);
+/* ==== DESTACK_GENERATED_END:NODE:501 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:510 ==== */
 /**
@@ -1633,103 +1733,3 @@ export class MembershipLeftEvent extends MembershipEvent {
 }
 registerNodeClass(NodeType.MEMBERSHIP_LEFT_EVENT, MembershipLeftEvent);
 /* ==== DESTACK_GENERATED_END:NODE:511 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:501 ==== */
-/**
- * A Event regarding a Membership.
- */
-export abstract class MembershipEvent extends Event {
-  static metatype: NodeType = NodeType.MEMBERSHIP_EVENT;
-
-  /**
-   * IsSpatial.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly spacePtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * MembershipEvent.node
-   */
-  get node(): Membership | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Membership | null;
-    }
-    return null;
-  }
-  set node(node: Membership) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
-
-  /**
-   * MembershipEvent.joinable
-   */
-  get joinable(): (Node & IsJoinable) | null {
-    const nodePtr: NodeReference | null = this.joinablePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
-    }
-    return null;
-  }
-  set joinable(node: Node & IsJoinable) {
-    this.joinablePtr = node.toRef();
-  }
-  declare joinablePtr: NodeReference;
-
-  /**
-   * MembershipEvent.member
-   */
-  get member(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.memberPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  set member(node: Node & IsSubject) {
-    this.memberPtr = node.toRef();
-  }
-  declare memberPtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.MEMBERSHIP_EVENT, MembershipEvent);
-/* ==== DESTACK_GENERATED_END:NODE:501 ==== */

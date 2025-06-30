@@ -441,7 +441,7 @@ export class Variant
       propertyReprs.push(`slug=${this.slug}`);
     }
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<Variant '${this.path}' ${propertyReprs.join(" ")}>`;
   }

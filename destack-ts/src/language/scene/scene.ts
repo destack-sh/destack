@@ -47,6 +47,76 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
+/* ==== DESTACK_GENERATED_START:NODE:9021 ==== */
+/**
+ * A Event regarding a Scene.
+ */
+export abstract class SceneEvent extends Event {
+  static metatype: NodeType = NodeType.SCENE_EVENT;
+
+  /**
+   * IsSpatial.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * SceneEvent.node
+   */
+  get node(): Scene | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Scene | null;
+    }
+    return null;
+  }
+  set node(node: Scene) {
+    this.nodePtr = node.toRef();
+  }
+  declare nodePtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
+/* ==== DESTACK_GENERATED_END:NODE:9021 ==== */
+
 /* ==== DESTACK_GENERATED_START:NODE:9030 ==== */
 /**
  * A Scene was entered.
@@ -1625,7 +1695,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
   repr(): string {
     const propertyReprs: string[] = [];
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     propertyReprs.push(`name=${this.name}`);
     return `<Scene '${this.path}' ${propertyReprs.join(" ")}>`;
@@ -2311,73 +2381,3 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
 }
 registerNodeClass(NodeType.SCENE, Scene);
 /* ==== DESTACK_GENERATED_END:NODE:9020 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:9021 ==== */
-/**
- * A Event regarding a Scene.
- */
-export abstract class SceneEvent extends Event {
-  static metatype: NodeType = NodeType.SCENE_EVENT;
-
-  /**
-   * IsSpatial.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly spacePtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * SceneEvent.node
-   */
-  get node(): Scene | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | null;
-    }
-    return null;
-  }
-  set node(node: Scene) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
-/* ==== DESTACK_GENERATED_END:NODE:9021 ==== */

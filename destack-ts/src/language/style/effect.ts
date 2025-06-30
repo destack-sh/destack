@@ -310,7 +310,7 @@ export class Effect extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${EffectType[this.type]}`);
       if (this.style !== null) {
-        propertyReprs.push(`style=${this.style.repr()}`);
+        propertyReprs.push(`style=${this.style?.repr()}`);
       }
       if (this.opacity !== null) {
         propertyReprs.push(`opacity=${this.opacity}`);

@@ -422,7 +422,7 @@ export class NodeDefinitionReference extends StructFrozen {
         propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
       }
       if (this.definition !== null) {
-        propertyReprs.push(`definition=${this.definition.repr()}`);
+        propertyReprs.push(`definition=${this.definition?.repr()}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<NodeDefinitionReference ${propertyReprs.join(" ")}>`;
@@ -763,7 +763,7 @@ export class ObjectDefinitionReference extends StructFrozen {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
       if (this.definition !== null) {
-        propertyReprs.push(`definition=${this.definition.repr()}`);
+        propertyReprs.push(`definition=${this.definition?.repr()}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<ObjectDefinitionReference ${propertyReprs.join(" ")}>`;
@@ -1119,7 +1119,7 @@ export class PropertyReference extends StructFrozen {
         propertyReprs.push(`id=${this.id}`);
       }
       if (this.customProperty !== null) {
-        propertyReprs.push(`customProperty=${this.customProperty.repr()}`);
+        propertyReprs.push(`customProperty=${this.customProperty?.repr()}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<PropertyReference ${propertyReprs.join(" ")}>`;

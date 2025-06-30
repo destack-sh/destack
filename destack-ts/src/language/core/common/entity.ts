@@ -518,7 +518,7 @@ export class CustomEntityDefinition
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${this.name}`);
     if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<CustomEntityDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
   }

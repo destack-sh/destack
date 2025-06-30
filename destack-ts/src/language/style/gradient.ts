@@ -376,7 +376,7 @@ export class Gradient extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${GradientType[this.type]}`);
       if (this.style !== null) {
-        propertyReprs.push(`style=${this.style.repr()}`);
+        propertyReprs.push(`style=${this.style?.repr()}`);
       }
       if (this.angle !== null) {
         propertyReprs.push(`angle=${this.angle}`);
