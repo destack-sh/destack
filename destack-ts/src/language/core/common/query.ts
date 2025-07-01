@@ -7,8 +7,8 @@ import type {
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
 import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
-import { PropertyDefinition } from "@destack/language/core/common/meta";
-import { CustomProperty } from "@destack/language/core/common/property";
+import type { PropertyDefinition } from "@destack/language/core/common/meta";
+import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
