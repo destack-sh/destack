@@ -6,6 +6,7 @@ import {
   Supergraph,
 } from "@destack/language/core";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
+import type { StructTypeMapping } from "@destack/language/mapping";
 import { AnyStructProto } from "@destack/proto";
 
 /** A Struct is an ordered collection of Properties. */
@@ -52,3 +53,11 @@ export type StructClass<S extends Struct = Struct> = StructConstructor &
     metatype: StructType;
     __definition__: StructDefinition;
   };
+
+/** Check if a value is a Struct of a specific type. */
+export function isStruct<T extends StructType>(
+  value: any,
+  structType?: T,
+): value is StructTypeMapping[T] {
+  return value instanceof Struct && (structType === undefined || value.metatype === structType);
+}

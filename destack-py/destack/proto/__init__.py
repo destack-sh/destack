@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.07.01.0"
+VERSION = "2025.07.01.1"
 
 # import from all generated files
 from .health_pb2 import *
@@ -212,6 +212,7 @@ AnyStructProto = Union[
     PropertyReferenceProto,
     NodeReferenceProto,
     EditProto,
+    OriginProto,
     ChangeProto,
     ChangeResultProto,
     IconProto,
@@ -266,7 +267,6 @@ AnyStructProto = Union[
     DatabaseInfoProto,
     GalaxyInfoProto,
     ScheduleProto,
-    OriginProto,
     ColorProto,
     BorderProto,
     TransitionProto,

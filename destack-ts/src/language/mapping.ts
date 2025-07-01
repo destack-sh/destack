@@ -136,6 +136,7 @@ import type {
   Edit,
   EditOperation,
   EditType,
+  Origin,
 } from "@destack/language/core/common/edit";
 import type { CustomEnumDefinition, CustomOption } from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
@@ -366,7 +367,6 @@ import type {
   Handle,
   Organization,
   OrganizationStatus,
-  Origin,
   Space,
   SpaceStatus,
   Team,
@@ -653,6 +653,7 @@ export type StructTypeMapping = {
   [StructType.PROPERTY_REFERENCE]: PropertyReference;
   [StructType.NODE_REFERENCE]: NodeReference;
   [StructType.EDIT]: Edit;
+  [StructType.ORIGIN]: Origin;
   [StructType.CHANGE]: Change;
   [StructType.CHANGE_RESULT]: ChangeResult;
   [StructType.ICON]: Icon;
@@ -707,7 +708,6 @@ export type StructTypeMapping = {
   [StructType.DATABASE_INFO]: DatabaseInfo;
   [StructType.GALAXY_INFO]: GalaxyInfo;
   [StructType.SCHEDULE]: Schedule;
-  [StructType.ORIGIN]: Origin;
   [StructType.COLOR]: Color;
   [StructType.BORDER]: Border;
   [StructType.TRANSITION]: Transition;

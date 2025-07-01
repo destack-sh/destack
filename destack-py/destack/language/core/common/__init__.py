@@ -6,6 +6,7 @@ from .edit import (
     Edit,
     EditOperation,
     EditType,
+    Origin,
 )
 from .enum import CustomEnumDefinition, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
@@ -176,6 +177,7 @@ __all__ = [
     "NumberConstraint",
     "NumberFormat",
     "OptionDefinition",
+    "Origin",
     "Overflow",
     "Position",
     "PositionType",

@@ -1,9 +1,10 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 from opentelemetry import trace
 
+from destack.proto import OriginProto
 from destack.utils.uuid import UUID
 
 from ..builtin import (
@@ -21,7 +22,7 @@ from ..builtin import (
 from ..builtin.relation import NodeReference, PropertyReference
 
 if TYPE_CHECKING:
-    from destack.language import CustomProperty, IsSubject, Origin, Value
+    from destack.language import ClientType, CustomProperty, IsSubject, Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -99,6 +100,16 @@ class Edit(StructFrozen):
         50,
         description="The inverse Edit (if it cannot be derived from the Edit itself).",
     )
+
+
+@builtin_struct(StructType.ORIGIN, frozen=True)
+class Origin(StructFrozen[OriginProto]):
+    """Origin of something."""
+
+    type: "ClientType" = property_(30)
+    id: Optional[UUID] = property_(31)
+    ck: Optional[UUID] = property_(32)
+    nonce: Optional[UUID] = property_(33)
 
 
 @builtin_enum(EnumType.CHANGE_STATUS)

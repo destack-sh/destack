@@ -1333,10 +1333,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
     else:
         assert_never(definition)
 
-    if module.startswith("destack.language.core"):
-        submodule = ".".join(module.split(".")[2:])
-    else:
-        submodule = ".".join(module.split(".")[2:-1])
+    submodule = ".".join(module.split(".")[2:])
     source_definition = TypescriptDefinition(
         name=name,
         alias=alias,
@@ -1366,7 +1363,7 @@ BUILTIN_NAMES = {
 
 
 def _generate_file(
-    file: TypescriptFile, definitions_by_name: dict[str, TypescriptDefinition]
+    file: TypescriptFile, all_definitions_by_name: dict[str, TypescriptDefinition]
 ) -> str:
     """Generate the contents of a managed TypescriptFile, merging with existing contents if present."""
 
@@ -1420,7 +1417,7 @@ def _generate_file(
         if not path_match:
             import_line += 1
             continue
-        path = path_match.group(1)
+        path = path_match.group(1).replace("/", ".")
 
         # extract names
         names: list[str] = []
@@ -1573,27 +1570,31 @@ def _generate_file(
     # add imports to the top (will be auto-merged by linter)
     language_imports_by_module: dict[str, set[str]] = defaultdict(set)
     value_dependencies: set[str] = set()
-    core_imports_by_module: dict[str, set[str]] = defaultdict(set)
-    core_imports_by_module["core/runtime/graph"] = {"Graph", "Supergraph"}
-    value_dependencies.add("Graph")
-    core_imports_by_module["core/runtime/session"] = {"Session"}
-    core_imports_by_module["core/runtime/connection"] = {"QueryConnection"}
-    core_imports_by_module["core/builtin/relation"] = {"NodeReference"}
+    language_imports_by_module["core.runtime.graph"] = {
+        "Graph",
+        "Supergraph",
+        "PolyGraph",
+        "SingletonGraph",
+    }
+    value_dependencies.update(("PolyGraph", "SingletonGraph"))
+    language_imports_by_module["core.runtime.session"] = {"Session"}
+    language_imports_by_module["core.runtime.connection"] = {"QueryConnection"}
+    language_imports_by_module["core.builtin.relation"] = {"NodeReference"}
     value_dependencies.add("NodeReference")
-    core_imports_by_module["core/builtin/common"] = {
+    language_imports_by_module["core.builtin.common"] = {
         "NodeType",
         "TraitType",
         "StructType",
         "EnumType",
     }
-    value_dependencies.update(core_imports_by_module["core/builtin/common"])
-    core_imports_by_module["core/builtin/event"] = {
+    value_dependencies.update(language_imports_by_module["core.builtin.common"])
+    language_imports_by_module["core.builtin.event"] = {
         "Event",
         "CustomEventDefinition",
         "CustomEvent",
     }
     value_dependencies.add("Event")
-    core_imports_by_module["core/builtin/entity"] = {
+    language_imports_by_module["core.builtin.entity"] = {
         "Entity",
         "Resource",
         "Metric",
@@ -1602,24 +1603,18 @@ def _generate_file(
         "CustomTraitDefinition",
     }
     value_dependencies.update(("Entity", "Resource", "Metric"))
-    core_imports_by_module["core/builtin/const"] = {
+    language_imports_by_module["core.builtin.const"] = {
         "ACTIVE_SESSION",
         "activeSession",
     }
     value_dependencies.update(("ACTIVE_SESSION", "activeSession"))
-    core_imports_by_module["core/builtin/node"] = {"Node", "NodeClass"}
+    language_imports_by_module["core.builtin.node"] = {"Node", "NodeClass"}
     value_dependencies.add("Node")
-    core_imports_by_module["core/builtin/trait_class"] = {"TraitClass"}
-    core_imports_by_module["core/builtin/object"] = {"BuiltinObject"}
+    language_imports_by_module["core.builtin.trait_class"] = {"TraitClass"}
+    language_imports_by_module["core.builtin.object"] = {"BuiltinObject"}
     value_dependencies.add("BuiltinObject")
-    core_imports_by_module["core/builtin/struct"] = {"Struct", "StructFrozen"}
+    language_imports_by_module["core.builtin.struct"] = {"Struct", "StructFrozen"}
     value_dependencies.update(("Struct", "StructFrozen"))
-    # if we're in core, make core imports granular, otherwise just combine it all
-    if file.module.startswith("destack.language.core"):
-        language_imports_by_module.update(core_imports_by_module)
-    else:
-        for _, imports in core_imports_by_module.items():
-            language_imports_by_module["core"].update(imports)
     language_imports_by_module["registry"] = {
         "registerNodeClass",
         "registerStructClass",
@@ -1628,19 +1623,21 @@ def _generate_file(
     }
     value_dependencies.update(language_imports_by_module["registry"])
     seen_language_imports: set[str] = {*language_imports_by_module["core"]}
+
     # add any new language imports
     for definition in file.definitions.values():
         for dependency_name in definition.dependencies:
-            if dependency_name not in definitions_by_name:
+            if dependency_name not in all_definitions_by_name:
                 if dependency_name in BUILTIN_NAMES:
                     continue  # manually defined (above)
                 raise RuntimeError(f"missing dependency: {dependency_name}")
-            dependency_definition = definitions_by_name[dependency_name]
+            dependency_definition = all_definitions_by_name[dependency_name]
             language_imports_by_module[dependency_definition.submodule].add(
                 dependency_definition.alias
             )
             seen_language_imports.add(dependency_definition.alias)
             value_dependencies.update(definition.value_dependencies)
+
     # add any previous language imports
     for import_ in import_block.imports:
         if not import_.path.startswith("@destack/language"):
@@ -1651,7 +1648,7 @@ def _generate_file(
             if name in seen_language_imports:
                 continue
             seen_language_imports.add(name)
-            definition = definitions_by_name.get(name)
+            definition = all_definitions_by_name.get(name)
             if definition is None:
                 language_imports_by_module[""].add(name)
             else:
@@ -1659,6 +1656,20 @@ def _generate_file(
     # remove any imports that are already defined in this file
     for _, imports in language_imports_by_module.items():
         imports.difference_update(definition.name for definition in file.definitions.values())
+
+    # if we're in the same module, use granular imports, otherwise use top-level imports
+    file_root_module = ".".join(file.module.split(".")[2:3])
+    combined_language_imports_by_module: dict[str, set[str]] = defaultdict(set)
+    for module, imports in language_imports_by_module.items():
+        if not imports:
+            continue
+        root_module = ".".join(module.split(".")[:1])
+        if root_module == file_root_module:
+            combined_language_imports_by_module[module].update(imports)
+        else:
+            combined_language_imports_by_module[root_module].update(imports)
+    language_imports_by_module = combined_language_imports_by_module
+
     # generate import statements
     import_parts: list[str] = []
     for module, imports in language_imports_by_module.items():
@@ -1678,6 +1689,7 @@ def _generate_file(
             )
         if value_imports:
             import_parts.append(f"import {{ {', '.join(value_imports)} }} from '{import_path}';")
+
     # add proto imports for all definitions and dependencies
     proto_names = {
         f"{definition.alias}Proto"

@@ -10,14 +10,11 @@ from destack.language.core import (
     IsSubject,
     NodeReference,
     NodeType,
-    StructFrozen,
-    StructType,
+    Origin,
     builtin_node,
-    builtin_struct,
     property_,
     property_parent_,
 )
-from destack.proto import OriginProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -59,13 +56,3 @@ class Client(
 
     def to_origin(self, *, nonce: UUID | None) -> "Origin":
         return Origin(type=self.type, id=self.id, nonce=nonce or self.id)
-
-
-@builtin_struct(StructType.ORIGIN, frozen=True)
-class Origin(StructFrozen[OriginProto]):
-    """Origin of something."""
-
-    type: ClientType = property_(30)
-    id: Optional[UUID] = property_(31)
-    ck: Optional[UUID] = property_(32)
-    nonce: Optional[UUID] = property_(33)
