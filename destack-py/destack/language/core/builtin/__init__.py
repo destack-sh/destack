@@ -121,7 +121,6 @@ from .trait import (
     NodeBase,
     Trait,
     builtin_trait,
-    expand_node_types,
 )
 
 __all__ = [
@@ -240,7 +239,6 @@ __all__ = [
     "builtin_node",
     "builtin_struct",
     "builtin_trait",
-    "expand_node_types",
     "get_active_session",
     "object_",
     "parse_type_annotation",

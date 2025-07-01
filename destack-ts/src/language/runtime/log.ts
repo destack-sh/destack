@@ -40,7 +40,7 @@ export enum LogLevel {
 registerEnumClass(EnumType.LOG_LEVEL, LogLevel);
 /* ==== DESTACK_GENERATED_END:ENUM:90300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:90300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:91000 ==== */
 /**
  * A Log message.
  */
@@ -303,7 +303,7 @@ export class LogEvent extends Event {
 
   static __packValue__(object: LogEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 90300;
+    objectValue["1"] = 91000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -394,7 +394,7 @@ export class LogEvent extends Event {
   }
 
   static __packProto__(object: LogEvent): LogEventProto {
-    const objectProto: Partial<LogEventProto> = { metatype: 90300 };
+    const objectProto: Partial<LogEventProto> = { metatype: 91000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -506,4 +506,4 @@ export class LogEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LOG_EVENT, LogEvent);
-/* ==== DESTACK_GENERATED_END:NODE:90300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:91000 ==== */

@@ -82,7 +82,7 @@ export enum InterruptionResponse {
 registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
 /* ==== DESTACK_GENERATED_END:ENUM:90202 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:90200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90400 ==== */
 /**
  * An Interruption in run of something.
  */
@@ -466,7 +466,7 @@ export class Interruption extends Entity implements IsSpatial {
 
   static __packValue__(object: Interruption): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 90200;
+    objectValue["1"] = 90400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -594,7 +594,7 @@ export class Interruption extends Entity implements IsSpatial {
   }
 
   static __packProto__(object: Interruption): InterruptionProto {
-    const objectProto: Partial<InterruptionProto> = { metatype: 90200 };
+    const objectProto: Partial<InterruptionProto> = { metatype: 90400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -751,4 +751,4 @@ export class Interruption extends Entity implements IsSpatial {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INTERRUPTION, Interruption);
-/* ==== DESTACK_GENERATED_END:NODE:90200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90400 ==== */

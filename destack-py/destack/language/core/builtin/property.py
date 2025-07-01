@@ -517,9 +517,10 @@ class PropertyDeclaration(TypeDeclaration):
     def finalize(self, object_type: NodeType | StructType | None) -> None:
         """Finalize the Property after all BuiltinObjects are defined."""
         if self.scalar_type == ScalarType.NODE_REFERENCE:
-            from .trait import IsSpatial, expand_node_types
+            from ..runtime.graph import expand_node_traits
+            from .trait import IsSpatial
 
-            node_types = expand_node_types(self.node_types or ())
+            node_types = expand_node_traits(self.node_types or ())
             self.node_has_type = len(node_types) > 1
             self.node_has_definition = self.node_is_extensible and any(
                 NodeType.CUSTOM_EVENT in NODE_CLASS_BY_TYPE[node_type].__extends__

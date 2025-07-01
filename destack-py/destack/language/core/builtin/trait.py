@@ -1,17 +1,14 @@
-from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     ClassVar,
     Optional,
-    assert_never,
     cast,
     dataclass_transform,
 )
 
 from destack.language.registry import (
-    NODE_TYPES_BY_TRAIT_TYPE,
     TRAIT_CLASS_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
 )
@@ -74,19 +71,6 @@ class IndexIn:
     is_unique: bool = False
     condition: str | None = None
     name: str | None = None
-
-
-def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType, ...]:
-    """Expand a collection of NodeTypes and Traits into a flat collection of NodeTypes."""
-    node_types: set[NodeType] = set()
-    for typ in types:
-        if isinstance(typ, NodeType):
-            node_types.add(typ)
-        elif isinstance(typ, TraitType):
-            node_types.update(NODE_TYPES_BY_TRAIT_TYPE.get(typ, ()))
-        else:
-            assert_never(typ)
-    return tuple(node_types)
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
@@ -159,6 +143,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
     __root_type__: ClassVar[NodeType | None] = None
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
+    __parent_classes__: ClassVar[tuple[type["Node"], ...]] = ()
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __child_types__: ClassVar[tuple[NodeType, ...]] = ()
     __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()

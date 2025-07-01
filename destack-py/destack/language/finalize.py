@@ -75,10 +75,10 @@ def finalize():
     # index extended_by (direct) / inherited_by (direct and indirect)
     extended_by_by_type: dict[NodeType, list[NodeType]] = defaultdict(list)
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        for extended_type in node_cls.__extends__:
-            extended_by_by_type[extended_type].append(node_cls.metatype)
-    for node_type, extended_by in extended_by_by_type.items():
-        NODE_CLASS_BY_TYPE[node_type].__extended_by__ = tuple(extended_by)
+        if node_cls.__base_type__ is not None:
+            extended_by_by_type[node_cls.__base_type__].append(node_cls.metatype)
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        node_cls.__extended_by__ = tuple(extended_by_by_type[node_cls.metatype])
 
     # index inherited_by (recursive)
     for node_cls in NODE_CLASS_BY_TYPE.values():
@@ -94,7 +94,7 @@ def finalize():
 
         node_cls.__inherited_by__ = tuple(inherited_by)
 
-    from destack.language.core.builtin.trait import expand_node_types
+    from destack.language.core import expand_node_inheritance, expand_node_traits
 
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
@@ -104,9 +104,13 @@ def finalize():
             if node_cls.__parent_property__ is not None:
                 node_cls.__parent_property__.node_types = ()
         else:
-            parent_types = expand_node_types(node_cls.__parent_property__.node_types or ())
+            parent_types = expand_node_traits(node_cls.__parent_property__.node_types or ())
             assert len(parent_types) < len(NodeType), f"generic parent for '{node_cls.__name__}'"
             node_cls.__parent_types__ = parent_types
+        parent_classes = tuple(
+            NODE_CLASS_BY_TYPE[parent_type] for parent_type in node_cls.__parent_types__
+        )
+        node_cls.__parent_classes__ = parent_classes
 
     # index child types
     child_types_by_parent: dict[NodeType, list[NodeType]] = defaultdict(list)
@@ -242,9 +246,12 @@ def finalize():
                     raise AssertionError(
                         f"{cls.__name__} must have at least one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
                     )
+
+        # check infectious traits
         for trait_type in INFECTIOUS_TRAITS:
             for node_type in NODE_TYPES_BY_TRAIT_TYPE[trait_type]:
                 descendant_types = DESCENDANT_NODE_TYPES_BY_TYPE[node_type]
+                descendant_types = expand_node_inheritance(descendant_types)
                 for descendant_type in descendant_types:
                     descendant_cls = NODE_CLASS_BY_TYPE[descendant_type]
                     if trait_type not in descendant_cls.__traits__:

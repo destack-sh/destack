@@ -93,8 +93,7 @@ def builtin_node(
         cls.__base_type__ = cls.__extends__[-1] if cls.__extends__ else None
         cls.__is_abstract__ = is_abstract
 
-        if cls.__bases__ and not cls.__bases__[0].__is_abstract__:
-            raise ValueError(f"{cls.__name__} extends non-abstract {cls.__bases__[0].__name__}")
+        # abstract nodes cannot extend non-abstract nodes
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
             raise ValueError(
                 f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
@@ -230,7 +229,7 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
         session = self._session
         nodes: tuple[Node, ...] = (child, *child._graph.get_descendants(child))
 
-        assert self.metatype in child.__parent_types__, (
+        assert isinstance(self, child.__parent_classes__), (
             f"{self!r} cannot parent {child!r} (allowed: {child.__parent_types__})"
         )
         assert old_graph is not new_graph, f"{child!r} is already in same graph of {self!r}"

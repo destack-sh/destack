@@ -26,7 +26,7 @@ from destack.language import (
     Type,
     TypeCardinality,
     Value,
-    expand_node_types,
+    expand_node_traits,
 )
 from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.code import exec_
@@ -200,7 +200,7 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         # node references fan out from multiple columns
         assert prop.cardinality == TypeCardinality.SCALAR, f"non-scalar node ref: {prop!r}"
-        node_types = expand_node_types(prop.node_types or ())
+        node_types = expand_node_traits(prop.node_types or ())
         unpack_lines = [
             f"if (_node_id := row['{prop.name}_id']) is not None:",
             "    _node_ref = {",
