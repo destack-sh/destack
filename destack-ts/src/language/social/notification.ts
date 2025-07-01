@@ -222,18 +222,18 @@ export class NotificationSentEvent extends NotificationEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`NotificationSentEvent.node is required`);
@@ -252,9 +252,9 @@ export class NotificationSentEvent extends NotificationEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -602,18 +602,18 @@ export class NotificationRescindedEvent extends NotificationEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`NotificationRescindedEvent.node is required`);
@@ -632,9 +632,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -982,18 +982,18 @@ export class NotificationReadEvent extends NotificationEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`NotificationReadEvent.node is required`);
@@ -1012,9 +1012,9 @@ export class NotificationReadEvent extends NotificationEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1362,18 +1362,18 @@ export class NotificationDismissedEvent extends NotificationEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`NotificationDismissedEvent.node is required`);
@@ -1392,9 +1392,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1742,18 +1742,18 @@ export class NotificationExpiredEvent extends NotificationEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`NotificationExpiredEvent.node is required`);
@@ -1772,9 +1772,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -2163,18 +2163,18 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy instanceof Node) {
-      _ownedBy = _ownedBy.toRef();
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
     this.ownedByPtr = _ownedBy;
     let _status = options.status;
@@ -2206,16 +2206,16 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }

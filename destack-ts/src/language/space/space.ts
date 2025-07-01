@@ -275,18 +275,18 @@ export class Space
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy instanceof Node) {
-      _ownedBy = _ownedBy.toRef();
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
     this.ownedByPtr = _ownedBy;
     let _name = options.name;
@@ -307,18 +307,18 @@ export class Space
     }
     this.status = _status;
     let _handle = options.handle ?? null;
-    if (_handle != null && _handle instanceof Node) {
-      _handle = _handle.toRef();
+    if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
+      _handle = (_handle as Node).toRef();
     }
     this.handlePtr = _handle;
     let _systemFolder = options.systemFolder ?? null;
-    if (_systemFolder != null && _systemFolder instanceof Node) {
-      _systemFolder = _systemFolder.toRef();
+    if (_systemFolder != null && _systemFolder.metatype != StructType.NODE_REFERENCE) {
+      _systemFolder = (_systemFolder as Node).toRef();
     }
     this.systemFolderPtr = _systemFolder;
     let _homeFolder = options.homeFolder ?? null;
-    if (_homeFolder != null && _homeFolder instanceof Node) {
-      _homeFolder = _homeFolder.toRef();
+    if (_homeFolder != null && _homeFolder.metatype != StructType.NODE_REFERENCE) {
+      _homeFolder = (_homeFolder as Node).toRef();
     }
     this.homeFolderPtr = _homeFolder;
     let _region = options.region;
@@ -329,8 +329,8 @@ export class Space
     let _galaxyName = options.galaxyName ?? null;
     this.galaxyName = _galaxyName;
     let _database = options.database ?? null;
-    if (_database != null && _database instanceof Node) {
-      _database = _database.toRef();
+    if (_database != null && _database.metatype != StructType.NODE_REFERENCE) {
+      _database = (_database as Node).toRef();
     }
     this.databasePtr = _database;
 
@@ -350,16 +350,16 @@ export class Space
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }

@@ -151,13 +151,13 @@ export class GaugeMetric extends Metric {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _orderKey = options.orderKey ?? null;
@@ -174,8 +174,8 @@ export class GaugeMetric extends Metric {
     }
     this.name = _name;
     let _source = options.source ?? null;
-    if (_source != null && _source instanceof Node) {
-      _source = _source.toRef();
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
 
@@ -195,16 +195,16 @@ export class GaugeMetric extends Metric {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }
@@ -619,26 +619,26 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _definition = options.definition;
-    if (_definition != null && _definition instanceof Node) {
-      _definition = _definition.toRef();
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
     }
     if (_definition === null) {
       throw new Error(`GaugeMeasurementEvent.definition is required`);
     }
     this.definitionPtr = _definition;
     let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     this.nodePtr = _node;
 
@@ -654,9 +654,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1066,13 +1066,13 @@ export class CounterMetric extends Metric {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _orderKey = options.orderKey ?? null;
@@ -1089,8 +1089,8 @@ export class CounterMetric extends Metric {
     }
     this.name = _name;
     let _source = options.source ?? null;
-    if (_source != null && _source instanceof Node) {
-      _source = _source.toRef();
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
 
@@ -1110,16 +1110,16 @@ export class CounterMetric extends Metric {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }
@@ -1534,26 +1534,26 @@ export class CounterMeasurementEvent extends MeasurementEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _definition = options.definition;
-    if (_definition != null && _definition instanceof Node) {
-      _definition = _definition.toRef();
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
     }
     if (_definition === null) {
       throw new Error(`CounterMeasurementEvent.definition is required`);
     }
     this.definitionPtr = _definition;
     let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     this.nodePtr = _node;
 
@@ -1569,9 +1569,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1981,13 +1981,13 @@ export class HistogramMetric extends Metric {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _orderKey = options.orderKey ?? null;
@@ -2004,8 +2004,8 @@ export class HistogramMetric extends Metric {
     }
     this.name = _name;
     let _source = options.source ?? null;
-    if (_source != null && _source instanceof Node) {
-      _source = _source.toRef();
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
 
@@ -2025,16 +2025,16 @@ export class HistogramMetric extends Metric {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }
@@ -2449,26 +2449,26 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _definition = options.definition;
-    if (_definition != null && _definition instanceof Node) {
-      _definition = _definition.toRef();
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
     }
     if (_definition === null) {
       throw new Error(`HistogramMeasurementEvent.definition is required`);
     }
     this.definitionPtr = _definition;
     let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     this.nodePtr = _node;
 
@@ -2484,9 +2484,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }

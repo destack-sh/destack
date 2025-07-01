@@ -140,21 +140,21 @@ export class Friendship extends Entity implements IsGlobal {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _userA = options.userA;
-    if (_userA != null && _userA instanceof Node) {
-      _userA = _userA.toRef();
+    if (_userA != null && _userA.metatype != StructType.NODE_REFERENCE) {
+      _userA = (_userA as Node).toRef();
     }
     if (_userA === null) {
       throw new Error(`Friendship.userA is required`);
     }
     this.userAPtr = _userA;
     let _userB = options.userB;
-    if (_userB != null && _userB instanceof Node) {
-      _userB = _userB.toRef();
+    if (_userB != null && _userB.metatype != StructType.NODE_REFERENCE) {
+      _userB = (_userB as Node).toRef();
     }
     if (_userB === null) {
       throw new Error(`Friendship.userB is required`);
@@ -177,16 +177,16 @@ export class Friendship extends Entity implements IsGlobal {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }
@@ -601,18 +601,18 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`FriendshipInviteSentEvent.node is required`);
@@ -631,9 +631,9 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -981,18 +981,18 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`FriendshipInviteRescindedEvent.node is required`);
@@ -1011,9 +1011,9 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1363,18 +1363,18 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`FriendshipInviteAcceptedEvent.node is required`);
@@ -1393,9 +1393,9 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1743,18 +1743,18 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`FriendshipInviteRejectedEvent.node is required`);
@@ -1773,9 +1773,9 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -2129,13 +2129,13 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _ownedBy = options.ownedBy;
-    if (_ownedBy != null && _ownedBy instanceof Node) {
-      _ownedBy = _ownedBy.toRef();
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
     if (_ownedBy === null) {
       throw new Error(`FriendshipInvite.ownedBy is required`);
@@ -2158,16 +2158,16 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }

@@ -2,11 +2,12 @@ import { toValue } from "@destack/language";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
+import { isNode } from "@destack/language/core/builtin/node";
 import {
   NodeDefinitionReference,
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
-import { Struct, StructFrozen } from "@destack/language/core/builtin/struct";
+import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import { PropertyDefinition } from "@destack/language/core/common/meta";
 import { CustomProperty } from "@destack/language/core/common/property";
 import { Value } from "@destack/language/core/common/value";
@@ -1106,21 +1107,21 @@ export class Expression extends StructFrozen {
 
   /** Make an Expression from a shorthand expression. */
   static of(thing: ExpressionIn): Expression {
-    if (thing instanceof Value) {
+    if (isStruct(thing, StructType.VALUE)) {
       return new Expression({ type: ExpressionType.LITERAL, literal: thing });
-    } else if (thing instanceof PropertyReference) {
+    } else if (isStruct(thing, StructType.PROPERTY_REFERENCE)) {
       return new Expression({ type: ExpressionType.ATTRIBUTE, attribute: thing });
-    } else if (thing instanceof PropertyDefinition) {
+    } else if (isStruct(thing, StructType.PROPERTY_DEFINITION)) {
       return new Expression({ type: ExpressionType.ATTRIBUTE, attribute: thing.toRef() });
-    } else if (thing instanceof Condition) {
+    } else if (isStruct(thing, StructType.CONDITION)) {
       return new Expression({ type: ExpressionType.CONDITION, condition: thing });
-    } else if (thing instanceof Function) {
+    } else if (isStruct(thing, StructType.FUNCTION)) {
       return new Expression({ type: ExpressionType.FUNCTION, function: thing });
-    } else if (thing instanceof Aggregation) {
+    } else if (isStruct(thing, StructType.AGGREGATION)) {
       return new Expression({ type: ExpressionType.AGGREGATION, aggregation: thing });
-    } else if (thing instanceof Expression) {
+    } else if (isStruct(thing, StructType.EXPRESSION)) {
       return thing;
-    } else if (thing instanceof CustomProperty) {
+    } else if (isNode(thing, NodeType.CUSTOM_PROPERTY)) {
       return new Expression({
         type: ExpressionType.ATTRIBUTE,
         attribute: PropertyReference.of(thing),
@@ -1910,7 +1911,7 @@ export class Join extends StructFrozen {
       on?: Condition | null;
     },
   ): Join {
-    if (joinType instanceof Join) {
+    if (isStruct(joinType, StructType.JOIN)) {
       return joinType;
     }
     return new Join({

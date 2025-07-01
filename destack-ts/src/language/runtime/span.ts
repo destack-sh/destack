@@ -135,23 +135,23 @@ export class SpanEvent extends Event {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node ?? null;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     this.nodePtr = _node;
     let _run = options.run;
-    if (_run != null && _run instanceof Node) {
-      _run = _run.toRef();
+    if (_run != null && _run.metatype != StructType.NODE_REFERENCE) {
+      _run = (_run as Node).toRef();
     }
     if (_run === null) {
       throw new Error(`SpanEvent.run is required`);
@@ -170,9 +170,9 @@ export class SpanEvent extends Event {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }

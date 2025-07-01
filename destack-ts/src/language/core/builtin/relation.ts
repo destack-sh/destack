@@ -5,8 +5,8 @@ import type {
 } from "@destack/language/core/builtin/entity";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
-import { isNode, Node } from "@destack/language/core/builtin/node";
-import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import { Node, isNode } from "@destack/language/core/builtin/node";
+import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStructDefinition } from "@destack/language/core/common/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
@@ -106,8 +106,8 @@ export class NodeDefinitionReference extends StructFrozen {
     let _traitType = options.traitType ?? null;
     this.traitType = _traitType;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition instanceof Node) {
-      _definition = _definition.toRef();
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
 
@@ -444,8 +444,8 @@ export class ObjectDefinitionReference extends StructFrozen {
     let _structType = options.structType ?? null;
     this.structType = _structType;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition instanceof Node) {
-      _definition = _definition.toRef();
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
 
@@ -797,8 +797,8 @@ export class PropertyReference extends StructFrozen {
     let _id = options.id ?? null;
     this.id = _id;
     let _customProperty = options.customProperty ?? null;
-    if (_customProperty != null && _customProperty instanceof Node) {
-      _customProperty = _customProperty.toRef();
+    if (_customProperty != null && _customProperty.metatype != StructType.NODE_REFERENCE) {
+      _customProperty = (_customProperty as Node).toRef();
     }
     this.customPropertyPtr = _customProperty;
 
@@ -1211,8 +1211,8 @@ export class StructDefinitionReference extends StructFrozen {
     let _structType = options.structType ?? null;
     this.structType = _structType;
     let _definition = options.definition;
-    if (_definition != null && _definition instanceof Node) {
-      _definition = _definition.toRef();
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
     }
     if (_definition === null) {
       throw new Error(`StructDefinitionReference.definition is required`);

@@ -242,8 +242,8 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _deletedAt = options.deletedAt ?? null;
@@ -259,13 +259,13 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     }
     this.name = _name;
     let _machine = options.machine ?? null;
-    if (_machine != null && _machine instanceof Node) {
-      _machine = _machine.toRef();
+    if (_machine != null && _machine.metatype != StructType.NODE_REFERENCE) {
+      _machine = (_machine as Node).toRef();
     }
     this.machinePtr = _machine;
     let _user = options.user ?? null;
-    if (_user != null && _user instanceof Node) {
-      _user = _user.toRef();
+    if (_user != null && _user.metatype != StructType.NODE_REFERENCE) {
+      _user = (_user as Node).toRef();
     }
     this.userPtr = _user;
     let _deviceType = options.deviceType ?? null;
@@ -285,8 +285,8 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     let _loggedInAt = options.loggedInAt ?? null;
     this.loggedInAt = _loggedInAt;
     let _cursor = options.cursor ?? null;
-    if (_cursor != null && _cursor instanceof Node) {
-      _cursor = _cursor.toRef();
+    if (_cursor != null && _cursor.metatype != StructType.NODE_REFERENCE) {
+      _cursor = (_cursor as Node).toRef();
     }
     this.cursorPtr = _cursor;
 
@@ -306,16 +306,16 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }

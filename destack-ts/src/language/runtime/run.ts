@@ -273,26 +273,26 @@ export class RunStartedEvent extends RunEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunStartedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     this.targetPtr = _target;
 
@@ -308,9 +308,9 @@ export class RunStartedEvent extends RunEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -694,26 +694,26 @@ export class RunPauseRequestedEvent extends RunEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunPauseRequestedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     this.targetPtr = _target;
 
@@ -729,9 +729,9 @@ export class RunPauseRequestedEvent extends RunEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1127,26 +1127,26 @@ export class RunPausedEvent extends RunEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunPausedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     this.targetPtr = _target;
 
@@ -1162,9 +1162,9 @@ export class RunPausedEvent extends RunEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1548,26 +1548,26 @@ export class RunResumeRequestedEvent extends RunEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunResumeRequestedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     this.targetPtr = _target;
 
@@ -1583,9 +1583,9 @@ export class RunResumeRequestedEvent extends RunEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1981,26 +1981,26 @@ export class RunResumedEvent extends RunEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunResumedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     this.targetPtr = _target;
 
@@ -2016,9 +2016,9 @@ export class RunResumedEvent extends RunEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -2402,26 +2402,26 @@ export class RunStopRequestedEvent extends RunEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunStopRequestedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     this.targetPtr = _target;
 
@@ -2437,9 +2437,9 @@ export class RunStopRequestedEvent extends RunEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -2835,26 +2835,26 @@ export class RunFailedEvent extends RunEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunFailedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     this.targetPtr = _target;
 
@@ -2870,9 +2870,9 @@ export class RunFailedEvent extends RunEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -3256,26 +3256,26 @@ export class RunCompletedEvent extends RunEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunCompletedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     this.targetPtr = _target;
 
@@ -3291,9 +3291,9 @@ export class RunCompletedEvent extends RunEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -3760,13 +3760,13 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _value = options.value ?? null;
@@ -3775,8 +3775,8 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     }
     this.value = _value;
     let _target = options.target ?? null;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     this.targetPtr = _target;
     let _status = options.status;
@@ -3797,8 +3797,8 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     let _terminatedAt = options.terminatedAt ?? null;
     this.terminatedAt = _terminatedAt;
     let _interruption = options.interruption ?? null;
-    if (_interruption != null && _interruption instanceof Node) {
-      _interruption = _interruption.toRef();
+    if (_interruption != null && _interruption.metatype != StructType.NODE_REFERENCE) {
+      _interruption = (_interruption as Node).toRef();
     }
     this.interruptionPtr = _interruption;
 
@@ -3818,16 +3818,16 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }

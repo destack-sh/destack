@@ -246,13 +246,13 @@ export class Folder
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
@@ -266,8 +266,8 @@ export class Folder
     }
     this.orderKey = _orderKey;
     let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy instanceof Node) {
-      _ownedBy = _ownedBy.toRef();
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
     this.ownedByPtr = _ownedBy;
     let _type = options.type ?? null;
@@ -288,8 +288,8 @@ export class Folder
     let _icon = options.icon ?? null;
     this.icon = _icon;
     let _mainScene = options.mainScene ?? null;
-    if (_mainScene != null && _mainScene instanceof Node) {
-      _mainScene = _mainScene.toRef();
+    if (_mainScene != null && _mainScene.metatype != StructType.NODE_REFERENCE) {
+      _mainScene = (_mainScene as Node).toRef();
     }
     this.mainScenePtr = _mainScene;
 
@@ -309,16 +309,16 @@ export class Folder
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }

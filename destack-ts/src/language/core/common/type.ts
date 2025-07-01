@@ -14,9 +14,9 @@ import type {
   CustomTraitDefinition,
 } from "@destack/language/core/builtin/entity";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
-import { Node } from "@destack/language/core/builtin/node";
+import { isNode, Node } from "@destack/language/core/builtin/node";
 import { NodeReference } from "@destack/language/core/builtin/relation";
-import { Struct, StructFrozen } from "@destack/language/core/builtin/struct";
+import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
 import type { CustomEnumDefinition } from "@destack/language/core/common/enum";
 import type { CustomStructDefinition } from "@destack/language/core/common/struct";
 import { Value } from "@destack/language/core/common/value";
@@ -52,19 +52,19 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
   }
 
   // scalar values
-  if (valueOrType instanceof NodeReference) {
+  if (isStruct(valueOrType, StructType.NODE_REFERENCE)) {
     return new Type({
       cardinality: TypeCardinality.SCALAR,
       scalarType: ScalarType.NODE_REFERENCE,
       nodeType: valueOrType.nodeType,
     });
-  } else if (valueOrType instanceof Node) {
+  } else if (isNode(valueOrType)) {
     return new Type({
       cardinality: TypeCardinality.SCALAR,
       scalarType: nodeAsValue ? ScalarType.NODE_VALUE : ScalarType.NODE_REFERENCE,
       nodeType: valueOrType.metatype,
     });
-  } else if (valueOrType instanceof Struct) {
+  } else if (isStruct(valueOrType)) {
     return new Type({
       cardinality: TypeCardinality.SCALAR,
       scalarType: ScalarType.STRUCT,
@@ -1414,8 +1414,8 @@ export class Type extends StructFrozen {
     let _structType = options.structType ?? null;
     this.structType = _structType;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition instanceof Node) {
-      _definition = _definition.toRef();
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
     let _keyType = options.keyType ?? null;
