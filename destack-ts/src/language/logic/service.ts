@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasName,
   IsCustomizable,
   IsDeletable,
@@ -16,16 +17,8 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import {
-  Entity,
-  Graph,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
-  Value,
-} from "@destack/language/core";
-import type { Script } from "@destack/language/logic";
+import { Entity, Node, NodeReference, NodeType, StructType, Value } from "@destack/language/core";
+import type { Script } from "@destack/language/logic/script";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { ServiceProto } from "@destack/proto";

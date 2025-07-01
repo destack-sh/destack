@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasSlug,
   IsGlobal,
   IsSubject,
@@ -7,9 +8,9 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Graph, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
+import { Entity, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space/space";
 import { HandleProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

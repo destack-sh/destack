@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasIcon,
   HasName,
   HasSlug,
@@ -15,7 +16,6 @@ import type {
 import {
   Entity,
   EnumType,
-  Graph,
   Icon,
   Length,
   Node,
@@ -24,7 +24,8 @@ import {
   StructType,
 } from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import type { Layer, Scene } from "@destack/language/scene";
+import type { Layer } from "@destack/language/scene/layer";
+import type { Scene } from "@destack/language/scene/scene";
 import type { Space } from "@destack/language/space";
 import { VariantProto, VariantTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";

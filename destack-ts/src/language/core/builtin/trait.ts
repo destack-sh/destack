@@ -2,8 +2,8 @@ import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/co
 import { Node } from "@destack/language/core/builtin/node";
 import { NodeReference } from "@destack/language/core/builtin/relation";
 import { TraitClass } from "@destack/language/core/builtin/trait_class";
-import { Icon } from "@destack/language/core/common/icon";
-import { Value } from "@destack/language/core/common/value";
+import type { Icon } from "@destack/language/core/common/icon";
+import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
 import { registerEnumClass, registerTraitClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";

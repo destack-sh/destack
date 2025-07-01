@@ -17,8 +17,7 @@ import type {
 import { Icon } from "@destack/language/core/common/icon";
 import { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
-import type { Supergraph } from "@destack/language/core/runtime/graph";
-import { Graph } from "@destack/language/core/runtime/graph";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";

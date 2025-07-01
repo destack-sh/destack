@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   IsGlobal,
   IsOwnable,
   IsSubject,
@@ -7,17 +8,10 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import {
-  Entity,
-  Event,
-  Graph,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
-} from "@destack/language/core";
+import { Entity, Event, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Space, User } from "@destack/language/space";
+import type { Space } from "@destack/language/space/space";
+import type { User } from "@destack/language/space/user";
 import {
   FriendshipInviteAcceptedEventProto,
   FriendshipInviteProto,

@@ -1,12 +1,12 @@
-import type { IsSubject } from "@destack/language/core";
-import { Dimension, Node, NodeReference, NodeType, Position } from "@destack/language/core";
+import type { Dimension, IsSubject, Position } from "@destack/language/core";
+import { Node, NodeReference, NodeType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { View } from "@destack/language/view";
-import { ContainerView } from "@destack/language/view/container";
+import type { ContainerView } from "@destack/language/view/container/container";
+import { View } from "@destack/language/view/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:230000 ==== */

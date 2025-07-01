@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasName,
   IsCustomizable,
   IsDeletable,
@@ -12,15 +13,7 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import {
-  Entity,
-  Graph,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
-  Value,
-} from "@destack/language/core";
+import { Entity, Node, NodeReference, NodeType, StructType, Value } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";

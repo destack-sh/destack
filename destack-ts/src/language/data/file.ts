@@ -5,6 +5,7 @@ import {
   unpackProtoTimestamp,
 } from "@destack/grpc";
 import type {
+  Graph,
   HasName,
   IsGlobal,
   IsSpatial,
@@ -15,7 +16,6 @@ import type {
 } from "@destack/language/core";
 import {
   EnumType,
-  Graph,
   Node,
   NodeReference,
   NodeType,

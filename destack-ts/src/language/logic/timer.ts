@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasName,
   IsSpatial,
   IsSubject,
@@ -11,13 +12,12 @@ import {
   Entity,
   EnumType,
   Event,
-  Graph,
   Node,
   NodeReference,
   NodeType,
   StructType,
 } from "@destack/language/core";
-import { Schedule } from "@destack/language/logic";
+import { Schedule } from "@destack/language/logic/schedule";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {

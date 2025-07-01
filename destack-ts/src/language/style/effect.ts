@@ -4,11 +4,16 @@ import {
   unpackProtoDuration,
   unpackProtoTimestamp,
 } from "@destack/grpc";
-import type { IsSubject, QueryConnection, Session, Supergraph } from "@destack/language/core";
+import type {
+  Graph,
+  IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
 import {
   Axis3,
   EnumType,
-  Graph,
   Node,
   NodeReference,
   NodeType,
@@ -23,8 +28,10 @@ import {
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import type { Palette, Theme } from "@destack/language/style";
-import { Style, Transition } from "@destack/language/style";
+import type { Palette } from "@destack/language/style/palette";
+import { Style } from "@destack/language/style/style";
+import type { Theme } from "@destack/language/style/theme";
+import { Transition } from "@destack/language/style/transition";
 import type { View } from "@destack/language/view";
 import {
   EffectProto,

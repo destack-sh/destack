@@ -5,6 +5,7 @@ import {
   unpackProtoTimestamp,
 } from "@destack/grpc";
 import type {
+  Graph,
   IsCustomizable,
   IsRunnable,
   IsSpatial,
@@ -17,7 +18,6 @@ import {
   Entity,
   EnumType,
   Event,
-  Graph,
   Node,
   NodeReference,
   NodeType,
@@ -25,7 +25,7 @@ import {
   Value,
 } from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import type { Interruption } from "@destack/language/runtime";
+import type { Interruption } from "@destack/language/runtime/interruption";
 import type { Space } from "@destack/language/space";
 import {
   RunCompletedEventProto,

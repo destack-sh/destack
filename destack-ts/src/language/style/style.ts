@@ -10,7 +10,8 @@ import { Entity, Node, NodeReference, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import type { Palette, Theme } from "@destack/language/style";
+import type { Palette } from "@destack/language/style/palette";
+import type { Theme } from "@destack/language/style/theme";
 import type { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
