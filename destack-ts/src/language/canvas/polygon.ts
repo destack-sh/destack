@@ -65,7 +65,7 @@ export enum PolygonShapeType {
 registerEnumClass(EnumType.POLYGON_SHAPE_TYPE, PolygonShapeType);
 /* ==== DESTACK_GENERATED_END:ENUM:250300 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:250300 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:250500 ==== */
 /**
  * A Polygon is a list of points.
  */
@@ -184,7 +184,7 @@ export class Polygon extends StructFrozen {
 
   static __packValue__(object: Polygon): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 250300;
+    objectValue["1"] = 250500;
     objectValue["30"] = object.type;
     if (object.points.length > 0) {
       const packedPoints: any[] = [];
@@ -236,7 +236,7 @@ export class Polygon extends StructFrozen {
   }
 
   static __packProto__(object: Polygon): PolygonProto {
-    const objectProto: Partial<PolygonProto> = { metatype: 250300 };
+    const objectProto: Partial<PolygonProto> = { metatype: 250500 };
     objectProto.type = Number(object.type) as PolygonShapeTypeProto;
     if (object.points) {
       const packedPoints: any[] = [];
@@ -290,9 +290,9 @@ export class Polygon extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.POLYGON, Polygon);
-/* ==== DESTACK_GENERATED_END:STRUCT:250300 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:250500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:250300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:250500 ==== */
 /**
  * A PolygonShape is a shape that represents a polygon.
  */
@@ -514,14 +514,14 @@ export class PolygonShape extends Shape {
   radius: Corners | null;
 
   /**
+   * Shape.stroke
+   */
+  stroke: Stroke | null;
+
+  /**
    * PolygonShape.points
    */
   points: Array<Vector2>;
-
-  /**
-   * PolygonShape.stroke
-   */
-  stroke: Stroke | null;
 
   /**
    * The main / root Script of this Node.
@@ -580,8 +580,8 @@ export class PolygonShape extends Shape {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
-    points?: Array<Vector2>;
     stroke?: Stroke | null;
+    points?: Array<Vector2>;
     script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -694,13 +694,13 @@ export class PolygonShape extends Shape {
     this.border = _border;
     let _radius = options.radius ?? null;
     this.radius = _radius;
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
     let _points = options.points ?? null;
     if (_points === null) {
       _points = [];
     }
     this.points = _points;
-    let _stroke = options.stroke ?? null;
-    this.stroke = _stroke;
     let _script = options.script ?? null;
     if (_script != null && _script instanceof Node) {
       _script = _script.toRef();
@@ -1078,7 +1078,7 @@ export class PolygonShape extends Shape {
 
   static __packValue__(object: PolygonShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 250300;
+    objectValue["1"] = 250500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1178,15 +1178,15 @@ export class PolygonShape extends Shape {
     if (object.radius != null) {
       objectValue["68"] = object.radius.toValue();
     }
+    if (object.stroke != null) {
+      objectValue["80"] = object.stroke.toValue();
+    }
     if (object.points.length > 0) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.toValue());
       }
       objectValue["100"] = packedPoints;
-    }
-    if (object.stroke != null) {
-      objectValue["101"] = object.stroke.toValue();
     }
     if (object.scriptPtr != null) {
       objectValue["200"] = object.scriptPtr.toValue();
@@ -1207,7 +1207,7 @@ export class PolygonShape extends Shape {
         unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
-    const strokeValue = objectValue["101"];
+    const strokeValue = objectValue["80"];
     const unpackedStroke =
       strokeValue != undefined
         ? Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
@@ -1407,7 +1407,7 @@ export class PolygonShape extends Shape {
   }
 
   static __packProto__(object: PolygonShape): PolygonShapeProto {
-    const objectProto: Partial<PolygonShapeProto> = { metatype: 250300 };
+    const objectProto: Partial<PolygonShapeProto> = { metatype: 250500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1507,15 +1507,15 @@ export class PolygonShape extends Shape {
     if (object.radius != null) {
       objectProto.radius = object.radius.toProto();
     }
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
+    }
     if (object.points) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.toProto());
       }
       objectProto.points = packedPoints;
-    }
-    if (object.stroke != null) {
-      objectProto.stroke = object.stroke.toProto();
     }
     if (object.scriptPtr != null) {
       objectProto.scriptPtr = object.scriptPtr.toProto();
@@ -1706,4 +1706,4 @@ export class PolygonShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.POLYGON_SHAPE, PolygonShape);
-/* ==== DESTACK_GENERATED_END:NODE:250300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:250500 ==== */

@@ -16,7 +16,7 @@ import {
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import type { Theme } from "@destack/language/style";
+import type { Palette, Theme } from "@destack/language/style";
 import { Style } from "@destack/language/style";
 import type { View } from "@destack/language/view";
 import {
@@ -59,505 +59,7 @@ export enum SpringType {
 registerEnumClass(EnumType.SPRING_TYPE, SpringType);
 /* ==== DESTACK_GENERATED_END:ENUM:270211 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:270207 ==== */
-/**
- * A transition value.
- */
-export class Transition extends StructFrozen {
-  static metatype: StructType = StructType.TRANSITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Transition.type
-   */
-  readonly type: TransitionType;
-
-  /**
-   * style
-   */
-  get style(): TransitionStyle | null {
-    const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as TransitionStyle | null;
-    }
-    return null;
-  }
-  readonly stylePtr: NodeReference | null;
-
-  /**
-   * Transition.delay
-   */
-  readonly delay: number | null;
-
-  /**
-   * Transition.duration
-   */
-  readonly duration: number | null;
-
-  /**
-   * Transition.ease
-   */
-  readonly ease: Array<number>;
-
-  /**
-   * Transition.stiffness
-   */
-  readonly stiffness: number | null;
-
-  /**
-   * Transition.damping
-   */
-  readonly damping: number | null;
-
-  /**
-   * Transition.mass
-   */
-  readonly mass: number | null;
-
-  /**
-   * Transition.bounce
-   */
-  readonly bounce: number | null;
-
-  /**
-   * Transition.springType
-   */
-  readonly springType: SpringType | null;
-
-  constructor(options: {
-    type?: TransitionType;
-    style?: TransitionStyle | NodeReference | null;
-    delay?: number | null;
-    duration?: number | null;
-    ease?: Array<number>;
-    stiffness?: number | null;
-    damping?: number | null;
-    mass?: number | null;
-    bounce?: number | null;
-    springType?: SpringType | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type ?? null;
-    if (_type === null) {
-      _type = TransitionType.TWEEN;
-    }
-    if (_type === null) {
-      throw new Error(`Transition.type is required`);
-    }
-    this.type = _type;
-    let _style = options.style ?? null;
-    if (_style != null && _style instanceof Node) {
-      _style = _style.toRef();
-    }
-    this.stylePtr = _style;
-    let _delay = options.delay ?? null;
-    this.delay = _delay;
-    let _duration = options.duration ?? null;
-    this.duration = _duration;
-    let _ease = options.ease ?? null;
-    if (_ease === null) {
-      _ease = [];
-    }
-    this.ease = _ease;
-    let _stiffness = options.stiffness ?? null;
-    this.stiffness = _stiffness;
-    let _damping = options.damping ?? null;
-    this.damping = _damping;
-    let _mass = options.mass ?? null;
-    this.mass = _mass;
-    let _bounce = options.bounce ?? null;
-    this.bounce = _bounce;
-    let _springType = options.springType ?? null;
-    this.springType = _springType;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
-      return false;
-    }
-    if (
-      (this.delay == null) !== (other.delay == null) ||
-      (this.delay != null &&
-        !(this.delay === other.delay || Math.abs(this.delay - other.delay) < 1e-10))
-    ) {
-      return false;
-    }
-    if (
-      (this.duration == null) !== (other.duration == null) ||
-      (this.duration != null &&
-        !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
-    ) {
-      return false;
-    }
-    if (this.ease.length !== other.ease.length) {
-      return false;
-    }
-    for (let i = 0; i < this.ease.length; i++) {
-      if (!(this.ease[i] === other.ease[i] || Math.abs(this.ease[i] - other.ease[i]) < 1e-10)) {
-        return false;
-      }
-    }
-    if (
-      (this.stiffness == null) !== (other.stiffness == null) ||
-      (this.stiffness != null &&
-        !(this.stiffness === other.stiffness || Math.abs(this.stiffness - other.stiffness) < 1e-10))
-    ) {
-      return false;
-    }
-    if (
-      (this.damping == null) !== (other.damping == null) ||
-      (this.damping != null &&
-        !(this.damping === other.damping || Math.abs(this.damping - other.damping) < 1e-10))
-    ) {
-      return false;
-    }
-    if (
-      (this.mass == null) !== (other.mass == null) ||
-      (this.mass != null && !(this.mass === other.mass || Math.abs(this.mass - other.mass) < 1e-10))
-    ) {
-      return false;
-    }
-    if (
-      (this.bounce == null) !== (other.bounce == null) ||
-      (this.bounce != null &&
-        !(this.bounce === other.bounce || Math.abs(this.bounce - other.bounce) < 1e-10))
-    ) {
-      return false;
-    }
-    if (!(this.springType === other.springType)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${TransitionType[this.type]}`);
-      if (this.style !== null) {
-        propertyReprs.push(`style=${this.style?.repr()}`);
-      }
-      if (this.delay !== null) {
-        propertyReprs.push(`delay=${this.delay}`);
-      }
-      if (this.duration !== null) {
-        propertyReprs.push(`duration=${this.duration}`);
-      }
-      if (this.ease.length > 0) {
-        propertyReprs.push(`ease=${this.ease.map((_item) => _item).join(", ")}`);
-      }
-      if (this.stiffness !== null) {
-        propertyReprs.push(`stiffness=${this.stiffness}`);
-      }
-      if (this.damping !== null) {
-        propertyReprs.push(`damping=${this.damping}`);
-      }
-      if (this.mass !== null) {
-        propertyReprs.push(`mass=${this.mass}`);
-      }
-      if (this.bounce !== null) {
-        propertyReprs.push(`bounce=${this.bounce}`);
-      }
-      if (this.springType !== null) {
-        propertyReprs.push(`springType=${SpringType[this.springType]}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<Transition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
-      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
-    }
-    if (this.delay !== null) {
-      h = (h * 31 + hashFloat(this.delay)) & 0xffffffff;
-    }
-    if (this.duration !== null) {
-      h = (h * 31 + hashFloat(this.duration)) & 0xffffffff;
-    }
-    if (this.ease && this.ease.length > 0) {
-      for (const _item of this.ease) {
-        h = (h * 31 + hashFloat(_item)) & 0xffffffff;
-      }
-    }
-    if (this.stiffness !== null) {
-      h = (h * 31 + hashFloat(this.stiffness)) & 0xffffffff;
-    }
-    if (this.damping !== null) {
-      h = (h * 31 + hashFloat(this.damping)) & 0xffffffff;
-    }
-    if (this.mass !== null) {
-      h = (h * 31 + hashFloat(this.mass)) & 0xffffffff;
-    }
-    if (this.bounce !== null) {
-      h = (h * 31 + hashFloat(this.bounce)) & 0xffffffff;
-    }
-    if (this.springType !== null) {
-      h = (h * 31 + this.springType) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Transition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Transition): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270207;
-    objectValue["30"] = object.type;
-    if (object.stylePtr != null) {
-      objectValue["41"] = object.stylePtr.toValue();
-    }
-    if (object.delay != null) {
-      objectValue["50"] = object.delay;
-    }
-    if (object.duration != null) {
-      objectValue["51"] = object.duration;
-    }
-    if (object.ease.length > 0) {
-      const packedEase: any[] = [];
-      for (const item of object.ease) {
-        packedEase.push(item);
-      }
-      objectValue["52"] = packedEase;
-    }
-    if (object.stiffness != null) {
-      objectValue["53"] = object.stiffness;
-    }
-    if (object.damping != null) {
-      objectValue["54"] = object.damping;
-    }
-    if (object.mass != null) {
-      objectValue["55"] = object.mass;
-    }
-    if (object.bounce != null) {
-      objectValue["56"] = object.bounce;
-    }
-    if (object.springType != null) {
-      objectValue["57"] = object.springType;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Transition {
-    const stylePtrValue = objectValue["41"];
-    const unpackedStylePtr =
-      stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const delayValue = objectValue["50"];
-    const unpackedDelay = delayValue != undefined ? delayValue : null;
-    const durationValue = objectValue["51"];
-    const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const unpackedEase: any[] = [];
-    if (objectValue["52"] != undefined) {
-      for (const item of objectValue["52"]) {
-        unpackedEase.push(item);
-      }
-    }
-    const stiffnessValue = objectValue["53"];
-    const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
-    const dampingValue = objectValue["54"];
-    const unpackedDamping = dampingValue != undefined ? dampingValue : null;
-    const massValue = objectValue["55"];
-    const unpackedMass = massValue != undefined ? massValue : null;
-    const bounceValue = objectValue["56"];
-    const unpackedBounce = bounceValue != undefined ? bounceValue : null;
-    const springTypeValue = objectValue["57"];
-    const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
-    return new Transition({
-      type: Number(objectValue["30"]),
-      style: unpackedStylePtr,
-      delay: unpackedDelay,
-      duration: unpackedDuration,
-      ease: unpackedEase,
-      stiffness: unpackedStiffness,
-      damping: unpackedDamping,
-      mass: unpackedMass,
-      bounce: unpackedBounce,
-      springType: unpackedSpringType,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Transition {
-    return Transition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): TransitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Transition.__packProto__(this);
-    }
-    return this._proto as TransitionProto;
-  }
-
-  static __packProto__(object: Transition): TransitionProto {
-    const objectProto: Partial<TransitionProto> = { metatype: 270207 };
-    objectProto.type = Number(object.type) as TransitionTypeProto;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
-    if (object.delay != null) {
-      objectProto.delay = object.delay;
-    }
-    if (object.duration != null) {
-      objectProto.duration = object.duration;
-    }
-    if (object.ease) {
-      const packedEase: any[] = [];
-      for (const item of object.ease) {
-        packedEase.push(item);
-      }
-      objectProto.ease = packedEase;
-    }
-    if (object.stiffness != null) {
-      objectProto.stiffness = object.stiffness;
-    }
-    if (object.damping != null) {
-      objectProto.damping = object.damping;
-    }
-    if (object.mass != null) {
-      objectProto.mass = object.mass;
-    }
-    if (object.bounce != null) {
-      objectProto.bounce = object.bounce;
-    }
-    if (object.springType != null) {
-      objectProto.springType = Number(object.springType) as SpringTypeProto;
-    }
-    return objectProto as TransitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: TransitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Transition {
-    const unpackedEase: any[] = [];
-    if (objectProto.ease) {
-      for (const item of objectProto.ease) {
-        unpackedEase.push(item);
-      }
-    }
-    return new Transition({
-      type: Number(objectProto.type) as TransitionType,
-      style:
-        objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.stylePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      delay: objectProto.delay != undefined ? objectProto.delay : null,
-      duration: objectProto.duration != undefined ? objectProto.duration : null,
-      ease: unpackedEase,
-      stiffness: objectProto.stiffness != undefined ? objectProto.stiffness : null,
-      damping: objectProto.damping != undefined ? objectProto.damping : null,
-      mass: objectProto.mass != undefined ? objectProto.mass : null,
-      bounce: objectProto.bounce != undefined ? objectProto.bounce : null,
-      springType:
-        objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: TransitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Transition {
-    return Transition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Transition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = TransitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.TRANSITION, Transition);
-/* ==== DESTACK_GENERATED_END:STRUCT:270207 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:270206 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270900 ==== */
 /**
  * A transition style.
  */
@@ -567,10 +69,10 @@ export class TransitionStyle extends Style {
   /**
    * Style.parent
    */
-  get parent(): Scene | View | Theme | null {
+  get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
   }
@@ -684,7 +186,7 @@ export class TransitionStyle extends Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | View | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | Palette | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1004,7 +506,7 @@ export class TransitionStyle extends Style {
 
   static __packValue__(object: TransitionStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270206;
+    objectValue["1"] = 270900;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1150,7 +652,7 @@ export class TransitionStyle extends Style {
   }
 
   static __packProto__(object: TransitionStyle): TransitionStyleProto {
-    const objectProto: Partial<TransitionStyleProto> = { metatype: 270206 };
+    const objectProto: Partial<TransitionStyleProto> = { metatype: 270900 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1301,4 +803,502 @@ export class TransitionStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRANSITION_STYLE, TransitionStyle);
-/* ==== DESTACK_GENERATED_END:NODE:270206 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270900 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:270900 ==== */
+/**
+ * A transition value.
+ */
+export class Transition extends StructFrozen {
+  static metatype: StructType = StructType.TRANSITION;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Transition.type
+   */
+  readonly type: TransitionType;
+
+  /**
+   * style
+   */
+  get style(): TransitionStyle | null {
+    const nodePtr: NodeReference | null = this.stylePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as TransitionStyle | null;
+    }
+    return null;
+  }
+  readonly stylePtr: NodeReference | null;
+
+  /**
+   * Transition.delay
+   */
+  readonly delay: number | null;
+
+  /**
+   * Transition.duration
+   */
+  readonly duration: number | null;
+
+  /**
+   * Transition.ease
+   */
+  readonly ease: Array<number>;
+
+  /**
+   * Transition.stiffness
+   */
+  readonly stiffness: number | null;
+
+  /**
+   * Transition.damping
+   */
+  readonly damping: number | null;
+
+  /**
+   * Transition.mass
+   */
+  readonly mass: number | null;
+
+  /**
+   * Transition.bounce
+   */
+  readonly bounce: number | null;
+
+  /**
+   * Transition.springType
+   */
+  readonly springType: SpringType | null;
+
+  constructor(options: {
+    type?: TransitionType;
+    style?: TransitionStyle | NodeReference | null;
+    delay?: number | null;
+    duration?: number | null;
+    ease?: Array<number>;
+    stiffness?: number | null;
+    damping?: number | null;
+    mass?: number | null;
+    bounce?: number | null;
+    springType?: SpringType | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = TransitionType.TWEEN;
+    }
+    if (_type === null) {
+      throw new Error(`Transition.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style instanceof Node) {
+      _style = _style.toRef();
+    }
+    this.stylePtr = _style;
+    let _delay = options.delay ?? null;
+    this.delay = _delay;
+    let _duration = options.duration ?? null;
+    this.duration = _duration;
+    let _ease = options.ease ?? null;
+    if (_ease === null) {
+      _ease = [];
+    }
+    this.ease = _ease;
+    let _stiffness = options.stiffness ?? null;
+    this.stiffness = _stiffness;
+    let _damping = options.damping ?? null;
+    this.damping = _damping;
+    let _mass = options.mass ?? null;
+    this.mass = _mass;
+    let _bounce = options.bounce ?? null;
+    this.bounce = _bounce;
+    let _springType = options.springType ?? null;
+    this.springType = _springType;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+      return false;
+    }
+    if (
+      (this.delay == null) !== (other.delay == null) ||
+      (this.delay != null &&
+        !(this.delay === other.delay || Math.abs(this.delay - other.delay) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.duration == null) !== (other.duration == null) ||
+      (this.duration != null &&
+        !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
+    ) {
+      return false;
+    }
+    if (this.ease.length !== other.ease.length) {
+      return false;
+    }
+    for (let i = 0; i < this.ease.length; i++) {
+      if (!(this.ease[i] === other.ease[i] || Math.abs(this.ease[i] - other.ease[i]) < 1e-10)) {
+        return false;
+      }
+    }
+    if (
+      (this.stiffness == null) !== (other.stiffness == null) ||
+      (this.stiffness != null &&
+        !(this.stiffness === other.stiffness || Math.abs(this.stiffness - other.stiffness) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.damping == null) !== (other.damping == null) ||
+      (this.damping != null &&
+        !(this.damping === other.damping || Math.abs(this.damping - other.damping) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.mass == null) !== (other.mass == null) ||
+      (this.mass != null && !(this.mass === other.mass || Math.abs(this.mass - other.mass) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.bounce == null) !== (other.bounce == null) ||
+      (this.bounce != null &&
+        !(this.bounce === other.bounce || Math.abs(this.bounce - other.bounce) < 1e-10))
+    ) {
+      return false;
+    }
+    if (!(this.springType === other.springType)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${TransitionType[this.type]}`);
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style?.repr()}`);
+      }
+      if (this.delay !== null) {
+        propertyReprs.push(`delay=${this.delay}`);
+      }
+      if (this.duration !== null) {
+        propertyReprs.push(`duration=${this.duration}`);
+      }
+      if (this.ease.length > 0) {
+        propertyReprs.push(`ease=${this.ease.map((_item) => _item).join(", ")}`);
+      }
+      if (this.stiffness !== null) {
+        propertyReprs.push(`stiffness=${this.stiffness}`);
+      }
+      if (this.damping !== null) {
+        propertyReprs.push(`damping=${this.damping}`);
+      }
+      if (this.mass !== null) {
+        propertyReprs.push(`mass=${this.mass}`);
+      }
+      if (this.bounce !== null) {
+        propertyReprs.push(`bounce=${this.bounce}`);
+      }
+      if (this.springType !== null) {
+        propertyReprs.push(`springType=${SpringType[this.springType]}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Transition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    if (this.delay !== null) {
+      h = (h * 31 + hashFloat(this.delay)) & 0xffffffff;
+    }
+    if (this.duration !== null) {
+      h = (h * 31 + hashFloat(this.duration)) & 0xffffffff;
+    }
+    if (this.ease && this.ease.length > 0) {
+      for (const _item of this.ease) {
+        h = (h * 31 + hashFloat(_item)) & 0xffffffff;
+      }
+    }
+    if (this.stiffness !== null) {
+      h = (h * 31 + hashFloat(this.stiffness)) & 0xffffffff;
+    }
+    if (this.damping !== null) {
+      h = (h * 31 + hashFloat(this.damping)) & 0xffffffff;
+    }
+    if (this.mass !== null) {
+      h = (h * 31 + hashFloat(this.mass)) & 0xffffffff;
+    }
+    if (this.bounce !== null) {
+      h = (h * 31 + hashFloat(this.bounce)) & 0xffffffff;
+    }
+    if (this.springType !== null) {
+      h = (h * 31 + this.springType) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Transition.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Transition): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 270900;
+    objectValue["30"] = object.type;
+    if (object.stylePtr != null) {
+      objectValue["41"] = object.stylePtr.toValue();
+    }
+    if (object.delay != null) {
+      objectValue["50"] = object.delay;
+    }
+    if (object.duration != null) {
+      objectValue["51"] = object.duration;
+    }
+    if (object.ease.length > 0) {
+      const packedEase: any[] = [];
+      for (const item of object.ease) {
+        packedEase.push(item);
+      }
+      objectValue["52"] = packedEase;
+    }
+    if (object.stiffness != null) {
+      objectValue["53"] = object.stiffness;
+    }
+    if (object.damping != null) {
+      objectValue["54"] = object.damping;
+    }
+    if (object.mass != null) {
+      objectValue["55"] = object.mass;
+    }
+    if (object.bounce != null) {
+      objectValue["56"] = object.bounce;
+    }
+    if (object.springType != null) {
+      objectValue["57"] = object.springType;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Transition {
+    const stylePtrValue = objectValue["41"];
+    const unpackedStylePtr =
+      stylePtrValue != undefined
+        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const delayValue = objectValue["50"];
+    const unpackedDelay = delayValue != undefined ? delayValue : null;
+    const durationValue = objectValue["51"];
+    const unpackedDuration = durationValue != undefined ? durationValue : null;
+    const unpackedEase: any[] = [];
+    if (objectValue["52"] != undefined) {
+      for (const item of objectValue["52"]) {
+        unpackedEase.push(item);
+      }
+    }
+    const stiffnessValue = objectValue["53"];
+    const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
+    const dampingValue = objectValue["54"];
+    const unpackedDamping = dampingValue != undefined ? dampingValue : null;
+    const massValue = objectValue["55"];
+    const unpackedMass = massValue != undefined ? massValue : null;
+    const bounceValue = objectValue["56"];
+    const unpackedBounce = bounceValue != undefined ? bounceValue : null;
+    const springTypeValue = objectValue["57"];
+    const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
+    return new Transition({
+      type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
+      delay: unpackedDelay,
+      duration: unpackedDuration,
+      ease: unpackedEase,
+      stiffness: unpackedStiffness,
+      damping: unpackedDamping,
+      mass: unpackedMass,
+      bounce: unpackedBounce,
+      springType: unpackedSpringType,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Transition {
+    return Transition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): TransitionProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Transition.__packProto__(this);
+    }
+    return this._proto as TransitionProto;
+  }
+
+  static __packProto__(object: Transition): TransitionProto {
+    const objectProto: Partial<TransitionProto> = { metatype: 270900 };
+    objectProto.type = Number(object.type) as TransitionTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.delay != null) {
+      objectProto.delay = object.delay;
+    }
+    if (object.duration != null) {
+      objectProto.duration = object.duration;
+    }
+    if (object.ease) {
+      const packedEase: any[] = [];
+      for (const item of object.ease) {
+        packedEase.push(item);
+      }
+      objectProto.ease = packedEase;
+    }
+    if (object.stiffness != null) {
+      objectProto.stiffness = object.stiffness;
+    }
+    if (object.damping != null) {
+      objectProto.damping = object.damping;
+    }
+    if (object.mass != null) {
+      objectProto.mass = object.mass;
+    }
+    if (object.bounce != null) {
+      objectProto.bounce = object.bounce;
+    }
+    if (object.springType != null) {
+      objectProto.springType = Number(object.springType) as SpringTypeProto;
+    }
+    return objectProto as TransitionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: TransitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Transition {
+    const unpackedEase: any[] = [];
+    if (objectProto.ease) {
+      for (const item of objectProto.ease) {
+        unpackedEase.push(item);
+      }
+    }
+    return new Transition({
+      type: Number(objectProto.type) as TransitionType,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      delay: objectProto.delay != undefined ? objectProto.delay : null,
+      duration: objectProto.duration != undefined ? objectProto.duration : null,
+      ease: unpackedEase,
+      stiffness: objectProto.stiffness != undefined ? objectProto.stiffness : null,
+      damping: objectProto.damping != undefined ? objectProto.damping : null,
+      mass: objectProto.mass != undefined ? objectProto.mass : null,
+      bounce: objectProto.bounce != undefined ? objectProto.bounce : null,
+      springType:
+        objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: TransitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Transition {
+    return Transition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Transition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TransitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.TRANSITION, Transition);
+/* ==== DESTACK_GENERATED_END:STRUCT:270900 ==== */

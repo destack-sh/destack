@@ -25,4 +25,4 @@ class Team(IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable, Entity):
     An Team with Users and Teams.
     """
 
-    parent: Optional["Organization"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Organization"] = property_parent_(node_is_extensible=False)

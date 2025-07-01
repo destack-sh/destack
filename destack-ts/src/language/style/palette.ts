@@ -1,10 +1,9 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  HasIcon,
   HasName,
   IsDeletable,
   IsOrdered,
-  IsOwnable,
-  IsOwner,
   IsSpatial,
   IsSubject,
   IsTaggable,
@@ -12,33 +11,39 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Graph, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
-import type { Folder } from "@destack/language/folder";
+import {
+  Entity,
+  Graph,
+  Icon,
+  Node,
+  NodeReference,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { RouteProto } from "@destack/proto";
+import { PaletteProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:71000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270100 ==== */
 /**
- * A Route is a path to a Scene.
+ * A Palette of Colors.
  */
-export class Route
+export class Palette
   extends Entity
-  implements IsSpatial, HasName, IsDeletable, IsOrdered, IsOwnable, IsTaggable
+  implements IsSpatial, HasName, HasIcon, IsOrdered, IsTaggable, IsDeletable
 {
-  static metatype: NodeType = NodeType.ROUTE;
+  static metatype: NodeType = NodeType.PALETTE;
 
   /**
-   * Route.parent
+   * Trait.parent
    */
-  get parent(): Folder | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -101,51 +106,18 @@ export class Route
   readonly orderKey: string;
 
   /**
-   * IsOwnable.ownedBy
-   */
-  get ownedBy(): (Node & IsOwner) | null {
-    const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
-    }
-    return null;
-  }
-  set ownedBy(node: (Node & IsOwner) | null) {
-    if (node === null) {
-      this.ownedByPtr = null;
-    } else {
-      this.ownedByPtr = node.toRef();
-    }
-  }
-  ownedByPtr: NodeReference | null;
-
-  /**
    * HasName.name
    */
   name: string;
 
   /**
-   * The Scene to route to.
+   * HasIcon.icon
    */
-  get scene(): Scene | null {
-    const nodePtr: NodeReference | null = this.scenePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | null;
-    }
-    return null;
-  }
-  set scene(node: Scene | null) {
-    if (node === null) {
-      this.scenePtr = null;
-    } else {
-      this.scenePtr = node.toRef();
-    }
-  }
-  scenePtr: NodeReference | null;
+  icon: Icon | null;
 
   constructor(options: {
     id?: string;
-    parent?: Folder | NodeReference | null;
+    parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -153,9 +125,8 @@ export class Route
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
-    ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
-    scene?: Scene | NodeReference | null;
+    icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -202,24 +173,16 @@ export class Route
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`Route.orderKey is required`);
+      throw new Error(`Palette.orderKey is required`);
     }
     this.orderKey = _orderKey;
-    let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy instanceof Node) {
-      _ownedBy = _ownedBy.toRef();
-    }
-    this.ownedByPtr = _ownedBy;
     let _name = options.name;
     if (_name === null) {
-      throw new Error(`Route.name is required`);
+      throw new Error(`Palette.name is required`);
     }
     this.name = _name;
-    let _scene = options.scene ?? null;
-    if (_scene != null && _scene instanceof Node) {
-      _scene = _scene.toRef();
-    }
-    this.scenePtr = _scene;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -255,16 +218,16 @@ export class Route
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.scenePtr?.id === other.scenePtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     return true;
@@ -273,22 +236,16 @@ export class Route
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.scenePtr !== null) {
-      h = (h * 31 + hashString(this.scenePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -299,6 +256,9 @@ export class Route
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
 
     return h;
   }
@@ -309,7 +269,7 @@ export class Route
 
   __toRef__(): NodeReference {
     return new NodeReference({
-      nodeType: NodeType.ROUTE,
+      nodeType: NodeType.PALETTE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -337,19 +297,16 @@ export class Route
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${this.name}`);
-    if (this.ownedBy !== null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
-    }
-    return `<Route '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Palette '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
-    return Route.__packValue__(this);
+    return Palette.__packValue__(this);
   }
 
-  static __packValue__(object: Route): { [key: string]: any } {
+  static __packValue__(object: Palette): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 71000;
+    objectValue["1"] = 270100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -369,12 +326,9 @@ export class Route
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["22"] = object.orderKey;
-    if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
-    }
     objectValue["31"] = object.name;
-    if (object.scenePtr != null) {
-      objectValue["40"] = object.scenePtr.toValue();
+    if (object.icon != null) {
+      objectValue["34"] = object.icon.toValue();
     }
     return objectValue;
   }
@@ -385,31 +339,21 @@ export class Route
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Route {
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scenePtrValue = objectValue["40"];
-    const unpackedScenePtr =
-      scenePtrValue != undefined
-        ? NodeReference.fromValue(scenePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
+  ): Palette {
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const iconValue = objectValue["34"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const ownedByPtrValue = objectValue["25"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
@@ -421,19 +365,23 @@ export class Route
       updatedByPtrValue != undefined
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    return new Route({
-      parent: unpackedParentPtr,
-      scene: unpackedScenePtr,
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Palette({
       space: unpackedSpacePtr,
       name: objectValue["31"],
-      deletedAt: unpackedDeletedAt,
+      icon: unpackedIcon,
       orderKey: objectValue["22"],
-      ownedBy: unpackedOwnedByPtr,
+      deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -446,16 +394,16 @@ export class Route
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Route {
-    return Route.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Palette {
+    return Palette.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): RouteProto {
-    return Route.__packProto__(this);
+  toProto(): PaletteProto {
+    return Palette.__packProto__(this);
   }
 
-  static __packProto__(object: Route): RouteProto {
-    const objectProto: Partial<RouteProto> = { metatype: 71000 };
+  static __packProto__(object: Palette): PaletteProto {
+    const objectProto: Partial<PaletteProto> = { metatype: 270100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -475,44 +423,21 @@ export class Route
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
-    }
     objectProto.name = object.name;
-    if (object.scenePtr != null) {
-      objectProto.scenePtr = object.scenePtr.toProto();
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
     }
-    return objectProto as RouteProto;
+    return objectProto as PaletteProto;
   }
 
   static __unpackProto__(
-    objectProto: RouteProto,
+    objectProto: PaletteProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Route {
-    return new Route({
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      scene:
-        objectProto.scenePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.scenePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+  ): Palette {
+    return new Palette({
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -524,19 +449,13 @@ export class Route
             )
           : null,
       name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      orderKey: objectProto.orderKey,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -560,6 +479,16 @@ export class Route
             )
           : null,
       id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       _session,
       _graph,
       _connection,
@@ -567,18 +496,18 @@ export class Route
   }
 
   static fromProto(
-    objectProto: RouteProto,
+    objectProto: PaletteProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Route {
-    return Route.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Palette {
+    return Palette.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Route {
+  static fromProtoString(packedProtoString: string): Palette {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RouteProto.fromBinary(packedProtoBytes);
+    const packedProto = PaletteProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -586,5 +515,5 @@ export class Route
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.ROUTE, Route);
-/* ==== DESTACK_GENERATED_END:NODE:71000 ==== */
+registerNodeClass(NodeType.PALETTE, Palette);
+/* ==== DESTACK_GENERATED_END:NODE:270100 ==== */

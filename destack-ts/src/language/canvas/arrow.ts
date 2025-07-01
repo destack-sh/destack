@@ -19,19 +19,25 @@ import {
   NodeReference,
   NodeType,
   Position,
+  StructFrozen,
   StructType,
   Vector2,
 } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  registerEnumClass,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { Border, Fill, Shadow } from "@destack/language/style";
+import { Border, Fill, Shadow, Stroke } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import {
   AlignProto,
   ArrowHeadTypeProto,
+  ArrowProto,
   ArrowShapeProto,
   DirectionProto,
   DistributeProto,
@@ -57,7 +63,233 @@ export enum ArrowHeadType {
 registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
 /* ==== DESTACK_GENERATED_END:ENUM:250400 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:250400 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:250300 ==== */
+/**
+ * An Arrow is a shape that represents an arrow.
+ */
+export class Arrow extends StructFrozen {
+  static metatype: StructType = StructType.ARROW;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Arrow.startType
+   */
+  readonly startType: ArrowHeadType;
+
+  /**
+   * Arrow.start
+   */
+  readonly start: Vector2;
+
+  /**
+   * Arrow.endType
+   */
+  readonly endType: ArrowHeadType;
+
+  /**
+   * Arrow.end
+   */
+  readonly end: Vector2;
+
+  constructor(options: {
+    startType: ArrowHeadType;
+    start: Vector2;
+    endType: ArrowHeadType;
+    end: Vector2;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _startType = options.startType;
+    if (_startType === null) {
+      throw new Error(`Arrow.startType is required`);
+    }
+    this.startType = _startType;
+    let _start = options.start;
+    if (_start === null) {
+      throw new Error(`Arrow.start is required`);
+    }
+    this.start = _start;
+    let _endType = options.endType;
+    if (_endType === null) {
+      throw new Error(`Arrow.endType is required`);
+    }
+    this.endType = _endType;
+    let _end = options.end;
+    if (_end === null) {
+      throw new Error(`Arrow.end is required`);
+    }
+    this.end = _end;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.startType === other.startType)) {
+      return false;
+    }
+    if (!this.start.equals(other.start)) {
+      return false;
+    }
+    if (!(this.endType === other.endType)) {
+      return false;
+    }
+    if (!this.end.equals(other.end)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Arrow>`;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.startType) & 0xffffffff;
+    h = (h * 31 + this.start.hash()) & 0xffffffff;
+    h = (h * 31 + this.endType) & 0xffffffff;
+    h = (h * 31 + this.end.hash()) & 0xffffffff;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Arrow.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Arrow): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 250300;
+    objectValue["100"] = object.startType;
+    objectValue["101"] = object.start.toValue();
+    objectValue["110"] = object.endType;
+    objectValue["111"] = object.end.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Arrow {
+    return new Arrow({
+      startType: Number(objectValue["100"]),
+      start: Vector2.fromValue(objectValue["101"], _session, _supergraph, _graph, _connection),
+      endType: Number(objectValue["110"]),
+      end: Vector2.fromValue(objectValue["111"], _session, _supergraph, _graph, _connection),
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Arrow {
+    return Arrow.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ArrowProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Arrow.__packProto__(this);
+    }
+    return this._proto as ArrowProto;
+  }
+
+  static __packProto__(object: Arrow): ArrowProto {
+    const objectProto: Partial<ArrowProto> = { metatype: 250300 };
+    objectProto.startType = Number(object.startType) as ArrowHeadTypeProto;
+    objectProto.start = object.start.toProto();
+    objectProto.endType = Number(object.endType) as ArrowHeadTypeProto;
+    objectProto.end = object.end.toProto();
+    return objectProto as ArrowProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ArrowProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Arrow {
+    return new Arrow({
+      startType: Number(objectProto.startType) as ArrowHeadType,
+      start: Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
+      endType: Number(objectProto.endType) as ArrowHeadType,
+      end: Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ArrowProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Arrow {
+    return Arrow.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Arrow {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ArrowProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.ARROW, Arrow);
+/* ==== DESTACK_GENERATED_END:STRUCT:250300 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:250300 ==== */
 /**
  * An ArrowShape is a shape that represents an arrow.
  */
@@ -274,6 +506,11 @@ export class ArrowShape extends Shape {
   radius: Corners | null;
 
   /**
+   * Shape.stroke
+   */
+  stroke: Stroke | null;
+
+  /**
    * ArrowShape.startType
    */
   startType: ArrowHeadType;
@@ -349,6 +586,7 @@ export class ArrowShape extends Shape {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
+    stroke?: Stroke | null;
     startType: ArrowHeadType;
     start: Vector2;
     endType: ArrowHeadType;
@@ -460,6 +698,8 @@ export class ArrowShape extends Shape {
     this.border = _border;
     let _radius = options.radius ?? null;
     this.radius = _radius;
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
     let _startType = options.startType;
     if (_startType === null) {
       throw new Error(`ArrowShape.startType is required`);
@@ -530,6 +770,12 @@ export class ArrowShape extends Shape {
       return false;
     }
     if (!this.end.equals(other.end)) {
+      return false;
+    }
+    if (
+      (this.stroke == null) !== (other.stroke == null) ||
+      (this.stroke != null && !this.stroke.equals(other.stroke))
+    ) {
       return false;
     }
     if (!(this.layout === other.layout)) {
@@ -695,6 +941,9 @@ export class ArrowShape extends Shape {
     h = (h * 31 + this.start.hash()) & 0xffffffff;
     h = (h * 31 + this.endType) & 0xffffffff;
     h = (h * 31 + this.end.hash()) & 0xffffffff;
+    if (this.stroke !== null) {
+      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
+    }
     if (this.layout !== null) {
       h = (h * 31 + this.layout) & 0xffffffff;
     }
@@ -833,6 +1082,9 @@ export class ArrowShape extends Shape {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.stroke !== null) {
+      propertyReprs.push(`stroke=${this.stroke.repr()}`);
+    }
     propertyReprs.push(`name=${this.name}`);
     return `<ArrowShape '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -843,7 +1095,7 @@ export class ArrowShape extends Shape {
 
   static __packValue__(object: ArrowShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 250400;
+    objectValue["1"] = 250300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -942,6 +1194,9 @@ export class ArrowShape extends Shape {
     if (object.radius != null) {
       objectValue["68"] = object.radius.toValue();
     }
+    if (object.stroke != null) {
+      objectValue["80"] = object.stroke.toValue();
+    }
     objectValue["100"] = object.startType;
     objectValue["101"] = object.start.toValue();
     objectValue["110"] = object.endType;
@@ -959,6 +1214,11 @@ export class ArrowShape extends Shape {
     _graph?: any | null,
     _connection?: any | null,
   ): ArrowShape {
+    const strokeValue = objectValue["80"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
+        : null;
     const layoutValue = objectValue["50"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
     const directionValue = objectValue["51"];
@@ -1097,6 +1357,7 @@ export class ArrowShape extends Shape {
       start: Vector2.fromValue(objectValue["101"], _session, _supergraph, _graph, _connection),
       endType: Number(objectValue["110"]),
       end: Vector2.fromValue(objectValue["111"], _session, _supergraph, _graph, _connection),
+      stroke: unpackedStroke,
       layout: unpackedLayout,
       direction: unpackedDirection,
       distribute: unpackedDistribute,
@@ -1155,7 +1416,7 @@ export class ArrowShape extends Shape {
   }
 
   static __packProto__(object: ArrowShape): ArrowShapeProto {
-    const objectProto: Partial<ArrowShapeProto> = { metatype: 250400 };
+    const objectProto: Partial<ArrowShapeProto> = { metatype: 250300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1254,6 +1515,9 @@ export class ArrowShape extends Shape {
     if (object.radius != null) {
       objectProto.radius = object.radius.toProto();
     }
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
+    }
     objectProto.startType = Number(object.startType) as ArrowHeadTypeProto;
     objectProto.start = object.start.toProto();
     objectProto.endType = Number(object.endType) as ArrowHeadTypeProto;
@@ -1276,6 +1540,10 @@ export class ArrowShape extends Shape {
       start: Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
       endType: Number(objectProto.endType) as ArrowHeadType,
       end: Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      stroke:
+        objectProto.stroke != undefined
+          ? Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
+          : null,
       layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
       direction:
         objectProto.direction != undefined ? (Number(objectProto.direction) as Direction) : null,
@@ -1439,4 +1707,4 @@ export class ArrowShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ARROW_SHAPE, ArrowShape);
-/* ==== DESTACK_GENERATED_END:NODE:250400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:250300 ==== */

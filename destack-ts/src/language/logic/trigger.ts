@@ -42,7 +42,7 @@ export enum TriggerType {
 registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
 /* ==== DESTACK_GENERATED_END:ENUM:70400 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:70401 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:72001 ==== */
 /**
  * A TriggerEvent is an Event that corresponds to a Trigger.
  */
@@ -110,9 +110,9 @@ export abstract class TriggerEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:70401 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:72001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:70400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:72000 ==== */
 /**
  * A Trigger is a dynamic event to run something.
  */
@@ -435,7 +435,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
 
   static __packValue__(object: Trigger): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 70400;
+    objectValue["1"] = 72000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -555,7 +555,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
   }
 
   static __packProto__(object: Trigger): TriggerProto {
-    const objectProto: Partial<TriggerProto> = { metatype: 70400 };
+    const objectProto: Partial<TriggerProto> = { metatype: 72000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -698,4 +698,4 @@ export class Trigger extends Entity implements IsSpatial, HasName {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER, Trigger);
-/* ==== DESTACK_GENERATED_END:NODE:70400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:72000 ==== */

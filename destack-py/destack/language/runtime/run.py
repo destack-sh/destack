@@ -137,7 +137,7 @@ class Run(IsSpatial, IsCustomizable, Entity):
     Run something somewhere, somehow.
     """
 
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
     target: Optional[IsRunnable] = property_(40)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None

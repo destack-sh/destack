@@ -46,5 +46,5 @@ class Thread(
     """
 
     # meta
-    parent: Union["Folder", "Thread", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Folder", "Thread", None] = property_parent_(node_is_extensible=True)
     name: str = property_(31, is_repr=True)

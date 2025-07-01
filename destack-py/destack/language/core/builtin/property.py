@@ -351,7 +351,7 @@ class PropertyDeclaration(TypeDeclaration):
 
     # pointers
     node_space_from: Literal["self"] | None = None
-    node_is_customizable: bool = False
+    node_is_extensible: bool = False
     node_has_type: bool = False
     node_has_space: bool = False
     node_has_definition: bool = False
@@ -521,7 +521,7 @@ class PropertyDeclaration(TypeDeclaration):
 
             node_types = expand_node_types(self.node_types or ())
             self.node_has_type = len(node_types) > 1
-            self.node_has_definition = self.node_is_customizable and any(
+            self.node_has_definition = self.node_is_extensible and any(
                 NodeType.CUSTOM_EVENT in NODE_CLASS_BY_TYPE[node_type].__extends__
                 or NodeType.CUSTOM_ENTITY in NODE_CLASS_BY_TYPE[node_type].__extends__
                 for node_type in node_types
@@ -629,7 +629,7 @@ def property_(
     format: "Format | None" = None,
     constraint: "Constraint | None" = None,
     node_space_from: Literal["self"] | None = None,
-    node_is_customizable: bool = True,
+    node_is_extensible: bool = True,
     edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,
     is_managed: bool = False,
@@ -651,7 +651,7 @@ def property_(
         format=format,
         constraint=constraint,
         node_space_from=node_space_from,
-        node_is_customizable=node_is_customizable,
+        node_is_extensible=node_is_extensible,
         edge_type=edge_type,
         cascade=cascade,
         is_wired=True,
@@ -668,7 +668,7 @@ def property_(
     )
 
 
-def property_parent_(*, node_is_customizable: bool) -> Any:
+def property_parent_(*, node_is_extensible: bool) -> Any:
     """The parent of a node, must be of one of the given types."""
     return PropertyDeclaration(
         id=3,  # NOTE: never change this id!
@@ -680,7 +680,7 @@ def property_parent_(*, node_is_customizable: bool) -> Any:
         is_managed=True,
         is_eq=False,
         node_space_from="self",
-        node_is_customizable=node_is_customizable,
+        node_is_extensible=node_is_extensible,
         cascade=CascadeAction.CASCADE,
     )
 

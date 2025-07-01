@@ -27,7 +27,7 @@ import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { Border, Fill, Shadow } from "@destack/language/style";
+import { Border, Fill, Shadow, Stroke } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import {
   AlignProto,
@@ -40,7 +40,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:250500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:250400 ==== */
 /**
  * An AnnotationShape is a shape that represents an annotation.
  */
@@ -257,6 +257,11 @@ export class AnnotationShape extends Shape {
   radius: Corners | null;
 
   /**
+   * Shape.stroke
+   */
+  stroke: Stroke | null;
+
+  /**
    * AnnotationShape.text
    */
   text: Text | null;
@@ -317,6 +322,7 @@ export class AnnotationShape extends Shape {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
+    stroke?: Stroke | null;
     text?: Text | null;
     script?: Script | NodeReference | null;
     _session?: Session | null;
@@ -425,6 +431,8 @@ export class AnnotationShape extends Shape {
     this.border = _border;
     let _radius = options.radius ?? null;
     this.radius = _radius;
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
     let _text = options.text ?? null;
     this.text = _text;
     let _script = options.script ?? null;
@@ -470,6 +478,12 @@ export class AnnotationShape extends Shape {
     if (
       (this.text == null) !== (other.text == null) ||
       (this.text != null && !this.text.equals(other.text))
+    ) {
+      return false;
+    }
+    if (
+      (this.stroke == null) !== (other.stroke == null) ||
+      (this.stroke != null && !this.stroke.equals(other.stroke))
     ) {
       return false;
     }
@@ -635,6 +649,9 @@ export class AnnotationShape extends Shape {
     if (this.text !== null) {
       h = (h * 31 + this.text.hash()) & 0xffffffff;
     }
+    if (this.stroke !== null) {
+      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
+    }
     if (this.layout !== null) {
       h = (h * 31 + this.layout) & 0xffffffff;
     }
@@ -773,6 +790,9 @@ export class AnnotationShape extends Shape {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.stroke !== null) {
+      propertyReprs.push(`stroke=${this.stroke.repr()}`);
+    }
     propertyReprs.push(`name=${this.name}`);
     return `<AnnotationShape '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -783,7 +803,7 @@ export class AnnotationShape extends Shape {
 
   static __packValue__(object: AnnotationShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 250500;
+    objectValue["1"] = 250400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -882,6 +902,9 @@ export class AnnotationShape extends Shape {
     if (object.radius != null) {
       objectValue["68"] = object.radius.toValue();
     }
+    if (object.stroke != null) {
+      objectValue["80"] = object.stroke.toValue();
+    }
     if (object.text != null) {
       objectValue["100"] = object.text.toValue();
     }
@@ -902,6 +925,11 @@ export class AnnotationShape extends Shape {
     const unpackedText =
       textValue != undefined
         ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const strokeValue = objectValue["80"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
         : null;
     const layoutValue = objectValue["50"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
@@ -1038,6 +1066,7 @@ export class AnnotationShape extends Shape {
         : null;
     return new AnnotationShape({
       text: unpackedText,
+      stroke: unpackedStroke,
       layout: unpackedLayout,
       direction: unpackedDirection,
       distribute: unpackedDistribute,
@@ -1096,7 +1125,7 @@ export class AnnotationShape extends Shape {
   }
 
   static __packProto__(object: AnnotationShape): AnnotationShapeProto {
-    const objectProto: Partial<AnnotationShapeProto> = { metatype: 250500 };
+    const objectProto: Partial<AnnotationShapeProto> = { metatype: 250400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1195,6 +1224,9 @@ export class AnnotationShape extends Shape {
     if (object.radius != null) {
       objectProto.radius = object.radius.toProto();
     }
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
+    }
     if (object.text != null) {
       objectProto.text = object.text.toProto();
     }
@@ -1215,6 +1247,10 @@ export class AnnotationShape extends Shape {
       text:
         objectProto.text != undefined
           ? Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
+          : null,
+      stroke:
+        objectProto.stroke != undefined
+          ? Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
           : null,
       layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
       direction:
@@ -1379,4 +1415,4 @@ export class AnnotationShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ANNOTATION_SHAPE, AnnotationShape);
-/* ==== DESTACK_GENERATED_END:NODE:250500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:250400 ==== */

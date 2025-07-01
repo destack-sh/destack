@@ -315,6 +315,10 @@ export interface AnnotationShapeProto {
      */
     radius?: CornersProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 80
+     */
+    stroke?: StrokeProto;
+    /**
      * @generated from protobuf field: optional symbol.destack.TextProto text = 100
      */
     text?: TextProto;
@@ -322,6 +326,31 @@ export interface AnnotationShapeProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 200
      */
     scriptPtr?: NodeReferenceProto;
+}
+/**
+ * @generated from protobuf message symbol.destack.ArrowProto
+ */
+export interface ArrowProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: symbol.destack.ArrowHeadTypeProto start_type = 100
+     */
+    startType: ArrowHeadTypeProto;
+    /**
+     * @generated from protobuf field: symbol.destack.Vector2Proto start = 101
+     */
+    start?: Vector2Proto;
+    /**
+     * @generated from protobuf field: symbol.destack.ArrowHeadTypeProto end_type = 110
+     */
+    endType: ArrowHeadTypeProto;
+    /**
+     * @generated from protobuf field: symbol.destack.Vector2Proto end = 111
+     */
+    end?: Vector2Proto;
 }
 /**
  * An ArrowShape is a shape that represents an arrow.
@@ -477,6 +506,10 @@ export interface ArrowShapeProto {
      * @generated from protobuf field: optional symbol.destack.CornersProto radius = 68
      */
     radius?: CornersProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 80
+     */
+    stroke?: StrokeProto;
     /**
      * @generated from protobuf field: symbol.destack.ArrowHeadTypeProto start_type = 100
      */
@@ -6539,13 +6572,13 @@ export interface LineProto {
      */
     metatype: StructTypeProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 80
+     */
+    stroke?: StrokeProto;
+    /**
      * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 100
      */
     points: Vector2Proto[];
-    /**
-     * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 101
-     */
-    stroke?: StrokeProto;
 }
 /**
  * A LineShape is a shape that represents a line.
@@ -6702,13 +6735,13 @@ export interface LineShapeProto {
      */
     radius?: CornersProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 80
+     */
+    stroke?: StrokeProto;
+    /**
      * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 100
      */
     points: Vector2Proto[];
-    /**
-     * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 101
-     */
-    stroke?: StrokeProto;
     /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 200
      */
@@ -8243,6 +8276,61 @@ export interface OriginProto {
     nonce?: string;
 }
 /**
+ * A Palette of Colors.
+ *
+ * @generated from protobuf message symbol.destack.PaletteProto
+ */
+export interface PaletteProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 15
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 16
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 17
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 18
+     */
+    updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 20
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: string order_key = 22
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: string name = 31
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 34
+     */
+    icon?: IconProto;
+}
+/**
  * A PasteEvent is a ClipboardEvent when a paste is performed.
  *
  * @generated from protobuf message symbol.destack.PasteEventProto
@@ -8982,13 +9070,13 @@ export interface PolygonShapeProto {
      */
     radius?: CornersProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 80
+     */
+    stroke?: StrokeProto;
+    /**
      * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 100
      */
     points: Vector2Proto[];
-    /**
-     * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 101
-     */
-    stroke?: StrokeProto;
     /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 200
      */
@@ -9116,9 +9204,9 @@ export interface PropertyDefinitionProto {
      */
     nodeConstraint?: NodeConstraintProto;
     /**
-     * @generated from protobuf field: bool node_is_customizable = 73
+     * @generated from protobuf field: bool node_is_extensible = 73
      */
-    nodeIsCustomizable: boolean;
+    nodeIsExtensible: boolean;
     /**
      * @generated from protobuf field: bool node_has_type = 74
      */
@@ -11272,6 +11360,10 @@ export interface ShapeProto {
      * @generated from protobuf field: optional symbol.destack.CornersProto radius = 68
      */
     radius?: CornersProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 80
+     */
+    stroke?: StrokeProto;
     /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 200
      */
@@ -13707,7 +13799,7 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "customTraitDefinition";
         /**
-         * @generated from protobuf field: symbol.destack.CustomTraitDefinitionProto custom_trait_definition = 102
+         * @generated from protobuf field: symbol.destack.CustomTraitDefinitionProto custom_trait_definition = 110
          */
         customTraitDefinition: CustomTraitDefinitionProto;
     } | {
@@ -13971,13 +14063,13 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "annotationShape";
         /**
-         * @generated from protobuf field: symbol.destack.AnnotationShapeProto annotation_shape = 250500
+         * @generated from protobuf field: symbol.destack.AnnotationShapeProto annotation_shape = 250400
          */
         annotationShape: AnnotationShapeProto;
     } | {
         oneofKind: "arrowShape";
         /**
-         * @generated from protobuf field: symbol.destack.ArrowShapeProto arrow_shape = 250400
+         * @generated from protobuf field: symbol.destack.ArrowShapeProto arrow_shape = 250300
          */
         arrowShape: ArrowShapeProto;
     } | {
@@ -13995,7 +14087,7 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "polygonShape";
         /**
-         * @generated from protobuf field: symbol.destack.PolygonShapeProto polygon_shape = 250300
+         * @generated from protobuf field: symbol.destack.PolygonShapeProto polygon_shape = 250500
          */
         polygonShape: PolygonShapeProto;
     } | {
@@ -14211,25 +14303,25 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "eventCursor";
         /**
-         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 70601
+         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 72600
          */
         eventCursor: EventCursorProto;
     } | {
         oneofKind: "screenCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 70602
+         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 72700
          */
         screenCursor: ScreenCursorProto;
     } | {
         oneofKind: "threadCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 70603
+         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 72803
          */
         threadCursor: ThreadCursorProto;
     } | {
         oneofKind: "route";
         /**
-         * @generated from protobuf field: symbol.destack.RouteProto route = 70300
+         * @generated from protobuf field: symbol.destack.RouteProto route = 71000
          */
         route: RouteProto;
     } | {
@@ -14247,31 +14339,31 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "timerStartedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 70502
+         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 72102
          */
         timerStartedEvent: TimerStartedEventProto;
     } | {
         oneofKind: "timerCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 70503
+         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 72103
          */
         timerCompletedEvent: TimerCompletedEventProto;
     } | {
         oneofKind: "timerCancelledEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 70504
+         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 72104
          */
         timerCancelledEvent: TimerCancelledEventProto;
     } | {
         oneofKind: "timer";
         /**
-         * @generated from protobuf field: symbol.destack.TimerProto timer = 70500
+         * @generated from protobuf field: symbol.destack.TimerProto timer = 72100
          */
         timer: TimerProto;
     } | {
         oneofKind: "trigger";
         /**
-         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 70400
+         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 72000
          */
         trigger: TriggerProto;
     } | {
@@ -14529,55 +14621,61 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "colorStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 270200
+         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 270300
          */
         colorStyle: ColorStyleProto;
     } | {
         oneofKind: "borderStyle";
         /**
-         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 270203
+         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 270600
          */
         borderStyle: BorderStyleProto;
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 270206
+         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 270900
          */
         transitionStyle: TransitionStyleProto;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 270207
+         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2701000
          */
         effectStyle: EffectStyleProto;
     } | {
         oneofKind: "gradientStyle";
         /**
-         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 270205
+         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 270800
          */
         gradientStyle: GradientStyleProto;
     } | {
         oneofKind: "fillStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 270201
+         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 270400
          */
         fillStyle: FillStyleProto;
     } | {
         oneofKind: "fontStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 270202
+         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 270500
          */
         fontStyle: FontStyleProto;
     } | {
+        oneofKind: "palette";
+        /**
+         * @generated from protobuf field: symbol.destack.PaletteProto palette = 270100
+         */
+        palette: PaletteProto;
+    } | {
         oneofKind: "shadowStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 270204
+         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 270700
          */
         shadowStyle: ShadowStyleProto;
     } | {
         oneofKind: "strokeStyle";
         /**
-         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 270208
+         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 2701100
          */
         strokeStyle: StrokeStyleProto;
     } | {
@@ -14606,7 +14704,7 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "customTraitDefinition";
         /**
-         * @generated from protobuf field: symbol.destack.CustomTraitDefinitionProto custom_trait_definition = 102
+         * @generated from protobuf field: symbol.destack.CustomTraitDefinitionProto custom_trait_definition = 110
          */
         customTraitDefinition: CustomTraitDefinitionProto;
     } | {
@@ -14750,13 +14848,13 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "annotationShape";
         /**
-         * @generated from protobuf field: symbol.destack.AnnotationShapeProto annotation_shape = 250500
+         * @generated from protobuf field: symbol.destack.AnnotationShapeProto annotation_shape = 250400
          */
         annotationShape: AnnotationShapeProto;
     } | {
         oneofKind: "arrowShape";
         /**
-         * @generated from protobuf field: symbol.destack.ArrowShapeProto arrow_shape = 250400
+         * @generated from protobuf field: symbol.destack.ArrowShapeProto arrow_shape = 250300
          */
         arrowShape: ArrowShapeProto;
     } | {
@@ -14774,7 +14872,7 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "polygonShape";
         /**
-         * @generated from protobuf field: symbol.destack.PolygonShapeProto polygon_shape = 250300
+         * @generated from protobuf field: symbol.destack.PolygonShapeProto polygon_shape = 250500
          */
         polygonShape: PolygonShapeProto;
     } | {
@@ -14834,25 +14932,25 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "eventCursor";
         /**
-         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 70601
+         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 72600
          */
         eventCursor: EventCursorProto;
     } | {
         oneofKind: "screenCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 70602
+         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 72700
          */
         screenCursor: ScreenCursorProto;
     } | {
         oneofKind: "threadCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 70603
+         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 72803
          */
         threadCursor: ThreadCursorProto;
     } | {
         oneofKind: "route";
         /**
-         * @generated from protobuf field: symbol.destack.RouteProto route = 70300
+         * @generated from protobuf field: symbol.destack.RouteProto route = 71000
          */
         route: RouteProto;
     } | {
@@ -14870,13 +14968,13 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "timer";
         /**
-         * @generated from protobuf field: symbol.destack.TimerProto timer = 70500
+         * @generated from protobuf field: symbol.destack.TimerProto timer = 72100
          */
         timer: TimerProto;
     } | {
         oneofKind: "trigger";
         /**
-         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 70400
+         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 72000
          */
         trigger: TriggerProto;
     } | {
@@ -15008,55 +15106,61 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "colorStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 270200
+         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 270300
          */
         colorStyle: ColorStyleProto;
     } | {
         oneofKind: "borderStyle";
         /**
-         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 270203
+         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 270600
          */
         borderStyle: BorderStyleProto;
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 270206
+         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 270900
          */
         transitionStyle: TransitionStyleProto;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 270207
+         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2701000
          */
         effectStyle: EffectStyleProto;
     } | {
         oneofKind: "gradientStyle";
         /**
-         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 270205
+         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 270800
          */
         gradientStyle: GradientStyleProto;
     } | {
         oneofKind: "fillStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 270201
+         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 270400
          */
         fillStyle: FillStyleProto;
     } | {
         oneofKind: "fontStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 270202
+         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 270500
          */
         fontStyle: FontStyleProto;
     } | {
+        oneofKind: "palette";
+        /**
+         * @generated from protobuf field: symbol.destack.PaletteProto palette = 270100
+         */
+        palette: PaletteProto;
+    } | {
         oneofKind: "shadowStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 270204
+         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 270700
          */
         shadowStyle: ShadowStyleProto;
     } | {
         oneofKind: "strokeStyle";
         /**
-         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 270208
+         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 2701100
          */
         strokeStyle: StrokeStyleProto;
     } | {
@@ -15355,19 +15459,19 @@ export interface SomeEventProto {
     } | {
         oneofKind: "timerStartedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 70502
+         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 72102
          */
         timerStartedEvent: TimerStartedEventProto;
     } | {
         oneofKind: "timerCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 70503
+         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 72103
          */
         timerCompletedEvent: TimerCompletedEventProto;
     } | {
         oneofKind: "timerCancelledEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 70504
+         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 72104
          */
         timerCancelledEvent: TimerCancelledEventProto;
     } | {
@@ -18363,9 +18467,17 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_EVENT = 3,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RESOURCE = 4;
+     * @generated from protobuf enum value: NODE_TYPE_RESOURCE = 10;
      */
-    NODE_TYPE_RESOURCE = 4,
+    NODE_TYPE_RESOURCE = 10,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_METRIC = 20;
+     */
+    NODE_TYPE_METRIC = 20,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_MEASUREMENT_EVENT = 21;
+     */
+    NODE_TYPE_MEASUREMENT_EVENT = 21,
     /**
      * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 100;
      */
@@ -18375,9 +18487,9 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_CUSTOM_ENTITY = 101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 102;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 110;
      */
-    NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 102,
+    NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 110,
     /**
      * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT_DEFINITION = 200;
      */
@@ -18607,53 +18719,53 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_ACTION = 70200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 70300;
+     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 71000;
      */
-    NODE_TYPE_ROUTE = 70300,
+    NODE_TYPE_ROUTE = 71000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRIGGER = 70400;
+     * @generated from protobuf enum value: NODE_TYPE_TRIGGER = 72000;
      */
-    NODE_TYPE_TRIGGER = 70400,
+    NODE_TYPE_TRIGGER = 72000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRIGGER_EVENT = 70401;
+     * @generated from protobuf enum value: NODE_TYPE_TRIGGER_EVENT = 72001;
      */
-    NODE_TYPE_TRIGGER_EVENT = 70401,
+    NODE_TYPE_TRIGGER_EVENT = 72001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER = 70500;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER = 72100;
      */
-    NODE_TYPE_TIMER = 70500,
+    NODE_TYPE_TIMER = 72100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_EVENT = 70501;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_EVENT = 72101;
      */
-    NODE_TYPE_TIMER_EVENT = 70501,
+    NODE_TYPE_TIMER_EVENT = 72101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_STARTED_EVENT = 70502;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_STARTED_EVENT = 72102;
      */
-    NODE_TYPE_TIMER_STARTED_EVENT = 70502,
+    NODE_TYPE_TIMER_STARTED_EVENT = 72102,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_COMPLETED_EVENT = 70503;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_COMPLETED_EVENT = 72103;
      */
-    NODE_TYPE_TIMER_COMPLETED_EVENT = 70503,
+    NODE_TYPE_TIMER_COMPLETED_EVENT = 72103,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_CANCELLED_EVENT = 70504;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_CANCELLED_EVENT = 72104;
      */
-    NODE_TYPE_TIMER_CANCELLED_EVENT = 70504,
+    NODE_TYPE_TIMER_CANCELLED_EVENT = 72104,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CURSOR = 70600;
+     * @generated from protobuf enum value: NODE_TYPE_CURSOR = 72500;
      */
-    NODE_TYPE_CURSOR = 70600,
+    NODE_TYPE_CURSOR = 72500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EVENT_CURSOR = 70601;
+     * @generated from protobuf enum value: NODE_TYPE_EVENT_CURSOR = 72600;
      */
-    NODE_TYPE_EVENT_CURSOR = 70601,
+    NODE_TYPE_EVENT_CURSOR = 72600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCREEN_CURSOR = 70602;
+     * @generated from protobuf enum value: NODE_TYPE_SCREEN_CURSOR = 72700;
      */
-    NODE_TYPE_SCREEN_CURSOR = 70602,
+    NODE_TYPE_SCREEN_CURSOR = 72700,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_THREAD_CURSOR = 70603;
+     * @generated from protobuf enum value: NODE_TYPE_THREAD_CURSOR = 72803;
      */
-    NODE_TYPE_THREAD_CURSOR = 70603,
+    NODE_TYPE_THREAD_CURSOR = 72803,
     /**
      * @generated from protobuf enum value: NODE_TYPE_RUN = 90000;
      */
@@ -18706,14 +18818,6 @@ export enum NodeTypeProto {
      * @generated from protobuf enum value: NODE_TYPE_LOG_EVENT = 90300;
      */
     NODE_TYPE_LOG_EVENT = 90300,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_METRIC = 90400;
-     */
-    NODE_TYPE_METRIC = 90400,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_MEASUREMENT_EVENT = 90401;
-     */
-    NODE_TYPE_MEASUREMENT_EVENT = 90401,
     /**
      * @generated from protobuf enum value: NODE_TYPE_GAUGE_METRIC = 90500;
      */
@@ -19023,61 +19127,65 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_LINE_SHAPE = 250200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_POLYGON_SHAPE = 250300;
+     * @generated from protobuf enum value: NODE_TYPE_ARROW_SHAPE = 250300;
      */
-    NODE_TYPE_POLYGON_SHAPE = 250300,
+    NODE_TYPE_ARROW_SHAPE = 250300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ARROW_SHAPE = 250400;
+     * @generated from protobuf enum value: NODE_TYPE_ANNOTATION_SHAPE = 250400;
      */
-    NODE_TYPE_ARROW_SHAPE = 250400,
+    NODE_TYPE_ANNOTATION_SHAPE = 250400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ANNOTATION_SHAPE = 250500;
+     * @generated from protobuf enum value: NODE_TYPE_POLYGON_SHAPE = 250500;
      */
-    NODE_TYPE_ANNOTATION_SHAPE = 250500,
+    NODE_TYPE_POLYGON_SHAPE = 250500,
     /**
      * @generated from protobuf enum value: NODE_TYPE_THEME = 270000;
      */
     NODE_TYPE_THEME = 270000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STYLE = 270100;
+     * @generated from protobuf enum value: NODE_TYPE_PALETTE = 270100;
      */
-    NODE_TYPE_STYLE = 270100,
+    NODE_TYPE_PALETTE = 270100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COLOR_STYLE = 270200;
+     * @generated from protobuf enum value: NODE_TYPE_STYLE = 270200;
      */
-    NODE_TYPE_COLOR_STYLE = 270200,
+    NODE_TYPE_STYLE = 270200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FILL_STYLE = 270201;
+     * @generated from protobuf enum value: NODE_TYPE_COLOR_STYLE = 270300;
      */
-    NODE_TYPE_FILL_STYLE = 270201,
+    NODE_TYPE_COLOR_STYLE = 270300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 270202;
+     * @generated from protobuf enum value: NODE_TYPE_FILL_STYLE = 270400;
      */
-    NODE_TYPE_FONT_STYLE = 270202,
+    NODE_TYPE_FILL_STYLE = 270400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 270203;
+     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 270500;
      */
-    NODE_TYPE_BORDER_STYLE = 270203,
+    NODE_TYPE_FONT_STYLE = 270500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 270204;
+     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 270600;
      */
-    NODE_TYPE_SHADOW_STYLE = 270204,
+    NODE_TYPE_BORDER_STYLE = 270600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 270205;
+     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 270700;
      */
-    NODE_TYPE_GRADIENT_STYLE = 270205,
+    NODE_TYPE_SHADOW_STYLE = 270700,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 270206;
+     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 270800;
      */
-    NODE_TYPE_TRANSITION_STYLE = 270206,
+    NODE_TYPE_GRADIENT_STYLE = 270800,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 270207;
+     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 270900;
      */
-    NODE_TYPE_EFFECT_STYLE = 270207,
+    NODE_TYPE_TRANSITION_STYLE = 270900,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STROKE_STYLE = 270208;
+     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 2701000;
      */
-    NODE_TYPE_STROKE_STYLE = 270208
+    NODE_TYPE_EFFECT_STYLE = 2701000,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_STROKE_STYLE = 2701100;
+     */
+    NODE_TYPE_STROKE_STYLE = 2701100
 }
 /**
  * A Status of a Notification.
@@ -20364,9 +20472,13 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_LINE = 250200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLYGON = 250300;
+     * @generated from protobuf enum value: STRUCT_TYPE_ARROW = 250300;
      */
-    STRUCT_TYPE_POLYGON = 250300,
+    STRUCT_TYPE_ARROW = 250300,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_POLYGON = 250500;
+     */
+    STRUCT_TYPE_POLYGON = 250500,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 270018;
      */
@@ -20420,41 +20532,41 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_STROKE_POINT = 270103,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 270200;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 270300;
      */
-    STRUCT_TYPE_COLOR = 270200,
+    STRUCT_TYPE_COLOR = 270300,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 270201;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 270301;
      */
-    STRUCT_TYPE_FILL = 270201,
+    STRUCT_TYPE_FILL = 270301,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 270202;
+     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 270302;
      */
-    STRUCT_TYPE_FONT = 270202,
+    STRUCT_TYPE_FONT = 270302,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 270203;
+     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 270303;
      */
-    STRUCT_TYPE_BORDER = 270203,
+    STRUCT_TYPE_BORDER = 270303,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 270204;
+     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 270304;
      */
-    STRUCT_TYPE_SHADOW = 270204,
+    STRUCT_TYPE_SHADOW = 270304,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 270205;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 270305;
      */
-    STRUCT_TYPE_GRADIENT = 270205,
+    STRUCT_TYPE_GRADIENT = 270305,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 270206;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 270306;
      */
-    STRUCT_TYPE_GRADIENT_STOP = 270206,
+    STRUCT_TYPE_GRADIENT_STOP = 270306,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 270207;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 270307;
      */
-    STRUCT_TYPE_TRANSITION = 270207,
+    STRUCT_TYPE_TRANSITION = 270307,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 270208;
+     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 270308;
      */
-    STRUCT_TYPE_EFFECT = 270208
+    STRUCT_TYPE_EFFECT = 270308
 }
 /**
  * @generated from protobuf enum symbol.destack.TenancyProto
@@ -21288,6 +21400,7 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
             { no: 66, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 67, name: "border", kind: "message", T: () => BorderProto },
             { no: 68, name: "radius", kind: "message", T: () => CornersProto },
+            { no: 80, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 100, name: "text", kind: "message", T: () => TextProto },
             { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -21418,6 +21531,9 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
                 case /* optional symbol.destack.CornersProto radius */ 68:
                     message.radius = CornersProto.internalBinaryRead(reader, reader.uint32(), options, message.radius);
                     break;
+                case /* optional symbol.destack.StrokeProto stroke */ 80:
+                    message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
+                    break;
                 case /* optional symbol.destack.TextProto text */ 100:
                     message.text = TextProto.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
@@ -21547,6 +21663,9 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
         /* optional symbol.destack.CornersProto radius = 68; */
         if (message.radius)
             CornersProto.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.StrokeProto stroke = 80; */
+        if (message.stroke)
+            StrokeProto.internalBinaryWrite(message.stroke, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.TextProto text = 100; */
         if (message.text)
             TextProto.internalBinaryWrite(message.text, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
@@ -21563,6 +21682,83 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
  * @generated MessageType for protobuf message symbol.destack.AnnotationShapeProto
  */
 export const AnnotationShapeProto = new AnnotationShapeProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ArrowProto$Type extends MessageType<ArrowProto> {
+    constructor() {
+        super("symbol.destack.ArrowProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 100, name: "start_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
+            { no: 101, name: "start", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "end_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
+            { no: 111, name: "end", kind: "message", T: () => Vector2Proto }
+        ]);
+    }
+    create(value?: PartialMessage<ArrowProto>): ArrowProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.startType = 0;
+        message.endType = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ArrowProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ArrowProto): ArrowProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.destack.ArrowHeadTypeProto start_type */ 100:
+                    message.startType = reader.int32();
+                    break;
+                case /* symbol.destack.Vector2Proto start */ 101:
+                    message.start = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.start);
+                    break;
+                case /* symbol.destack.ArrowHeadTypeProto end_type */ 110:
+                    message.endType = reader.int32();
+                    break;
+                case /* symbol.destack.Vector2Proto end */ 111:
+                    message.end = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.end);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ArrowProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.destack.ArrowHeadTypeProto start_type = 100; */
+        if (message.startType !== 0)
+            writer.tag(100, WireType.Varint).int32(message.startType);
+        /* symbol.destack.Vector2Proto start = 101; */
+        if (message.start)
+            Vector2Proto.internalBinaryWrite(message.start, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ArrowHeadTypeProto end_type = 110; */
+        if (message.endType !== 0)
+            writer.tag(110, WireType.Varint).int32(message.endType);
+        /* symbol.destack.Vector2Proto end = 111; */
+        if (message.end)
+            Vector2Proto.internalBinaryWrite(message.end, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.ArrowProto
+ */
+export const ArrowProto = new ArrowProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
     constructor() {
@@ -21604,6 +21800,7 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
             { no: 66, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 67, name: "border", kind: "message", T: () => BorderProto },
             { no: 68, name: "radius", kind: "message", T: () => CornersProto },
+            { no: 80, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 100, name: "start_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
             { no: 101, name: "start", kind: "message", T: () => Vector2Proto },
             { no: 110, name: "end_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
@@ -21738,6 +21935,9 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
                     break;
                 case /* optional symbol.destack.CornersProto radius */ 68:
                     message.radius = CornersProto.internalBinaryRead(reader, reader.uint32(), options, message.radius);
+                    break;
+                case /* optional symbol.destack.StrokeProto stroke */ 80:
+                    message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
                     break;
                 case /* symbol.destack.ArrowHeadTypeProto start_type */ 100:
                     message.startType = reader.int32();
@@ -21877,6 +22077,9 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         /* optional symbol.destack.CornersProto radius = 68; */
         if (message.radius)
             CornersProto.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.StrokeProto stroke = 80; */
+        if (message.stroke)
+            StrokeProto.internalBinaryWrite(message.stroke, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.ArrowHeadTypeProto start_type = 100; */
         if (message.startType !== 0)
             writer.tag(100, WireType.Varint).int32(message.startType);
@@ -36139,8 +36342,8 @@ class LineProto$Type extends MessageType<LineProto> {
     constructor() {
         super("symbol.destack.LineProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto },
-            { no: 101, name: "stroke", kind: "message", T: () => StrokeProto }
+            { no: 80, name: "stroke", kind: "message", T: () => StrokeProto },
+            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<LineProto>): LineProto {
@@ -36159,11 +36362,11 @@ class LineProto$Type extends MessageType<LineProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
+                case /* optional symbol.destack.StrokeProto stroke */ 80:
+                    message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
+                    break;
                 case /* repeated symbol.destack.Vector2Proto points */ 100:
                     message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbol.destack.StrokeProto stroke */ 101:
-                    message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -36180,12 +36383,12 @@ class LineProto$Type extends MessageType<LineProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.destack.StrokeProto stroke = 80; */
+        if (message.stroke)
+            StrokeProto.internalBinaryWrite(message.stroke, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.destack.Vector2Proto points = 100; */
         for (let i = 0; i < message.points.length; i++)
             Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.StrokeProto stroke = 101; */
-        if (message.stroke)
-            StrokeProto.internalBinaryWrite(message.stroke, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -36237,8 +36440,8 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
             { no: 66, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 67, name: "border", kind: "message", T: () => BorderProto },
             { no: 68, name: "radius", kind: "message", T: () => CornersProto },
+            { no: 80, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto },
-            { no: 101, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
@@ -36369,11 +36572,11 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
                 case /* optional symbol.destack.CornersProto radius */ 68:
                     message.radius = CornersProto.internalBinaryRead(reader, reader.uint32(), options, message.radius);
                     break;
+                case /* optional symbol.destack.StrokeProto stroke */ 80:
+                    message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
+                    break;
                 case /* repeated symbol.destack.Vector2Proto points */ 100:
                     message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbol.destack.StrokeProto stroke */ 101:
-                    message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto script_ptr */ 200:
                     message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
@@ -36501,12 +36704,12 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         /* optional symbol.destack.CornersProto radius = 68; */
         if (message.radius)
             CornersProto.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.StrokeProto stroke = 80; */
+        if (message.stroke)
+            StrokeProto.internalBinaryWrite(message.stroke, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.destack.Vector2Proto points = 100; */
         for (let i = 0; i < message.points.length; i++)
             Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.StrokeProto stroke = 101; */
-        if (message.stroke)
-            StrokeProto.internalBinaryWrite(message.stroke, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto script_ptr = 200; */
         if (message.scriptPtr)
             NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
@@ -40279,6 +40482,133 @@ class OriginProto$Type extends MessageType<OriginProto> {
  */
 export const OriginProto = new OriginProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class PaletteProto$Type extends MessageType<PaletteProto> {
+    constructor() {
+        super("symbol.destack.PaletteProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconProto }
+        ]);
+    }
+    create(value?: PartialMessage<PaletteProto>): PaletteProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.orderKey = "";
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<PaletteProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PaletteProto): PaletteProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 15:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 16:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 17:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 18:
+                    message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 20:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* string order_key */ 22:
+                    message.orderKey = reader.string();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 34:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PaletteProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 15; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 16; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 17; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 18; */
+        if (message.updatedByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 20; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* string order_key = 22; */
+        if (message.orderKey !== "")
+            writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 34; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.PaletteProto
+ */
+export const PaletteProto = new PaletteProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class PasteEventProto$Type extends MessageType<PasteEventProto> {
     constructor() {
         super("symbol.destack.PasteEventProto", [
@@ -41708,8 +42038,8 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
             { no: 66, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 67, name: "border", kind: "message", T: () => BorderProto },
             { no: 68, name: "radius", kind: "message", T: () => CornersProto },
+            { no: 80, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto },
-            { no: 101, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
@@ -41844,11 +42174,11 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
                 case /* optional symbol.destack.CornersProto radius */ 68:
                     message.radius = CornersProto.internalBinaryRead(reader, reader.uint32(), options, message.radius);
                     break;
+                case /* optional symbol.destack.StrokeProto stroke */ 80:
+                    message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
+                    break;
                 case /* repeated symbol.destack.Vector2Proto points */ 100:
                     message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbol.destack.StrokeProto stroke */ 101:
-                    message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto script_ptr */ 200:
                     message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
@@ -41979,12 +42309,12 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
         /* optional symbol.destack.CornersProto radius = 68; */
         if (message.radius)
             CornersProto.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.StrokeProto stroke = 80; */
+        if (message.stroke)
+            StrokeProto.internalBinaryWrite(message.stroke, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.destack.Vector2Proto points = 100; */
         for (let i = 0; i < message.points.length; i++)
             Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.StrokeProto stroke = 101; */
-        if (message.stroke)
-            StrokeProto.internalBinaryWrite(message.stroke, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto script_ptr = 200; */
         if (message.scriptPtr)
             NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
@@ -42107,7 +42437,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
             { no: 61, name: "string_constraint", kind: "message", T: () => StringConstraintProto },
             { no: 62, name: "number_constraint", kind: "message", T: () => NumberConstraintProto },
             { no: 63, name: "node_constraint", kind: "message", T: () => NodeConstraintProto },
-            { no: 73, name: "node_is_customizable", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 73, name: "node_is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 74, name: "node_has_type", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 75, name: "node_has_space", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 76, name: "node_has_definition", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -42131,7 +42461,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         message.name = "";
         message.cardinality = 0;
         message.scalarType = 0;
-        message.nodeIsCustomizable = false;
+        message.nodeIsExtensible = false;
         message.nodeHasType = false;
         message.nodeHasSpace = false;
         message.nodeHasDefinition = false;
@@ -42219,8 +42549,8 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* optional symbol.destack.NodeConstraintProto node_constraint */ 63:
                     message.nodeConstraint = NodeConstraintProto.internalBinaryRead(reader, reader.uint32(), options, message.nodeConstraint);
                     break;
-                case /* bool node_is_customizable */ 73:
-                    message.nodeIsCustomizable = reader.bool();
+                case /* bool node_is_extensible */ 73:
+                    message.nodeIsExtensible = reader.bool();
                     break;
                 case /* bool node_has_type */ 74:
                     message.nodeHasType = reader.bool();
@@ -42342,9 +42672,9 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* optional symbol.destack.NodeConstraintProto node_constraint = 63; */
         if (message.nodeConstraint)
             NodeConstraintProto.internalBinaryWrite(message.nodeConstraint, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* bool node_is_customizable = 73; */
-        if (message.nodeIsCustomizable !== false)
-            writer.tag(73, WireType.Varint).bool(message.nodeIsCustomizable);
+        /* bool node_is_extensible = 73; */
+        if (message.nodeIsExtensible !== false)
+            writer.tag(73, WireType.Varint).bool(message.nodeIsExtensible);
         /* bool node_has_type = 74; */
         if (message.nodeHasType !== false)
             writer.tag(74, WireType.Varint).bool(message.nodeHasType);
@@ -47243,6 +47573,7 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
             { no: 66, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 67, name: "border", kind: "message", T: () => BorderProto },
             { no: 68, name: "radius", kind: "message", T: () => CornersProto },
+            { no: 80, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
@@ -47372,6 +47703,9 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
                 case /* optional symbol.destack.CornersProto radius */ 68:
                     message.radius = CornersProto.internalBinaryRead(reader, reader.uint32(), options, message.radius);
                     break;
+                case /* optional symbol.destack.StrokeProto stroke */ 80:
+                    message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
+                    break;
                 case /* optional symbol.destack.NodeReferenceProto script_ptr */ 200:
                     message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
                     break;
@@ -47498,6 +47832,9 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
         /* optional symbol.destack.CornersProto radius = 68; */
         if (message.radius)
             CornersProto.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.StrokeProto stroke = 80; */
+        if (message.stroke)
+            StrokeProto.internalBinaryWrite(message.stroke, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto script_ptr = 200; */
         if (message.scriptPtr)
             NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
@@ -53341,7 +53678,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
     constructor() {
         super("symbol.destack.SomeNodeProto", [
             { no: 100, name: "custom_entity_definition", kind: "message", oneof: "node", T: () => CustomEntityDefinitionProto },
-            { no: 102, name: "custom_trait_definition", kind: "message", oneof: "node", T: () => CustomTraitDefinitionProto },
+            { no: 110, name: "custom_trait_definition", kind: "message", oneof: "node", T: () => CustomTraitDefinitionProto },
             { no: 200, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionProto },
             { no: 90800, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
             { no: 310, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
@@ -53385,11 +53722,11 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 230100, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewProto },
             { no: 230200, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewProto },
             { no: 240000, name: "internal_view", kind: "message", oneof: "node", T: () => InternalViewProto },
-            { no: 250500, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
-            { no: 250400, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
+            { no: 250400, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
+            { no: 250300, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
             { no: 250000, name: "canvas", kind: "message", oneof: "node", T: () => CanvasProto },
             { no: 250200, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
-            { no: 250300, name: "polygon_shape", kind: "message", oneof: "node", T: () => PolygonShapeProto },
+            { no: 250500, name: "polygon_shape", kind: "message", oneof: "node", T: () => PolygonShapeProto },
             { no: 60000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
             { no: 60100, name: "link", kind: "message", oneof: "node", T: () => LinkProto },
             { no: 100000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
@@ -53425,17 +53762,17 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 200601, name: "focus_in_event", kind: "message", oneof: "node", T: () => FocusInEventProto },
             { no: 200602, name: "focus_out_event", kind: "message", oneof: "node", T: () => FocusOutEventProto },
             { no: 70200, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
-            { no: 70601, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
-            { no: 70602, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
-            { no: 70603, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
-            { no: 70300, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
+            { no: 72600, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
+            { no: 72700, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
+            { no: 72803, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
+            { no: 71000, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
             { no: 70000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
             { no: 70100, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
-            { no: 70502, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
-            { no: 70503, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
-            { no: 70504, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
-            { no: 70500, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
-            { no: 70400, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
+            { no: 72102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
+            { no: 72103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
+            { no: 72104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
+            { no: 72100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
+            { no: 72000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
             { no: 90200, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionProto },
             { no: 90300, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
             { no: 90002, name: "run_started_event", kind: "message", oneof: "node", T: () => RunStartedEventProto },
@@ -53478,15 +53815,16 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 10000, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
             { no: 10600, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
             { no: 10200, name: "user", kind: "message", oneof: "node", T: () => UserProto },
-            { no: 270200, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
-            { no: 270203, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
-            { no: 270206, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
-            { no: 270207, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
-            { no: 270205, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
-            { no: 270201, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
-            { no: 270202, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
-            { no: 270204, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
-            { no: 270208, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
+            { no: 270300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
+            { no: 270600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
+            { no: 270900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
+            { no: 2701000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
+            { no: 270800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
+            { no: 270400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
+            { no: 270500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
+            { no: 270100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
+            { no: 270700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
+            { no: 2701100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
             { no: 270000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto }
         ]);
     }
@@ -53508,7 +53846,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         customEntityDefinition: CustomEntityDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEntityDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomTraitDefinitionProto custom_trait_definition */ 102:
+                case /* symbol.destack.CustomTraitDefinitionProto custom_trait_definition */ 110:
                     message.node = {
                         oneofKind: "customTraitDefinition",
                         customTraitDefinition: CustomTraitDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customTraitDefinition)
@@ -53772,13 +54110,13 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         internalView: InternalViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).internalView)
                     };
                     break;
-                case /* symbol.destack.AnnotationShapeProto annotation_shape */ 250500:
+                case /* symbol.destack.AnnotationShapeProto annotation_shape */ 250400:
                     message.node = {
                         oneofKind: "annotationShape",
                         annotationShape: AnnotationShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).annotationShape)
                     };
                     break;
-                case /* symbol.destack.ArrowShapeProto arrow_shape */ 250400:
+                case /* symbol.destack.ArrowShapeProto arrow_shape */ 250300:
                     message.node = {
                         oneofKind: "arrowShape",
                         arrowShape: ArrowShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).arrowShape)
@@ -53796,7 +54134,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         lineShape: LineShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).lineShape)
                     };
                     break;
-                case /* symbol.destack.PolygonShapeProto polygon_shape */ 250300:
+                case /* symbol.destack.PolygonShapeProto polygon_shape */ 250500:
                     message.node = {
                         oneofKind: "polygonShape",
                         polygonShape: PolygonShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).polygonShape)
@@ -54012,25 +54350,25 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         action: ActionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbol.destack.EventCursorProto event_cursor */ 70601:
+                case /* symbol.destack.EventCursorProto event_cursor */ 72600:
                     message.node = {
                         oneofKind: "eventCursor",
                         eventCursor: EventCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).eventCursor)
                     };
                     break;
-                case /* symbol.destack.ScreenCursorProto screen_cursor */ 70602:
+                case /* symbol.destack.ScreenCursorProto screen_cursor */ 72700:
                     message.node = {
                         oneofKind: "screenCursor",
                         screenCursor: ScreenCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
                     };
                     break;
-                case /* symbol.destack.ThreadCursorProto thread_cursor */ 70603:
+                case /* symbol.destack.ThreadCursorProto thread_cursor */ 72803:
                     message.node = {
                         oneofKind: "threadCursor",
                         threadCursor: ThreadCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadCursor)
                     };
                     break;
-                case /* symbol.destack.RouteProto route */ 70300:
+                case /* symbol.destack.RouteProto route */ 71000:
                     message.node = {
                         oneofKind: "route",
                         route: RouteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).route)
@@ -54048,31 +54386,31 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         service: ServiceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
                     };
                     break;
-                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 70502:
+                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 72102:
                     message.node = {
                         oneofKind: "timerStartedEvent",
                         timerStartedEvent: TimerStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerStartedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 70503:
+                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 72103:
                     message.node = {
                         oneofKind: "timerCompletedEvent",
                         timerCompletedEvent: TimerCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 70504:
+                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 72104:
                     message.node = {
                         oneofKind: "timerCancelledEvent",
                         timerCancelledEvent: TimerCancelledEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCancelledEvent)
                     };
                     break;
-                case /* symbol.destack.TimerProto timer */ 70500:
+                case /* symbol.destack.TimerProto timer */ 72100:
                     message.node = {
                         oneofKind: "timer",
                         timer: TimerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timer)
                     };
                     break;
-                case /* symbol.destack.TriggerProto trigger */ 70400:
+                case /* symbol.destack.TriggerProto trigger */ 72000:
                     message.node = {
                         oneofKind: "trigger",
                         trigger: TriggerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
@@ -54330,55 +54668,61 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         user: UserProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
                     };
                     break;
-                case /* symbol.destack.ColorStyleProto color_style */ 270200:
+                case /* symbol.destack.ColorStyleProto color_style */ 270300:
                     message.node = {
                         oneofKind: "colorStyle",
                         colorStyle: ColorStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
                     };
                     break;
-                case /* symbol.destack.BorderStyleProto border_style */ 270203:
+                case /* symbol.destack.BorderStyleProto border_style */ 270600:
                     message.node = {
                         oneofKind: "borderStyle",
                         borderStyle: BorderStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
                     };
                     break;
-                case /* symbol.destack.TransitionStyleProto transition_style */ 270206:
+                case /* symbol.destack.TransitionStyleProto transition_style */ 270900:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.destack.EffectStyleProto effect_style */ 270207:
+                case /* symbol.destack.EffectStyleProto effect_style */ 2701000:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
                     };
                     break;
-                case /* symbol.destack.GradientStyleProto gradient_style */ 270205:
+                case /* symbol.destack.GradientStyleProto gradient_style */ 270800:
                     message.node = {
                         oneofKind: "gradientStyle",
                         gradientStyle: GradientStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
                     };
                     break;
-                case /* symbol.destack.FillStyleProto fill_style */ 270201:
+                case /* symbol.destack.FillStyleProto fill_style */ 270400:
                     message.node = {
                         oneofKind: "fillStyle",
                         fillStyle: FillStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
                     };
                     break;
-                case /* symbol.destack.FontStyleProto font_style */ 270202:
+                case /* symbol.destack.FontStyleProto font_style */ 270500:
                     message.node = {
                         oneofKind: "fontStyle",
                         fontStyle: FontStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
                     };
                     break;
-                case /* symbol.destack.ShadowStyleProto shadow_style */ 270204:
+                case /* symbol.destack.PaletteProto palette */ 270100:
+                    message.node = {
+                        oneofKind: "palette",
+                        palette: PaletteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
+                    };
+                    break;
+                case /* symbol.destack.ShadowStyleProto shadow_style */ 270700:
                     message.node = {
                         oneofKind: "shadowStyle",
                         shadowStyle: ShadowStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
                     };
                     break;
-                case /* symbol.destack.StrokeStyleProto stroke_style */ 270208:
+                case /* symbol.destack.StrokeStyleProto stroke_style */ 2701100:
                     message.node = {
                         oneofKind: "strokeStyle",
                         strokeStyle: StrokeStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).strokeStyle)
@@ -54405,9 +54749,9 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.CustomEntityDefinitionProto custom_entity_definition = 100; */
         if (message.node.oneofKind === "customEntityDefinition")
             CustomEntityDefinitionProto.internalBinaryWrite(message.node.customEntityDefinition, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomTraitDefinitionProto custom_trait_definition = 102; */
+        /* symbol.destack.CustomTraitDefinitionProto custom_trait_definition = 110; */
         if (message.node.oneofKind === "customTraitDefinition")
-            CustomTraitDefinitionProto.internalBinaryWrite(message.node.customTraitDefinition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+            CustomTraitDefinitionProto.internalBinaryWrite(message.node.customTraitDefinition, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.CustomEventDefinitionProto custom_event_definition = 200; */
         if (message.node.oneofKind === "customEventDefinition")
             CustomEventDefinitionProto.internalBinaryWrite(message.node.customEventDefinition, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
@@ -54558,33 +54902,33 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.ActionProto action = 70200; */
         if (message.node.oneofKind === "action")
             ActionProto.internalBinaryWrite(message.node.action, writer.tag(70200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RouteProto route = 70300; */
+        /* symbol.destack.RouteProto route = 71000; */
         if (message.node.oneofKind === "route")
-            RouteProto.internalBinaryWrite(message.node.route, writer.tag(70300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TriggerProto trigger = 70400; */
+            RouteProto.internalBinaryWrite(message.node.route, writer.tag(71000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TriggerProto trigger = 72000; */
         if (message.node.oneofKind === "trigger")
-            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(70400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerProto timer = 70500; */
+            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(72000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerProto timer = 72100; */
         if (message.node.oneofKind === "timer")
-            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(70500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerStartedEventProto timer_started_event = 70502; */
+            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(72100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerStartedEventProto timer_started_event = 72102; */
         if (message.node.oneofKind === "timerStartedEvent")
-            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(70502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 70503; */
+            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(72102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 72103; */
         if (message.node.oneofKind === "timerCompletedEvent")
-            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(70503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 70504; */
+            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(72103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 72104; */
         if (message.node.oneofKind === "timerCancelledEvent")
-            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(70504, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EventCursorProto event_cursor = 70601; */
+            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(72104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EventCursorProto event_cursor = 72600; */
         if (message.node.oneofKind === "eventCursor")
-            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(70601, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScreenCursorProto screen_cursor = 70602; */
+            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(72600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScreenCursorProto screen_cursor = 72700; */
         if (message.node.oneofKind === "screenCursor")
-            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(70602, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThreadCursorProto thread_cursor = 70603; */
+            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(72700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThreadCursorProto thread_cursor = 72803; */
         if (message.node.oneofKind === "threadCursor")
-            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(70603, WireType.LengthDelimited).fork(), options).join();
+            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(72803, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.RunProto run = 90000; */
         if (message.node.oneofKind === "run")
             RunProto.internalBinaryWrite(message.node.run, writer.tag(90000, WireType.LengthDelimited).fork(), options).join();
@@ -54807,45 +55151,48 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.LineShapeProto line_shape = 250200; */
         if (message.node.oneofKind === "lineShape")
             LineShapeProto.internalBinaryWrite(message.node.lineShape, writer.tag(250200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PolygonShapeProto polygon_shape = 250300; */
-        if (message.node.oneofKind === "polygonShape")
-            PolygonShapeProto.internalBinaryWrite(message.node.polygonShape, writer.tag(250300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ArrowShapeProto arrow_shape = 250400; */
+        /* symbol.destack.ArrowShapeProto arrow_shape = 250300; */
         if (message.node.oneofKind === "arrowShape")
-            ArrowShapeProto.internalBinaryWrite(message.node.arrowShape, writer.tag(250400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.AnnotationShapeProto annotation_shape = 250500; */
+            ArrowShapeProto.internalBinaryWrite(message.node.arrowShape, writer.tag(250300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.AnnotationShapeProto annotation_shape = 250400; */
         if (message.node.oneofKind === "annotationShape")
-            AnnotationShapeProto.internalBinaryWrite(message.node.annotationShape, writer.tag(250500, WireType.LengthDelimited).fork(), options).join();
+            AnnotationShapeProto.internalBinaryWrite(message.node.annotationShape, writer.tag(250400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PolygonShapeProto polygon_shape = 250500; */
+        if (message.node.oneofKind === "polygonShape")
+            PolygonShapeProto.internalBinaryWrite(message.node.polygonShape, writer.tag(250500, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.ThemeProto theme = 270000; */
         if (message.node.oneofKind === "theme")
             ThemeProto.internalBinaryWrite(message.node.theme, writer.tag(270000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ColorStyleProto color_style = 270200; */
+        /* symbol.destack.PaletteProto palette = 270100; */
+        if (message.node.oneofKind === "palette")
+            PaletteProto.internalBinaryWrite(message.node.palette, writer.tag(270100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ColorStyleProto color_style = 270300; */
         if (message.node.oneofKind === "colorStyle")
-            ColorStyleProto.internalBinaryWrite(message.node.colorStyle, writer.tag(270200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FillStyleProto fill_style = 270201; */
+            ColorStyleProto.internalBinaryWrite(message.node.colorStyle, writer.tag(270300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FillStyleProto fill_style = 270400; */
         if (message.node.oneofKind === "fillStyle")
-            FillStyleProto.internalBinaryWrite(message.node.fillStyle, writer.tag(270201, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FontStyleProto font_style = 270202; */
+            FillStyleProto.internalBinaryWrite(message.node.fillStyle, writer.tag(270400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FontStyleProto font_style = 270500; */
         if (message.node.oneofKind === "fontStyle")
-            FontStyleProto.internalBinaryWrite(message.node.fontStyle, writer.tag(270202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BorderStyleProto border_style = 270203; */
+            FontStyleProto.internalBinaryWrite(message.node.fontStyle, writer.tag(270500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.BorderStyleProto border_style = 270600; */
         if (message.node.oneofKind === "borderStyle")
-            BorderStyleProto.internalBinaryWrite(message.node.borderStyle, writer.tag(270203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ShadowStyleProto shadow_style = 270204; */
+            BorderStyleProto.internalBinaryWrite(message.node.borderStyle, writer.tag(270600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ShadowStyleProto shadow_style = 270700; */
         if (message.node.oneofKind === "shadowStyle")
-            ShadowStyleProto.internalBinaryWrite(message.node.shadowStyle, writer.tag(270204, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GradientStyleProto gradient_style = 270205; */
+            ShadowStyleProto.internalBinaryWrite(message.node.shadowStyle, writer.tag(270700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GradientStyleProto gradient_style = 270800; */
         if (message.node.oneofKind === "gradientStyle")
-            GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(270205, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TransitionStyleProto transition_style = 270206; */
+            GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(270800, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TransitionStyleProto transition_style = 270900; */
         if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(270206, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EffectStyleProto effect_style = 270207; */
+            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(270900, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EffectStyleProto effect_style = 2701000; */
         if (message.node.oneofKind === "effectStyle")
-            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(270207, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StrokeStyleProto stroke_style = 270208; */
+            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(2701000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StrokeStyleProto stroke_style = 2701100; */
         if (message.node.oneofKind === "strokeStyle")
-            StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(270208, WireType.LengthDelimited).fork(), options).join();
+            StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(2701100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -54861,7 +55208,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
     constructor() {
         super("symbol.destack.SomeEntityProto", [
             { no: 100, name: "custom_entity_definition", kind: "message", oneof: "node", T: () => CustomEntityDefinitionProto },
-            { no: 102, name: "custom_trait_definition", kind: "message", oneof: "node", T: () => CustomTraitDefinitionProto },
+            { no: 110, name: "custom_trait_definition", kind: "message", oneof: "node", T: () => CustomTraitDefinitionProto },
             { no: 200, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionProto },
             { no: 310, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
             { no: 330, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
@@ -54885,11 +55232,11 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 230100, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewProto },
             { no: 230200, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewProto },
             { no: 240000, name: "internal_view", kind: "message", oneof: "node", T: () => InternalViewProto },
-            { no: 250500, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
-            { no: 250400, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
+            { no: 250400, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
+            { no: 250300, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
             { no: 250000, name: "canvas", kind: "message", oneof: "node", T: () => CanvasProto },
             { no: 250200, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
-            { no: 250300, name: "polygon_shape", kind: "message", oneof: "node", T: () => PolygonShapeProto },
+            { no: 250500, name: "polygon_shape", kind: "message", oneof: "node", T: () => PolygonShapeProto },
             { no: 60000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
             { no: 60100, name: "link", kind: "message", oneof: "node", T: () => LinkProto },
             { no: 100000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
@@ -54899,14 +55246,14 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 160000, name: "database", kind: "message", oneof: "node", T: () => DatabaseProto },
             { no: 160100, name: "machine", kind: "message", oneof: "node", T: () => MachineProto },
             { no: 70200, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
-            { no: 70601, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
-            { no: 70602, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
-            { no: 70603, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
-            { no: 70300, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
+            { no: 72600, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
+            { no: 72700, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
+            { no: 72803, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
+            { no: 71000, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
             { no: 70000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
             { no: 70100, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
-            { no: 70500, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
-            { no: 70400, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
+            { no: 72100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
+            { no: 72000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
             { no: 90200, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionProto },
             { no: 90000, name: "run", kind: "message", oneof: "node", T: () => RunProto },
             { no: 190200, name: "layer", kind: "message", oneof: "node", T: () => LayerProto },
@@ -54928,15 +55275,16 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 10000, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
             { no: 10600, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
             { no: 10200, name: "user", kind: "message", oneof: "node", T: () => UserProto },
-            { no: 270200, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
-            { no: 270203, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
-            { no: 270206, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
-            { no: 270207, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
-            { no: 270205, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
-            { no: 270201, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
-            { no: 270202, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
-            { no: 270204, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
-            { no: 270208, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
+            { no: 270300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
+            { no: 270600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
+            { no: 270900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
+            { no: 2701000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
+            { no: 270800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
+            { no: 270400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
+            { no: 270500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
+            { no: 270100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
+            { no: 270700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
+            { no: 2701100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
             { no: 270000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto }
         ]);
     }
@@ -54958,7 +55306,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         customEntityDefinition: CustomEntityDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEntityDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomTraitDefinitionProto custom_trait_definition */ 102:
+                case /* symbol.destack.CustomTraitDefinitionProto custom_trait_definition */ 110:
                     message.node = {
                         oneofKind: "customTraitDefinition",
                         customTraitDefinition: CustomTraitDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customTraitDefinition)
@@ -55102,13 +55450,13 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         internalView: InternalViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).internalView)
                     };
                     break;
-                case /* symbol.destack.AnnotationShapeProto annotation_shape */ 250500:
+                case /* symbol.destack.AnnotationShapeProto annotation_shape */ 250400:
                     message.node = {
                         oneofKind: "annotationShape",
                         annotationShape: AnnotationShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).annotationShape)
                     };
                     break;
-                case /* symbol.destack.ArrowShapeProto arrow_shape */ 250400:
+                case /* symbol.destack.ArrowShapeProto arrow_shape */ 250300:
                     message.node = {
                         oneofKind: "arrowShape",
                         arrowShape: ArrowShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).arrowShape)
@@ -55126,7 +55474,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         lineShape: LineShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).lineShape)
                     };
                     break;
-                case /* symbol.destack.PolygonShapeProto polygon_shape */ 250300:
+                case /* symbol.destack.PolygonShapeProto polygon_shape */ 250500:
                     message.node = {
                         oneofKind: "polygonShape",
                         polygonShape: PolygonShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).polygonShape)
@@ -55186,25 +55534,25 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         action: ActionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbol.destack.EventCursorProto event_cursor */ 70601:
+                case /* symbol.destack.EventCursorProto event_cursor */ 72600:
                     message.node = {
                         oneofKind: "eventCursor",
                         eventCursor: EventCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).eventCursor)
                     };
                     break;
-                case /* symbol.destack.ScreenCursorProto screen_cursor */ 70602:
+                case /* symbol.destack.ScreenCursorProto screen_cursor */ 72700:
                     message.node = {
                         oneofKind: "screenCursor",
                         screenCursor: ScreenCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
                     };
                     break;
-                case /* symbol.destack.ThreadCursorProto thread_cursor */ 70603:
+                case /* symbol.destack.ThreadCursorProto thread_cursor */ 72803:
                     message.node = {
                         oneofKind: "threadCursor",
                         threadCursor: ThreadCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadCursor)
                     };
                     break;
-                case /* symbol.destack.RouteProto route */ 70300:
+                case /* symbol.destack.RouteProto route */ 71000:
                     message.node = {
                         oneofKind: "route",
                         route: RouteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).route)
@@ -55222,13 +55570,13 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         service: ServiceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
                     };
                     break;
-                case /* symbol.destack.TimerProto timer */ 70500:
+                case /* symbol.destack.TimerProto timer */ 72100:
                     message.node = {
                         oneofKind: "timer",
                         timer: TimerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timer)
                     };
                     break;
-                case /* symbol.destack.TriggerProto trigger */ 70400:
+                case /* symbol.destack.TriggerProto trigger */ 72000:
                     message.node = {
                         oneofKind: "trigger",
                         trigger: TriggerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
@@ -55360,55 +55708,61 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         user: UserProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
                     };
                     break;
-                case /* symbol.destack.ColorStyleProto color_style */ 270200:
+                case /* symbol.destack.ColorStyleProto color_style */ 270300:
                     message.node = {
                         oneofKind: "colorStyle",
                         colorStyle: ColorStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
                     };
                     break;
-                case /* symbol.destack.BorderStyleProto border_style */ 270203:
+                case /* symbol.destack.BorderStyleProto border_style */ 270600:
                     message.node = {
                         oneofKind: "borderStyle",
                         borderStyle: BorderStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
                     };
                     break;
-                case /* symbol.destack.TransitionStyleProto transition_style */ 270206:
+                case /* symbol.destack.TransitionStyleProto transition_style */ 270900:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.destack.EffectStyleProto effect_style */ 270207:
+                case /* symbol.destack.EffectStyleProto effect_style */ 2701000:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
                     };
                     break;
-                case /* symbol.destack.GradientStyleProto gradient_style */ 270205:
+                case /* symbol.destack.GradientStyleProto gradient_style */ 270800:
                     message.node = {
                         oneofKind: "gradientStyle",
                         gradientStyle: GradientStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
                     };
                     break;
-                case /* symbol.destack.FillStyleProto fill_style */ 270201:
+                case /* symbol.destack.FillStyleProto fill_style */ 270400:
                     message.node = {
                         oneofKind: "fillStyle",
                         fillStyle: FillStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
                     };
                     break;
-                case /* symbol.destack.FontStyleProto font_style */ 270202:
+                case /* symbol.destack.FontStyleProto font_style */ 270500:
                     message.node = {
                         oneofKind: "fontStyle",
                         fontStyle: FontStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
                     };
                     break;
-                case /* symbol.destack.ShadowStyleProto shadow_style */ 270204:
+                case /* symbol.destack.PaletteProto palette */ 270100:
+                    message.node = {
+                        oneofKind: "palette",
+                        palette: PaletteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
+                    };
+                    break;
+                case /* symbol.destack.ShadowStyleProto shadow_style */ 270700:
                     message.node = {
                         oneofKind: "shadowStyle",
                         shadowStyle: ShadowStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
                     };
                     break;
-                case /* symbol.destack.StrokeStyleProto stroke_style */ 270208:
+                case /* symbol.destack.StrokeStyleProto stroke_style */ 2701100:
                     message.node = {
                         oneofKind: "strokeStyle",
                         strokeStyle: StrokeStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).strokeStyle)
@@ -55435,9 +55789,9 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.CustomEntityDefinitionProto custom_entity_definition = 100; */
         if (message.node.oneofKind === "customEntityDefinition")
             CustomEntityDefinitionProto.internalBinaryWrite(message.node.customEntityDefinition, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomTraitDefinitionProto custom_trait_definition = 102; */
+        /* symbol.destack.CustomTraitDefinitionProto custom_trait_definition = 110; */
         if (message.node.oneofKind === "customTraitDefinition")
-            CustomTraitDefinitionProto.internalBinaryWrite(message.node.customTraitDefinition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+            CustomTraitDefinitionProto.internalBinaryWrite(message.node.customTraitDefinition, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.CustomEventDefinitionProto custom_event_definition = 200; */
         if (message.node.oneofKind === "customEventDefinition")
             CustomEventDefinitionProto.internalBinaryWrite(message.node.customEventDefinition, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
@@ -55528,24 +55882,24 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.ActionProto action = 70200; */
         if (message.node.oneofKind === "action")
             ActionProto.internalBinaryWrite(message.node.action, writer.tag(70200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RouteProto route = 70300; */
+        /* symbol.destack.RouteProto route = 71000; */
         if (message.node.oneofKind === "route")
-            RouteProto.internalBinaryWrite(message.node.route, writer.tag(70300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TriggerProto trigger = 70400; */
+            RouteProto.internalBinaryWrite(message.node.route, writer.tag(71000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TriggerProto trigger = 72000; */
         if (message.node.oneofKind === "trigger")
-            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(70400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerProto timer = 70500; */
+            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(72000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerProto timer = 72100; */
         if (message.node.oneofKind === "timer")
-            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(70500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EventCursorProto event_cursor = 70601; */
+            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(72100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EventCursorProto event_cursor = 72600; */
         if (message.node.oneofKind === "eventCursor")
-            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(70601, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScreenCursorProto screen_cursor = 70602; */
+            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(72600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScreenCursorProto screen_cursor = 72700; */
         if (message.node.oneofKind === "screenCursor")
-            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(70602, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThreadCursorProto thread_cursor = 70603; */
+            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(72700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThreadCursorProto thread_cursor = 72803; */
         if (message.node.oneofKind === "threadCursor")
-            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(70603, WireType.LengthDelimited).fork(), options).join();
+            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(72803, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.RunProto run = 90000; */
         if (message.node.oneofKind === "run")
             RunProto.internalBinaryWrite(message.node.run, writer.tag(90000, WireType.LengthDelimited).fork(), options).join();
@@ -55627,45 +55981,48 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.LineShapeProto line_shape = 250200; */
         if (message.node.oneofKind === "lineShape")
             LineShapeProto.internalBinaryWrite(message.node.lineShape, writer.tag(250200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PolygonShapeProto polygon_shape = 250300; */
-        if (message.node.oneofKind === "polygonShape")
-            PolygonShapeProto.internalBinaryWrite(message.node.polygonShape, writer.tag(250300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ArrowShapeProto arrow_shape = 250400; */
+        /* symbol.destack.ArrowShapeProto arrow_shape = 250300; */
         if (message.node.oneofKind === "arrowShape")
-            ArrowShapeProto.internalBinaryWrite(message.node.arrowShape, writer.tag(250400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.AnnotationShapeProto annotation_shape = 250500; */
+            ArrowShapeProto.internalBinaryWrite(message.node.arrowShape, writer.tag(250300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.AnnotationShapeProto annotation_shape = 250400; */
         if (message.node.oneofKind === "annotationShape")
-            AnnotationShapeProto.internalBinaryWrite(message.node.annotationShape, writer.tag(250500, WireType.LengthDelimited).fork(), options).join();
+            AnnotationShapeProto.internalBinaryWrite(message.node.annotationShape, writer.tag(250400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PolygonShapeProto polygon_shape = 250500; */
+        if (message.node.oneofKind === "polygonShape")
+            PolygonShapeProto.internalBinaryWrite(message.node.polygonShape, writer.tag(250500, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.ThemeProto theme = 270000; */
         if (message.node.oneofKind === "theme")
             ThemeProto.internalBinaryWrite(message.node.theme, writer.tag(270000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ColorStyleProto color_style = 270200; */
+        /* symbol.destack.PaletteProto palette = 270100; */
+        if (message.node.oneofKind === "palette")
+            PaletteProto.internalBinaryWrite(message.node.palette, writer.tag(270100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ColorStyleProto color_style = 270300; */
         if (message.node.oneofKind === "colorStyle")
-            ColorStyleProto.internalBinaryWrite(message.node.colorStyle, writer.tag(270200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FillStyleProto fill_style = 270201; */
+            ColorStyleProto.internalBinaryWrite(message.node.colorStyle, writer.tag(270300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FillStyleProto fill_style = 270400; */
         if (message.node.oneofKind === "fillStyle")
-            FillStyleProto.internalBinaryWrite(message.node.fillStyle, writer.tag(270201, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FontStyleProto font_style = 270202; */
+            FillStyleProto.internalBinaryWrite(message.node.fillStyle, writer.tag(270400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FontStyleProto font_style = 270500; */
         if (message.node.oneofKind === "fontStyle")
-            FontStyleProto.internalBinaryWrite(message.node.fontStyle, writer.tag(270202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BorderStyleProto border_style = 270203; */
+            FontStyleProto.internalBinaryWrite(message.node.fontStyle, writer.tag(270500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.BorderStyleProto border_style = 270600; */
         if (message.node.oneofKind === "borderStyle")
-            BorderStyleProto.internalBinaryWrite(message.node.borderStyle, writer.tag(270203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ShadowStyleProto shadow_style = 270204; */
+            BorderStyleProto.internalBinaryWrite(message.node.borderStyle, writer.tag(270600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ShadowStyleProto shadow_style = 270700; */
         if (message.node.oneofKind === "shadowStyle")
-            ShadowStyleProto.internalBinaryWrite(message.node.shadowStyle, writer.tag(270204, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GradientStyleProto gradient_style = 270205; */
+            ShadowStyleProto.internalBinaryWrite(message.node.shadowStyle, writer.tag(270700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GradientStyleProto gradient_style = 270800; */
         if (message.node.oneofKind === "gradientStyle")
-            GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(270205, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TransitionStyleProto transition_style = 270206; */
+            GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(270800, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TransitionStyleProto transition_style = 270900; */
         if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(270206, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EffectStyleProto effect_style = 270207; */
+            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(270900, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EffectStyleProto effect_style = 2701000; */
         if (message.node.oneofKind === "effectStyle")
-            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(270207, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StrokeStyleProto stroke_style = 270208; */
+            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(2701000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StrokeStyleProto stroke_style = 2701100; */
         if (message.node.oneofKind === "strokeStyle")
-            StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(270208, WireType.LengthDelimited).fork(), options).join();
+            StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(2701100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -55726,9 +56083,9 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 200503, name: "paste_event", kind: "message", oneof: "node", T: () => PasteEventProto },
             { no: 200601, name: "focus_in_event", kind: "message", oneof: "node", T: () => FocusInEventProto },
             { no: 200602, name: "focus_out_event", kind: "message", oneof: "node", T: () => FocusOutEventProto },
-            { no: 70502, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
-            { no: 70503, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
-            { no: 70504, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
+            { no: 72102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
+            { no: 72103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
+            { no: 72104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
             { no: 90300, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
             { no: 90002, name: "run_started_event", kind: "message", oneof: "node", T: () => RunStartedEventProto },
             { no: 90003, name: "run_pause_requested_event", kind: "message", oneof: "node", T: () => RunPauseRequestedEventProto },
@@ -56040,19 +56397,19 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         focusOutEvent: FocusOutEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).focusOutEvent)
                     };
                     break;
-                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 70502:
+                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 72102:
                     message.node = {
                         oneofKind: "timerStartedEvent",
                         timerStartedEvent: TimerStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerStartedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 70503:
+                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 72103:
                     message.node = {
                         oneofKind: "timerCompletedEvent",
                         timerCompletedEvent: TimerCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 70504:
+                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 72104:
                     message.node = {
                         oneofKind: "timerCancelledEvent",
                         timerCancelledEvent: TimerCancelledEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCancelledEvent)
@@ -56256,15 +56613,15 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 20505; */
         if (message.node.oneofKind === "entitlementExpiredEvent")
             EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(20505, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerStartedEventProto timer_started_event = 70502; */
+        /* symbol.destack.TimerStartedEventProto timer_started_event = 72102; */
         if (message.node.oneofKind === "timerStartedEvent")
-            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(70502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 70503; */
+            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(72102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 72103; */
         if (message.node.oneofKind === "timerCompletedEvent")
-            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(70503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 70504; */
+            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(72103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 72104; */
         if (message.node.oneofKind === "timerCancelledEvent")
-            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(70504, WireType.LengthDelimited).fork(), options).join();
+            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(72104, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.RunStartedEventProto run_started_event = 90002; */
         if (message.node.oneofKind === "runStartedEvent")
             RunStartedEventProto.internalBinaryWrite(message.node.runStartedEvent, writer.tag(90002, WireType.LengthDelimited).fork(), options).join();
@@ -56424,7 +56781,7 @@ export const SomeEventProto = new SomeEventProto$Type();
 //
 
 // Any...
-export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomEntityProto | CustomTraitDefinitionProto | ResourceProto | MetricProto | EventProto | CustomEventDefinitionProto | CustomEventProto | EditEventProto | MeasurementEventProto | CustomEnumDefinitionProto | CustomOptionProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomPropertyProto | SnapshotProto | BranchProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | PolygonShapeProto | FileProto | LinkProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
-export type AnyStructProto = NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | LineProto | PolygonProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
+export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomEntityProto | CustomTraitDefinitionProto | ResourceProto | MetricProto | EventProto | CustomEventDefinitionProto | CustomEventProto | EditEventProto | MeasurementEventProto | CustomEnumDefinitionProto | CustomOptionProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomPropertyProto | SnapshotProto | BranchProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | PolygonShapeProto | FileProto | LinkProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
+export type AnyStructProto = NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | PolygonProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

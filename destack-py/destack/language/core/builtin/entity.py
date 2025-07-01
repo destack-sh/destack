@@ -47,7 +47,7 @@ class Entity(Node):
         is_managed=True,
         is_eq=False,
         node_space_from="self",
-        node_is_customizable=False,
+        node_is_extensible=False,
         can_write=RoleType.SYSTEM,
     )
     updated_at: datetime = property_(17, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
@@ -57,7 +57,7 @@ class Entity(Node):
         is_managed=True,
         is_eq=False,
         node_space_from="self",
-        node_is_customizable=False,
+        node_is_extensible=False,
         can_write=RoleType.SYSTEM,
     )
     if TYPE_CHECKING:
@@ -90,7 +90,7 @@ class Entity(Node):
     #     9,
     #     can_write=None,
     #     is_managed=True,
-    #     node_is_customizable=False,
+    #     node_is_extensible=False,
     #     node_space_from="self",
     #     description="The Snapshot this Entity's snapshot is based on.",
     # )
@@ -98,14 +98,14 @@ class Entity(Node):
     #     10,
     #     can_write=None,
     #     is_managed=True,
-    #     node_is_customizable=False,
+    #     node_is_extensible=False,
     #     description="The (root) Entity in this Entity's instance tree.",
     # )
     # template: Optional["Entity"] = property_(
     #     11,
     #     can_write=None,
     #     is_managed=True,
-    #     node_is_customizable=False,
+    #     node_is_extensible=False,
     #     description="The template this Entity instance is based on.",
     # )
     # Entity.set_properties/set_fields: 12-13
@@ -133,7 +133,7 @@ class CustomEntityDefinition(
     Custom Entities may be materialized as physical or logical tables in primary storage.
     """
 
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Folder"] = property_parent_(node_is_extensible=False)
 
     prototype: Optional["CustomEntity"] = property_(
         40,
@@ -157,7 +157,7 @@ class CustomEntity(
     """
 
     parent: Union["CustomEntityDefinition", "CustomEntity", None] = property_parent_(
-        node_is_customizable=True
+        node_is_extensible=True
     )
     definition: "CustomEntityDefinition" = property_(
         6,
@@ -183,7 +183,7 @@ class CustomTraitDefinition(
     A CustomTraitDefinition defines a kind of CustomTrait.
     """
 
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Folder"] = property_parent_(node_is_extensible=False)
 
     base_type: Optional["NodeDefinitionReference"] = property_(41)
     base_traits: list["NodeDefinitionReference"] = property_(42)

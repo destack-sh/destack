@@ -22,6 +22,7 @@ import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
+import type { Stroke } from "@destack/language/style";
 import { Border, Fill, Shadow } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import { Temporal } from "temporal-polyfill";
@@ -241,6 +242,11 @@ export abstract class Shape extends ContainerView {
    * ContainerView.radius
    */
   declare radius: Corners | null;
+
+  /**
+   * Shape.stroke
+   */
+  declare stroke: Stroke | null;
 
   /**
    * The main / root Script of this Node.

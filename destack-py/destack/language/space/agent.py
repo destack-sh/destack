@@ -36,7 +36,7 @@ class Agent(
 ):
     """An Agent is an identity for a bot."""
 
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Folder"] = property_parent_(node_is_extensible=False)
     name: str = property_(31, is_repr=True)
     slug: str = property_(33, is_repr=True)
 

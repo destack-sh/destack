@@ -856,10 +856,12 @@ enum NodeTypeProto {
   NODE_TYPE_NODE = 1;
   NODE_TYPE_ENTITY = 2;
   NODE_TYPE_EVENT = 3;
-  NODE_TYPE_RESOURCE = 4;
+  NODE_TYPE_RESOURCE = 10;
+  NODE_TYPE_METRIC = 20;
+  NODE_TYPE_MEASUREMENT_EVENT = 21;
   NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 100;
   NODE_TYPE_CUSTOM_ENTITY = 101;
-  NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 102;
+  NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 110;
   NODE_TYPE_CUSTOM_EVENT_DEFINITION = 200;
   NODE_TYPE_CUSTOM_EVENT = 201;
   NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 300;
@@ -917,18 +919,18 @@ enum NodeTypeProto {
   NODE_TYPE_SCRIPT = 70000;
   NODE_TYPE_SERVICE = 70100;
   NODE_TYPE_ACTION = 70200;
-  NODE_TYPE_ROUTE = 70300;
-  NODE_TYPE_TRIGGER = 70400;
-  NODE_TYPE_TRIGGER_EVENT = 70401;
-  NODE_TYPE_TIMER = 70500;
-  NODE_TYPE_TIMER_EVENT = 70501;
-  NODE_TYPE_TIMER_STARTED_EVENT = 70502;
-  NODE_TYPE_TIMER_COMPLETED_EVENT = 70503;
-  NODE_TYPE_TIMER_CANCELLED_EVENT = 70504;
-  NODE_TYPE_CURSOR = 70600;
-  NODE_TYPE_EVENT_CURSOR = 70601;
-  NODE_TYPE_SCREEN_CURSOR = 70602;
-  NODE_TYPE_THREAD_CURSOR = 70603;
+  NODE_TYPE_ROUTE = 71000;
+  NODE_TYPE_TRIGGER = 72000;
+  NODE_TYPE_TRIGGER_EVENT = 72001;
+  NODE_TYPE_TIMER = 72100;
+  NODE_TYPE_TIMER_EVENT = 72101;
+  NODE_TYPE_TIMER_STARTED_EVENT = 72102;
+  NODE_TYPE_TIMER_COMPLETED_EVENT = 72103;
+  NODE_TYPE_TIMER_CANCELLED_EVENT = 72104;
+  NODE_TYPE_CURSOR = 72500;
+  NODE_TYPE_EVENT_CURSOR = 72600;
+  NODE_TYPE_SCREEN_CURSOR = 72700;
+  NODE_TYPE_THREAD_CURSOR = 72803;
   NODE_TYPE_RUN = 90000;
   NODE_TYPE_RUN_EVENT = 90001;
   NODE_TYPE_RUN_STARTED_EVENT = 90002;
@@ -942,8 +944,6 @@ enum NodeTypeProto {
   NODE_TYPE_SPAN_EVENT = 90100;
   NODE_TYPE_INTERRUPTION = 90200;
   NODE_TYPE_LOG_EVENT = 90300;
-  NODE_TYPE_METRIC = 90400;
-  NODE_TYPE_MEASUREMENT_EVENT = 90401;
   NODE_TYPE_GAUGE_METRIC = 90500;
   NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 90501;
   NODE_TYPE_COUNTER_METRIC = 90600;
@@ -1021,20 +1021,21 @@ enum NodeTypeProto {
   NODE_TYPE_CANVAS = 250000;
   NODE_TYPE_SHAPE = 250100;
   NODE_TYPE_LINE_SHAPE = 250200;
-  NODE_TYPE_POLYGON_SHAPE = 250300;
-  NODE_TYPE_ARROW_SHAPE = 250400;
-  NODE_TYPE_ANNOTATION_SHAPE = 250500;
+  NODE_TYPE_ARROW_SHAPE = 250300;
+  NODE_TYPE_ANNOTATION_SHAPE = 250400;
+  NODE_TYPE_POLYGON_SHAPE = 250500;
   NODE_TYPE_THEME = 270000;
-  NODE_TYPE_STYLE = 270100;
-  NODE_TYPE_COLOR_STYLE = 270200;
-  NODE_TYPE_FILL_STYLE = 270201;
-  NODE_TYPE_FONT_STYLE = 270202;
-  NODE_TYPE_BORDER_STYLE = 270203;
-  NODE_TYPE_SHADOW_STYLE = 270204;
-  NODE_TYPE_GRADIENT_STYLE = 270205;
-  NODE_TYPE_TRANSITION_STYLE = 270206;
-  NODE_TYPE_EFFECT_STYLE = 270207;
-  NODE_TYPE_STROKE_STYLE = 270208;
+  NODE_TYPE_PALETTE = 270100;
+  NODE_TYPE_STYLE = 270200;
+  NODE_TYPE_COLOR_STYLE = 270300;
+  NODE_TYPE_FILL_STYLE = 270400;
+  NODE_TYPE_FONT_STYLE = 270500;
+  NODE_TYPE_BORDER_STYLE = 270600;
+  NODE_TYPE_SHADOW_STYLE = 270700;
+  NODE_TYPE_GRADIENT_STYLE = 270800;
+  NODE_TYPE_TRANSITION_STYLE = 270900;
+  NODE_TYPE_EFFECT_STYLE = 2701000;
+  NODE_TYPE_STROKE_STYLE = 2701100;
 }
 
 // A Status of a Notification.
@@ -1434,7 +1435,8 @@ enum StructTypeProto {
   STRUCT_TYPE_DATABASE_INFO = 160001;
   STRUCT_TYPE_GALAXY_INFO = 160101;
   STRUCT_TYPE_LINE = 250200;
-  STRUCT_TYPE_POLYGON = 250300;
+  STRUCT_TYPE_ARROW = 250300;
+  STRUCT_TYPE_POLYGON = 250500;
   STRUCT_TYPE_LENGTH = 270018;
   STRUCT_TYPE_POSITION = 270020;
   STRUCT_TYPE_DIMENSION = 270022;
@@ -1448,15 +1450,15 @@ enum StructTypeProto {
   STRUCT_TYPE_STROKE_CAP = 270101;
   STRUCT_TYPE_STROKE_PATH = 270102;
   STRUCT_TYPE_STROKE_POINT = 270103;
-  STRUCT_TYPE_COLOR = 270200;
-  STRUCT_TYPE_FILL = 270201;
-  STRUCT_TYPE_FONT = 270202;
-  STRUCT_TYPE_BORDER = 270203;
-  STRUCT_TYPE_SHADOW = 270204;
-  STRUCT_TYPE_GRADIENT = 270205;
-  STRUCT_TYPE_GRADIENT_STOP = 270206;
-  STRUCT_TYPE_TRANSITION = 270207;
-  STRUCT_TYPE_EFFECT = 270208;
+  STRUCT_TYPE_COLOR = 270300;
+  STRUCT_TYPE_FILL = 270301;
+  STRUCT_TYPE_FONT = 270302;
+  STRUCT_TYPE_BORDER = 270303;
+  STRUCT_TYPE_SHADOW = 270304;
+  STRUCT_TYPE_GRADIENT = 270305;
+  STRUCT_TYPE_GRADIENT_STOP = 270306;
+  STRUCT_TYPE_TRANSITION = 270307;
+  STRUCT_TYPE_EFFECT = 270308;
 }
 
 enum TenancyProto {
@@ -1678,8 +1680,17 @@ message AnnotationShapeProto {
   optional ShadowProto shadow = 66;
   optional BorderProto border = 67;
   optional CornersProto radius = 68;
+  optional StrokeProto stroke = 80;
   optional TextProto text = 100;
   optional NodeReferenceProto script_ptr = 200;
+}
+
+message ArrowProto {
+  StructTypeProto metatype = 1;
+  ArrowHeadTypeProto start_type = 100;
+  Vector2Proto start = 101;
+  ArrowHeadTypeProto end_type = 110;
+  Vector2Proto end = 111;
 }
 
 // An ArrowShape is a shape that represents an arrow.
@@ -1721,6 +1732,7 @@ message ArrowShapeProto {
   optional ShadowProto shadow = 66;
   optional BorderProto border = 67;
   optional CornersProto radius = 68;
+  optional StrokeProto stroke = 80;
   ArrowHeadTypeProto start_type = 100;
   Vector2Proto start = 101;
   ArrowHeadTypeProto end_type = 110;
@@ -3471,8 +3483,8 @@ message LengthProto {
 
 message LineProto {
   StructTypeProto metatype = 1;
+  optional StrokeProto stroke = 80;
   repeated Vector2Proto points = 100;
-  optional StrokeProto stroke = 101;
 }
 
 // A LineShape is a shape that represents a line.
@@ -3514,8 +3526,8 @@ message LineShapeProto {
   optional ShadowProto shadow = 66;
   optional BorderProto border = 67;
   optional CornersProto radius = 68;
+  optional StrokeProto stroke = 80;
   repeated Vector2Proto points = 100;
-  optional StrokeProto stroke = 101;
   optional NodeReferenceProto script_ptr = 200;
 }
 
@@ -3967,6 +3979,22 @@ message OriginProto {
   optional string nonce = 33;
 }
 
+// A Palette of Colors.
+message PaletteProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional google.protobuf.Timestamp deleted_at = 20;
+  string order_key = 22;
+  string name = 31;
+  optional IconProto icon = 34;
+}
+
 // A PasteEvent is a ClipboardEvent when a paste is performed.
 message PasteEventProto {
   NodeTypeProto metatype = 1;
@@ -4176,8 +4204,8 @@ message PolygonShapeProto {
   optional ShadowProto shadow = 66;
   optional BorderProto border = 67;
   optional CornersProto radius = 68;
+  optional StrokeProto stroke = 80;
   repeated Vector2Proto points = 100;
-  optional StrokeProto stroke = 101;
   optional NodeReferenceProto script_ptr = 200;
 }
 
@@ -4213,7 +4241,7 @@ message PropertyDefinitionProto {
   optional StringConstraintProto string_constraint = 61;
   optional NumberConstraintProto number_constraint = 62;
   optional NodeConstraintProto node_constraint = 63;
-  bool node_is_customizable = 73;
+  bool node_is_extensible = 73;
   bool node_has_type = 74;
   bool node_has_space = 75;
   bool node_has_definition = 76;
@@ -4839,6 +4867,7 @@ message ShapeProto {
   optional ShadowProto shadow = 66;
   optional BorderProto border = 67;
   optional CornersProto radius = 68;
+  optional StrokeProto stroke = 80;
   optional NodeReferenceProto script_ptr = 200;
 }
 
@@ -5547,7 +5576,7 @@ message WindowProto {
 message SomeNodeProto {
   oneof node {
     CustomEntityDefinitionProto custom_entity_definition = 100;
-    CustomTraitDefinitionProto custom_trait_definition = 102;
+    CustomTraitDefinitionProto custom_trait_definition = 110;
     CustomEventDefinitionProto custom_event_definition = 200;
     EditEventProto edit_event = 90800;
     CustomEnumDefinitionProto custom_enum_definition = 310;
@@ -5591,11 +5620,11 @@ message SomeNodeProto {
     NumberInputViewProto number_input_view = 230100;
     SliderInputViewProto slider_input_view = 230200;
     InternalViewProto internal_view = 240000;
-    AnnotationShapeProto annotation_shape = 250500;
-    ArrowShapeProto arrow_shape = 250400;
+    AnnotationShapeProto annotation_shape = 250400;
+    ArrowShapeProto arrow_shape = 250300;
     CanvasProto canvas = 250000;
     LineShapeProto line_shape = 250200;
-    PolygonShapeProto polygon_shape = 250300;
+    PolygonShapeProto polygon_shape = 250500;
     FileProto file = 60000;
     LinkProto link = 60100;
     EnvironmentProto environment = 100000;
@@ -5631,17 +5660,17 @@ message SomeNodeProto {
     FocusInEventProto focus_in_event = 200601;
     FocusOutEventProto focus_out_event = 200602;
     ActionProto action = 70200;
-    EventCursorProto event_cursor = 70601;
-    ScreenCursorProto screen_cursor = 70602;
-    ThreadCursorProto thread_cursor = 70603;
-    RouteProto route = 70300;
+    EventCursorProto event_cursor = 72600;
+    ScreenCursorProto screen_cursor = 72700;
+    ThreadCursorProto thread_cursor = 72803;
+    RouteProto route = 71000;
     ScriptProto script = 70000;
     ServiceProto service = 70100;
-    TimerStartedEventProto timer_started_event = 70502;
-    TimerCompletedEventProto timer_completed_event = 70503;
-    TimerCancelledEventProto timer_cancelled_event = 70504;
-    TimerProto timer = 70500;
-    TriggerProto trigger = 70400;
+    TimerStartedEventProto timer_started_event = 72102;
+    TimerCompletedEventProto timer_completed_event = 72103;
+    TimerCancelledEventProto timer_cancelled_event = 72104;
+    TimerProto timer = 72100;
+    TriggerProto trigger = 72000;
     InterruptionProto interruption = 90200;
     LogEventProto log_event = 90300;
     RunStartedEventProto run_started_event = 90002;
@@ -5684,15 +5713,16 @@ message SomeNodeProto {
     SpaceProto space = 10000;
     TeamProto team = 10600;
     UserProto user = 10200;
-    ColorStyleProto color_style = 270200;
-    BorderStyleProto border_style = 270203;
-    TransitionStyleProto transition_style = 270206;
-    EffectStyleProto effect_style = 270207;
-    GradientStyleProto gradient_style = 270205;
-    FillStyleProto fill_style = 270201;
-    FontStyleProto font_style = 270202;
-    ShadowStyleProto shadow_style = 270204;
-    StrokeStyleProto stroke_style = 270208;
+    ColorStyleProto color_style = 270300;
+    BorderStyleProto border_style = 270600;
+    TransitionStyleProto transition_style = 270900;
+    EffectStyleProto effect_style = 2701000;
+    GradientStyleProto gradient_style = 270800;
+    FillStyleProto fill_style = 270400;
+    FontStyleProto font_style = 270500;
+    PaletteProto palette = 270100;
+    ShadowStyleProto shadow_style = 270700;
+    StrokeStyleProto stroke_style = 2701100;
     ThemeProto theme = 270000;
   };
 }
@@ -5700,7 +5730,7 @@ message SomeNodeProto {
 message SomeEntityProto {
   oneof node {
     CustomEntityDefinitionProto custom_entity_definition = 100;
-    CustomTraitDefinitionProto custom_trait_definition = 102;
+    CustomTraitDefinitionProto custom_trait_definition = 110;
     CustomEventDefinitionProto custom_event_definition = 200;
     CustomEnumDefinitionProto custom_enum_definition = 310;
     CustomOptionProto custom_option = 330;
@@ -5724,11 +5754,11 @@ message SomeEntityProto {
     NumberInputViewProto number_input_view = 230100;
     SliderInputViewProto slider_input_view = 230200;
     InternalViewProto internal_view = 240000;
-    AnnotationShapeProto annotation_shape = 250500;
-    ArrowShapeProto arrow_shape = 250400;
+    AnnotationShapeProto annotation_shape = 250400;
+    ArrowShapeProto arrow_shape = 250300;
     CanvasProto canvas = 250000;
     LineShapeProto line_shape = 250200;
-    PolygonShapeProto polygon_shape = 250300;
+    PolygonShapeProto polygon_shape = 250500;
     FileProto file = 60000;
     LinkProto link = 60100;
     EnvironmentProto environment = 100000;
@@ -5738,14 +5768,14 @@ message SomeEntityProto {
     DatabaseProto database = 160000;
     MachineProto machine = 160100;
     ActionProto action = 70200;
-    EventCursorProto event_cursor = 70601;
-    ScreenCursorProto screen_cursor = 70602;
-    ThreadCursorProto thread_cursor = 70603;
-    RouteProto route = 70300;
+    EventCursorProto event_cursor = 72600;
+    ScreenCursorProto screen_cursor = 72700;
+    ThreadCursorProto thread_cursor = 72803;
+    RouteProto route = 71000;
     ScriptProto script = 70000;
     ServiceProto service = 70100;
-    TimerProto timer = 70500;
-    TriggerProto trigger = 70400;
+    TimerProto timer = 72100;
+    TriggerProto trigger = 72000;
     InterruptionProto interruption = 90200;
     RunProto run = 90000;
     LayerProto layer = 190200;
@@ -5767,15 +5797,16 @@ message SomeEntityProto {
     SpaceProto space = 10000;
     TeamProto team = 10600;
     UserProto user = 10200;
-    ColorStyleProto color_style = 270200;
-    BorderStyleProto border_style = 270203;
-    TransitionStyleProto transition_style = 270206;
-    EffectStyleProto effect_style = 270207;
-    GradientStyleProto gradient_style = 270205;
-    FillStyleProto fill_style = 270201;
-    FontStyleProto font_style = 270202;
-    ShadowStyleProto shadow_style = 270204;
-    StrokeStyleProto stroke_style = 270208;
+    ColorStyleProto color_style = 270300;
+    BorderStyleProto border_style = 270600;
+    TransitionStyleProto transition_style = 270900;
+    EffectStyleProto effect_style = 2701000;
+    GradientStyleProto gradient_style = 270800;
+    FillStyleProto fill_style = 270400;
+    FontStyleProto font_style = 270500;
+    PaletteProto palette = 270100;
+    ShadowStyleProto shadow_style = 270700;
+    StrokeStyleProto stroke_style = 2701100;
     ThemeProto theme = 270000;
   };
 }
@@ -5828,9 +5859,9 @@ message SomeEventProto {
     PasteEventProto paste_event = 200503;
     FocusInEventProto focus_in_event = 200601;
     FocusOutEventProto focus_out_event = 200602;
-    TimerStartedEventProto timer_started_event = 70502;
-    TimerCompletedEventProto timer_completed_event = 70503;
-    TimerCancelledEventProto timer_cancelled_event = 70504;
+    TimerStartedEventProto timer_started_event = 72102;
+    TimerCompletedEventProto timer_completed_event = 72103;
+    TimerCancelledEventProto timer_cancelled_event = 72104;
     LogEventProto log_event = 90300;
     RunStartedEventProto run_started_event = 90002;
     RunPauseRequestedEventProto run_pause_requested_event = 90003;

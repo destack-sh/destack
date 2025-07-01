@@ -30,7 +30,7 @@ class Snapshot(
 ):
     """A Snapshot is a point in Space time."""
 
-    parent: Union["Space", "Branch", None] = property_parent_(node_is_customizable=False)
+    parent: Union["Space", "Branch", None] = property_parent_(node_is_extensible=False)
 
 
 @builtin_node(NodeType.BRANCH)
@@ -44,6 +44,6 @@ class Branch(
 ):
     """A Branch is a version of a Snapshot."""
 
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
 
     head: Optional["Snapshot"] = property_(40)

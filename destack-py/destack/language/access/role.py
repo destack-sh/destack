@@ -58,5 +58,5 @@ class Role(
 ):
     """A Role for Subjects to take."""
 
-    parent: Optional["IsJoinable"] = property_parent_(node_is_customizable=False)
+    parent: Optional["IsJoinable"] = property_parent_(node_is_extensible=False)
     type: RoleType = property_(30, is_repr=True)

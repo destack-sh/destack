@@ -90,7 +90,7 @@ class PropertyDefinition(StructFrozen):
     node_constraint: Optional["NodeConstraint"] = property_(63)
 
     # relationship
-    node_is_customizable: bool = property_(73)
+    node_is_extensible: bool = property_(73)
     node_has_type: bool = property_(74)
     node_has_space: bool = property_(75)
     node_has_definition: bool = property_(76)
@@ -141,7 +141,7 @@ class PropertyDefinition(StructFrozen):
             number_constraint=type.number_constraint,
             node_constraint=type.node_constraint,
             # node
-            node_is_customizable=prop.node_is_customizable,
+            node_is_extensible=prop.node_is_extensible,
             node_has_type=prop.node_has_type,
             node_has_space=prop.node_has_space,
             node_has_definition=prop.node_has_definition,

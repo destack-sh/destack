@@ -20,6 +20,6 @@ if TYPE_CHECKING:
 class Handle(IsGlobal, HasSlug, Entity):
     """A Destack @handle."""
 
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
 
     slug: str = property_(33, is_repr=True)

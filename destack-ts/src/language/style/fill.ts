@@ -17,7 +17,7 @@ import {
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import type { Theme } from "@destack/language/style";
+import type { Palette, Theme } from "@destack/language/style";
 import { Color, Gradient, Style } from "@destack/language/style";
 import type { View } from "@destack/language/view";
 import {
@@ -86,413 +86,7 @@ export enum FillSize {
 registerEnumClass(EnumType.FILL_SIZE, FillSize);
 /* ==== DESTACK_GENERATED_END:ENUM:270102 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:270201 ==== */
-/**
- * A fill value.
- */
-export class Fill extends StructFrozen {
-  static metatype: StructType = StructType.FILL;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Fill.type
-   */
-  readonly type: FillType;
-
-  /**
-   * style
-   */
-  get style(): FillStyle | null {
-    const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as FillStyle | null;
-    }
-    return null;
-  }
-  readonly stylePtr: NodeReference | null;
-
-  /**
-   * Fill.color
-   */
-  readonly color: Color | null;
-
-  /**
-   * Fill.gradient
-   */
-  readonly gradient: Gradient | null;
-
-  /**
-   * image
-   */
-  get image(): File | null {
-    const nodePtr: NodeReference | null = this.imagePtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as File | null;
-    }
-    return null;
-  }
-  readonly imagePtr: NodeReference | null;
-
-  /**
-   * Fill.position
-   */
-  readonly position: FillPosition | null;
-
-  /**
-   * Fill.size
-   */
-  readonly size: FillSize | null;
-
-  constructor(options: {
-    type: FillType;
-    style?: FillStyle | NodeReference | null;
-    color?: Color | null;
-    gradient?: Gradient | null;
-    image?: File | NodeReference | null;
-    position?: FillPosition | null;
-    size?: FillSize | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`Fill.type is required`);
-    }
-    this.type = _type;
-    let _style = options.style ?? null;
-    if (_style != null && _style instanceof Node) {
-      _style = _style.toRef();
-    }
-    this.stylePtr = _style;
-    let _color = options.color ?? null;
-    this.color = _color;
-    let _gradient = options.gradient ?? null;
-    this.gradient = _gradient;
-    let _image = options.image ?? null;
-    if (_image != null && _image instanceof Node) {
-      _image = _image.toRef();
-    }
-    this.imagePtr = _image;
-    let _position = options.position ?? null;
-    this.position = _position;
-    let _size = options.size ?? null;
-    this.size = _size;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
-      return false;
-    }
-    if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
-    ) {
-      return false;
-    }
-    if (
-      (this.gradient == null) !== (other.gradient == null) ||
-      (this.gradient != null && !this.gradient.equals(other.gradient))
-    ) {
-      return false;
-    }
-    if (!(this.imagePtr?.id === other.imagePtr?.id)) {
-      return false;
-    }
-    if (!(this.position === other.position)) {
-      return false;
-    }
-    if (!(this.size === other.size)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${FillType[this.type]}`);
-      if (this.style !== null) {
-        propertyReprs.push(`style=${this.style?.repr()}`);
-      }
-      if (this.color !== null) {
-        propertyReprs.push(`color=${this.color.repr()}`);
-      }
-      if (this.gradient !== null) {
-        propertyReprs.push(`gradient=${this.gradient.repr()}`);
-      }
-      if (this.image !== null) {
-        propertyReprs.push(`image=${this.image?.repr()}`);
-      }
-      if (this.position !== null) {
-        propertyReprs.push(`position=${FillPosition[this.position]}`);
-      }
-      if (this.size !== null) {
-        propertyReprs.push(`size=${FillSize[this.size]}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<Fill ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
-      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
-    }
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
-    }
-    if (this.gradient !== null) {
-      h = (h * 31 + this.gradient.hash()) & 0xffffffff;
-    }
-    if (this.imagePtr !== null) {
-      h = (h * 31 + hashString(this.imagePtr.id)) & 0xffffffff;
-    }
-    if (this.position !== null) {
-      h = (h * 31 + this.position) & 0xffffffff;
-    }
-    if (this.size !== null) {
-      h = (h * 31 + this.size) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Fill.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Fill): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270201;
-    objectValue["30"] = object.type;
-    if (object.stylePtr != null) {
-      objectValue["42"] = object.stylePtr.toValue();
-    }
-    if (object.color != null) {
-      objectValue["50"] = object.color.toValue();
-    }
-    if (object.gradient != null) {
-      objectValue["51"] = object.gradient.toValue();
-    }
-    if (object.imagePtr != null) {
-      objectValue["52"] = object.imagePtr.toValue();
-    }
-    if (object.position != null) {
-      objectValue["53"] = object.position;
-    }
-    if (object.size != null) {
-      objectValue["54"] = object.size;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Fill {
-    const stylePtrValue = objectValue["42"];
-    const unpackedStylePtr =
-      stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const colorValue = objectValue["50"];
-    const unpackedColor =
-      colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const gradientValue = objectValue["51"];
-    const unpackedGradient =
-      gradientValue != undefined
-        ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const imagePtrValue = objectValue["52"];
-    const unpackedImagePtr =
-      imagePtrValue != undefined
-        ? NodeReference.fromValue(imagePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const positionValue = objectValue["53"];
-    const unpackedPosition = positionValue != undefined ? Number(positionValue) : null;
-    const sizeValue = objectValue["54"];
-    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
-    return new Fill({
-      type: Number(objectValue["30"]),
-      style: unpackedStylePtr,
-      color: unpackedColor,
-      gradient: unpackedGradient,
-      image: unpackedImagePtr,
-      position: unpackedPosition,
-      size: unpackedSize,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Fill {
-    return Fill.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): FillProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Fill.__packProto__(this);
-    }
-    return this._proto as FillProto;
-  }
-
-  static __packProto__(object: Fill): FillProto {
-    const objectProto: Partial<FillProto> = { metatype: 270201 };
-    objectProto.type = Number(object.type) as FillTypeProto;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
-    }
-    if (object.gradient != null) {
-      objectProto.gradient = object.gradient.toProto();
-    }
-    if (object.imagePtr != null) {
-      objectProto.imagePtr = object.imagePtr.toProto();
-    }
-    if (object.position != null) {
-      objectProto.position = Number(object.position) as FillPositionProto;
-    }
-    if (object.size != null) {
-      objectProto.size = Number(object.size) as FillSizeProto;
-    }
-    return objectProto as FillProto;
-  }
-
-  static __unpackProto__(
-    objectProto: FillProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Fill {
-    return new Fill({
-      type: Number(objectProto.type) as FillType,
-      style:
-        objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.stylePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      color:
-        objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      gradient:
-        objectProto.gradient != undefined
-          ? Gradient.fromProto(objectProto.gradient!, _session, _supergraph, _graph, _connection)
-          : null,
-      image:
-        objectProto.imagePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.imagePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      position:
-        objectProto.position != undefined ? (Number(objectProto.position) as FillPosition) : null,
-      size: objectProto.size != undefined ? (Number(objectProto.size) as FillSize) : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: FillProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Fill {
-    return Fill.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Fill {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = FillProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.FILL, Fill);
-/* ==== DESTACK_GENERATED_END:STRUCT:270201 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:270201 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270400 ==== */
 /**
  * A fill style.
  */
@@ -502,10 +96,10 @@ export class FillStyle extends Style {
   /**
    * Style.parent
    */
-  get parent(): Scene | View | Theme | null {
+  get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
   }
@@ -618,7 +212,7 @@ export class FillStyle extends Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | View | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | Palette | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -875,7 +469,7 @@ export class FillStyle extends Style {
 
   static __packValue__(object: FillStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270201;
+    objectValue["1"] = 270400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1004,7 +598,7 @@ export class FillStyle extends Style {
   }
 
   static __packProto__(object: FillStyle): FillStyleProto {
-    const objectProto: Partial<FillStyleProto> = { metatype: 270201 };
+    const objectProto: Partial<FillStyleProto> = { metatype: 270400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1148,4 +742,410 @@ export class FillStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FILL_STYLE, FillStyle);
-/* ==== DESTACK_GENERATED_END:NODE:270201 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270400 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:270400 ==== */
+/**
+ * A fill value.
+ */
+export class Fill extends StructFrozen {
+  static metatype: StructType = StructType.FILL;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Fill.type
+   */
+  readonly type: FillType;
+
+  /**
+   * style
+   */
+  get style(): FillStyle | null {
+    const nodePtr: NodeReference | null = this.stylePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as FillStyle | null;
+    }
+    return null;
+  }
+  readonly stylePtr: NodeReference | null;
+
+  /**
+   * Fill.color
+   */
+  readonly color: Color | null;
+
+  /**
+   * Fill.gradient
+   */
+  readonly gradient: Gradient | null;
+
+  /**
+   * image
+   */
+  get image(): File | null {
+    const nodePtr: NodeReference | null = this.imagePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as File | null;
+    }
+    return null;
+  }
+  readonly imagePtr: NodeReference | null;
+
+  /**
+   * Fill.position
+   */
+  readonly position: FillPosition | null;
+
+  /**
+   * Fill.size
+   */
+  readonly size: FillSize | null;
+
+  constructor(options: {
+    type: FillType;
+    style?: FillStyle | NodeReference | null;
+    color?: Color | null;
+    gradient?: Gradient | null;
+    image?: File | NodeReference | null;
+    position?: FillPosition | null;
+    size?: FillSize | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Fill.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style instanceof Node) {
+      _style = _style.toRef();
+    }
+    this.stylePtr = _style;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _gradient = options.gradient ?? null;
+    this.gradient = _gradient;
+    let _image = options.image ?? null;
+    if (_image != null && _image instanceof Node) {
+      _image = _image.toRef();
+    }
+    this.imagePtr = _image;
+    let _position = options.position ?? null;
+    this.position = _position;
+    let _size = options.size ?? null;
+    this.size = _size;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+      return false;
+    }
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
+      return false;
+    }
+    if (
+      (this.gradient == null) !== (other.gradient == null) ||
+      (this.gradient != null && !this.gradient.equals(other.gradient))
+    ) {
+      return false;
+    }
+    if (!(this.imagePtr?.id === other.imagePtr?.id)) {
+      return false;
+    }
+    if (!(this.position === other.position)) {
+      return false;
+    }
+    if (!(this.size === other.size)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${FillType[this.type]}`);
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style?.repr()}`);
+      }
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      if (this.gradient !== null) {
+        propertyReprs.push(`gradient=${this.gradient.repr()}`);
+      }
+      if (this.image !== null) {
+        propertyReprs.push(`image=${this.image?.repr()}`);
+      }
+      if (this.position !== null) {
+        propertyReprs.push(`position=${FillPosition[this.position]}`);
+      }
+      if (this.size !== null) {
+        propertyReprs.push(`size=${FillSize[this.size]}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Fill ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    if (this.gradient !== null) {
+      h = (h * 31 + this.gradient.hash()) & 0xffffffff;
+    }
+    if (this.imagePtr !== null) {
+      h = (h * 31 + hashString(this.imagePtr.id)) & 0xffffffff;
+    }
+    if (this.position !== null) {
+      h = (h * 31 + this.position) & 0xffffffff;
+    }
+    if (this.size !== null) {
+      h = (h * 31 + this.size) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Fill.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Fill): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 270400;
+    objectValue["30"] = object.type;
+    if (object.stylePtr != null) {
+      objectValue["42"] = object.stylePtr.toValue();
+    }
+    if (object.color != null) {
+      objectValue["50"] = object.color.toValue();
+    }
+    if (object.gradient != null) {
+      objectValue["51"] = object.gradient.toValue();
+    }
+    if (object.imagePtr != null) {
+      objectValue["52"] = object.imagePtr.toValue();
+    }
+    if (object.position != null) {
+      objectValue["53"] = object.position;
+    }
+    if (object.size != null) {
+      objectValue["54"] = object.size;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Fill {
+    const stylePtrValue = objectValue["42"];
+    const unpackedStylePtr =
+      stylePtrValue != undefined
+        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const colorValue = objectValue["50"];
+    const unpackedColor =
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const gradientValue = objectValue["51"];
+    const unpackedGradient =
+      gradientValue != undefined
+        ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const imagePtrValue = objectValue["52"];
+    const unpackedImagePtr =
+      imagePtrValue != undefined
+        ? NodeReference.fromValue(imagePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const positionValue = objectValue["53"];
+    const unpackedPosition = positionValue != undefined ? Number(positionValue) : null;
+    const sizeValue = objectValue["54"];
+    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
+    return new Fill({
+      type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
+      color: unpackedColor,
+      gradient: unpackedGradient,
+      image: unpackedImagePtr,
+      position: unpackedPosition,
+      size: unpackedSize,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Fill {
+    return Fill.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): FillProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Fill.__packProto__(this);
+    }
+    return this._proto as FillProto;
+  }
+
+  static __packProto__(object: Fill): FillProto {
+    const objectProto: Partial<FillProto> = { metatype: 270400 };
+    objectProto.type = Number(object.type) as FillTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.gradient != null) {
+      objectProto.gradient = object.gradient.toProto();
+    }
+    if (object.imagePtr != null) {
+      objectProto.imagePtr = object.imagePtr.toProto();
+    }
+    if (object.position != null) {
+      objectProto.position = Number(object.position) as FillPositionProto;
+    }
+    if (object.size != null) {
+      objectProto.size = Number(object.size) as FillSizeProto;
+    }
+    return objectProto as FillProto;
+  }
+
+  static __unpackProto__(
+    objectProto: FillProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Fill {
+    return new Fill({
+      type: Number(objectProto.type) as FillType,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      gradient:
+        objectProto.gradient != undefined
+          ? Gradient.fromProto(objectProto.gradient!, _session, _supergraph, _graph, _connection)
+          : null,
+      image:
+        objectProto.imagePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.imagePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      position:
+        objectProto.position != undefined ? (Number(objectProto.position) as FillPosition) : null,
+      size: objectProto.size != undefined ? (Number(objectProto.size) as FillSize) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: FillProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Fill {
+    return Fill.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Fill {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FillProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.FILL, Fill);
+/* ==== DESTACK_GENERATED_END:STRUCT:270400 ==== */

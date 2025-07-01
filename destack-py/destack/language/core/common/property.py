@@ -66,7 +66,7 @@ class CustomProperty(
     """
 
     parent: Union["IsExtensible", "CustomProperty", None] = property_parent_(
-        node_is_customizable=True
+        node_is_extensible=True
     )
     type: CustomPropertyType = property_(30, default=CustomPropertyType.MEMBER)
 

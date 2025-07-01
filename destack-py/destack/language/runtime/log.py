@@ -32,7 +32,7 @@ class LogLevel(Enum):
 class LogEvent(Event):
     """A Log message."""
 
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
     content: str = property_(40)
     attributes: dict[str, Json] = property_(41)
     level: LogLevel = property_(42)

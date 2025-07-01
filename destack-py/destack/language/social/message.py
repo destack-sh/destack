@@ -43,7 +43,7 @@ class Message(
     """
 
     # meta
-    parent: Union["Thread", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Thread", None] = property_parent_(node_is_extensible=True)
     # platform? source?
     thread: Optional["Thread"] = property_(35, node_space_from="self")
     if TYPE_CHECKING:

@@ -188,7 +188,7 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     #   since Trait doesn't actually inherit from Node for circularity reasons;
     #   but it is still useful to pretend so for typing since Python doesn't support `Trait & Node`)
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write=None)
-    parent: Optional["Node"] = property_parent_(node_is_customizable=True)
+    parent: Optional["Node"] = property_parent_(node_is_extensible=True)
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 

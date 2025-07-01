@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 class Line(StructFrozen[LineProto]):
     """A Line is a list of points."""
 
+    stroke: Optional["Stroke"] = property_(80, is_repr=True)
     points: list[Vector2] = property_(100)
-    stroke: Optional["Stroke"] = property_(101, is_repr=True)
 
 
 @builtin_node(NodeType.LINE_SHAPE, pretend_frozen=True)
@@ -32,4 +32,3 @@ class LineShape(Shape):
     """A LineShape is a shape that represents a line."""
 
     points: list[Vector2] = property_(100)
-    stroke: Optional["Stroke"] = property_(101, is_repr=True)

@@ -55,7 +55,7 @@ class Interruption(IsSpatial, Entity):
     """An Interruption in run of something."""
 
     # meta
-    parent: Optional["Run"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Run"] = property_parent_(node_is_extensible=False)
     type: InterruptionType = property_(30)
     runnable: Optional["IsRunnable"] = property_(32)
     span: Optional["SpanEvent"] = property_(37)

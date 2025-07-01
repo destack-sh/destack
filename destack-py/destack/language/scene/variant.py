@@ -52,7 +52,7 @@ class Variant(
 ):
     """A Variant is an alternative presentation of a visual."""
 
-    parent: Union["Scene", "Layer", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Scene", "Layer", None] = property_parent_(node_is_extensible=True)
     type: VariantType = property_(30)
 
     max_width: Optional[Length] = property_(50)
