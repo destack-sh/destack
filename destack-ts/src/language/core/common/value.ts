@@ -1,5 +1,5 @@
 import { packProtoJson, unpackProtoJson } from "@destack/grpc";
-import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, toType } from "@destack/language";
+import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import {
   NodeType,
   PrimitiveType,
@@ -11,7 +11,7 @@ import { isNode } from "@destack/language/core/builtin/node";
 import { BuiltinObject } from "@destack/language/core/builtin/object";
 import { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import { Type } from "@destack/language/core/common/type";
+import { toType, Type } from "@destack/language/core/common/type";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerStructClass } from "@destack/language/registry";

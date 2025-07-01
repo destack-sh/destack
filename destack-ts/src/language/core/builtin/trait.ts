@@ -1,13 +1,37 @@
 import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
 import { NodeReference } from "@destack/language/core/builtin/relation";
-import { TraitClass } from "@destack/language/core/builtin/trait_class";
 import type { Icon } from "@destack/language/core/common/icon";
+import type { PropertyDefinition, TraitDefinition } from "@destack/language/core/common/meta";
 import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
 import { registerEnumClass, registerTraitClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
+
+/** Internal base class for Trait companion objects.*/
+export class TraitClass<N = any, T extends TraitType = TraitType> {
+  readonly metatype: T;
+  __definition__: TraitDefinition;
+  __properties__: Record<string, PropertyDefinition>;
+  __propertiesById__: Record<number, PropertyDefinition>;
+
+  constructor(metatype: any) {
+    this.metatype = metatype;
+    this.__definition__ = null as any; // set later (in finalize)
+    this.__properties__ = {};
+    this.__propertiesById__ = {};
+  }
+
+  /** Get a PropertyDefinition or CustomProperty by name. */
+  property(name: string): PropertyDefinition {
+    const prop = this.__properties__[name];
+    if (!prop) {
+      throw new Error(`Property ${name} not found on ${this.constructor.name}`);
+    }
+    return prop;
+  }
+}
 
 /* ==== DESTACK_GENERATED_START:CONSTANT:INTER_ORDER_TYPES ==== */
 /**

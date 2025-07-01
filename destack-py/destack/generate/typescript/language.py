@@ -1610,7 +1610,7 @@ def _generate_file(
     value_dependencies.update(("ACTIVE_SESSION", "activeSession"))
     language_imports_by_module["core.builtin.node"] = {"Node", "NodeClass", "isNode", "hasTrait"}
     value_dependencies.update(("Node", "isNode", "hasTrait"))
-    language_imports_by_module["core.builtin.trait_class"] = {"TraitClass"}
+    language_imports_by_module["core.builtin.trait"] = {"TraitClass"}
     language_imports_by_module["core.builtin.object"] = {"BuiltinObject"}
     value_dependencies.add("BuiltinObject")
     language_imports_by_module["core.builtin.struct"] = {"Struct", "StructFrozen", "isStruct"}
@@ -1656,6 +1656,8 @@ def _generate_file(
     # remove any imports that are already defined in this file
     for _, imports in language_imports_by_module.items():
         imports.difference_update(definition.name for definition in file.definitions.values())
+    if file.name.endswith(".trait"):  # defined manually in same file
+        language_imports_by_module["core.builtin.trait"].discard("TraitClass")
 
     # if we're in the same module, use granular imports, otherwise use top-level imports
     file_root_module = ".".join(file.module.split(".")[2:3])

@@ -3,10 +3,10 @@ import type { Node } from "@destack/language/core/builtin/node";
 import type { IsSubject } from "@destack/language/core/builtin/trait";
 import { Change, ChangeResult, Edit, EditType, Origin } from "@destack/language/core/common/edit";
 import { toValue } from "@destack/language/core/common/value";
-import { QueryConnection } from "@destack/language/core/runtime/connection";
+import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import { Supergraph } from "@destack/language/core/runtime/graph";
 import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";
-import { Store } from "@destack/language/core/runtime/store";
+import type { Store } from "@destack/language/core/runtime/store";
 import type { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 

@@ -1,8 +1,9 @@
-import { PRIMITIVE_JS_TYPES, PRIMITIVE_TYPE_BY_JS_TYPE } from "@destack/language";
 import {
   DefaultFactory,
   EnumType,
   NodeType,
+  PRIMITIVE_JS_TYPES,
+  PRIMITIVE_TYPE_BY_JS_TYPE,
   PrimitiveType,
   ScalarType,
   StructType,
