@@ -27,7 +27,7 @@ import {
   Supergraph,
 } from "@destack/language/core/runtime";
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
-import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
+import { NODE_CLASS_BY_TYPE, registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { getOrderKey } from "@destack/utils";
 import { Casing, toCasing } from "@destack/utils/string";
 import { v4 as uuid4 } from "uuid";
@@ -534,6 +534,7 @@ export abstract class Node extends BuiltinObject {
     return query;
   }
 }
+registerNodeClass(NodeType.NODE, Node);
 
 /** A Node class. */
 type NodeConstructor<N extends Node = Node> = new (...args: any[]) => N;

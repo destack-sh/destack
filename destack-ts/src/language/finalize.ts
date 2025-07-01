@@ -1,8 +1,11 @@
 import {
   NODE_DEFINITIONS,
+  NodeType,
   STRUCT_DEFINITIONS,
+  StructType,
   TRAIT_DEFINITIONS,
-} from "@destack/language/constants";
+  TraitType,
+} from "@destack/language";
 import {
   NODE_CLASS_BY_TYPE,
   STRUCT_CLASS_BY_TYPE,
@@ -21,6 +24,15 @@ export function finalize(): void {
   // nodes
   for (const nodeDefinition of NODE_DEFINITIONS) {
     const nodeClass = NODE_CLASS_BY_TYPE[nodeDefinition.type];
+    if (!nodeClass) {
+      throw new Error(
+        `Node class not found for type: ${NodeType[nodeDefinition.type]} (have: ${Object.keys(
+          NODE_CLASS_BY_TYPE,
+        )
+          .map((c) => NodeType[c as any])
+          .join(", ")})`,
+      );
+    }
     nodeClass.__definition__ = nodeDefinition;
     nodeClass.__properties__ = {};
     nodeClass.__propertiesById__ = {};
@@ -33,6 +45,15 @@ export function finalize(): void {
   // traits
   for (const traitDefinition of TRAIT_DEFINITIONS) {
     const traitClass = TRAIT_CLASS_BY_TYPE[traitDefinition.type];
+    if (!traitClass) {
+      throw new Error(
+        `Trait class not found for type: ${TraitType[traitDefinition.type]} (have: ${Object.keys(
+          TRAIT_CLASS_BY_TYPE,
+        )
+          .map((c) => TraitType[c as any])
+          .join(", ")})`,
+      );
+    }
     traitClass.__definition__ = traitDefinition;
     traitClass.__properties__ = {};
     traitClass.__propertiesById__ = {};
@@ -45,6 +66,15 @@ export function finalize(): void {
   // structs
   for (const structDefinition of STRUCT_DEFINITIONS) {
     const structClass = STRUCT_CLASS_BY_TYPE[structDefinition.type];
+    if (!structClass) {
+      throw new Error(
+        `Struct class not found for type: ${StructType[structDefinition.type]} (have: ${Object.keys(
+          STRUCT_CLASS_BY_TYPE,
+        )
+          .map((c) => StructType[c as any])
+          .join(", ")})`,
+      );
+    }
     structClass.__definition__ = structDefinition;
     structClass.__properties__ = {};
     structClass.__propertiesById__ = {};
