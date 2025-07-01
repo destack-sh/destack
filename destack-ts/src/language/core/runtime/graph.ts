@@ -1,7 +1,7 @@
 import type { IsOrdered, Node, NodeClass } from "@destack/language/core/builtin";
 import { NodeType, TraitType } from "@destack/language/core/builtin/common";
 import { hasTrait } from "@destack/language/core/builtin/node";
-import { TraitClass } from "@destack/language/core/builtin/trait_class";
+import { TraitClass } from "@destack/language/core/builtin/trait";
 import type { Session } from "@destack/language/core/runtime/session";
 import { NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/lookup";
 import type { TraitTypeMapping } from "@destack/language/mapping";

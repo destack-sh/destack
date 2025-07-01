@@ -1,4 +1,3 @@
-import { toValue } from "@destack/language";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
@@ -10,7 +9,7 @@ import {
 import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import { PropertyDefinition } from "@destack/language/core/common/meta";
 import { CustomProperty } from "@destack/language/core/common/property";
-import { Value } from "@destack/language/core/common/value";
+import { toValue, Value } from "@destack/language/core/common/value";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";

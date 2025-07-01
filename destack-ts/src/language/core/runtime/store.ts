@@ -1,4 +1,10 @@
-import { Change, ChangeResult, Query, QueryResult, QueryUpdate } from "@destack/language";
+import {
+  Change,
+  ChangeResult,
+  Query,
+  QueryResult,
+  QueryUpdate,
+} from "@destack/language/core/common";
 
 /**
  * The read/write Store backing (part of) the Supergraph.

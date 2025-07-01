@@ -1,10 +1,5 @@
-import {
-  ACTIVE_SESSION,
-  Session,
-  StructDefinition,
-  StructType,
-  Supergraph,
-} from "@destack/language/core";
+import type { Session, StructDefinition, Supergraph } from "@destack/language/core";
+import { ACTIVE_SESSION, StructType } from "@destack/language/core";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import type { StructTypeMapping } from "@destack/language/mapping";
 import { AnyStructProto } from "@destack/proto";
