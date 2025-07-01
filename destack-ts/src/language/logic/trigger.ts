@@ -28,7 +28,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:3040 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:70400 ==== */
 /**
  * TriggerType
  */
@@ -40,9 +40,79 @@ export enum TriggerType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
-/* ==== DESTACK_GENERATED_END:ENUM:3040 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:70400 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:3080 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:70401 ==== */
+/**
+ * A TriggerEvent is an Event that corresponds to a Trigger.
+ */
+export abstract class TriggerEvent extends Event {
+  static metatype: NodeType = NodeType.TRIGGER_EVENT;
+
+  /**
+   * Node.parent
+   */
+  get parent(): Node | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
+  }
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * TriggerEvent.node
+   */
+  get node(): Trigger | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Trigger | null;
+    }
+    return null;
+  }
+  set node(node: Trigger) {
+    this.nodePtr = node.toRef();
+  }
+  declare nodePtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
+/* ==== DESTACK_GENERATED_END:NODE:70401 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:70400 ==== */
 /**
  * A Trigger is a dynamic event to run something.
  */
@@ -365,7 +435,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
 
   static __packValue__(object: Trigger): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3080;
+    objectValue["1"] = 70400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -485,7 +555,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
   }
 
   static __packProto__(object: Trigger): TriggerProto {
-    const objectProto: Partial<TriggerProto> = { metatype: 3080 };
+    const objectProto: Partial<TriggerProto> = { metatype: 70400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -628,74 +698,4 @@ export class Trigger extends Entity implements IsSpatial, HasName {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER, Trigger);
-/* ==== DESTACK_GENERATED_END:NODE:3080 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:3081 ==== */
-/**
- * A TriggerEvent is an Event that corresponds to a Trigger.
- */
-export abstract class TriggerEvent extends Event {
-  static metatype: NodeType = NodeType.TRIGGER_EVENT;
-
-  /**
-   * Node.parent
-   */
-  get parent(): Node | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly spacePtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * TriggerEvent.node
-   */
-  get node(): Trigger | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Trigger | null;
-    }
-    return null;
-  }
-  set node(node: Trigger) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:3081 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:70400 ==== */

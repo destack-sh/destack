@@ -53,7 +53,7 @@ import {
 import { assertNever, base64Decode } from "@destack/utils";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:102 ==== */
 /**
  * Definition of a builtin Property.
  */
@@ -714,7 +714,7 @@ export class PropertyDefinition extends StructFrozen {
 
   static __packValue__(object: PropertyDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50004;
+    objectValue["1"] = 102;
     objectValue["2"] = object.id;
     objectValue["31"] = object.name;
     if (object.icon != null) {
@@ -949,7 +949,7 @@ export class PropertyDefinition extends StructFrozen {
   }
 
   static __packProto__(object: PropertyDefinition): PropertyDefinitionProto {
-    const objectProto: Partial<PropertyDefinitionProto> = { metatype: 50004 };
+    const objectProto: Partial<PropertyDefinitionProto> = { metatype: 102 };
     objectProto.id = object.id;
     objectProto.name = object.name;
     if (object.icon != null) {
@@ -1267,9 +1267,9 @@ export class PropertyDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:50004 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:102 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50005 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:103 ==== */
 /**
  * Definition of a builtin Trait.
  */
@@ -1518,7 +1518,7 @@ export class TraitDefinition extends StructFrozen {
 
   static __packValue__(object: TraitDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50005;
+    objectValue["1"] = 103;
     objectValue["2"] = object.id;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -1621,7 +1621,7 @@ export class TraitDefinition extends StructFrozen {
   }
 
   static __packProto__(object: TraitDefinition): TraitDefinitionProto {
-    const objectProto: Partial<TraitDefinitionProto> = { metatype: 50005 };
+    const objectProto: Partial<TraitDefinitionProto> = { metatype: 103 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as TraitTypeProto;
     objectProto.name = object.name;
@@ -1722,9 +1722,9 @@ export class TraitDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TRAIT_DEFINITION, TraitDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:50005 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:103 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50006 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:104 ==== */
 /**
  * Definition of a builtin Node.
  */
@@ -2201,7 +2201,7 @@ export class NodeDefinition extends StructFrozen {
 
   static __packValue__(object: NodeDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50006;
+    objectValue["1"] = 104;
     objectValue["2"] = object.id;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -2418,7 +2418,7 @@ export class NodeDefinition extends StructFrozen {
   }
 
   static __packProto__(object: NodeDefinition): NodeDefinitionProto {
-    const objectProto: Partial<NodeDefinitionProto> = { metatype: 50006 };
+    const objectProto: Partial<NodeDefinitionProto> = { metatype: 104 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as NodeTypeProto;
     objectProto.name = object.name;
@@ -2631,9 +2631,9 @@ export class NodeDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_DEFINITION, NodeDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:50006 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:104 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50007 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:105 ==== */
 /**
  * Definition of a builtin Struct.
  */
@@ -2833,7 +2833,7 @@ export class StructDefinition extends StructFrozen {
 
   static __packValue__(object: StructDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50007;
+    objectValue["1"] = 105;
     objectValue["2"] = object.id;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -2914,7 +2914,7 @@ export class StructDefinition extends StructFrozen {
   }
 
   static __packProto__(object: StructDefinition): StructDefinitionProto {
-    const objectProto: Partial<StructDefinitionProto> = { metatype: 50007 };
+    const objectProto: Partial<StructDefinitionProto> = { metatype: 105 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as StructTypeProto;
     objectProto.name = object.name;
@@ -2993,9 +2993,9 @@ export class StructDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRUCT_DEFINITION, StructDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:50007 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:105 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50008 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:106 ==== */
 /**
  * Definition of a builtin Enum.
  */
@@ -3180,7 +3180,7 @@ export class EnumDefinition extends StructFrozen {
 
   static __packValue__(object: EnumDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50008;
+    objectValue["1"] = 106;
     objectValue["2"] = object.id;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -3253,7 +3253,7 @@ export class EnumDefinition extends StructFrozen {
   }
 
   static __packProto__(object: EnumDefinition): EnumDefinitionProto {
-    const objectProto: Partial<EnumDefinitionProto> = { metatype: 50008 };
+    const objectProto: Partial<EnumDefinitionProto> = { metatype: 106 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as EnumTypeProto;
     objectProto.name = object.name;
@@ -3324,9 +3324,9 @@ export class EnumDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ENUM_DEFINITION, EnumDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:50008 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:106 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50009 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:107 ==== */
 /**
  * Definition of a builtin Enum Option.
  */
@@ -3487,7 +3487,7 @@ export class OptionDefinition extends StructFrozen {
 
   static __packValue__(object: OptionDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50009;
+    objectValue["1"] = 107;
     objectValue["2"] = object.id;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -3550,7 +3550,7 @@ export class OptionDefinition extends StructFrozen {
   }
 
   static __packProto__(object: OptionDefinition): OptionDefinitionProto {
-    const objectProto: Partial<OptionDefinitionProto> = { metatype: 50009 };
+    const objectProto: Partial<OptionDefinitionProto> = { metatype: 107 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as EnumTypeProto;
     objectProto.name = object.name;
@@ -3611,9 +3611,9 @@ export class OptionDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.OPTION_DEFINITION, OptionDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:50009 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:107 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50010 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:108 ==== */
 /**
  * Definition of a builtin Permission for a builtin Node.
  */
@@ -3773,7 +3773,7 @@ export class PermissionDefinition extends StructFrozen {
 
   static __packValue__(object: PermissionDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50010;
+    objectValue["1"] = 108;
     objectValue["2"] = object.id;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -3832,7 +3832,7 @@ export class PermissionDefinition extends StructFrozen {
   }
 
   static __packProto__(object: PermissionDefinition): PermissionDefinitionProto {
-    const objectProto: Partial<PermissionDefinitionProto> = { metatype: 50010 };
+    const objectProto: Partial<PermissionDefinitionProto> = { metatype: 108 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as EnumTypeProto;
     objectProto.name = object.name;
@@ -3891,9 +3891,9 @@ export class PermissionDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PERMISSION_DEFINITION, PermissionDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:50010 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:108 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50011 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:109 ==== */
 /**
  * Definition of a builtin Constant.
  */
@@ -4035,7 +4035,7 @@ export class ConstantDefinition extends StructFrozen {
 
   static __packValue__(object: ConstantDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50011;
+    objectValue["1"] = 109;
     objectValue["31"] = object.name;
     if (object.description != null) {
       objectValue["36"] = object.description;
@@ -4089,7 +4089,7 @@ export class ConstantDefinition extends StructFrozen {
   }
 
   static __packProto__(object: ConstantDefinition): ConstantDefinitionProto {
-    const objectProto: Partial<ConstantDefinitionProto> = { metatype: 50011 };
+    const objectProto: Partial<ConstantDefinitionProto> = { metatype: 109 };
     objectProto.name = object.name;
     if (object.description != null) {
       objectProto.description = object.description;
@@ -4143,4 +4143,4 @@ export class ConstantDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CONSTANT_DEFINITION, ConstantDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:50011 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:109 ==== */

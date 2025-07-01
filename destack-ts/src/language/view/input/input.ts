@@ -9,7 +9,7 @@ import { View } from "@destack/language/view";
 import { ContainerView } from "@destack/language/view/container";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:10400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:230000 ==== */
 /**
  * An input View.
  */
@@ -164,4 +164,4 @@ export abstract class InputView extends View {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INPUT_VIEW, InputView);
-/* ==== DESTACK_GENERATED_END:NODE:10400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:230000 ==== */

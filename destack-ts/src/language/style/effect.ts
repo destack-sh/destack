@@ -38,7 +38,75 @@ import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@des
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12025 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:270212 ==== */
+/**
+ * EffectType
+ */
+export enum EffectType {
+  APPEAR = 10,
+  ENTER = 11,
+  EXIT = 12,
+  HOVER = 20,
+  PRESS = 21,
+  DRAG = 22,
+  FOCUS = 23,
+  LOOP = 30,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.EFFECT_TYPE, EffectType);
+/* ==== DESTACK_GENERATED_END:ENUM:270212 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270222 ==== */
+/**
+ * RepeatType
+ */
+export enum RepeatType {
+  LOOP = 1,
+  REVERSE = 2,
+  MIRROR = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.REPEAT_TYPE, RepeatType);
+/* ==== DESTACK_GENERATED_END:ENUM:270222 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270223 ==== */
+/**
+ * TextSplitType
+ */
+export enum TextSplitType {
+  CHAR = 1,
+  WORD = 2,
+  LINE = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.TEXT_SPLIT_TYPE, TextSplitType);
+/* ==== DESTACK_GENERATED_END:ENUM:270223 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270224 ==== */
+/**
+ * OffscreenBehavior
+ */
+export enum OffscreenBehavior {
+  PLAY = 1,
+  PAUSE = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
+/* ==== DESTACK_GENERATED_END:ENUM:270224 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:270208 ==== */
 /**
  * An effect value.
  */
@@ -436,7 +504,7 @@ export class Effect extends StructFrozen {
 
   static __packValue__(object: Effect): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12025;
+    objectValue["1"] = 270208;
     objectValue["30"] = object.type;
     if (object.stylePtr != null) {
       objectValue["41"] = object.stylePtr.toValue();
@@ -579,7 +647,7 @@ export class Effect extends StructFrozen {
   }
 
   static __packProto__(object: Effect): EffectProto {
-    const objectProto: Partial<EffectProto> = { metatype: 12025 };
+    const objectProto: Partial<EffectProto> = { metatype: 270208 };
     objectProto.type = Number(object.type) as EffectTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -709,77 +777,9 @@ export class Effect extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EFFECT, Effect);
-/* ==== DESTACK_GENERATED_END:STRUCT:12025 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270208 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:12090 ==== */
-/**
- * EffectType
- */
-export enum EffectType {
-  APPEAR = 10,
-  ENTER = 11,
-  EXIT = 12,
-  HOVER = 20,
-  PRESS = 21,
-  DRAG = 22,
-  FOCUS = 23,
-  LOOP = 30,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.EFFECT_TYPE, EffectType);
-/* ==== DESTACK_GENERATED_END:ENUM:12090 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12118 ==== */
-/**
- * RepeatType
- */
-export enum RepeatType {
-  LOOP = 1,
-  REVERSE = 2,
-  MIRROR = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.REPEAT_TYPE, RepeatType);
-/* ==== DESTACK_GENERATED_END:ENUM:12118 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12119 ==== */
-/**
- * TextSplitType
- */
-export enum TextSplitType {
-  CHAR = 1,
-  WORD = 2,
-  LINE = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.TEXT_SPLIT_TYPE, TextSplitType);
-/* ==== DESTACK_GENERATED_END:ENUM:12119 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12120 ==== */
-/**
- * OffscreenBehavior
- */
-export enum OffscreenBehavior {
-  PLAY = 1,
-  PAUSE = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
-/* ==== DESTACK_GENERATED_END:ENUM:12120 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:12067 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270207 ==== */
 /**
  * An effect style.
  */
@@ -1327,7 +1327,7 @@ export class EffectStyle extends Style {
 
   static __packValue__(object: EffectStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12067;
+    objectValue["1"] = 270207;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1513,7 +1513,7 @@ export class EffectStyle extends Style {
   }
 
   static __packProto__(object: EffectStyle): EffectStyleProto {
-    const objectProto: Partial<EffectStyleProto> = { metatype: 12067 };
+    const objectProto: Partial<EffectStyleProto> = { metatype: 270207 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1698,4 +1698,4 @@ export class EffectStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EFFECT_STYLE, EffectStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12067 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270207 ==== */

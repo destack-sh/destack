@@ -14,7 +14,7 @@ import type { Theme } from "@destack/language/style";
 import type { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:12040 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270100 ==== */
 /**
  * A Style is a style definition.
  */
@@ -102,4 +102,4 @@ export abstract class Style
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STYLE, Style);
-/* ==== DESTACK_GENERATED_END:NODE:12040 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270100 ==== */

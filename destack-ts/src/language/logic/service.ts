@@ -33,7 +33,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:3020 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:70100 ==== */
 /**
  * A set of Actions for a Node.
  */
@@ -422,7 +422,7 @@ export class Service
 
   static __packValue__(object: Service): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3020;
+    objectValue["1"] = 70100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -554,7 +554,7 @@ export class Service
   }
 
   static __packProto__(object: Service): ServiceProto {
-    const objectProto: Partial<ServiceProto> = { metatype: 3020 };
+    const objectProto: Partial<ServiceProto> = { metatype: 70100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -715,4 +715,4 @@ export class Service
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SERVICE, Service);
-/* ==== DESTACK_GENERATED_END:NODE:3020 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:70100 ==== */

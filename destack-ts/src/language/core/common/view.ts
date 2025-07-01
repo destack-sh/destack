@@ -20,7 +20,138 @@ import {
 import { base64Decode } from "@destack/utils";
 import { hashFloat, hashInt } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12018 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:270216 ==== */
+/**
+ * Layout
+ */
+export enum Layout {
+  STACK = 1,
+  GRID = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.LAYOUT, Layout);
+/* ==== DESTACK_GENERATED_END:ENUM:270216 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270220 ==== */
+/**
+ * Overflow
+ */
+export enum Overflow {
+  HIDDEN = 2,
+  VISIBLE = 3,
+  SCROLL = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.OVERFLOW, Overflow);
+/* ==== DESTACK_GENERATED_END:ENUM:270220 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270219 ==== */
+/**
+ * Direction
+ */
+export enum Direction {
+  HORIZONTAL = 1,
+  VERTICAL = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.DIRECTION, Direction);
+/* ==== DESTACK_GENERATED_END:ENUM:270219 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270217 ==== */
+/**
+ * Distribute
+ */
+export enum Distribute {
+  START = 1,
+  CENTER = 2,
+  END = 3,
+  SPACE_BETWEEN = 4,
+  SPACE_AROUND = 5,
+  SPACE_EVENLY = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.DISTRIBUTE, Distribute);
+/* ==== DESTACK_GENERATED_END:ENUM:270217 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270218 ==== */
+/**
+ * Align
+ */
+export enum Align {
+  START = 1,
+  CENTER = 2,
+  END = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.ALIGN, Align);
+/* ==== DESTACK_GENERATED_END:ENUM:270218 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270215 ==== */
+/**
+ * LengthUnit
+ */
+export enum LengthUnit {
+  PIXEL = 1,
+  REM = 2,
+  PERCENT = 3,
+  FR = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.LENGTH_UNIT, LengthUnit);
+/* ==== DESTACK_GENERATED_END:ENUM:270215 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270214 ==== */
+/**
+ * PositionType
+ */
+export enum PositionType {
+  RELATIVE = 1,
+  ABSOLUTE = 2,
+  FIXED = 3,
+  STICKY = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.POSITION_TYPE, PositionType);
+/* ==== DESTACK_GENERATED_END:ENUM:270214 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270221 ==== */
+/**
+ * DimensionType
+ */
+export enum DimensionType {
+  FIXED = 2,
+  FIT = 3,
+  FILL = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.DIMENSION_TYPE, DimensionType);
+/* ==== DESTACK_GENERATED_END:ENUM:270221 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:270018 ==== */
 /**
  * A length value.
  */
@@ -124,7 +255,7 @@ export class Length extends StructFrozen {
 
   static __packValue__(object: Length): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12018;
+    objectValue["1"] = 270018;
     objectValue["50"] = object.unit;
     objectValue["51"] = object.value;
     return objectValue;
@@ -164,7 +295,7 @@ export class Length extends StructFrozen {
   }
 
   static __packProto__(object: Length): LengthProto {
-    const objectProto: Partial<LengthProto> = { metatype: 12018 };
+    const objectProto: Partial<LengthProto> = { metatype: 270018 };
     objectProto.unit = Number(object.unit) as LengthUnitProto;
     objectProto.value = object.value;
     return objectProto as LengthProto;
@@ -206,9 +337,9 @@ export class Length extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.LENGTH, Length);
-/* ==== DESTACK_GENERATED_END:STRUCT:12018 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270018 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12020 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270020 ==== */
 /**
  * A position value.
  */
@@ -383,7 +514,7 @@ export class Position extends StructFrozen {
 
   static __packValue__(object: Position): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12020;
+    objectValue["1"] = 270020;
     objectValue["30"] = object.type;
     if (object.top != null) {
       objectValue["50"] = object.top.toValue();
@@ -457,7 +588,7 @@ export class Position extends StructFrozen {
   }
 
   static __packProto__(object: Position): PositionProto {
-    const objectProto: Partial<PositionProto> = { metatype: 12020 };
+    const objectProto: Partial<PositionProto> = { metatype: 270020 };
     objectProto.type = Number(object.type) as PositionTypeProto;
     if (object.top != null) {
       objectProto.top = object.top.toProto();
@@ -525,9 +656,9 @@ export class Position extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.POSITION, Position);
-/* ==== DESTACK_GENERATED_END:STRUCT:12020 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270020 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12022 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270022 ==== */
 /**
  * A dimension value (like Length but can fit or fill container).
  */
@@ -654,7 +785,7 @@ export class Dimension extends StructFrozen {
 
   static __packValue__(object: Dimension): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12022;
+    objectValue["1"] = 270022;
     objectValue["30"] = object.type;
     objectValue["50"] = object.unit;
     objectValue["51"] = object.value;
@@ -696,7 +827,7 @@ export class Dimension extends StructFrozen {
   }
 
   static __packProto__(object: Dimension): DimensionProto {
-    const objectProto: Partial<DimensionProto> = { metatype: 12022 };
+    const objectProto: Partial<DimensionProto> = { metatype: 270022 };
     objectProto.type = Number(object.type) as DimensionTypeProto;
     objectProto.unit = Number(object.unit) as LengthUnitProto;
     objectProto.value = object.value;
@@ -740,9 +871,9 @@ export class Dimension extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.DIMENSION, Dimension);
-/* ==== DESTACK_GENERATED_END:STRUCT:12022 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270022 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12030 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270030 ==== */
 /**
  * An insets value (base + side overrides).
  */
@@ -911,7 +1042,7 @@ export class Insets extends StructFrozen {
 
   static __packValue__(object: Insets): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12030;
+    objectValue["1"] = 270030;
     if (object.base != null) {
       objectValue["50"] = object.base;
     }
@@ -977,7 +1108,7 @@ export class Insets extends StructFrozen {
   }
 
   static __packProto__(object: Insets): InsetsProto {
-    const objectProto: Partial<InsetsProto> = { metatype: 12030 };
+    const objectProto: Partial<InsetsProto> = { metatype: 270030 };
     if (object.base != null) {
       objectProto.base = object.base;
     }
@@ -1035,9 +1166,9 @@ export class Insets extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.INSETS, Insets);
-/* ==== DESTACK_GENERATED_END:STRUCT:12030 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270030 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12032 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270032 ==== */
 /**
  * A corners value (base + corner overrides).
  */
@@ -1206,7 +1337,7 @@ export class Corners extends StructFrozen {
 
   static __packValue__(object: Corners): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12032;
+    objectValue["1"] = 270032;
     if (object.base != null) {
       objectValue["50"] = object.base;
     }
@@ -1272,7 +1403,7 @@ export class Corners extends StructFrozen {
   }
 
   static __packProto__(object: Corners): CornersProto {
-    const objectProto: Partial<CornersProto> = { metatype: 12032 };
+    const objectProto: Partial<CornersProto> = { metatype: 270032 };
     if (object.base != null) {
       objectProto.base = object.base;
     }
@@ -1330,9 +1461,9 @@ export class Corners extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CORNERS, Corners);
-/* ==== DESTACK_GENERATED_END:STRUCT:12032 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270032 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50207 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270034 ==== */
 /**
  * A gap value (base + x/y overrides).
  */
@@ -1476,7 +1607,7 @@ export class Axis2 extends StructFrozen {
 
   static __packValue__(object: Axis2): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50207;
+    objectValue["1"] = 270034;
     if (object.base != null) {
       objectValue["50"] = object.base;
     }
@@ -1530,7 +1661,7 @@ export class Axis2 extends StructFrozen {
   }
 
   static __packProto__(object: Axis2): Axis2Proto {
-    const objectProto: Partial<Axis2Proto> = { metatype: 50207 };
+    const objectProto: Partial<Axis2Proto> = { metatype: 270034 };
     if (object.base != null) {
       objectProto.base = object.base;
     }
@@ -1580,9 +1711,9 @@ export class Axis2 extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AXIS2, Axis2);
-/* ==== DESTACK_GENERATED_END:STRUCT:50207 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270034 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50209 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270036 ==== */
 /**
  * A rotation value (base + x/y/z overrides).
  */
@@ -1746,7 +1877,7 @@ export class Axis3 extends StructFrozen {
 
   static __packValue__(object: Axis3): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50209;
+    objectValue["1"] = 270036;
     if (object.base != null) {
       objectValue["50"] = object.base;
     }
@@ -1806,7 +1937,7 @@ export class Axis3 extends StructFrozen {
   }
 
   static __packProto__(object: Axis3): Axis3Proto {
-    const objectProto: Partial<Axis3Proto> = { metatype: 50209 };
+    const objectProto: Partial<Axis3Proto> = { metatype: 270036 };
     if (object.base != null) {
       objectProto.base = object.base;
     }
@@ -1860,9 +1991,9 @@ export class Axis3 extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AXIS3, Axis3);
-/* ==== DESTACK_GENERATED_END:STRUCT:50209 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270036 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12026 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270026 ==== */
 /**
  * A grid configuration value.
  */
@@ -2033,7 +2164,7 @@ export class Grid extends StructFrozen {
 
   static __packValue__(object: Grid): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12026;
+    objectValue["1"] = 270026;
     objectValue["50"] = object.columns;
     objectValue["51"] = object.rows;
     if (object.columnWidth != null) {
@@ -2100,7 +2231,7 @@ export class Grid extends StructFrozen {
   }
 
   static __packProto__(object: Grid): GridProto {
-    const objectProto: Partial<GridProto> = { metatype: 12026 };
+    const objectProto: Partial<GridProto> = { metatype: 270026 };
     objectProto.columns = object.columns;
     objectProto.rows = object.rows;
     if (object.columnWidth != null) {
@@ -2175,9 +2306,9 @@ export class Grid extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRID, Grid);
-/* ==== DESTACK_GENERATED_END:STRUCT:12026 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270026 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12028 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270028 ==== */
 /**
  * A grid span value.
  */
@@ -2288,7 +2419,7 @@ export class GridSpan extends StructFrozen {
 
   static __packValue__(object: GridSpan): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12028;
+    objectValue["1"] = 270028;
     objectValue["50"] = object.columns;
     objectValue["51"] = object.rows;
     return objectValue;
@@ -2328,7 +2459,7 @@ export class GridSpan extends StructFrozen {
   }
 
   static __packProto__(object: GridSpan): GridSpanProto {
-    const objectProto: Partial<GridSpanProto> = { metatype: 12028 };
+    const objectProto: Partial<GridSpanProto> = { metatype: 270028 };
     objectProto.columns = object.columns;
     objectProto.rows = object.rows;
     return objectProto as GridSpanProto;
@@ -2370,135 +2501,4 @@ export class GridSpan extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRID_SPAN, GridSpan);
-/* ==== DESTACK_GENERATED_END:STRUCT:12028 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12112 ==== */
-/**
- * Layout
- */
-export enum Layout {
-  STACK = 1,
-  GRID = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.LAYOUT, Layout);
-/* ==== DESTACK_GENERATED_END:ENUM:12112 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12116 ==== */
-/**
- * Overflow
- */
-export enum Overflow {
-  HIDDEN = 2,
-  VISIBLE = 3,
-  SCROLL = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.OVERFLOW, Overflow);
-/* ==== DESTACK_GENERATED_END:ENUM:12116 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12115 ==== */
-/**
- * Direction
- */
-export enum Direction {
-  HORIZONTAL = 1,
-  VERTICAL = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.DIRECTION, Direction);
-/* ==== DESTACK_GENERATED_END:ENUM:12115 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12113 ==== */
-/**
- * Distribute
- */
-export enum Distribute {
-  START = 1,
-  CENTER = 2,
-  END = 3,
-  SPACE_BETWEEN = 4,
-  SPACE_AROUND = 5,
-  SPACE_EVENLY = 6,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.DISTRIBUTE, Distribute);
-/* ==== DESTACK_GENERATED_END:ENUM:12113 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12114 ==== */
-/**
- * Align
- */
-export enum Align {
-  START = 1,
-  CENTER = 2,
-  END = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.ALIGN, Align);
-/* ==== DESTACK_GENERATED_END:ENUM:12114 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12111 ==== */
-/**
- * LengthUnit
- */
-export enum LengthUnit {
-  PIXEL = 1,
-  REM = 2,
-  PERCENT = 3,
-  FR = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.LENGTH_UNIT, LengthUnit);
-/* ==== DESTACK_GENERATED_END:ENUM:12111 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12110 ==== */
-/**
- * PositionType
- */
-export enum PositionType {
-  RELATIVE = 1,
-  ABSOLUTE = 2,
-  FIXED = 3,
-  STICKY = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.POSITION_TYPE, PositionType);
-/* ==== DESTACK_GENERATED_END:ENUM:12110 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12117 ==== */
-/**
- * DimensionType
- */
-export enum DimensionType {
-  FIXED = 2,
-  FIT = 3,
-  FILL = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.DIMENSION_TYPE, DimensionType);
-/* ==== DESTACK_GENERATED_END:ENUM:12117 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270028 ==== */

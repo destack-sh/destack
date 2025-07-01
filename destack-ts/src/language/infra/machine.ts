@@ -23,7 +23,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:160100 ==== */
 /**
  * MachineType
  */
@@ -39,9 +39,9 @@ export enum MachineType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MACHINE_TYPE, MachineType);
-/* ==== DESTACK_GENERATED_END:ENUM:7600 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:160100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:7600 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:160100 ==== */
 /**
  * A Machine provides physical compute.
  * NOTE :RichComputing: Machines also need Deployments/Endpoints/...?
@@ -528,7 +528,7 @@ export class Machine extends Resource implements IsSpatial {
 
   static __packValue__(object: Machine): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 7600;
+    objectValue["1"] = 160100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -676,7 +676,7 @@ export class Machine extends Resource implements IsSpatial {
   }
 
   static __packProto__(object: Machine): MachineProto {
-    const objectProto: Partial<MachineProto> = { metatype: 7600 };
+    const objectProto: Partial<MachineProto> = { metatype: 160100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -834,4 +834,4 @@ export class Machine extends Resource implements IsSpatial {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MACHINE, Machine);
-/* ==== DESTACK_GENERATED_END:NODE:7600 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:160100 ==== */

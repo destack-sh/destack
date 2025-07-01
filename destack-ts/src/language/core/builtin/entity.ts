@@ -30,7 +30,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:51001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2 ==== */
 /**
  * An Entity is a versioned, stateful Node.
  */
@@ -88,9 +88,9 @@ export abstract class Entity extends Node {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITY, Entity);
-/* ==== DESTACK_GENERATED_END:NODE:51001 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:100 ==== */
 /**
  * A definition for a custom Entity type (instantiated in CustomEntities).
  * Custom Entities may be materialized as physical or logical tables in primary storage.
@@ -568,7 +568,7 @@ export class CustomEntityDefinition
 
   static __packValue__(object: CustomEntityDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2000;
+    objectValue["1"] = 100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -748,7 +748,7 @@ export class CustomEntityDefinition
   }
 
   static __packProto__(object: CustomEntityDefinition): CustomEntityDefinitionProto {
-    const objectProto: Partial<CustomEntityDefinitionProto> = { metatype: 2000 };
+    const objectProto: Partial<CustomEntityDefinitionProto> = { metatype: 100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -959,9 +959,9 @@ export class CustomEntityDefinition
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
-/* ==== DESTACK_GENERATED_END:NODE:2000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:101 ==== */
 /**
  * A CustomEntity is an instance of a CustomEntityDefinition.
  */
@@ -1056,9 +1056,9 @@ export abstract class CustomEntity
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_ENTITY, CustomEntity);
-/* ==== DESTACK_GENERATED_END:NODE:2001 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2002 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:102 ==== */
 /**
  * A CustomTraitDefinition defines a kind of CustomTrait.
  */
@@ -1462,7 +1462,7 @@ export class CustomTraitDefinition
 
   static __packValue__(object: CustomTraitDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2002;
+    objectValue["1"] = 102;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1624,7 +1624,7 @@ export class CustomTraitDefinition
   }
 
   static __packProto__(object: CustomTraitDefinition): CustomTraitDefinitionProto {
-    const objectProto: Partial<CustomTraitDefinitionProto> = { metatype: 2002 };
+    const objectProto: Partial<CustomTraitDefinitionProto> = { metatype: 102 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1809,9 +1809,9 @@ export class CustomTraitDefinition
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_TRAIT_DEFINITION, CustomTraitDefinition);
-/* ==== DESTACK_GENERATED_END:NODE:2002 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:51003 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:4 ==== */
 /**
  * A Resource represents an external asset.
  * The lifecycle of a Resource may be managed by some provisioner.
@@ -1885,9 +1885,9 @@ export abstract class Resource extends Entity implements IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RESOURCE, Resource);
-/* ==== DESTACK_GENERATED_END:NODE:51003 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:4 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90400 ==== */
 /**
  * An Entity that represents a Metric.
  */
@@ -1979,4 +1979,4 @@ export abstract class Metric extends Entity implements IsSpatial, HasName, IsSou
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.METRIC, Metric);
-/* ==== DESTACK_GENERATED_END:NODE:4200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90400 ==== */

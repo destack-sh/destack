@@ -38,7 +38,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:160005 ==== */
 /**
  * DatabaseType
  */
@@ -50,9 +50,9 @@ export enum DatabaseType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DATABASE_TYPE, DatabaseType);
-/* ==== DESTACK_GENERATED_END:ENUM:7505 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:160005 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:7501 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:160001 ==== */
 /**
  * DatabaseInfo
  */
@@ -246,7 +246,7 @@ export class DatabaseInfo extends StructFrozen {
 
   static __packValue__(object: DatabaseInfo): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 7501;
+    objectValue["1"] = 160001;
     objectValue["30"] = object.type;
     objectValue["50"] = object.region;
     if (object.galaxyName != null) {
@@ -309,7 +309,7 @@ export class DatabaseInfo extends StructFrozen {
   }
 
   static __packProto__(object: DatabaseInfo): DatabaseInfoProto {
-    const objectProto: Partial<DatabaseInfoProto> = { metatype: 7501 };
+    const objectProto: Partial<DatabaseInfoProto> = { metatype: 160001 };
     objectProto.type = Number(object.type) as DatabaseTypeProto;
     objectProto.region = Number(object.region) as RegionProto;
     if (object.galaxyName != null) {
@@ -368,9 +368,9 @@ export class DatabaseInfo extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.DATABASE_INFO, DatabaseInfo);
-/* ==== DESTACK_GENERATED_END:STRUCT:7501 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:160001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:7500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:160000 ==== */
 /**
  * A primary storage Database of some flavor.
  */
@@ -761,7 +761,7 @@ export class Database extends Resource implements IsSpatial, HasName {
 
   static __packValue__(object: Database): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 7500;
+    objectValue["1"] = 160000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -885,7 +885,7 @@ export class Database extends Resource implements IsSpatial, HasName {
   }
 
   static __packProto__(object: Database): DatabaseProto {
-    const objectProto: Partial<DatabaseProto> = { metatype: 7500 };
+    const objectProto: Partial<DatabaseProto> = { metatype: 160000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1019,4 +1019,4 @@ export class Database extends Resource implements IsSpatial, HasName {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DATABASE, Database);
-/* ==== DESTACK_GENERATED_END:NODE:7500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:160000 ==== */

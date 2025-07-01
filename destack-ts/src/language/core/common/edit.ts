@@ -24,7 +24,7 @@ import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuid4 } from "uuid";
 
-/* ==== DESTACK_GENERATED_START:ENUM:50050 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:50 ==== */
 /**
  * EditType
  */
@@ -44,9 +44,9 @@ export enum EditType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EDIT_TYPE, EditType);
-/* ==== DESTACK_GENERATED_END:ENUM:50050 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:50 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:50051 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:51 ==== */
 /**
  * EditOperation
  */
@@ -59,9 +59,9 @@ export enum EditOperation {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EDIT_OPERATION, EditOperation);
-/* ==== DESTACK_GENERATED_END:ENUM:50051 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:51 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:50052 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:52 ==== */
 /**
  * ChangeStatus
  */
@@ -75,9 +75,9 @@ export enum ChangeStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CHANGE_STATUS, ChangeStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:50052 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:52 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:50053 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:53 ==== */
 /**
  * ChangeDebounce
  */
@@ -89,9 +89,9 @@ export enum ChangeDebounce {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CHANGE_DEBOUNCE, ChangeDebounce);
-/* ==== DESTACK_GENERATED_END:ENUM:50053 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:53 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50020 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:200 ==== */
 /**
  * An Edit to a Node.
  */
@@ -355,7 +355,7 @@ export class Edit extends StructFrozen {
 
   static __packValue__(object: Edit): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50020;
+    objectValue["1"] = 200;
     objectValue["2"] = String(object.id);
     objectValue["30"] = object.type;
     if (object.operation != null) {
@@ -448,7 +448,7 @@ export class Edit extends StructFrozen {
   }
 
   static __packProto__(object: Edit): EditProto {
-    const objectProto: Partial<EditProto> = { metatype: 50020 };
+    const objectProto: Partial<EditProto> = { metatype: 200 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as EditTypeProto;
     if (object.operation != null) {
@@ -552,9 +552,9 @@ export class Edit extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EDIT, Edit);
-/* ==== DESTACK_GENERATED_END:STRUCT:50020 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:200 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50021 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:201 ==== */
 /**
  * A Change is an atomic sequence of Edits.
  */
@@ -779,7 +779,7 @@ export class Change extends StructFrozen {
 
   static __packValue__(object: Change): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50021;
+    objectValue["1"] = 201;
     objectValue["2"] = String(object.id);
     if (object.name != null) {
       objectValue["31"] = object.name;
@@ -863,7 +863,7 @@ export class Change extends StructFrozen {
   }
 
   static __packProto__(object: Change): ChangeProto {
-    const objectProto: Partial<ChangeProto> = { metatype: 50021 };
+    const objectProto: Partial<ChangeProto> = { metatype: 201 };
     objectProto.id = String(object.id);
     if (object.name != null) {
       objectProto.name = object.name;
@@ -948,9 +948,9 @@ export class Change extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CHANGE, Change);
-/* ==== DESTACK_GENERATED_END:STRUCT:50021 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:201 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50022 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:202 ==== */
 /**
  * The result of a Change. If rejected, edits/cascaded_edits are empty.
  */
@@ -1148,7 +1148,7 @@ export class ChangeResult extends StructFrozen {
 
   static __packValue__(object: ChangeResult): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50022;
+    objectValue["1"] = 202;
     objectValue["2"] = String(object.id);
     objectValue["10"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.debounce != null) {
@@ -1226,7 +1226,7 @@ export class ChangeResult extends StructFrozen {
   }
 
   static __packProto__(object: ChangeResult): ChangeResultProto {
-    const objectProto: Partial<ChangeResultProto> = { metatype: 50022 };
+    const objectProto: Partial<ChangeResultProto> = { metatype: 202 };
     objectProto.id = String(object.id);
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.debounce != null) {
@@ -1305,4 +1305,4 @@ export class ChangeResult extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CHANGE_RESULT, ChangeResult);
-/* ==== DESTACK_GENERATED_END:STRUCT:50022 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:202 ==== */

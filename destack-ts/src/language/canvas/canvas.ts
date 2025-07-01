@@ -40,7 +40,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:11000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:250000 ==== */
 /**
  * CanvasType
  */
@@ -52,9 +52,9 @@ export enum CanvasType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CANVAS_TYPE, CanvasType);
-/* ==== DESTACK_GENERATED_END:ENUM:11000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:250000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:11000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:250000 ==== */
 /**
  * A Canvas is a container for only Shapes (other than that it's just a ContainerView).
  */
@@ -798,7 +798,7 @@ export class Canvas extends ContainerView {
 
   static __packValue__(object: Canvas): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 11000;
+    objectValue["1"] = 250000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1104,7 +1104,7 @@ export class Canvas extends ContainerView {
   }
 
   static __packProto__(object: Canvas): CanvasProto {
-    const objectProto: Partial<CanvasProto> = { metatype: 11000 };
+    const objectProto: Partial<CanvasProto> = { metatype: 250000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1382,4 +1382,4 @@ export class Canvas extends ContainerView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CANVAS, Canvas);
-/* ==== DESTACK_GENERATED_END:NODE:11000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:250000 ==== */

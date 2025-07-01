@@ -1385,24 +1385,22 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_QUERY_RESULT_GROUP: _ClassVar[StructTypeProto]
     STRUCT_TYPE_QUERY_UPDATE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_HISTOGRAM: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR2: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR3: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR4: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR2I: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR3I: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR4I: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_AXIS2: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_AXIS3: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_SELECTION: _ClassVar[StructTypeProto]
     STRUCT_TYPE_VALUE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_TYPE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_NUMBER_CONSTRAINT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_STRING_CONSTRAINT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_COLLECTION_CONSTRAINT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_NODE_CONSTRAINT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR2: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR3: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR4: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR2I: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR3I: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR4I: _ClassVar[StructTypeProto]
     STRUCT_TYPE_TEXT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructTypeProto]
     STRUCT_TYPE_ICON: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_SELECTION: _ClassVar[StructTypeProto]
     STRUCT_TYPE_SCHEDULE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_DATABASE_INFO: _ClassVar[StructTypeProto]
     STRUCT_TYPE_GALAXY_INFO: _ClassVar[StructTypeProto]
@@ -1415,6 +1413,8 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_GRID_SPAN: _ClassVar[StructTypeProto]
     STRUCT_TYPE_INSETS: _ClassVar[StructTypeProto]
     STRUCT_TYPE_CORNERS: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_AXIS2: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_AXIS3: _ClassVar[StructTypeProto]
     STRUCT_TYPE_STROKE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_STROKE_CAP: _ClassVar[StructTypeProto]
     STRUCT_TYPE_STROKE_PATH: _ClassVar[StructTypeProto]
@@ -2602,24 +2602,22 @@ STRUCT_TYPE_QUERY_RESULT: StructTypeProto
 STRUCT_TYPE_QUERY_RESULT_GROUP: StructTypeProto
 STRUCT_TYPE_QUERY_UPDATE: StructTypeProto
 STRUCT_TYPE_HISTOGRAM: StructTypeProto
-STRUCT_TYPE_VECTOR2: StructTypeProto
-STRUCT_TYPE_VECTOR3: StructTypeProto
-STRUCT_TYPE_VECTOR4: StructTypeProto
-STRUCT_TYPE_VECTOR2I: StructTypeProto
-STRUCT_TYPE_VECTOR3I: StructTypeProto
-STRUCT_TYPE_VECTOR4I: StructTypeProto
-STRUCT_TYPE_AXIS2: StructTypeProto
-STRUCT_TYPE_AXIS3: StructTypeProto
+STRUCT_TYPE_SELECTION: StructTypeProto
 STRUCT_TYPE_VALUE: StructTypeProto
 STRUCT_TYPE_TYPE: StructTypeProto
 STRUCT_TYPE_NUMBER_CONSTRAINT: StructTypeProto
 STRUCT_TYPE_STRING_CONSTRAINT: StructTypeProto
 STRUCT_TYPE_COLLECTION_CONSTRAINT: StructTypeProto
 STRUCT_TYPE_NODE_CONSTRAINT: StructTypeProto
+STRUCT_TYPE_VECTOR2: StructTypeProto
+STRUCT_TYPE_VECTOR3: StructTypeProto
+STRUCT_TYPE_VECTOR4: StructTypeProto
+STRUCT_TYPE_VECTOR2I: StructTypeProto
+STRUCT_TYPE_VECTOR3I: StructTypeProto
+STRUCT_TYPE_VECTOR4I: StructTypeProto
 STRUCT_TYPE_TEXT: StructTypeProto
 STRUCT_TYPE_TEXT_SPAN: StructTypeProto
 STRUCT_TYPE_ICON: StructTypeProto
-STRUCT_TYPE_SELECTION: StructTypeProto
 STRUCT_TYPE_SCHEDULE: StructTypeProto
 STRUCT_TYPE_DATABASE_INFO: StructTypeProto
 STRUCT_TYPE_GALAXY_INFO: StructTypeProto
@@ -2632,6 +2630,8 @@ STRUCT_TYPE_GRID: StructTypeProto
 STRUCT_TYPE_GRID_SPAN: StructTypeProto
 STRUCT_TYPE_INSETS: StructTypeProto
 STRUCT_TYPE_CORNERS: StructTypeProto
+STRUCT_TYPE_AXIS2: StructTypeProto
+STRUCT_TYPE_AXIS3: StructTypeProto
 STRUCT_TYPE_STROKE: StructTypeProto
 STRUCT_TYPE_STROKE_CAP: StructTypeProto
 STRUCT_TYPE_STROKE_PATH: StructTypeProto

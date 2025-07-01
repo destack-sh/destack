@@ -37,7 +37,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:541 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:20201 ==== */
 /**
  * A Event regarding a Role.
  */
@@ -124,9 +124,9 @@ export abstract class RoleEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE_EVENT, RoleEvent);
-/* ==== DESTACK_GENERATED_END:NODE:541 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:550 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:20202 ==== */
 /**
  * A Event regarding a Role.
  */
@@ -367,7 +367,7 @@ export class RoleAssignedEvent extends RoleEvent {
 
   static __packValue__(object: RoleAssignedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 550;
+    objectValue["1"] = 20202;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -454,7 +454,7 @@ export class RoleAssignedEvent extends RoleEvent {
   }
 
   static __packProto__(object: RoleAssignedEvent): RoleAssignedEventProto {
-    const objectProto: Partial<RoleAssignedEventProto> = { metatype: 550 };
+    const objectProto: Partial<RoleAssignedEventProto> = { metatype: 20202 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -563,9 +563,9 @@ export class RoleAssignedEvent extends RoleEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE_ASSIGNED_EVENT, RoleAssignedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:550 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20202 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:551 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:20203 ==== */
 /**
  * A Event regarding a Role.
  */
@@ -806,7 +806,7 @@ export class RoleUnassignedEvent extends RoleEvent {
 
   static __packValue__(object: RoleUnassignedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 551;
+    objectValue["1"] = 20203;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -893,7 +893,7 @@ export class RoleUnassignedEvent extends RoleEvent {
   }
 
   static __packProto__(object: RoleUnassignedEvent): RoleUnassignedEventProto {
-    const objectProto: Partial<RoleUnassignedEventProto> = { metatype: 551 };
+    const objectProto: Partial<RoleUnassignedEventProto> = { metatype: 20203 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1002,9 +1002,9 @@ export class RoleUnassignedEvent extends RoleEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE_UNASSIGNED_EVENT, RoleUnassignedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:551 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20203 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:540 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:20200 ==== */
 /**
  * A Role for Subjects to take.
  */
@@ -1316,7 +1316,7 @@ export class Role
 
   static __packValue__(object: Role): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 540;
+    objectValue["1"] = 20200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1421,7 +1421,7 @@ export class Role
   }
 
   static __packProto__(object: Role): RoleProto {
-    const objectProto: Partial<RoleProto> = { metatype: 540 };
+    const objectProto: Partial<RoleProto> = { metatype: 20200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1540,4 +1540,4 @@ export class Role
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE, Role);
-/* ==== DESTACK_GENERATED_END:NODE:540 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20200 ==== */

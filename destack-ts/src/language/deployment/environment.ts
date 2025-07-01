@@ -25,7 +25,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:4500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:100000 ==== */
 /**
  * An Environment is a deployment of a Space.
  */
@@ -286,7 +286,7 @@ export class Environment extends Entity implements IsSpatial, HasName, HasIcon, 
 
   static __packValue__(object: Environment): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4500;
+    objectValue["1"] = 100000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -381,7 +381,7 @@ export class Environment extends Entity implements IsSpatial, HasName, HasIcon, 
   }
 
   static __packProto__(object: Environment): EnvironmentProto {
-    const objectProto: Partial<EnvironmentProto> = { metatype: 4500 };
+    const objectProto: Partial<EnvironmentProto> = { metatype: 100000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -492,4 +492,4 @@ export class Environment extends Entity implements IsSpatial, HasName, HasIcon, 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENVIRONMENT, Environment);
-/* ==== DESTACK_GENERATED_END:NODE:4500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:100000 ==== */

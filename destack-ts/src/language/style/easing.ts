@@ -1,7 +1,7 @@
 import { EnumType } from "@destack/language/core";
 import { registerEnumClass } from "@destack/language/registry";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12121 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:270225 ==== */
 /**
  * Easing
  */
@@ -32,4 +32,4 @@ export enum Easing {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EASING, Easing);
-/* ==== DESTACK_GENERATED_END:ENUM:12121 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:270225 ==== */

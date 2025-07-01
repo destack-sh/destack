@@ -47,7 +47,25 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:11011 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:250300 ==== */
+/**
+ * PolygonShapeType
+ */
+export enum PolygonShapeType {
+  RECTANGLE = 1,
+  TRIANGLE = 2,
+  CIRCLE = 3,
+  ELLIPSE = 4,
+  POLYGON = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.POLYGON_SHAPE_TYPE, PolygonShapeType);
+/* ==== DESTACK_GENERATED_END:ENUM:250300 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:250300 ==== */
 /**
  * A Polygon is a list of points.
  */
@@ -166,7 +184,7 @@ export class Polygon extends StructFrozen {
 
   static __packValue__(object: Polygon): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 11011;
+    objectValue["1"] = 250300;
     objectValue["30"] = object.type;
     if (object.points.length > 0) {
       const packedPoints: any[] = [];
@@ -218,7 +236,7 @@ export class Polygon extends StructFrozen {
   }
 
   static __packProto__(object: Polygon): PolygonProto {
-    const objectProto: Partial<PolygonProto> = { metatype: 11011 };
+    const objectProto: Partial<PolygonProto> = { metatype: 250300 };
     objectProto.type = Number(object.type) as PolygonShapeTypeProto;
     if (object.points) {
       const packedPoints: any[] = [];
@@ -272,27 +290,9 @@ export class Polygon extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.POLYGON, Polygon);
-/* ==== DESTACK_GENERATED_END:STRUCT:11011 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:250300 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
-/**
- * PolygonShapeType
- */
-export enum PolygonShapeType {
-  RECTANGLE = 1,
-  TRIANGLE = 2,
-  CIRCLE = 3,
-  ELLIPSE = 4,
-  POLYGON = 5,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.POLYGON_SHAPE_TYPE, PolygonShapeType);
-/* ==== DESTACK_GENERATED_END:ENUM:11010 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:11060 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:250300 ==== */
 /**
  * A PolygonShape is a shape that represents a polygon.
  */
@@ -1078,7 +1078,7 @@ export class PolygonShape extends Shape {
 
   static __packValue__(object: PolygonShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 11060;
+    objectValue["1"] = 250300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1407,7 +1407,7 @@ export class PolygonShape extends Shape {
   }
 
   static __packProto__(object: PolygonShape): PolygonShapeProto {
-    const objectProto: Partial<PolygonShapeProto> = { metatype: 11060 };
+    const objectProto: Partial<PolygonShapeProto> = { metatype: 250300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1706,4 +1706,4 @@ export class PolygonShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.POLYGON_SHAPE, PolygonShape);
-/* ==== DESTACK_GENERATED_END:NODE:11060 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:250300 ==== */

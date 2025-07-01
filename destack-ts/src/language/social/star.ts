@@ -18,7 +18,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:5560 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:120300 ==== */
 /**
  * A Star is a relationship between a Subject and a Starred Node.
  */
@@ -273,7 +273,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
 
   static __packValue__(object: Star): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 5560;
+    objectValue["1"] = 120300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -365,7 +365,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   }
 
   static __packProto__(object: Star): StarProto {
-    const objectProto: Partial<StarProto> = { metatype: 5560 };
+    const objectProto: Partial<StarProto> = { metatype: 120300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -475,4 +475,4 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR, Star);
-/* ==== DESTACK_GENERATED_END:NODE:5560 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:120300 ==== */

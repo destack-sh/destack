@@ -24,7 +24,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:4240 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90500 ==== */
 /**
  * A Gauge Metric.
  */
@@ -296,7 +296,7 @@ export class GaugeMetric extends Metric {
 
   static __packValue__(object: GaugeMetric): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4240;
+    objectValue["1"] = 90500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -384,7 +384,7 @@ export class GaugeMetric extends Metric {
   }
 
   static __packProto__(object: GaugeMetric): GaugeMetricProto {
-    const objectProto: Partial<GaugeMetricProto> = { metatype: 4240 };
+    const objectProto: Partial<GaugeMetricProto> = { metatype: 90500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -498,9 +498,9 @@ export class GaugeMetric extends Metric {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.GAUGE_METRIC, GaugeMetric);
-/* ==== DESTACK_GENERATED_END:NODE:4240 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4241 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90501 ==== */
 /**
  * A Gauge Measurement.
  */
@@ -741,7 +741,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
 
   static __packValue__(object: GaugeMeasurementEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4241;
+    objectValue["1"] = 90501;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -828,7 +828,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   }
 
   static __packProto__(object: GaugeMeasurementEvent): GaugeMeasurementEventProto {
-    const objectProto: Partial<GaugeMeasurementEventProto> = { metatype: 4241 };
+    const objectProto: Partial<GaugeMeasurementEventProto> = { metatype: 90501 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -937,9 +937,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.GAUGE_MEASUREMENT_EVENT, GaugeMeasurementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:4241 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90501 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4260 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90600 ==== */
 /**
  * A Counter Metric.
  */
@@ -1211,7 +1211,7 @@ export class CounterMetric extends Metric {
 
   static __packValue__(object: CounterMetric): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4260;
+    objectValue["1"] = 90600;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1299,7 +1299,7 @@ export class CounterMetric extends Metric {
   }
 
   static __packProto__(object: CounterMetric): CounterMetricProto {
-    const objectProto: Partial<CounterMetricProto> = { metatype: 4260 };
+    const objectProto: Partial<CounterMetricProto> = { metatype: 90600 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1413,9 +1413,9 @@ export class CounterMetric extends Metric {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COUNTER_METRIC, CounterMetric);
-/* ==== DESTACK_GENERATED_END:NODE:4260 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90600 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4261 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90601 ==== */
 /**
  * A Counter Measurement.
  */
@@ -1656,7 +1656,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
 
   static __packValue__(object: CounterMeasurementEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4261;
+    objectValue["1"] = 90601;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1743,7 +1743,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   }
 
   static __packProto__(object: CounterMeasurementEvent): CounterMeasurementEventProto {
-    const objectProto: Partial<CounterMeasurementEventProto> = { metatype: 4261 };
+    const objectProto: Partial<CounterMeasurementEventProto> = { metatype: 90601 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1852,9 +1852,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COUNTER_MEASUREMENT_EVENT, CounterMeasurementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:4261 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90601 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4280 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90700 ==== */
 /**
  * A Histogram Metric.
  */
@@ -2126,7 +2126,7 @@ export class HistogramMetric extends Metric {
 
   static __packValue__(object: HistogramMetric): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4280;
+    objectValue["1"] = 90700;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2214,7 +2214,7 @@ export class HistogramMetric extends Metric {
   }
 
   static __packProto__(object: HistogramMetric): HistogramMetricProto {
-    const objectProto: Partial<HistogramMetricProto> = { metatype: 4280 };
+    const objectProto: Partial<HistogramMetricProto> = { metatype: 90700 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2328,9 +2328,9 @@ export class HistogramMetric extends Metric {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.HISTOGRAM_METRIC, HistogramMetric);
-/* ==== DESTACK_GENERATED_END:NODE:4280 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90700 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4281 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90701 ==== */
 /**
  * A Histogram Measurement.
  */
@@ -2571,7 +2571,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
 
   static __packValue__(object: HistogramMeasurementEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4281;
+    objectValue["1"] = 90701;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2658,7 +2658,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   }
 
   static __packProto__(object: HistogramMeasurementEvent): HistogramMeasurementEventProto {
-    const objectProto: Partial<HistogramMeasurementEventProto> = { metatype: 4281 };
+    const objectProto: Partial<HistogramMeasurementEventProto> = { metatype: 90701 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2767,4 +2767,4 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.HISTOGRAM_MEASUREMENT_EVENT, HistogramMeasurementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:4281 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90701 ==== */

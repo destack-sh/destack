@@ -38,7 +38,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:10080 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:210200 ==== */
 /**
  * A label container View for form-like input views.
  */
@@ -764,7 +764,7 @@ export class LabelView extends ContainerView {
 
   static __packValue__(object: LabelView): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10080;
+    objectValue["1"] = 210200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1068,7 +1068,7 @@ export class LabelView extends ContainerView {
   }
 
   static __packProto__(object: LabelView): LabelViewProto {
-    const objectProto: Partial<LabelViewProto> = { metatype: 10080 };
+    const objectProto: Partial<LabelViewProto> = { metatype: 210200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1344,4 +1344,4 @@ export class LabelView extends ContainerView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LABEL_VIEW, LabelView);
-/* ==== DESTACK_GENERATED_END:NODE:10080 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:210200 ==== */

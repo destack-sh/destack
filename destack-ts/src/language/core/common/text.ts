@@ -9,7 +9,7 @@ import { TextProto, TextSpanProto, TextSpanTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:60004 ==== */
 /**
  * TextSpanType
  */
@@ -26,9 +26,9 @@ export enum TextSpanType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_SPAN_TYPE, TextSpanType);
-/* ==== DESTACK_GENERATED_END:ENUM:2521 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:60004 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2521 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:60021 ==== */
 /**
  * A span of text with optional formatting
  */
@@ -245,7 +245,7 @@ export class TextSpan extends StructFrozen {
 
   static __packValue__(object: TextSpan): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2521;
+    objectValue["1"] = 60021;
     objectValue["30"] = object.type;
     if (object.content != null) {
       objectValue["33"] = object.content;
@@ -334,7 +334,7 @@ export class TextSpan extends StructFrozen {
   }
 
   static __packProto__(object: TextSpan): TextSpanProto {
-    const objectProto: Partial<TextSpanProto> = { metatype: 2521 };
+    const objectProto: Partial<TextSpanProto> = { metatype: 60021 };
     objectProto.type = Number(object.type) as TextSpanTypeProto;
     if (object.content != null) {
       objectProto.content = object.content;
@@ -416,9 +416,9 @@ export class TextSpan extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TEXT_SPAN, TextSpan);
-/* ==== DESTACK_GENERATED_END:STRUCT:2521 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:60021 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2520 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:60020 ==== */
 /**
  * Rich Text; a single paragraph composed of TextSpans with inline formatting.
  */
@@ -586,7 +586,7 @@ export class Text extends StructFrozen {
 
   static __packValue__(object: Text): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2520;
+    objectValue["1"] = 60020;
     if (object.spans.length > 0) {
       const packedSpans: any[] = [];
       for (const item of object.spans) {
@@ -666,7 +666,7 @@ export class Text extends StructFrozen {
   }
 
   static __packProto__(object: Text): TextProto {
-    const objectProto: Partial<TextProto> = { metatype: 2520 };
+    const objectProto: Partial<TextProto> = { metatype: 60020 };
     if (object.spans) {
       const packedSpans: any[] = [];
       for (const item of object.spans) {
@@ -739,4 +739,4 @@ export class Text extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TEXT, Text);
-/* ==== DESTACK_GENERATED_END:STRUCT:2520 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:60020 ==== */

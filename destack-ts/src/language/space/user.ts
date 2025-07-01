@@ -31,7 +31,7 @@ import { base64Decode, base64Encode } from "@destack/utils";
 import { hashBool, hashBytes, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:10200 ==== */
 /**
  * UserStatus
  */
@@ -44,9 +44,9 @@ export enum UserStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.USER_STATUS, UserStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:20 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:10200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:40 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
 /**
  * A User is a human using Destack.
  */
@@ -470,7 +470,7 @@ export class User
 
   static __packValue__(object: User): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 40;
+    objectValue["1"] = 10200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -619,7 +619,7 @@ export class User
   }
 
   static __packProto__(object: User): UserProto {
-    const objectProto: Partial<UserProto> = { metatype: 40 };
+    const objectProto: Partial<UserProto> = { metatype: 10200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -787,4 +787,4 @@ export class User
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.USER, User);
-/* ==== DESTACK_GENERATED_END:NODE:40 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10200 ==== */

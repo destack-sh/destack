@@ -50,7 +50,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:9021 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:190101 ==== */
 /**
  * A Event regarding a Scene.
  */
@@ -118,9 +118,9 @@ export abstract class SceneEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
-/* ==== DESTACK_GENERATED_END:NODE:9021 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:190101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:9030 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:190102 ==== */
 /**
  * A Scene was entered.
  */
@@ -330,7 +330,7 @@ export class SceneEnteredEvent extends SceneEvent {
 
   static __packValue__(object: SceneEnteredEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9030;
+    objectValue["1"] = 190102;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -402,7 +402,7 @@ export class SceneEnteredEvent extends SceneEvent {
   }
 
   static __packProto__(object: SceneEnteredEvent): SceneEnteredEventProto {
-    const objectProto: Partial<SceneEnteredEventProto> = { metatype: 9030 };
+    const objectProto: Partial<SceneEnteredEventProto> = { metatype: 190102 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -498,9 +498,9 @@ export class SceneEnteredEvent extends SceneEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCENE_ENTERED_EVENT, SceneEnteredEvent);
-/* ==== DESTACK_GENERATED_END:NODE:9030 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:190102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:9031 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:190103 ==== */
 /**
  * A Scene was exited.
  */
@@ -710,7 +710,7 @@ export class SceneExitedEvent extends SceneEvent {
 
   static __packValue__(object: SceneExitedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9031;
+    objectValue["1"] = 190103;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -782,7 +782,7 @@ export class SceneExitedEvent extends SceneEvent {
   }
 
   static __packProto__(object: SceneExitedEvent): SceneExitedEventProto {
-    const objectProto: Partial<SceneExitedEventProto> = { metatype: 9031 };
+    const objectProto: Partial<SceneExitedEventProto> = { metatype: 190103 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -878,9 +878,9 @@ export class SceneExitedEvent extends SceneEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCENE_EXITED_EVENT, SceneExitedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:9031 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:190103 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:9020 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:190100 ==== */
 /**
  * A Scene is a container for a specific interaction point.
  */
@@ -1682,7 +1682,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
 
   static __packValue__(object: Scene): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9020;
+    objectValue["1"] = 190100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2013,7 +2013,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
   }
 
   static __packProto__(object: Scene): SceneProto {
-    const objectProto: Partial<SceneProto> = { metatype: 9020 };
+    const objectProto: Partial<SceneProto> = { metatype: 190100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2322,4 +2322,4 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCENE, Scene);
-/* ==== DESTACK_GENERATED_END:NODE:9020 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:190100 ==== */

@@ -41,7 +41,7 @@ import {
 import { hashBytes, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:60001 ==== */
 /**
  * FileSource
  */
@@ -55,9 +55,9 @@ export enum FileSource {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_SOURCE, FileSource);
-/* ==== DESTACK_GENERATED_END:ENUM:2541 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:60001 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2540 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:60000 ==== */
 /**
  * FileRetentionMode
  */
@@ -71,9 +71,9 @@ export enum FileRetentionMode {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_RETENTION_MODE, FileRetentionMode);
-/* ==== DESTACK_GENERATED_END:ENUM:2540 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:60000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2542 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:60002 ==== */
 /**
  * FileType
  */
@@ -94,9 +94,9 @@ export enum FileType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_TYPE, FileType);
-/* ==== DESTACK_GENERATED_END:ENUM:2542 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:60002 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2543 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:60003 ==== */
 /**
  * FileFormat
  */
@@ -193,9 +193,9 @@ export enum FileFormat {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_FORMAT, FileFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:2543 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:60003 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2540 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60000 ==== */
 /**
  * A File stored somewhere.
  */
@@ -746,7 +746,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
 
   static __packValue__(object: File): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2540;
+    objectValue["1"] = 60000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -946,7 +946,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
   }
 
   static __packProto__(object: File): FileProto {
-    const objectProto: Partial<FileProto> = { metatype: 2540 };
+    const objectProto: Partial<FileProto> = { metatype: 60000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1130,4 +1130,4 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FILE, File);
-/* ==== DESTACK_GENERATED_END:NODE:2540 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60000 ==== */

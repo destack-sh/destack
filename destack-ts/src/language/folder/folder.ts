@@ -35,7 +35,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:1000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:30000 ==== */
 /**
  * FolderType
  */
@@ -51,9 +51,9 @@ export enum FolderType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FOLDER_TYPE, FolderType);
-/* ==== DESTACK_GENERATED_END:ENUM:1000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:30000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:30000 ==== */
 /**
  * A Folder is a sub-space of a Space.
  */
@@ -444,7 +444,7 @@ export class Folder
 
   static __packValue__(object: Folder): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1000;
+    objectValue["1"] = 30000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -567,7 +567,7 @@ export class Folder
   }
 
   static __packProto__(object: Folder): FolderProto {
-    const objectProto: Partial<FolderProto> = { metatype: 1000 };
+    const objectProto: Partial<FolderProto> = { metatype: 30000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -712,4 +712,4 @@ export class Folder
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLDER, Folder);
-/* ==== DESTACK_GENERATED_END:NODE:1000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:30000 ==== */

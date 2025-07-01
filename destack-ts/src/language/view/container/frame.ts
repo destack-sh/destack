@@ -38,7 +38,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:10060 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:210100 ==== */
 /**
  * A frame container View.
  */
@@ -764,7 +764,7 @@ export class FrameView extends ContainerView {
 
   static __packValue__(object: FrameView): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10060;
+    objectValue["1"] = 210100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1068,7 +1068,7 @@ export class FrameView extends ContainerView {
   }
 
   static __packProto__(object: FrameView): FrameViewProto {
-    const objectProto: Partial<FrameViewProto> = { metatype: 10060 };
+    const objectProto: Partial<FrameViewProto> = { metatype: 210100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1344,4 +1344,4 @@ export class FrameView extends ContainerView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRAME_VIEW, FrameView);
-/* ==== DESTACK_GENERATED_END:NODE:10060 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:210100 ==== */

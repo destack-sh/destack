@@ -127,9 +127,10 @@ class ColorStyle(Style):
     dark: Color | None = property_(60)
 
     @staticmethod
-    def from_color(color: Color, dark: Color | None = None) -> "ColorStyle":
+    def from_color(name: str, color: Color, dark: Color | None = None) -> "ColorStyle":
         return ColorStyle(
             type=color.type,
+            name=name,
             hue=color.hue,
             shade=color.shade,
             x=color.x,
@@ -140,19 +141,22 @@ class ColorStyle(Style):
         )
 
     @staticmethod
-    def from_hex(hex: str, dark: str | None = None) -> "ColorStyle":
+    def from_hex(name: str, hex: str, dark: str | None = None) -> "ColorStyle":
         return ColorStyle.from_color(
+            name,
             Color.from_hex(hex),
             Color.from_hex(dark) if dark else None,
         )
 
     @staticmethod
     def from_hue(
+        name: str,
         hue: ColorHue,
         shade: ColorShade | None = None,
         dark_shade: ColorShade | None = None,
     ) -> "ColorStyle":
         return ColorStyle.from_color(
+            name,
             Color.from_hue(hue, shade),
             Color.from_hue(hue, dark_shade) if dark_shade else None,
         )
@@ -171,20 +175,6 @@ def to_color(color: ColorIn) -> Color:
     elif isinstance(color, str):
         r, g, b, a = hex_to_rgb(color)
         return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)
-    else:
-        assert_never(color)
-
-
-def to_color_style(color: ColorIn) -> ColorStyle:
-    if isinstance(color, Color):
-        return ColorStyle.from_color(color)
-    elif isinstance(color, ColorHue):
-        return ColorStyle(type=ColorType.BUILTIN, hue=color)
-    elif isinstance(color, ColorStyle):
-        return color
-    elif isinstance(color, str):
-        r, g, b, a = hex_to_rgb(color)
-        return ColorStyle(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)
     else:
         assert_never(color)
 

@@ -29,7 +29,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:5500 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:120000 ==== */
 /**
  * ThreadStatus
  */
@@ -42,9 +42,9 @@ export enum ThreadStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.THREAD_STATUS, ThreadStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:5500 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:120000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:5500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:120000 ==== */
 /**
  * A Thread for communicating with Messages.
  * Threads may be nested to organize conversations and work.
@@ -327,7 +327,7 @@ export class Thread
 
   static __packValue__(object: Thread): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 5500;
+    objectValue["1"] = 120000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -422,7 +422,7 @@ export class Thread
   }
 
   static __packProto__(object: Thread): ThreadProto {
-    const objectProto: Partial<ThreadProto> = { metatype: 5500 };
+    const objectProto: Partial<ThreadProto> = { metatype: 120000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -539,4 +539,4 @@ export class Thread
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THREAD, Thread);
-/* ==== DESTACK_GENERATED_END:NODE:5500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:120000 ==== */

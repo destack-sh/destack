@@ -5,7 +5,7 @@ import { GalaxyInfoProto, RegionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:160101 ==== */
 /**
  * GalaxyInfo
  */
@@ -132,7 +132,7 @@ export class GalaxyInfo extends StructFrozen {
 
   static __packValue__(object: GalaxyInfo): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 7601;
+    objectValue["1"] = 160101;
     objectValue["50"] = object.region;
     objectValue["51"] = object.name;
     objectValue["52"] = object.host;
@@ -174,7 +174,7 @@ export class GalaxyInfo extends StructFrozen {
   }
 
   static __packProto__(object: GalaxyInfo): GalaxyInfoProto {
-    const objectProto: Partial<GalaxyInfoProto> = { metatype: 7601 };
+    const objectProto: Partial<GalaxyInfoProto> = { metatype: 160101 };
     objectProto.region = Number(object.region) as RegionProto;
     objectProto.name = object.name;
     objectProto.host = object.host;
@@ -218,4 +218,4 @@ export class GalaxyInfo extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GALAXY_INFO, GalaxyInfo);
-/* ==== DESTACK_GENERATED_END:STRUCT:7601 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:160101 ==== */

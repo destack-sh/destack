@@ -26,7 +26,7 @@ import { Border, Fill, Shadow } from "@destack/language/style";
 import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:210000 ==== */
 /**
  * A container View contains other Views.
  */
@@ -266,4 +266,4 @@ export abstract class ContainerView extends View {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CONTAINER_VIEW, ContainerView);
-/* ==== DESTACK_GENERATED_END:NODE:10000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:210000 ==== */

@@ -41,7 +41,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:11011 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:250400 ==== */
 /**
  * ArrowHeadType
  */
@@ -55,9 +55,9 @@ export enum ArrowHeadType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
-/* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:250400 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:11080 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:250400 ==== */
 /**
  * An ArrowShape is a shape that represents an arrow.
  */
@@ -843,7 +843,7 @@ export class ArrowShape extends Shape {
 
   static __packValue__(object: ArrowShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 11080;
+    objectValue["1"] = 250400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1155,7 +1155,7 @@ export class ArrowShape extends Shape {
   }
 
   static __packProto__(object: ArrowShape): ArrowShapeProto {
-    const objectProto: Partial<ArrowShapeProto> = { metatype: 11080 };
+    const objectProto: Partial<ArrowShapeProto> = { metatype: 250400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1439,4 +1439,4 @@ export class ArrowShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ARROW_SHAPE, ArrowShape);
-/* ==== DESTACK_GENERATED_END:NODE:11080 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:250400 ==== */

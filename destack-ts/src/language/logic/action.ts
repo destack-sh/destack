@@ -32,7 +32,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:3020 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:70200 ==== */
 /**
  * ActionCardinality
  */
@@ -44,9 +44,9 @@ export enum ActionCardinality {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
-/* ==== DESTACK_GENERATED_END:ENUM:3020 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:70200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:3040 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:70200 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
@@ -396,7 +396,7 @@ export class Action
 
   static __packValue__(object: Action): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3040;
+    objectValue["1"] = 70200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -521,7 +521,7 @@ export class Action
   }
 
   static __packProto__(object: Action): ActionProto {
-    const objectProto: Partial<ActionProto> = { metatype: 3040 };
+    const objectProto: Partial<ActionProto> = { metatype: 70200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -665,4 +665,4 @@ export class Action
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);
-/* ==== DESTACK_GENERATED_END:NODE:3040 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:70200 ==== */

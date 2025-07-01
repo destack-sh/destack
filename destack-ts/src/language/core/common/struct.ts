@@ -28,7 +28,238 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:2500 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:153 ==== */
+/**
+ * A CustomStruct is an instance of a CustomStructDefinition.
+ */
+export class CustomStruct extends Struct {
+  static metatype: StructType = StructType.CUSTOM_STRUCT;
+  static __isFrozen__: boolean = false;
+
+  /**
+   * definition
+   */
+  get definition(): CustomStructDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as CustomStructDefinition;
+    }
+    return null;
+  }
+  set definition(value: CustomStructDefinition) {
+    this.definitionPtr = value.toRef();
+  }
+  definitionPtr: NodeReference;
+
+  /**
+   * CustomStruct.value
+   */
+  value: Map<string, Value>;
+
+  constructor(options: {
+    definition: CustomStructDefinition | NodeReference;
+    value?: Map<string, Value>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _definition = options.definition;
+    if (_definition != null && _definition instanceof Node) {
+      _definition = _definition.toRef();
+    }
+    if (_definition === null) {
+      throw new Error(`CustomStruct.definition is required`);
+    }
+    this.definitionPtr = _definition;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      _value = new Map();
+    }
+    this.value = _value;
+
+    // identity
+    // ...
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<CustomStruct>`;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    return CustomStruct.__packValue__(this);
+  }
+
+  static __packValue__(object: CustomStruct): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 153;
+    objectValue["6"] = object.definitionPtr.toValue();
+    if (object.value.size > 0) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of object.value) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomStruct {
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new CustomStruct({
+      definition: NodeReference.fromValue(
+        objectValue["6"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      value: unpackedValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomStruct {
+    return CustomStruct.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): CustomStructProto {
+    return CustomStruct.__packProto__(this);
+  }
+
+  static __packProto__(object: CustomStruct): CustomStructProto {
+    const objectProto: Partial<CustomStructProto> = { metatype: 153 };
+    objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.value) {
+      objectProto.value = {};
+      for (const [key, value] of object.value) {
+        objectProto.value![String(key)] = value.toProto();
+      }
+    }
+    return objectProto as CustomStructProto;
+  }
+
+  static __unpackProto__(
+    objectProto: CustomStructProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomStruct {
+    const unpackedValue = new Map();
+    if (objectProto.value) {
+      for (const [key, value] of Object.entries(objectProto.value)) {
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new CustomStruct({
+      definition: NodeReference.fromProto(
+        objectProto.definitionPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      value: unpackedValue,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: CustomStructProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomStruct {
+    return CustomStruct.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): CustomStruct {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CustomStructProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.CUSTOM_STRUCT, CustomStruct);
+/* ==== DESTACK_GENERATED_END:STRUCT:153 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:300 ==== */
 /**
  * A CustomStructDefinition describes a custom Struct with custom Properties.
  */
@@ -393,7 +624,7 @@ export class CustomStructDefinition
 
   static __packValue__(object: CustomStructDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2500;
+    objectValue["1"] = 300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -546,7 +777,7 @@ export class CustomStructDefinition
   }
 
   static __packProto__(object: CustomStructDefinition): CustomStructDefinitionProto {
-    const objectProto: Partial<CustomStructDefinitionProto> = { metatype: 2500 };
+    const objectProto: Partial<CustomStructDefinitionProto> = { metatype: 300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -720,239 +951,4 @@ export class CustomStructDefinition
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_STRUCT_DEFINITION, CustomStructDefinition);
-/* ==== DESTACK_GENERATED_END:NODE:2500 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:50110 ==== */
-/**
- * A CustomStruct is an instance of a CustomStructDefinition.
- */
-export class CustomStruct extends Struct {
-  static metatype: StructType = StructType.CUSTOM_STRUCT;
-  static __isFrozen__: boolean = false;
-
-  /**
-   * definition
-   */
-  get definition(): CustomStructDefinition | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as CustomStructDefinition;
-    }
-    return null;
-  }
-  set definition(value: CustomStructDefinition) {
-    if (value == null) {
-      this.definitionPtr = null;
-    } else {
-      this.definitionPtr = value.toRef();
-    }
-  }
-  definitionPtr: NodeReference;
-
-  /**
-   * CustomStruct.value
-   */
-  value: Map<string, Value>;
-
-  constructor(options: {
-    definition: CustomStructDefinition | NodeReference;
-    value?: Map<string, Value>;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _definition = options.definition;
-    if (_definition != null && _definition instanceof Node) {
-      _definition = _definition.toRef();
-    }
-    if (_definition === null) {
-      throw new Error(`CustomStruct.definition is required`);
-    }
-    this.definitionPtr = _definition;
-    let _value = options.value ?? null;
-    if (_value === null) {
-      _value = new Map();
-    }
-    this.value = _value;
-
-    // identity
-    // ...
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
-      return false;
-    }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
-      return false;
-    }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
-        return false;
-      }
-      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  repr(): string {
-    return `<CustomStruct>`;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    return CustomStruct.__packValue__(this);
-  }
-
-  static __packValue__(object: CustomStruct): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50110;
-    objectValue["6"] = object.definitionPtr.toValue();
-    if (object.value.size > 0) {
-      const packedValue: { [key: string]: any } = {};
-      for (const [key, value] of object.value) {
-        packedValue[String(String(key))] = value.toValue();
-      }
-      objectValue["21"] = packedValue;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): CustomStruct {
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
-          String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    return new CustomStruct({
-      definition: NodeReference.fromValue(
-        objectValue["6"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      value: unpackedValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): CustomStruct {
-    return CustomStruct.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): CustomStructProto {
-    return CustomStruct.__packProto__(this);
-  }
-
-  static __packProto__(object: CustomStruct): CustomStructProto {
-    const objectProto: Partial<CustomStructProto> = { metatype: 50110 };
-    objectProto.definitionPtr = object.definitionPtr.toProto();
-    if (object.value) {
-      objectProto.value = {};
-      for (const [key, value] of object.value) {
-        objectProto.value![String(key)] = value.toProto();
-      }
-    }
-    return objectProto as CustomStructProto;
-  }
-
-  static __unpackProto__(
-    objectProto: CustomStructProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): CustomStruct {
-    const unpackedValue = new Map();
-    if (objectProto.value) {
-      for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(
-          String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    return new CustomStruct({
-      definition: NodeReference.fromProto(
-        objectProto.definitionPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      value: unpackedValue,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: CustomStructProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): CustomStruct {
-    return CustomStruct.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): CustomStruct {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CustomStructProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.CUSTOM_STRUCT, CustomStruct);
-/* ==== DESTACK_GENERATED_END:STRUCT:50110 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:300 ==== */

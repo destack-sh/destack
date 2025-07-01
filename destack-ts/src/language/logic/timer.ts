@@ -31,7 +31,22 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:3101 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:70503 ==== */
+/**
+ * TimerType
+ */
+export enum TimerType {
+  ONCE = 1,
+  RECURRING = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.TIMER_TYPE, TimerType);
+/* ==== DESTACK_GENERATED_END:ENUM:70503 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:70501 ==== */
 /**
  * A TimerEvent is an Event that corresponds to a Timer.
  */
@@ -99,24 +114,9 @@ export abstract class TimerEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_EVENT, TimerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:3101 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:70501 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:3053 ==== */
-/**
- * TimerType
- */
-export enum TimerType {
-  ONCE = 1,
-  RECURRING = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.TIMER_TYPE, TimerType);
-/* ==== DESTACK_GENERATED_END:ENUM:3053 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:3110 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:70502 ==== */
 /**
  * A Timer was started.
  */
@@ -326,7 +326,7 @@ export class TimerStartedEvent extends TimerEvent {
 
   static __packValue__(object: TimerStartedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3110;
+    objectValue["1"] = 70502;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -398,7 +398,7 @@ export class TimerStartedEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerStartedEvent): TimerStartedEventProto {
-    const objectProto: Partial<TimerStartedEventProto> = { metatype: 3110 };
+    const objectProto: Partial<TimerStartedEventProto> = { metatype: 70502 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -494,9 +494,9 @@ export class TimerStartedEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_STARTED_EVENT, TimerStartedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:3110 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:70502 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:3111 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:70503 ==== */
 /**
  * A Timer was completed.
  */
@@ -706,7 +706,7 @@ export class TimerCompletedEvent extends TimerEvent {
 
   static __packValue__(object: TimerCompletedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3111;
+    objectValue["1"] = 70503;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -778,7 +778,7 @@ export class TimerCompletedEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerCompletedEvent): TimerCompletedEventProto {
-    const objectProto: Partial<TimerCompletedEventProto> = { metatype: 3111 };
+    const objectProto: Partial<TimerCompletedEventProto> = { metatype: 70503 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -874,9 +874,389 @@ export class TimerCompletedEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_COMPLETED_EVENT, TimerCompletedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:3111 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:70503 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:3100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:70504 ==== */
+/**
+ * A Timer was cancelled.
+ */
+export class TimerCancelledEvent extends TimerEvent {
+  static metatype: NodeType = NodeType.TIMER_CANCELLED_EVENT;
+
+  /**
+   * Node.parent
+   */
+  get parent(): Node | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * TimerEvent.node
+   */
+  get node(): Timer | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Timer | null;
+    }
+    return null;
+  }
+  set node(node: Timer) {
+    this.nodePtr = node.toRef();
+  }
+  nodePtr: NodeReference;
+
+  constructor(options: {
+    id?: string;
+    parent?: Node | NodeReference | null;
+    space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    node: Timer | NodeReference;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`TimerCancelledEvent.node is required`);
+    }
+    this.nodePtr = _node;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+    } else {
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    return new NodeReference({
+      nodeType: NodeType.TIMER_CANCELLED_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "TimerCancelledEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<TimerCancelledEvent '${this.path}'>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return TimerCancelledEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: TimerCancelledEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 70504;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["35"] = object.nodePtr.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TimerCancelledEvent {
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new TimerCancelledEvent({
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TimerCancelledEvent {
+    return TimerCancelledEvent.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): TimerCancelledEventProto {
+    return TimerCancelledEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: TimerCancelledEvent): TimerCancelledEventProto {
+    const objectProto: Partial<TimerCancelledEventProto> = { metatype: 70504 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    return objectProto as TimerCancelledEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: TimerCancelledEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TimerCancelledEvent {
+    return new TimerCancelledEvent({
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: TimerCancelledEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TimerCancelledEvent {
+    return TimerCancelledEvent.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): TimerCancelledEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TimerCancelledEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.TIMER_CANCELLED_EVENT, TimerCancelledEvent);
+/* ==== DESTACK_GENERATED_END:NODE:70504 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:70500 ==== */
 /**
  * A Timer.
  */
@@ -1141,7 +1521,7 @@ export class Timer extends Entity implements IsSpatial, HasName {
 
   static __packValue__(object: Timer): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3100;
+    objectValue["1"] = 70500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1229,7 +1609,7 @@ export class Timer extends Entity implements IsSpatial, HasName {
   }
 
   static __packProto__(object: Timer): TimerProto {
-    const objectProto: Partial<TimerProto> = { metatype: 3100 };
+    const objectProto: Partial<TimerProto> = { metatype: 70500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1337,384 +1717,4 @@ export class Timer extends Entity implements IsSpatial, HasName {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER, Timer);
-/* ==== DESTACK_GENERATED_END:NODE:3100 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:3112 ==== */
-/**
- * A Timer was cancelled.
- */
-export class TimerCancelledEvent extends TimerEvent {
-  static metatype: NodeType = NodeType.TIMER_CANCELLED_EVENT;
-
-  /**
-   * Node.parent
-   */
-  get parent(): Node | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly spacePtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * TimerEvent.node
-   */
-  get node(): Timer | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Timer | null;
-    }
-    return null;
-  }
-  set node(node: Timer) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
-
-  constructor(options: {
-    id?: string;
-    parent?: Node | NodeReference | null;
-    space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    node: Timer | NodeReference;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
-    }
-    this.spacePtr = _space;
-    let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
-    }
-    if (_node === null) {
-      throw new Error(`TimerCancelledEvent.node is required`);
-    }
-    this.nodePtr = _node;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-    } else {
-      if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.nodePtr.id === other.nodePtr.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    return new NodeReference({
-      nodeType: NodeType.TIMER_CANCELLED_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return "TimerCancelledEvent[id={this.id}]";
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      node = node.parent;
-    }
-    if (!this._isAttached) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    return `<TimerCancelledEvent '${this.path}'>`;
-  }
-
-  toValue(): { [key: string]: any } {
-    return TimerCancelledEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: TimerCancelledEvent): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3112;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["35"] = object.nodePtr.toValue();
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): TimerCancelledEvent {
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new TimerCancelledEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): TimerCancelledEvent {
-    return TimerCancelledEvent.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): TimerCancelledEventProto {
-    return TimerCancelledEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: TimerCancelledEvent): TimerCancelledEventProto {
-    const objectProto: Partial<TimerCancelledEventProto> = { metatype: 3112 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.nodePtr = object.nodePtr.toProto();
-    return objectProto as TimerCancelledEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: TimerCancelledEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): TimerCancelledEvent {
-    return new TimerCancelledEvent({
-      node: NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: TimerCancelledEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): TimerCancelledEvent {
-    return TimerCancelledEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): TimerCancelledEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = TimerCancelledEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.TIMER_CANCELLED_EVENT, TimerCancelledEvent);
-/* ==== DESTACK_GENERATED_END:NODE:3112 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:70500 ==== */

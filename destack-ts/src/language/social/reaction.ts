@@ -18,7 +18,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:5540 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:120200 ==== */
 /**
  * A Reaction is a relationship between a Subject and a Reaction Node.
  */
@@ -293,7 +293,7 @@ export class Reaction
 
   static __packValue__(object: Reaction): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 5540;
+    objectValue["1"] = 120200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -387,7 +387,7 @@ export class Reaction
   }
 
   static __packProto__(object: Reaction): ReactionProto {
-    const objectProto: Partial<ReactionProto> = { metatype: 5540 };
+    const objectProto: Partial<ReactionProto> = { metatype: 120200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -499,4 +499,4 @@ export class Reaction
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.REACTION, Reaction);
-/* ==== DESTACK_GENERATED_END:NODE:5540 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:120200 ==== */

@@ -27,7 +27,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:203 ==== */
 /**
  * Origin of something.
  */
@@ -158,7 +158,7 @@ export class Origin extends StructFrozen {
 
   static __packValue__(object: Origin): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50001;
+    objectValue["1"] = 203;
     objectValue["30"] = object.type;
     if (object.id != null) {
       objectValue["31"] = String(object.id);
@@ -214,7 +214,7 @@ export class Origin extends StructFrozen {
   }
 
   static __packProto__(object: Origin): OriginProto {
-    const objectProto: Partial<OriginProto> = { metatype: 50001 };
+    const objectProto: Partial<OriginProto> = { metatype: 203 };
     objectProto.type = Number(object.type) as ClientTypeProto;
     if (object.id != null) {
       objectProto.id = String(object.id);
@@ -266,9 +266,9 @@ export class Origin extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ORIGIN, Origin);
-/* ==== DESTACK_GENERATED_END:STRUCT:50001 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:203 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10700 ==== */
 /**
  * A Client to connect with the system.
  */
@@ -707,7 +707,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
 
   static __packValue__(object: Client): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 200;
+    objectValue["1"] = 10700;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -867,7 +867,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
   }
 
   static __packProto__(object: Client): ClientProto {
-    const objectProto: Partial<ClientProto> = { metatype: 200 };
+    const objectProto: Partial<ClientProto> = { metatype: 10700 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1033,4 +1033,4 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CLIENT, Client);
-/* ==== DESTACK_GENERATED_END:NODE:200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10700 ==== */

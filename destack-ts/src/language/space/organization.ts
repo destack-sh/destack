@@ -28,7 +28,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:40 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:10500 ==== */
 /**
  * OrganizationStatus
  */
@@ -41,9 +41,9 @@ export enum OrganizationStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:40 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:10500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10500 ==== */
 /**
  * An Organization with Users and Teams.
  */
@@ -346,7 +346,7 @@ export class Organization
 
   static __packValue__(object: Organization): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 100;
+    objectValue["1"] = 10500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -438,7 +438,7 @@ export class Organization
   }
 
   static __packProto__(object: Organization): OrganizationProto {
-    const objectProto: Partial<OrganizationProto> = { metatype: 100 };
+    const objectProto: Partial<OrganizationProto> = { metatype: 10500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -556,4 +556,4 @@ export class Organization
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ORGANIZATION, Organization);
-/* ==== DESTACK_GENERATED_END:NODE:100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10500 ==== */

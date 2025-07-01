@@ -35,7 +35,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:1 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:10001 ==== */
 /**
  * SpaceStatus
  */
@@ -50,9 +50,9 @@ export enum SpaceStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:1 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:10001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:1 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
 /**
  * A Space is the home of your personal software studio.
  */
@@ -496,7 +496,7 @@ export class Space
 
   static __packValue__(object: Space): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1;
+    objectValue["1"] = 10000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -639,7 +639,7 @@ export class Space
   }
 
   static __packProto__(object: Space): SpaceProto {
-    const objectProto: Partial<SpaceProto> = { metatype: 1 };
+    const objectProto: Partial<SpaceProto> = { metatype: 10000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -820,4 +820,4 @@ export class Space
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPACE, Space);
-/* ==== DESTACK_GENERATED_END:NODE:1 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10000 ==== */

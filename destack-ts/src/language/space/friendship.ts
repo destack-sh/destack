@@ -30,7 +30,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:60 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10300 ==== */
 /**
  * A Friendship between two Users.
  */
@@ -265,7 +265,7 @@ export class Friendship extends Entity implements IsGlobal {
 
   static __packValue__(object: Friendship): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60;
+    objectValue["1"] = 10300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -335,7 +335,7 @@ export class Friendship extends Entity implements IsGlobal {
   }
 
   static __packProto__(object: Friendship): FriendshipProto {
-    const objectProto: Partial<FriendshipProto> = { metatype: 60 };
+    const objectProto: Partial<FriendshipProto> = { metatype: 10300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -435,9 +435,9 @@ export class Friendship extends Entity implements IsGlobal {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP, Friendship);
-/* ==== DESTACK_GENERATED_END:NODE:60 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:81 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10401 ==== */
 /**
  * A Event regarding a Friendship Invite.
  */
@@ -505,9 +505,9 @@ export abstract class FriendshipInviteEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE_EVENT, FriendshipInviteEvent);
-/* ==== DESTACK_GENERATED_END:NODE:81 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10401 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:90 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10402 ==== */
 /**
  * A FriendshipInvite was sent.
  */
@@ -717,7 +717,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
 
   static __packValue__(object: FriendshipInviteSentEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 90;
+    objectValue["1"] = 10402;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -789,7 +789,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   }
 
   static __packProto__(object: FriendshipInviteSentEvent): FriendshipInviteSentEventProto {
-    const objectProto: Partial<FriendshipInviteSentEventProto> = { metatype: 90 };
+    const objectProto: Partial<FriendshipInviteSentEventProto> = { metatype: 10402 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -885,9 +885,9 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE_SENT_EVENT, FriendshipInviteSentEvent);
-/* ==== DESTACK_GENERATED_END:NODE:90 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10402 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:91 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10403 ==== */
 /**
  * A FriendshipInvite was rescinded.
  */
@@ -1097,7 +1097,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
 
   static __packValue__(object: FriendshipInviteRescindedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 91;
+    objectValue["1"] = 10403;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1171,7 +1171,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   static __packProto__(
     object: FriendshipInviteRescindedEvent,
   ): FriendshipInviteRescindedEventProto {
-    const objectProto: Partial<FriendshipInviteRescindedEventProto> = { metatype: 91 };
+    const objectProto: Partial<FriendshipInviteRescindedEventProto> = { metatype: 10403 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1267,9 +1267,9 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT, FriendshipInviteRescindedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:91 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10403 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:92 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10404 ==== */
 /**
  * A FriendshipInvite was accepted.
  */
@@ -1479,7 +1479,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
 
   static __packValue__(object: FriendshipInviteAcceptedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 92;
+    objectValue["1"] = 10404;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1551,7 +1551,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   }
 
   static __packProto__(object: FriendshipInviteAcceptedEvent): FriendshipInviteAcceptedEventProto {
-    const objectProto: Partial<FriendshipInviteAcceptedEventProto> = { metatype: 92 };
+    const objectProto: Partial<FriendshipInviteAcceptedEventProto> = { metatype: 10404 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1647,9 +1647,9 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT, FriendshipInviteAcceptedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:92 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10404 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:93 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10405 ==== */
 /**
  * A FriendshipInvite was rejected.
  */
@@ -1859,7 +1859,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
 
   static __packValue__(object: FriendshipInviteRejectedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 93;
+    objectValue["1"] = 10405;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1931,7 +1931,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   }
 
   static __packProto__(object: FriendshipInviteRejectedEvent): FriendshipInviteRejectedEventProto {
-    const objectProto: Partial<FriendshipInviteRejectedEventProto> = { metatype: 93 };
+    const objectProto: Partial<FriendshipInviteRejectedEventProto> = { metatype: 10405 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2027,9 +2027,9 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE_REJECTED_EVENT, FriendshipInviteRejectedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:93 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10405 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:80 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10400 ==== */
 /**
  * An invite to be friends with another User.
  */
@@ -2241,7 +2241,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
 
   static __packValue__(object: FriendshipInvite): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 80;
+    objectValue["1"] = 10400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2321,7 +2321,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   }
 
   static __packProto__(object: FriendshipInvite): FriendshipInviteProto {
-    const objectProto: Partial<FriendshipInviteProto> = { metatype: 80 };
+    const objectProto: Partial<FriendshipInviteProto> = { metatype: 10400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2419,4 +2419,4 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE, FriendshipInvite);
-/* ==== DESTACK_GENERATED_END:NODE:80 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10400 ==== */

@@ -31,100 +31,7 @@ import { base64Decode } from "@destack/utils";
 import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12020 ==== */
-/**
- * ColorType
- */
-export enum ColorType {
-  BUILTIN = 1,
-  RGB = 10,
-  HSL = 11,
-  P3 = 12,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.COLOR_TYPE, ColorType);
-/* ==== DESTACK_GENERATED_END:ENUM:12020 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12022 ==== */
-/**
- * ColorHue
- */
-export enum ColorHue {
-  GRAY = 30,
-  RED = 31,
-  ORANGE = 32,
-  AMBER = 33,
-  YELLOW = 34,
-  LIME = 35,
-  GREEN = 36,
-  EMERALD = 37,
-  TEAL = 38,
-  CYAN = 39,
-  SKY = 40,
-  BLUE = 41,
-  INDIGO = 42,
-  VIOLET = 43,
-  PURPLE = 44,
-  FUCHSIA = 45,
-  PINK = 46,
-  ROSE = 47,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.COLOR_HUE, ColorHue);
-/* ==== DESTACK_GENERATED_END:ENUM:12022 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12021 ==== */
-/**
- * ColorShade
- */
-export enum ColorShade {
-  S25 = 25,
-  S50 = 50,
-  S100 = 100,
-  S200 = 200,
-  S300 = 300,
-  S400 = 400,
-  S500 = 500,
-  S600 = 600,
-  S700 = 700,
-  S800 = 800,
-  S900 = 900,
-  S950 = 950,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.COLOR_SHADE, ColorShade);
-/* ==== DESTACK_GENERATED_END:ENUM:12021 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12023 ==== */
-/**
- * ColorIntent
- */
-export enum ColorIntent {
-  PRIMARY = 1,
-  SECONDARY = 2,
-  NEUTRAL = 3,
-  SUCCESS = 10,
-  INFO = 11,
-  WARNING = 12,
-  ERROR = 13,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.COLOR_INTENT, ColorIntent);
-/* ==== DESTACK_GENERATED_END:ENUM:12023 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:12011 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270200 ==== */
 /**
  * A color value.
  */
@@ -381,7 +288,7 @@ export class Color extends StructFrozen {
 
   static __packValue__(object: Color): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12011;
+    objectValue["1"] = 270200;
     objectValue["30"] = object.type;
     if (object.stylePtr != null) {
       objectValue["42"] = object.stylePtr.toValue();
@@ -470,7 +377,7 @@ export class Color extends StructFrozen {
   }
 
   static __packProto__(object: Color): ColorProto {
-    const objectProto: Partial<ColorProto> = { metatype: 12011 };
+    const objectProto: Partial<ColorProto> = { metatype: 270200 };
     objectProto.type = Number(object.type) as ColorTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -547,13 +454,22 @@ export class Color extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  static fromHex(hex: string): Color {
+    const [r, g, b, a] = hexToRgb(hex);
+    return new Color({ type: ColorType.RGB, x: r, y: g, z: b, alpha: a });
+  }
+
+  static fromHue(hue: ColorHue, shade?: ColorShade | null): Color {
+    return new Color({ type: ColorType.BUILTIN, hue, shade });
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.COLOR, Color);
-/* ==== DESTACK_GENERATED_END:STRUCT:12011 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12060 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270200 ==== */
 /**
  * A color style, with an optional dark variant.
  */
@@ -977,7 +893,7 @@ export class ColorStyle extends Style {
 
   static __packValue__(object: ColorStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12060;
+    objectValue["1"] = 270200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1118,7 +1034,7 @@ export class ColorStyle extends Style {
   }
 
   static __packProto__(object: ColorStyle): ColorStyleProto {
-    const objectProto: Partial<ColorStyleProto> = { metatype: 12060 };
+    const objectProto: Partial<ColorStyleProto> = { metatype: 270200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1257,8 +1173,309 @@ export class ColorStyle extends Style {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  static fromColor(options: { name: string; color: Color; dark?: Color | null }): ColorStyle {
+    return new ColorStyle({
+      name: options.name,
+      type: options.color.type,
+      hue: options.color.hue,
+      shade: options.color.shade,
+      intent: options.color.intent,
+      x: options.color.x,
+      y: options.color.y,
+      z: options.color.z,
+      alpha: options.color.alpha,
+      dark: options.dark ?? null,
+    });
+  }
+
+  static fromHex(options: { name: string; hex: string; dark?: string | null }): ColorStyle {
+    return ColorStyle.fromColor({
+      name: options.name,
+      color: Color.fromHex(options.hex),
+      dark: options.dark ? Color.fromHex(options.dark) : null,
+    });
+  }
+
+  static fromHue(options: {
+    name: string;
+    hue: ColorHue;
+    shade?: ColorShade | null;
+    darkShade?: ColorShade | null;
+  }): ColorStyle {
+    return ColorStyle.fromColor({
+      name: options.name,
+      color: Color.fromHue(options.hue, options.shade ?? null),
+      dark: options.darkShade ? Color.fromHue(options.hue, options.darkShade) : null,
+    });
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COLOR_STYLE, ColorStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12060 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270200 ==== */
+
+/** y-encoded sRGB → linear */
+function srgbToLinear(c: number): number {
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+/** linear → y-encoded sRGB */
+function linearToSrgb(c: number): number {
+  return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+}
+
+/** avoid tiny negatives after matrices */
+function clamp01(x: number): number {
+  return Math.max(0.0, Math.min(1.0, x));
+}
+
+const SRGB_TO_XYZ = [
+  [0.4124564, 0.3575761, 0.1804375],
+  [0.2126729, 0.7151522, 0.072175],
+  [0.0193339, 0.119192, 0.9503041],
+] as const;
+
+const XYZ_TO_SRGB = [
+  [3.2406, -1.5372, -0.4986],
+  [-0.9689, 1.8758, 0.0415],
+  [0.0557, -0.204, 1.057],
+] as const;
+
+const P3_TO_XYZ = [
+  [0.48657095, 0.26566769, 0.19821729],
+  [0.22897456, 0.69173852, 0.07928691],
+  [0.0, 0.04511338, 1.04394437],
+] as const;
+
+const XYZ_TO_P3 = [
+  [2.49349691, -0.93138362, -0.40271078],
+  [-0.82948897, 1.762664, 0.02362468],
+  [0.03584583, -0.07617239, 0.95688452],
+] as const;
+
+/** Hex → linear-space floats 0-1 (optional alpha) */
+export function hexToRgb(hex: string): [number, number, number, number | null] {
+  if (hex.length === 6) {
+    const r = parseInt(hex.slice(0, 2), 16) / 255.0;
+    const g = parseInt(hex.slice(2, 4), 16) / 255.0;
+    const b = parseInt(hex.slice(4, 6), 16) / 255.0;
+    return [r, g, b, null];
+  } else if (hex.length === 8) {
+    const r = parseInt(hex.slice(0, 2), 16) / 255.0;
+    const g = parseInt(hex.slice(2, 4), 16) / 255.0;
+    const b = parseInt(hex.slice(4, 6), 16) / 255.0;
+    const a = parseInt(hex.slice(6, 8), 16) / 255.0;
+    return [r, g, b, a];
+  } else {
+    throw new Error(`invalid hex color: ${hex}`);
+  }
+}
+
+/** 8-bit sRGB → hex */
+export function rgbToHex(r: number, g: number, b: number, a?: number): string {
+  if (a === undefined) {
+    return `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  } else {
+    return `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}${a.toString(16).padStart(2, "0")}`;
+  }
+}
+
+/** 8-bit sRGB → HSL (h° 0-360, s|l 0-1) */
+export function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  const rF = r / 255.0;
+  const gF = g / 255.0;
+  const bF = b / 255.0;
+  const cMax = Math.max(rF, gF, bF);
+  const cMin = Math.min(rF, gF, bF);
+  const delta = cMax - cMin;
+
+  let h: number;
+  if (delta === 0) {
+    h = 0.0;
+  } else if (cMax === rF) {
+    h = ((gF - bF) / delta) % 6;
+  } else if (cMax === gF) {
+    h = (bF - rF) / delta + 2;
+  } else {
+    h = (rF - gF) / delta + 4;
+  }
+  h *= 60.0;
+
+  const l = (cMax + cMin) / 2.0;
+  const s = delta === 0 ? 0.0 : delta / (1.0 - Math.abs(2.0 * l - 1.0));
+
+  return [h, s, l];
+}
+
+/** HSL (h° 0-360, s|l 0-1) → linear-space floats 0-1 */
+export function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  const c = (1.0 - Math.abs(2.0 * l - 1.0)) * s;
+  const x = c * (1.0 - Math.abs(((h / 60.0) % 2.0) - 1.0));
+  const m = l - c / 2.0;
+
+  let r1: number, g1: number, b1: number;
+  if (0 <= h && h < 60) {
+    [r1, g1, b1] = [c, x, 0];
+  } else if (60 <= h && h < 120) {
+    [r1, g1, b1] = [x, c, 0];
+  } else if (120 <= h && h < 180) {
+    [r1, g1, b1] = [0, c, x];
+  } else if (180 <= h && h < 240) {
+    [r1, g1, b1] = [0, x, c];
+  } else if (240 <= h && h < 300) {
+    [r1, g1, b1] = [x, 0, c];
+  } else {
+    [r1, g1, b1] = [c, 0, x];
+  }
+
+  return [r1 + m, g1 + m, b1 + m];
+}
+
+function matMul(
+  v: [number, number, number],
+  m: readonly [
+    readonly [number, number, number],
+    readonly [number, number, number],
+    readonly [number, number, number],
+  ],
+): [number, number, number] {
+  const x = v[0] * m[0][0] + v[1] * m[0][1] + v[2] * m[0][2];
+  const y = v[0] * m[1][0] + v[1] * m[1][1] + v[2] * m[1][2];
+  const z = v[0] * m[2][0] + v[1] * m[2][1] + v[2] * m[2][2];
+  return [x, y, z];
+}
+
+/** y-encoded sRGB (0-1) → y-encoded Display-P3 (0-1) */
+export function rgbToP3(r: number, g: number, b: number): [number, number, number] {
+  // sRGB y → linear
+  const rl = srgbToLinear(r);
+  const gl = srgbToLinear(g);
+  const bl = srgbToLinear(b);
+
+  // linear sRGB → XYZ → linear P3
+  const [X, Y, Z] = matMul([rl, gl, bl], SRGB_TO_XYZ);
+  const [rp3L, gp3L, bp3L] = matMul([X, Y, Z], XYZ_TO_P3);
+
+  // linear P3 → y; clamp
+  return [clamp01(linearToSrgb(rp3L)), clamp01(linearToSrgb(gp3L)), clamp01(linearToSrgb(bp3L))];
+}
+
+/** y-encoded Display-P3 (0-1) → y-encoded sRGB (0-1) */
+export function p3ToRgb(rp3: number, gp3: number, bp3: number): [number, number, number] {
+  // P3 y → linear
+  const rp3L = srgbToLinear(rp3);
+  const gp3L = srgbToLinear(gp3);
+  const bp3L = srgbToLinear(bp3);
+
+  // linear P3 → XYZ → linear sRGB
+  const [X, Y, Z] = matMul([rp3L, gp3L, bp3L], P3_TO_XYZ);
+  const [rL, gL, bL] = matMul([X, Y, Z], XYZ_TO_SRGB);
+
+  // linear sRGB → y; clamp
+  return [clamp01(linearToSrgb(rL)), clamp01(linearToSrgb(gL)), clamp01(linearToSrgb(bL))];
+}
+
+/** HSL → y-encoded Display-P3 (0-1) */
+export function hslToP3(h: number, s: number, l: number): [number, number, number] {
+  return rgbToP3(...hslToRgb(h, s, l));
+}
+
+/** y-encoded Display-P3 (0-1) → HSL */
+export function p3ToHsl(rp3: number, gp3: number, bp3: number): [number, number, number] {
+  const [r, g, b] = p3ToRgb(rp3, gp3, bp3);
+  return rgbToHsl(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
+}
+
+/* ==== DESTACK_GENERATED_START:ENUM:270000 ==== */
+/**
+ * ColorType
+ */
+export enum ColorType {
+  BUILTIN = 1,
+  RGB = 10,
+  HSL = 11,
+  P3 = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.COLOR_TYPE, ColorType);
+/* ==== DESTACK_GENERATED_END:ENUM:270000 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270002 ==== */
+/**
+ * ColorHue
+ */
+export enum ColorHue {
+  GRAY = 30,
+  RED = 31,
+  ORANGE = 32,
+  AMBER = 33,
+  YELLOW = 34,
+  LIME = 35,
+  GREEN = 36,
+  EMERALD = 37,
+  TEAL = 38,
+  CYAN = 39,
+  SKY = 40,
+  BLUE = 41,
+  INDIGO = 42,
+  VIOLET = 43,
+  PURPLE = 44,
+  FUCHSIA = 45,
+  PINK = 46,
+  ROSE = 47,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.COLOR_HUE, ColorHue);
+/* ==== DESTACK_GENERATED_END:ENUM:270002 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270001 ==== */
+/**
+ * ColorShade
+ */
+export enum ColorShade {
+  S25 = 25,
+  S50 = 50,
+  S100 = 100,
+  S200 = 200,
+  S300 = 300,
+  S400 = 400,
+  S500 = 500,
+  S600 = 600,
+  S700 = 700,
+  S800 = 800,
+  S900 = 900,
+  S950 = 950,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.COLOR_SHADE, ColorShade);
+/* ==== DESTACK_GENERATED_END:ENUM:270001 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:270003 ==== */
+/**
+ * ColorIntent
+ */
+export enum ColorIntent {
+  PRIMARY = 1,
+  SECONDARY = 2,
+  NEUTRAL = 3,
+  SUCCESS = 10,
+  INFO = 11,
+  WARNING = 12,
+  ERROR = 13,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.COLOR_INTENT, ColorIntent);
+/* ==== DESTACK_GENERATED_END:ENUM:270003 ==== */
