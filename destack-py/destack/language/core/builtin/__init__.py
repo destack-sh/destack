@@ -90,7 +90,6 @@ from .relation import (
     ObjectDefinitionType,
     PropertyReference,
     PropertyReferenceType,
-    Scope,
     StructDefinitionReference,
     StructDefinitionType,
 )
@@ -221,7 +220,6 @@ __all__ = [
     "RoleType",
     "RuntimeType",
     "ScalarType",
-    "Scope",
     "StoreImplementation",
     "StoreType",
     "StoreZone",

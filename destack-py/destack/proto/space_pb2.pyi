@@ -19,13 +19,19 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ScopeProto(_message.Message):
+    __slots__ = ("space_id",)
+    SPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    space_id: str
+    def __init__(self, space_id: _Optional[str] = ...) -> None: ...
+
 class QueryRequest(_message.Message):
     __slots__ = ("scope", "query")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     QUERY_FIELD_NUMBER: _ClassVar[int]
-    scope: _language_pb2.ScopeProto
+    scope: ScopeProto
     query: _language_pb2.QueryProto
-    def __init__(self, scope: _Optional[_Union[_language_pb2.ScopeProto, _Mapping]] = ..., query: _Optional[_Union[_language_pb2.QueryProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[ScopeProto, _Mapping]] = ..., query: _Optional[_Union[_language_pb2.QueryProto, _Mapping]] = ...) -> None: ...
 
 class QueryResponse(_message.Message):
     __slots__ = ("result",)
@@ -37,9 +43,9 @@ class CommitRequest(_message.Message):
     __slots__ = ("scope", "changes")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     CHANGES_FIELD_NUMBER: _ClassVar[int]
-    scope: _language_pb2.ScopeProto
+    scope: ScopeProto
     changes: _containers.RepeatedCompositeFieldContainer[_language_pb2.ChangeProto]
-    def __init__(self, scope: _Optional[_Union[_language_pb2.ScopeProto, _Mapping]] = ..., changes: _Optional[_Iterable[_Union[_language_pb2.ChangeProto, _Mapping]]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[ScopeProto, _Mapping]] = ..., changes: _Optional[_Iterable[_Union[_language_pb2.ChangeProto, _Mapping]]] = ...) -> None: ...
 
 class CommitResponse(_message.Message):
     __slots__ = ("epoch", "results")
@@ -65,9 +71,9 @@ class UploadFilesRequest(_message.Message):
     __slots__ = ("scope", "files")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
-    scope: _language_pb2.ScopeProto
+    scope: ScopeProto
     files: _containers.RepeatedCompositeFieldContainer[_language_pb2.FileProto]
-    def __init__(self, scope: _Optional[_Union[_language_pb2.ScopeProto, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_language_pb2.FileProto, _Mapping]]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[ScopeProto, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_language_pb2.FileProto, _Mapping]]] = ...) -> None: ...
 
 class UploadFilesResponse(_message.Message):
     __slots__ = ("handles",)
@@ -90,9 +96,9 @@ class DownloadFilesRequest(_message.Message):
     __slots__ = ("scope", "files")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
-    scope: _language_pb2.ScopeProto
+    scope: ScopeProto
     files: _containers.RepeatedCompositeFieldContainer[_language_pb2.NodeReferenceProto]
-    def __init__(self, scope: _Optional[_Union[_language_pb2.ScopeProto, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_language_pb2.NodeReferenceProto, _Mapping]]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[ScopeProto, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_language_pb2.NodeReferenceProto, _Mapping]]] = ...) -> None: ...
 
 class DownloadFilesResponse(_message.Message):
     __slots__ = ("handles",)

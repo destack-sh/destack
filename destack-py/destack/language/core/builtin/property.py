@@ -637,6 +637,8 @@ def property_(
     is_hash: bool = True,
     is_eq: bool = True,
     is_unique: bool = False,
+    is_readonly: bool = False,
+    is_static: bool = False,
     can_read: RoleType = RoleType.SPECTATOR,
     can_write: RoleType | None = RoleType.SPECTATOR,
 ) -> Any:
@@ -659,6 +661,8 @@ def property_(
         is_hash=is_hash,
         is_eq=is_eq,
         is_unique=is_unique,
+        is_readonly=is_readonly,
+        is_static=is_static,
         can_read=can_read,
         can_write=can_write,
     )

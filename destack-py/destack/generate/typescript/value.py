@@ -301,7 +301,7 @@ def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: An
         ]
         return f"[\n{',\n'.join(elements_str)}\n]"
     else:
-        raise ValueError(f"unsupported value type: {type.cardinality!r}")
+        raise ValueError(f"unsupported value type {type.cardinality!r}: {type!r}")
 
 
 def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
@@ -320,7 +320,7 @@ def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, v
         elif type.primitive_type == PrimitiveType.STRING:
             return f'"{value}"'
         else:
-            raise ValueError(f"unsupported primitive type: {type.primitive_type!r}")
+            raise ValueError(f"unsupported primitive type {type.primitive_type!r}: {type!r}")
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum_type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
@@ -332,4 +332,4 @@ def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, v
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
         return f"{value.__class__.__name__}.fromProtoString({value_bytes_str!r})"
     else:
-        raise ValueError(f"unsupported value type: {type.scalar_type!r}")
+        raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")

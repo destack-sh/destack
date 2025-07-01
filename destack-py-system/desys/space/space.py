@@ -16,7 +16,6 @@ from destack.language import (
     NodeType,
     Oracle,
     Query,
-    Scope,
     Session,
     Space,
     StoreType,
@@ -85,7 +84,6 @@ class SpaceService(ServiceBase, SpaceBase):
         )
         self.space_id = space_id
         self.space_ptr = NodeReference(node_type=NodeType.SPACE, id=space_id, space_id=space_id)
-        self.scope = Scope(space_id=space_id)
         self.global_postgres_store = PostgresStore(
             database=global_database, types=(StoreType.GLOBAL_ENTITY,)
         )
