@@ -432,8 +432,8 @@ async def _query_node(
     _ignore_multi: bool = False,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
+    # fan out multi definitions
     if definition.is_multi and not _ignore_multi:
-        # fan out multi definitions
         if limit is not None or offset is not None:
             raise NotImplementedError(f"cannot limit/offset for multi definition: {definition!r}")
         subdefinitions = context.resolve(definition)
@@ -455,37 +455,36 @@ async def _query_node(
             nodes_ptr.extend(subnodes_ptr)
         return nodes_value, nodes_ptr
 
+    # build statement
+    table = context.get(definition)
+    arguments: list[Any] = []
+    stmt_parts: list[str] = ["SELECT"]
+    if select:
+        stmt_parts.append(_compile_select(context, arguments, select))
     else:
-        # build statement
-        table = context.get(definition)
-        arguments: list[Any] = []
-        stmt_parts: list[str] = ["SELECT"]
-        if select:
-            stmt_parts.append(_compile_select(context, arguments, select))
-        else:
-            stmt_parts.append(", ".join(f'"{col.name}"' for col in table.columns))
-        stmt_parts.append(f"FROM {table.name}")
-        if where is not None:
-            stmt_parts.append(f"WHERE {_compile_condition(context, arguments, where)}")
-        if sort:
-            stmt_parts.append(f"ORDER BY {_compile_sort(context, arguments, sort)}")
-        if limit is not None:
-            stmt_parts.append(f"LIMIT {limit}")
-        if offset is not None:
-            stmt_parts.append(f"OFFSET {offset}")
-        stmt = "\n".join(stmt_parts)
+        stmt_parts.append(", ".join(f'"{col.name}"' for col in table.columns))
+    stmt_parts.append(f"FROM {table.name}")
+    if where is not None:
+        stmt_parts.append(f"WHERE {_compile_condition(context, arguments, where)}")
+    if sort:
+        stmt_parts.append(f"ORDER BY {_compile_sort(context, arguments, sort)}")
+    if limit is not None:
+        stmt_parts.append(f"LIMIT {limit}")
+    if offset is not None:
+        stmt_parts.append(f"OFFSET {offset}")
+    stmt = "\n".join(stmt_parts)
 
-        # execute
-        nodes_row: list[asyncpg.Record] = await conn.fetch(stmt, *arguments)
-        nodes_value: list[Value] = []
-        nodes_ptr: list[NodeReference] = []
-        for row in nodes_row:
-            value, ptr = unpack_node_row(table, row)
-            nodes_value.append(value)
-            nodes_ptr.append(ptr)
-        logger.trace("postgres.query_node", stmt=stmt, nodes=len(nodes_value), span="current")
+    # execute
+    nodes_row: list[asyncpg.Record] = await conn.fetch(stmt, *arguments)
+    nodes_value: list[Value] = []
+    nodes_ptr: list[NodeReference] = []
+    for row in nodes_row:
+        value, ptr = unpack_node_row(table, row)
+        nodes_value.append(value)
+        nodes_ptr.append(ptr)
+    logger.trace("postgres.query_node", stmt=stmt, nodes=len(nodes_value), span="current")
 
-        return nodes_value, nodes_ptr
+    return nodes_value, nodes_ptr
 
 
 @tracer.start_as_current_span("postgres.query_scalar")
