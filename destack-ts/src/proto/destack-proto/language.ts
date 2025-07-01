@@ -13811,7 +13811,7 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "editEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EditEventProto edit_event = 90800
+         * @generated from protobuf field: symbol.destack.EditEventProto edit_event = 93001
          */
         editEvent: EditEventProto;
     } | {
@@ -13829,37 +13829,37 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "gaugeMetric";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 90500
+         * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 92000
          */
         gaugeMetric: GaugeMetricProto;
     } | {
         oneofKind: "gaugeMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 90501
+         * @generated from protobuf field: symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 92001
          */
         gaugeMeasurementEvent: GaugeMeasurementEventProto;
     } | {
         oneofKind: "counterMetric";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMetricProto counter_metric = 90600
+         * @generated from protobuf field: symbol.destack.CounterMetricProto counter_metric = 92100
          */
         counterMetric: CounterMetricProto;
     } | {
         oneofKind: "counterMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMeasurementEventProto counter_measurement_event = 90601
+         * @generated from protobuf field: symbol.destack.CounterMeasurementEventProto counter_measurement_event = 92101
          */
         counterMeasurementEvent: CounterMeasurementEventProto;
     } | {
         oneofKind: "histogramMetric";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMetricProto histogram_metric = 90700
+         * @generated from protobuf field: symbol.destack.HistogramMetricProto histogram_metric = 92200
          */
         histogramMetric: HistogramMetricProto;
     } | {
         oneofKind: "histogramMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 90701
+         * @generated from protobuf field: symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 92201
          */
         histogramMeasurementEvent: HistogramMeasurementEventProto;
     } | {
@@ -14369,13 +14369,13 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "interruption";
         /**
-         * @generated from protobuf field: symbol.destack.InterruptionProto interruption = 90200
+         * @generated from protobuf field: symbol.destack.InterruptionProto interruption = 90400
          */
         interruption: InterruptionProto;
     } | {
         oneofKind: "logEvent";
         /**
-         * @generated from protobuf field: symbol.destack.LogEventProto log_event = 90300
+         * @generated from protobuf field: symbol.destack.LogEventProto log_event = 91000
          */
         logEvent: LogEventProto;
     } | {
@@ -14435,7 +14435,7 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "spanEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SpanEventProto span_event = 90100
+         * @generated from protobuf field: symbol.destack.SpanEventProto span_event = 90301
          */
         spanEvent: SpanEventProto;
     } | {
@@ -14728,19 +14728,19 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "gaugeMetric";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 90500
+         * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 92000
          */
         gaugeMetric: GaugeMetricProto;
     } | {
         oneofKind: "counterMetric";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMetricProto counter_metric = 90600
+         * @generated from protobuf field: symbol.destack.CounterMetricProto counter_metric = 92100
          */
         counterMetric: CounterMetricProto;
     } | {
         oneofKind: "histogramMetric";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMetricProto histogram_metric = 90700
+         * @generated from protobuf field: symbol.destack.HistogramMetricProto histogram_metric = 92200
          */
         histogramMetric: HistogramMetricProto;
     } | {
@@ -14980,7 +14980,7 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "interruption";
         /**
-         * @generated from protobuf field: symbol.destack.InterruptionProto interruption = 90200
+         * @generated from protobuf field: symbol.destack.InterruptionProto interruption = 90400
          */
         interruption: InterruptionProto;
     } | {
@@ -15183,25 +15183,25 @@ export interface SomeEventProto {
     node: {
         oneofKind: "editEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EditEventProto edit_event = 90800
+         * @generated from protobuf field: symbol.destack.EditEventProto edit_event = 93001
          */
         editEvent: EditEventProto;
     } | {
         oneofKind: "gaugeMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 90501
+         * @generated from protobuf field: symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 92001
          */
         gaugeMeasurementEvent: GaugeMeasurementEventProto;
     } | {
         oneofKind: "counterMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMeasurementEventProto counter_measurement_event = 90601
+         * @generated from protobuf field: symbol.destack.CounterMeasurementEventProto counter_measurement_event = 92101
          */
         counterMeasurementEvent: CounterMeasurementEventProto;
     } | {
         oneofKind: "histogramMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 90701
+         * @generated from protobuf field: symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 92201
          */
         histogramMeasurementEvent: HistogramMeasurementEventProto;
     } | {
@@ -15477,7 +15477,7 @@ export interface SomeEventProto {
     } | {
         oneofKind: "logEvent";
         /**
-         * @generated from protobuf field: symbol.destack.LogEventProto log_event = 90300
+         * @generated from protobuf field: symbol.destack.LogEventProto log_event = 91000
          */
         logEvent: LogEventProto;
     } | {
@@ -15531,7 +15531,7 @@ export interface SomeEventProto {
     } | {
         oneofKind: "spanEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SpanEventProto span_event = 90100
+         * @generated from protobuf field: symbol.destack.SpanEventProto span_event = 90301
          */
         spanEvent: SpanEventProto;
     } | {
@@ -18807,45 +18807,45 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_RUN_COMPLETED_EVENT = 90009,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPAN_EVENT = 90100;
+     * @generated from protobuf enum value: NODE_TYPE_SPAN_EVENT = 90301;
      */
-    NODE_TYPE_SPAN_EVENT = 90100,
+    NODE_TYPE_SPAN_EVENT = 90301,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 90200;
+     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 90400;
      */
-    NODE_TYPE_INTERRUPTION = 90200,
+    NODE_TYPE_INTERRUPTION = 90400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LOG_EVENT = 90300;
+     * @generated from protobuf enum value: NODE_TYPE_LOG_EVENT = 91000;
      */
-    NODE_TYPE_LOG_EVENT = 90300,
+    NODE_TYPE_LOG_EVENT = 91000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GAUGE_METRIC = 90500;
+     * @generated from protobuf enum value: NODE_TYPE_GAUGE_METRIC = 92000;
      */
-    NODE_TYPE_GAUGE_METRIC = 90500,
+    NODE_TYPE_GAUGE_METRIC = 92000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 90501;
+     * @generated from protobuf enum value: NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 92001;
      */
-    NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 90501,
+    NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 92001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COUNTER_METRIC = 90600;
+     * @generated from protobuf enum value: NODE_TYPE_COUNTER_METRIC = 92100;
      */
-    NODE_TYPE_COUNTER_METRIC = 90600,
+    NODE_TYPE_COUNTER_METRIC = 92100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 90601;
+     * @generated from protobuf enum value: NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 92101;
      */
-    NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 90601,
+    NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 92101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_METRIC = 90700;
+     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_METRIC = 92200;
      */
-    NODE_TYPE_HISTOGRAM_METRIC = 90700,
+    NODE_TYPE_HISTOGRAM_METRIC = 92200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 90701;
+     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 92201;
      */
-    NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 90701,
+    NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 92201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EDIT_EVENT = 90800;
+     * @generated from protobuf enum value: NODE_TYPE_EDIT_EVENT = 93001;
      */
-    NODE_TYPE_EDIT_EVENT = 90800,
+    NODE_TYPE_EDIT_EVENT = 93001,
     /**
      * @generated from protobuf enum value: NODE_TYPE_ENVIRONMENT = 100000;
      */
@@ -53680,15 +53680,15 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 100, name: "custom_entity_definition", kind: "message", oneof: "node", T: () => CustomEntityDefinitionProto },
             { no: 110, name: "custom_trait_definition", kind: "message", oneof: "node", T: () => CustomTraitDefinitionProto },
             { no: 200, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionProto },
-            { no: 90800, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
+            { no: 93001, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
             { no: 310, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
             { no: 330, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
-            { no: 90500, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
-            { no: 90501, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
-            { no: 90600, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
-            { no: 90601, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
-            { no: 90700, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
-            { no: 90701, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
+            { no: 92000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
+            { no: 92001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
+            { no: 92100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
+            { no: 92101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
+            { no: 92200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
+            { no: 92201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
             { no: 320, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 40000, name: "snapshot", kind: "message", oneof: "node", T: () => SnapshotProto },
             { no: 40100, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
@@ -53773,8 +53773,8 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 72104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
             { no: 72100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
             { no: 72000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
-            { no: 90200, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionProto },
-            { no: 90300, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
+            { no: 90400, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionProto },
+            { no: 91000, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
             { no: 90002, name: "run_started_event", kind: "message", oneof: "node", T: () => RunStartedEventProto },
             { no: 90003, name: "run_pause_requested_event", kind: "message", oneof: "node", T: () => RunPauseRequestedEventProto },
             { no: 90004, name: "run_paused_event", kind: "message", oneof: "node", T: () => RunPausedEventProto },
@@ -53784,7 +53784,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 90008, name: "run_failed_event", kind: "message", oneof: "node", T: () => RunFailedEventProto },
             { no: 90009, name: "run_completed_event", kind: "message", oneof: "node", T: () => RunCompletedEventProto },
             { no: 90000, name: "run", kind: "message", oneof: "node", T: () => RunProto },
-            { no: 90100, name: "span_event", kind: "message", oneof: "node", T: () => SpanEventProto },
+            { no: 90301, name: "span_event", kind: "message", oneof: "node", T: () => SpanEventProto },
             { no: 190200, name: "layer", kind: "message", oneof: "node", T: () => LayerProto },
             { no: 190102, name: "scene_entered_event", kind: "message", oneof: "node", T: () => SceneEnteredEventProto },
             { no: 190103, name: "scene_exited_event", kind: "message", oneof: "node", T: () => SceneExitedEventProto },
@@ -53858,7 +53858,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         customEventDefinition: CustomEventDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEventDefinition)
                     };
                     break;
-                case /* symbol.destack.EditEventProto edit_event */ 90800:
+                case /* symbol.destack.EditEventProto edit_event */ 93001:
                     message.node = {
                         oneofKind: "editEvent",
                         editEvent: EditEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).editEvent)
@@ -53876,37 +53876,37 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
                     };
                     break;
-                case /* symbol.destack.GaugeMetricProto gauge_metric */ 90500:
+                case /* symbol.destack.GaugeMetricProto gauge_metric */ 92000:
                     message.node = {
                         oneofKind: "gaugeMetric",
                         gaugeMetric: GaugeMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMetric)
                     };
                     break;
-                case /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event */ 90501:
+                case /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event */ 92001:
                     message.node = {
                         oneofKind: "gaugeMeasurementEvent",
                         gaugeMeasurementEvent: GaugeMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.CounterMetricProto counter_metric */ 90600:
+                case /* symbol.destack.CounterMetricProto counter_metric */ 92100:
                     message.node = {
                         oneofKind: "counterMetric",
                         counterMetric: CounterMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMetric)
                     };
                     break;
-                case /* symbol.destack.CounterMeasurementEventProto counter_measurement_event */ 90601:
+                case /* symbol.destack.CounterMeasurementEventProto counter_measurement_event */ 92101:
                     message.node = {
                         oneofKind: "counterMeasurementEvent",
                         counterMeasurementEvent: CounterMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.HistogramMetricProto histogram_metric */ 90700:
+                case /* symbol.destack.HistogramMetricProto histogram_metric */ 92200:
                     message.node = {
                         oneofKind: "histogramMetric",
                         histogramMetric: HistogramMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMetric)
                     };
                     break;
-                case /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event */ 90701:
+                case /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event */ 92201:
                     message.node = {
                         oneofKind: "histogramMeasurementEvent",
                         histogramMeasurementEvent: HistogramMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMeasurementEvent)
@@ -54416,13 +54416,13 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         trigger: TriggerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
                     };
                     break;
-                case /* symbol.destack.InterruptionProto interruption */ 90200:
+                case /* symbol.destack.InterruptionProto interruption */ 90400:
                     message.node = {
                         oneofKind: "interruption",
                         interruption: InterruptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).interruption)
                     };
                     break;
-                case /* symbol.destack.LogEventProto log_event */ 90300:
+                case /* symbol.destack.LogEventProto log_event */ 91000:
                     message.node = {
                         oneofKind: "logEvent",
                         logEvent: LogEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).logEvent)
@@ -54482,7 +54482,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         run: RunProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).run)
                     };
                     break;
-                case /* symbol.destack.SpanEventProto span_event */ 90100:
+                case /* symbol.destack.SpanEventProto span_event */ 90301:
                     message.node = {
                         oneofKind: "spanEvent",
                         spanEvent: SpanEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).spanEvent)
@@ -54956,36 +54956,36 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.RunCompletedEventProto run_completed_event = 90009; */
         if (message.node.oneofKind === "runCompletedEvent")
             RunCompletedEventProto.internalBinaryWrite(message.node.runCompletedEvent, writer.tag(90009, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SpanEventProto span_event = 90100; */
+        /* symbol.destack.SpanEventProto span_event = 90301; */
         if (message.node.oneofKind === "spanEvent")
-            SpanEventProto.internalBinaryWrite(message.node.spanEvent, writer.tag(90100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InterruptionProto interruption = 90200; */
+            SpanEventProto.internalBinaryWrite(message.node.spanEvent, writer.tag(90301, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InterruptionProto interruption = 90400; */
         if (message.node.oneofKind === "interruption")
-            InterruptionProto.internalBinaryWrite(message.node.interruption, writer.tag(90200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LogEventProto log_event = 90300; */
+            InterruptionProto.internalBinaryWrite(message.node.interruption, writer.tag(90400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LogEventProto log_event = 91000; */
         if (message.node.oneofKind === "logEvent")
-            LogEventProto.internalBinaryWrite(message.node.logEvent, writer.tag(90300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMetricProto gauge_metric = 90500; */
+            LogEventProto.internalBinaryWrite(message.node.logEvent, writer.tag(91000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMetricProto gauge_metric = 92000; */
         if (message.node.oneofKind === "gaugeMetric")
-            GaugeMetricProto.internalBinaryWrite(message.node.gaugeMetric, writer.tag(90500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 90501; */
+            GaugeMetricProto.internalBinaryWrite(message.node.gaugeMetric, writer.tag(92000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 92001; */
         if (message.node.oneofKind === "gaugeMeasurementEvent")
-            GaugeMeasurementEventProto.internalBinaryWrite(message.node.gaugeMeasurementEvent, writer.tag(90501, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMetricProto counter_metric = 90600; */
+            GaugeMeasurementEventProto.internalBinaryWrite(message.node.gaugeMeasurementEvent, writer.tag(92001, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMetricProto counter_metric = 92100; */
         if (message.node.oneofKind === "counterMetric")
-            CounterMetricProto.internalBinaryWrite(message.node.counterMetric, writer.tag(90600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMeasurementEventProto counter_measurement_event = 90601; */
+            CounterMetricProto.internalBinaryWrite(message.node.counterMetric, writer.tag(92100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMeasurementEventProto counter_measurement_event = 92101; */
         if (message.node.oneofKind === "counterMeasurementEvent")
-            CounterMeasurementEventProto.internalBinaryWrite(message.node.counterMeasurementEvent, writer.tag(90601, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMetricProto histogram_metric = 90700; */
+            CounterMeasurementEventProto.internalBinaryWrite(message.node.counterMeasurementEvent, writer.tag(92101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMetricProto histogram_metric = 92200; */
         if (message.node.oneofKind === "histogramMetric")
-            HistogramMetricProto.internalBinaryWrite(message.node.histogramMetric, writer.tag(90700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 90701; */
+            HistogramMetricProto.internalBinaryWrite(message.node.histogramMetric, writer.tag(92200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 92201; */
         if (message.node.oneofKind === "histogramMeasurementEvent")
-            HistogramMeasurementEventProto.internalBinaryWrite(message.node.histogramMeasurementEvent, writer.tag(90701, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EditEventProto edit_event = 90800; */
+            HistogramMeasurementEventProto.internalBinaryWrite(message.node.histogramMeasurementEvent, writer.tag(92201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EditEventProto edit_event = 93001; */
         if (message.node.oneofKind === "editEvent")
-            EditEventProto.internalBinaryWrite(message.node.editEvent, writer.tag(90800, WireType.LengthDelimited).fork(), options).join();
+            EditEventProto.internalBinaryWrite(message.node.editEvent, writer.tag(93001, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.EnvironmentProto environment = 100000; */
         if (message.node.oneofKind === "environment")
             EnvironmentProto.internalBinaryWrite(message.node.environment, writer.tag(100000, WireType.LengthDelimited).fork(), options).join();
@@ -55212,9 +55212,9 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 200, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionProto },
             { no: 310, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
             { no: 330, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
-            { no: 90500, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
-            { no: 90600, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
-            { no: 90700, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
+            { no: 92000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
+            { no: 92100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
+            { no: 92200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
             { no: 320, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 40000, name: "snapshot", kind: "message", oneof: "node", T: () => SnapshotProto },
             { no: 40100, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
@@ -55254,7 +55254,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 70100, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
             { no: 72100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
             { no: 72000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
-            { no: 90200, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionProto },
+            { no: 90400, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionProto },
             { no: 90000, name: "run", kind: "message", oneof: "node", T: () => RunProto },
             { no: 190200, name: "layer", kind: "message", oneof: "node", T: () => LayerProto },
             { no: 190100, name: "scene", kind: "message", oneof: "node", T: () => SceneProto },
@@ -55330,19 +55330,19 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
                     };
                     break;
-                case /* symbol.destack.GaugeMetricProto gauge_metric */ 90500:
+                case /* symbol.destack.GaugeMetricProto gauge_metric */ 92000:
                     message.node = {
                         oneofKind: "gaugeMetric",
                         gaugeMetric: GaugeMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMetric)
                     };
                     break;
-                case /* symbol.destack.CounterMetricProto counter_metric */ 90600:
+                case /* symbol.destack.CounterMetricProto counter_metric */ 92100:
                     message.node = {
                         oneofKind: "counterMetric",
                         counterMetric: CounterMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMetric)
                     };
                     break;
-                case /* symbol.destack.HistogramMetricProto histogram_metric */ 90700:
+                case /* symbol.destack.HistogramMetricProto histogram_metric */ 92200:
                     message.node = {
                         oneofKind: "histogramMetric",
                         histogramMetric: HistogramMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMetric)
@@ -55582,7 +55582,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         trigger: TriggerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
                     };
                     break;
-                case /* symbol.destack.InterruptionProto interruption */ 90200:
+                case /* symbol.destack.InterruptionProto interruption */ 90400:
                     message.node = {
                         oneofKind: "interruption",
                         interruption: InterruptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).interruption)
@@ -55903,18 +55903,18 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.RunProto run = 90000; */
         if (message.node.oneofKind === "run")
             RunProto.internalBinaryWrite(message.node.run, writer.tag(90000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InterruptionProto interruption = 90200; */
+        /* symbol.destack.InterruptionProto interruption = 90400; */
         if (message.node.oneofKind === "interruption")
-            InterruptionProto.internalBinaryWrite(message.node.interruption, writer.tag(90200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMetricProto gauge_metric = 90500; */
+            InterruptionProto.internalBinaryWrite(message.node.interruption, writer.tag(90400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMetricProto gauge_metric = 92000; */
         if (message.node.oneofKind === "gaugeMetric")
-            GaugeMetricProto.internalBinaryWrite(message.node.gaugeMetric, writer.tag(90500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMetricProto counter_metric = 90600; */
+            GaugeMetricProto.internalBinaryWrite(message.node.gaugeMetric, writer.tag(92000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMetricProto counter_metric = 92100; */
         if (message.node.oneofKind === "counterMetric")
-            CounterMetricProto.internalBinaryWrite(message.node.counterMetric, writer.tag(90600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMetricProto histogram_metric = 90700; */
+            CounterMetricProto.internalBinaryWrite(message.node.counterMetric, writer.tag(92100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMetricProto histogram_metric = 92200; */
         if (message.node.oneofKind === "histogramMetric")
-            HistogramMetricProto.internalBinaryWrite(message.node.histogramMetric, writer.tag(90700, WireType.LengthDelimited).fork(), options).join();
+            HistogramMetricProto.internalBinaryWrite(message.node.histogramMetric, writer.tag(92200, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.EnvironmentProto environment = 100000; */
         if (message.node.oneofKind === "environment")
             EnvironmentProto.internalBinaryWrite(message.node.environment, writer.tag(100000, WireType.LengthDelimited).fork(), options).join();
@@ -56037,10 +56037,10 @@ export const SomeEntityProto = new SomeEntityProto$Type();
 class SomeEventProto$Type extends MessageType<SomeEventProto> {
     constructor() {
         super("symbol.destack.SomeEventProto", [
-            { no: 90800, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
-            { no: 90501, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
-            { no: 90601, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
-            { no: 90701, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
+            { no: 93001, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
+            { no: 92001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
+            { no: 92101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
+            { no: 92201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
             { no: 20502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
             { no: 20503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
             { no: 20504, name: "entitlement_revoked_event", kind: "message", oneof: "node", T: () => EntitlementRevokedEventProto },
@@ -56086,7 +56086,7 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 72102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
             { no: 72103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
             { no: 72104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
-            { no: 90300, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
+            { no: 91000, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
             { no: 90002, name: "run_started_event", kind: "message", oneof: "node", T: () => RunStartedEventProto },
             { no: 90003, name: "run_pause_requested_event", kind: "message", oneof: "node", T: () => RunPauseRequestedEventProto },
             { no: 90004, name: "run_paused_event", kind: "message", oneof: "node", T: () => RunPausedEventProto },
@@ -56095,7 +56095,7 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 90007, name: "run_stop_requested_event", kind: "message", oneof: "node", T: () => RunStopRequestedEventProto },
             { no: 90008, name: "run_failed_event", kind: "message", oneof: "node", T: () => RunFailedEventProto },
             { no: 90009, name: "run_completed_event", kind: "message", oneof: "node", T: () => RunCompletedEventProto },
-            { no: 90100, name: "span_event", kind: "message", oneof: "node", T: () => SpanEventProto },
+            { no: 90301, name: "span_event", kind: "message", oneof: "node", T: () => SpanEventProto },
             { no: 190102, name: "scene_entered_event", kind: "message", oneof: "node", T: () => SceneEnteredEventProto },
             { no: 190103, name: "scene_exited_event", kind: "message", oneof: "node", T: () => SceneExitedEventProto },
             { no: 120502, name: "notification_sent_event", kind: "message", oneof: "node", T: () => NotificationSentEventProto },
@@ -56121,25 +56121,25 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.destack.EditEventProto edit_event */ 90800:
+                case /* symbol.destack.EditEventProto edit_event */ 93001:
                     message.node = {
                         oneofKind: "editEvent",
                         editEvent: EditEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).editEvent)
                     };
                     break;
-                case /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event */ 90501:
+                case /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event */ 92001:
                     message.node = {
                         oneofKind: "gaugeMeasurementEvent",
                         gaugeMeasurementEvent: GaugeMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.CounterMeasurementEventProto counter_measurement_event */ 90601:
+                case /* symbol.destack.CounterMeasurementEventProto counter_measurement_event */ 92101:
                     message.node = {
                         oneofKind: "counterMeasurementEvent",
                         counterMeasurementEvent: CounterMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event */ 90701:
+                case /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event */ 92201:
                     message.node = {
                         oneofKind: "histogramMeasurementEvent",
                         histogramMeasurementEvent: HistogramMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMeasurementEvent)
@@ -56415,7 +56415,7 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         timerCancelledEvent: TimerCancelledEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCancelledEvent)
                     };
                     break;
-                case /* symbol.destack.LogEventProto log_event */ 90300:
+                case /* symbol.destack.LogEventProto log_event */ 91000:
                     message.node = {
                         oneofKind: "logEvent",
                         logEvent: LogEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).logEvent)
@@ -56469,7 +56469,7 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         runCompletedEvent: RunCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.SpanEventProto span_event */ 90100:
+                case /* symbol.destack.SpanEventProto span_event */ 90301:
                     message.node = {
                         oneofKind: "spanEvent",
                         spanEvent: SpanEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).spanEvent)
@@ -56646,24 +56646,24 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.RunCompletedEventProto run_completed_event = 90009; */
         if (message.node.oneofKind === "runCompletedEvent")
             RunCompletedEventProto.internalBinaryWrite(message.node.runCompletedEvent, writer.tag(90009, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SpanEventProto span_event = 90100; */
+        /* symbol.destack.SpanEventProto span_event = 90301; */
         if (message.node.oneofKind === "spanEvent")
-            SpanEventProto.internalBinaryWrite(message.node.spanEvent, writer.tag(90100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LogEventProto log_event = 90300; */
+            SpanEventProto.internalBinaryWrite(message.node.spanEvent, writer.tag(90301, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LogEventProto log_event = 91000; */
         if (message.node.oneofKind === "logEvent")
-            LogEventProto.internalBinaryWrite(message.node.logEvent, writer.tag(90300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 90501; */
+            LogEventProto.internalBinaryWrite(message.node.logEvent, writer.tag(91000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 92001; */
         if (message.node.oneofKind === "gaugeMeasurementEvent")
-            GaugeMeasurementEventProto.internalBinaryWrite(message.node.gaugeMeasurementEvent, writer.tag(90501, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMeasurementEventProto counter_measurement_event = 90601; */
+            GaugeMeasurementEventProto.internalBinaryWrite(message.node.gaugeMeasurementEvent, writer.tag(92001, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMeasurementEventProto counter_measurement_event = 92101; */
         if (message.node.oneofKind === "counterMeasurementEvent")
-            CounterMeasurementEventProto.internalBinaryWrite(message.node.counterMeasurementEvent, writer.tag(90601, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 90701; */
+            CounterMeasurementEventProto.internalBinaryWrite(message.node.counterMeasurementEvent, writer.tag(92101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 92201; */
         if (message.node.oneofKind === "histogramMeasurementEvent")
-            HistogramMeasurementEventProto.internalBinaryWrite(message.node.histogramMeasurementEvent, writer.tag(90701, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EditEventProto edit_event = 90800; */
+            HistogramMeasurementEventProto.internalBinaryWrite(message.node.histogramMeasurementEvent, writer.tag(92201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EditEventProto edit_event = 93001; */
         if (message.node.oneofKind === "editEvent")
-            EditEventProto.internalBinaryWrite(message.node.editEvent, writer.tag(90800, WireType.LengthDelimited).fork(), options).join();
+            EditEventProto.internalBinaryWrite(message.node.editEvent, writer.tag(93001, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.NotificationSentEventProto notification_sent_event = 120502; */
         if (message.node.oneofKind === "notificationSentEvent")
             NotificationSentEventProto.internalBinaryWrite(message.node.notificationSentEvent, writer.tag(120502, WireType.LengthDelimited).fork(), options).join();
@@ -56782,6 +56782,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 // Any...
 export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomEntityProto | CustomTraitDefinitionProto | ResourceProto | MetricProto | EventProto | CustomEventDefinitionProto | CustomEventProto | EditEventProto | MeasurementEventProto | CustomEnumDefinitionProto | CustomOptionProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomPropertyProto | SnapshotProto | BranchProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | PolygonShapeProto | FileProto | LinkProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
-export type AnyStructProto = NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | PolygonProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
+export type AnyStructProto = NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | OriginProto | ChangeProto | ChangeResultProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | PolygonProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

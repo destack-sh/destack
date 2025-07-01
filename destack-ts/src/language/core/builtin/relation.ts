@@ -1,11 +1,11 @@
 import { EnumType, NodeType, StructType, TraitType } from "@destack/language/core/builtin/common";
-import {
+import type {
   CustomEntityDefinition,
   CustomTraitDefinition,
 } from "@destack/language/core/builtin/entity";
-import { CustomEventDefinition } from "@destack/language/core/builtin/event";
+import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
-import { Node } from "@destack/language/core/builtin/node";
+import { isNode, Node } from "@destack/language/core/builtin/node";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStructDefinition } from "@destack/language/core/common/struct";
@@ -331,7 +331,10 @@ export class NodeDefinitionReference extends StructFrozen {
   static of(base: NodeType | NodeClass | CustomEventDefinition | CustomEntityDefinition) {
     if (typeof base == "number") {
       return new NodeDefinitionReference({ type: NodeDefinitionType.BUILTIN_NODE, nodeType: base });
-    } else if (base instanceof CustomEventDefinition || base instanceof CustomEntityDefinition) {
+    } else if (
+      isNode(base, NodeType.CUSTOM_EVENT_DEFINITION) ||
+      isNode(base, NodeType.CUSTOM_ENTITY_DEFINITION)
+    ) {
       return new NodeDefinitionReference({
         type: NodeDefinitionType.CUSTOM_NODE,
         definition: base,
@@ -689,7 +692,10 @@ export class ObjectDefinitionReference extends StructFrozen {
         type: ObjectDefinitionType.BUILTIN_NODE,
         nodeType: base,
       });
-    } else if (base instanceof CustomEventDefinition || base instanceof CustomEntityDefinition) {
+    } else if (
+      isNode(base, NodeType.CUSTOM_EVENT_DEFINITION) ||
+      isNode(base, NodeType.CUSTOM_ENTITY_DEFINITION)
+    ) {
       return new ObjectDefinitionReference({
         type: ObjectDefinitionType.CUSTOM_NODE,
         definition: base,

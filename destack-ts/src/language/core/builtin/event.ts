@@ -195,14 +195,14 @@ export class CustomEventDefinition
   /**
    * A custom Event's prototype is the default template new CustomEvent instances are based on.
    */
-  get prototype(): CustomEvent | null {
+  get prototype(): Node | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
-  set prototype(node: CustomEvent | null) {
+  set prototype(node: Node | null) {
     if (node === null) {
       this.prototypePtr = null;
     } else {
@@ -239,7 +239,7 @@ export class CustomEventDefinition
     value?: Map<string, Value>;
     orderKey?: string;
     name: string;
-    prototype?: CustomEvent | NodeReference | null;
+    prototype?: Node | NodeReference | null;
     baseType?: NodeDefinitionReference | null;
     source?: Script | NodeReference | null;
     _session?: Session | null;

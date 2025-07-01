@@ -209,14 +209,14 @@ export class CustomEntityDefinition
   /**
    * A custom Entity's prototype is the default template new CustomEntity instances are based on.
    */
-  get prototype(): CustomEntity | null {
+  get prototype(): Node | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntity | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
-  set prototype(node: CustomEntity | null) {
+  set prototype(node: Node | null) {
     if (node === null) {
       this.prototypePtr = null;
     } else {
@@ -284,7 +284,7 @@ export class CustomEntityDefinition
     orderKey?: string;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
-    prototype?: CustomEntity | NodeReference | null;
+    prototype?: Node | NodeReference | null;
     baseType?: NodeDefinitionReference | null;
     baseTraits?: Array<NodeDefinitionReference>;
     isAbstract?: boolean;

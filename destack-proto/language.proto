@@ -941,16 +941,16 @@ enum NodeTypeProto {
   NODE_TYPE_RUN_STOP_REQUESTED_EVENT = 90007;
   NODE_TYPE_RUN_FAILED_EVENT = 90008;
   NODE_TYPE_RUN_COMPLETED_EVENT = 90009;
-  NODE_TYPE_SPAN_EVENT = 90100;
-  NODE_TYPE_INTERRUPTION = 90200;
-  NODE_TYPE_LOG_EVENT = 90300;
-  NODE_TYPE_GAUGE_METRIC = 90500;
-  NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 90501;
-  NODE_TYPE_COUNTER_METRIC = 90600;
-  NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 90601;
-  NODE_TYPE_HISTOGRAM_METRIC = 90700;
-  NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 90701;
-  NODE_TYPE_EDIT_EVENT = 90800;
+  NODE_TYPE_SPAN_EVENT = 90301;
+  NODE_TYPE_INTERRUPTION = 90400;
+  NODE_TYPE_LOG_EVENT = 91000;
+  NODE_TYPE_GAUGE_METRIC = 92000;
+  NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 92001;
+  NODE_TYPE_COUNTER_METRIC = 92100;
+  NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 92101;
+  NODE_TYPE_HISTOGRAM_METRIC = 92200;
+  NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 92201;
+  NODE_TYPE_EDIT_EVENT = 93001;
   NODE_TYPE_ENVIRONMENT = 100000;
   NODE_TYPE_THREAD = 120000;
   NODE_TYPE_MESSAGE = 120100;
@@ -5578,15 +5578,15 @@ message SomeNodeProto {
     CustomEntityDefinitionProto custom_entity_definition = 100;
     CustomTraitDefinitionProto custom_trait_definition = 110;
     CustomEventDefinitionProto custom_event_definition = 200;
-    EditEventProto edit_event = 90800;
+    EditEventProto edit_event = 93001;
     CustomEnumDefinitionProto custom_enum_definition = 310;
     CustomOptionProto custom_option = 330;
-    GaugeMetricProto gauge_metric = 90500;
-    GaugeMeasurementEventProto gauge_measurement_event = 90501;
-    CounterMetricProto counter_metric = 90600;
-    CounterMeasurementEventProto counter_measurement_event = 90601;
-    HistogramMetricProto histogram_metric = 90700;
-    HistogramMeasurementEventProto histogram_measurement_event = 90701;
+    GaugeMetricProto gauge_metric = 92000;
+    GaugeMeasurementEventProto gauge_measurement_event = 92001;
+    CounterMetricProto counter_metric = 92100;
+    CounterMeasurementEventProto counter_measurement_event = 92101;
+    HistogramMetricProto histogram_metric = 92200;
+    HistogramMeasurementEventProto histogram_measurement_event = 92201;
     CustomPropertyProto custom_property = 320;
     SnapshotProto snapshot = 40000;
     BranchProto branch = 40100;
@@ -5671,8 +5671,8 @@ message SomeNodeProto {
     TimerCancelledEventProto timer_cancelled_event = 72104;
     TimerProto timer = 72100;
     TriggerProto trigger = 72000;
-    InterruptionProto interruption = 90200;
-    LogEventProto log_event = 90300;
+    InterruptionProto interruption = 90400;
+    LogEventProto log_event = 91000;
     RunStartedEventProto run_started_event = 90002;
     RunPauseRequestedEventProto run_pause_requested_event = 90003;
     RunPausedEventProto run_paused_event = 90004;
@@ -5682,7 +5682,7 @@ message SomeNodeProto {
     RunFailedEventProto run_failed_event = 90008;
     RunCompletedEventProto run_completed_event = 90009;
     RunProto run = 90000;
-    SpanEventProto span_event = 90100;
+    SpanEventProto span_event = 90301;
     LayerProto layer = 190200;
     SceneEnteredEventProto scene_entered_event = 190102;
     SceneExitedEventProto scene_exited_event = 190103;
@@ -5734,9 +5734,9 @@ message SomeEntityProto {
     CustomEventDefinitionProto custom_event_definition = 200;
     CustomEnumDefinitionProto custom_enum_definition = 310;
     CustomOptionProto custom_option = 330;
-    GaugeMetricProto gauge_metric = 90500;
-    CounterMetricProto counter_metric = 90600;
-    HistogramMetricProto histogram_metric = 90700;
+    GaugeMetricProto gauge_metric = 92000;
+    CounterMetricProto counter_metric = 92100;
+    HistogramMetricProto histogram_metric = 92200;
     CustomPropertyProto custom_property = 320;
     SnapshotProto snapshot = 40000;
     BranchProto branch = 40100;
@@ -5776,7 +5776,7 @@ message SomeEntityProto {
     ServiceProto service = 70100;
     TimerProto timer = 72100;
     TriggerProto trigger = 72000;
-    InterruptionProto interruption = 90200;
+    InterruptionProto interruption = 90400;
     RunProto run = 90000;
     LayerProto layer = 190200;
     SceneProto scene = 190100;
@@ -5813,10 +5813,10 @@ message SomeEntityProto {
 
 message SomeEventProto {
   oneof node {
-    EditEventProto edit_event = 90800;
-    GaugeMeasurementEventProto gauge_measurement_event = 90501;
-    CounterMeasurementEventProto counter_measurement_event = 90601;
-    HistogramMeasurementEventProto histogram_measurement_event = 90701;
+    EditEventProto edit_event = 93001;
+    GaugeMeasurementEventProto gauge_measurement_event = 92001;
+    CounterMeasurementEventProto counter_measurement_event = 92101;
+    HistogramMeasurementEventProto histogram_measurement_event = 92201;
     EntitlementRequestedEventProto entitlement_requested_event = 20502;
     EntitlementGrantedEventProto entitlement_granted_event = 20503;
     EntitlementRevokedEventProto entitlement_revoked_event = 20504;
@@ -5862,7 +5862,7 @@ message SomeEventProto {
     TimerStartedEventProto timer_started_event = 72102;
     TimerCompletedEventProto timer_completed_event = 72103;
     TimerCancelledEventProto timer_cancelled_event = 72104;
-    LogEventProto log_event = 90300;
+    LogEventProto log_event = 91000;
     RunStartedEventProto run_started_event = 90002;
     RunPauseRequestedEventProto run_pause_requested_event = 90003;
     RunPausedEventProto run_paused_event = 90004;
@@ -5871,7 +5871,7 @@ message SomeEventProto {
     RunStopRequestedEventProto run_stop_requested_event = 90007;
     RunFailedEventProto run_failed_event = 90008;
     RunCompletedEventProto run_completed_event = 90009;
-    SpanEventProto span_event = 90100;
+    SpanEventProto span_event = 90301;
     SceneEnteredEventProto scene_entered_event = 190102;
     SceneExitedEventProto scene_exited_event = 190103;
     NotificationSentEventProto notification_sent_event = 120502;
