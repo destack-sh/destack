@@ -26,200 +26,6 @@ import {
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
-/**
- * A generic Value of any Type.
- */
-export class Value extends StructFrozen {
-  static metatype: StructType = StructType.VALUE;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Value.type
-   */
-  readonly type: Type;
-
-  /**
-   * Value.value
-   */
-  readonly value: any;
-
-  constructor(options: {
-    type: Type;
-    value: any;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`Value.type is required`);
-    }
-    this.type = _type;
-    let _value = options.value;
-    if (_value === null) {
-      throw new Error(`Value.value is required`);
-    }
-    this.value = _value;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!this.type.equals(other.type)) {
-      return false;
-    }
-    if (!(this.value === other.value)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${this.type.repr()}`);
-      // @ts-expect-error(readonly)
-      this._repr = `<Value ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type.hash()) & 0xffffffff;
-    h = (h * 31 + hashString(JSON.stringify(this.value))) & 0xffffffff;
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Value.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Value): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2500;
-    objectValue["30"] = object.type.toValue();
-    objectValue["40"] = object.value;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Value {
-    return new Value({
-      type: Type.fromValue(objectValue["30"], _session, _supergraph, _graph, _connection),
-      value: objectValue["40"],
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Value {
-    return Value.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): ValueProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Value.__packProto__(this);
-    }
-    return this._proto as ValueProto;
-  }
-
-  static __packProto__(object: Value): ValueProto {
-    const objectProto: Partial<ValueProto> = { metatype: 2500 };
-    objectProto.type = object.type.toProto();
-    objectProto.value = packProtoJson(object.value);
-    return objectProto as ValueProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ValueProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Value {
-    return new Value({
-      type: Type.fromProto(objectProto.type!, _session, _supergraph, _graph, _connection),
-      value: unpackProtoJson(objectProto.value!),
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: ValueProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Value {
-    return Value.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Value {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ValueProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.VALUE, Value);
-/* ==== DESTACK_GENERATED_END:STRUCT:2500 ==== */
-
 /**
  * Convert an arbitrary (legal) value to a Value.
  * If Type isn't provided, it will be inferred from the value.
@@ -394,3 +200,197 @@ function _unpackScalarValue(
     assertNever(type.scalarType);
   }
 }
+
+/* ==== DESTACK_GENERATED_START:STRUCT:400 ==== */
+/**
+ * A generic Value of any Type.
+ */
+export class Value extends StructFrozen {
+  static metatype: StructType = StructType.VALUE;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Value.type
+   */
+  readonly type: Type;
+
+  /**
+   * Value.value
+   */
+  readonly value: any;
+
+  constructor(options: {
+    type: Type;
+    value: any;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Value.type is required`);
+    }
+    this.type = _type;
+    let _value = options.value;
+    if (_value === null) {
+      throw new Error(`Value.value is required`);
+    }
+    this.value = _value;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!this.type.equals(other.type)) {
+      return false;
+    }
+    if (!(this.value === other.value)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${this.type.repr()}`);
+      // @ts-expect-error(readonly)
+      this._repr = `<Value ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(JSON.stringify(this.value))) & 0xffffffff;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Value.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Value): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 400;
+    objectValue["30"] = object.type.toValue();
+    objectValue["40"] = object.value;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Value {
+    return new Value({
+      type: Type.fromValue(objectValue["30"], _session, _supergraph, _graph, _connection),
+      value: objectValue["40"],
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Value {
+    return Value.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ValueProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Value.__packProto__(this);
+    }
+    return this._proto as ValueProto;
+  }
+
+  static __packProto__(object: Value): ValueProto {
+    const objectProto: Partial<ValueProto> = { metatype: 400 };
+    objectProto.type = object.type.toProto();
+    objectProto.value = packProtoJson(object.value);
+    return objectProto as ValueProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ValueProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Value {
+    return new Value({
+      type: Type.fromProto(objectProto.type!, _session, _supergraph, _graph, _connection),
+      value: unpackProtoJson(objectProto.value!),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ValueProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Value {
+    return Value.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Value {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ValueProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.VALUE, Value);
+/* ==== DESTACK_GENERATED_END:STRUCT:400 ==== */

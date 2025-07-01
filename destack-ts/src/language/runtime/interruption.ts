@@ -35,7 +35,7 @@ import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@des
 import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:90200 ==== */
 /**
  * InterruptionType
  */
@@ -49,9 +49,9 @@ export enum InterruptionType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.INTERRUPTION_TYPE, InterruptionType);
-/* ==== DESTACK_GENERATED_END:ENUM:4020 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:90200 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:4021 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:90201 ==== */
 /**
  * InterruptionStatus
  */
@@ -65,9 +65,9 @@ export enum InterruptionStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.INTERRUPTION_STATUS, InterruptionStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:4021 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:90201 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:4022 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:90202 ==== */
 /**
  * InterruptionResponse
  */
@@ -80,9 +80,9 @@ export enum InterruptionResponse {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
-/* ==== DESTACK_GENERATED_END:ENUM:4022 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:90202 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4040 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90200 ==== */
 /**
  * An Interruption in run of something.
  */
@@ -466,7 +466,7 @@ export class Interruption extends Entity implements IsSpatial {
 
   static __packValue__(object: Interruption): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4040;
+    objectValue["1"] = 90200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -594,7 +594,7 @@ export class Interruption extends Entity implements IsSpatial {
   }
 
   static __packProto__(object: Interruption): InterruptionProto {
-    const objectProto: Partial<InterruptionProto> = { metatype: 4040 };
+    const objectProto: Partial<InterruptionProto> = { metatype: 90200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -751,4 +751,4 @@ export class Interruption extends Entity implements IsSpatial {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INTERRUPTION, Interruption);
-/* ==== DESTACK_GENERATED_END:NODE:4040 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90200 ==== */

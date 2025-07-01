@@ -33,7 +33,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12100 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:270213 ==== */
 /**
  * StrokeType
  */
@@ -48,9 +48,9 @@ export enum StrokeType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.STROKE_TYPE, StrokeType);
-/* ==== DESTACK_GENERATED_END:ENUM:12100 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:270213 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270100 ==== */
 /**
  * A Stroke.
  */
@@ -286,7 +286,7 @@ export class Stroke extends StructFrozen {
 
   static __packValue__(object: Stroke): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12100;
+    objectValue["1"] = 270100;
     objectValue["30"] = object.type;
     objectValue["50"] = object.size;
     objectValue["51"] = object.thinning;
@@ -363,7 +363,7 @@ export class Stroke extends StructFrozen {
   }
 
   static __packProto__(object: Stroke): StrokeProto {
-    const objectProto: Partial<StrokeProto> = { metatype: 12100 };
+    const objectProto: Partial<StrokeProto> = { metatype: 270100 };
     objectProto.type = Number(object.type) as StrokeTypeProto;
     objectProto.size = object.size;
     objectProto.thinning = object.thinning;
@@ -436,9 +436,9 @@ export class Stroke extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STROKE, Stroke);
-/* ==== DESTACK_GENERATED_END:STRUCT:12100 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270100 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12101 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270101 ==== */
 /**
  * A stroke cap.
  */
@@ -557,7 +557,7 @@ export class StrokeCap extends StructFrozen {
 
   static __packValue__(object: StrokeCap): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12101;
+    objectValue["1"] = 270101;
     objectValue["50"] = object.cap;
     objectValue["51"] = object.taper;
     objectValue["52"] = object.easing;
@@ -599,7 +599,7 @@ export class StrokeCap extends StructFrozen {
   }
 
   static __packProto__(object: StrokeCap): StrokeCapProto {
-    const objectProto: Partial<StrokeCapProto> = { metatype: 12101 };
+    const objectProto: Partial<StrokeCapProto> = { metatype: 270101 };
     objectProto.cap = object.cap;
     objectProto.taper = object.taper;
     objectProto.easing = Number(object.easing) as EasingProto;
@@ -643,9 +643,9 @@ export class StrokeCap extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STROKE_CAP, StrokeCap);
-/* ==== DESTACK_GENERATED_END:STRUCT:12101 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270101 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12103 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270103 ==== */
 /**
  * A computed point in a stroke.
  */
@@ -836,7 +836,7 @@ export class StrokePoint extends StructFrozen {
 
   static __packValue__(object: StrokePoint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12103;
+    objectValue["1"] = 270103;
     objectValue["50"] = object.point.toValue();
     objectValue["51"] = object.originalPoint.toValue();
     objectValue["52"] = object.pressure;
@@ -892,7 +892,7 @@ export class StrokePoint extends StructFrozen {
   }
 
   static __packProto__(object: StrokePoint): StrokePointProto {
-    const objectProto: Partial<StrokePointProto> = { metatype: 12103 };
+    const objectProto: Partial<StrokePointProto> = { metatype: 270103 };
     objectProto.point = object.point.toProto();
     objectProto.originalPoint = object.originalPoint.toProto();
     objectProto.pressure = object.pressure;
@@ -956,9 +956,9 @@ export class StrokePoint extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STROKE_POINT, StrokePoint);
-/* ==== DESTACK_GENERATED_END:STRUCT:12103 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270103 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:12102 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270102 ==== */
 /**
  * A stroke path.
  */
@@ -1069,7 +1069,7 @@ export class StrokePath extends StructFrozen {
 
   static __packValue__(object: StrokePath): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12102;
+    objectValue["1"] = 270102;
     if (object.points.length > 0) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
@@ -1121,7 +1121,7 @@ export class StrokePath extends StructFrozen {
   }
 
   static __packProto__(object: StrokePath): StrokePathProto {
-    const objectProto: Partial<StrokePathProto> = { metatype: 12102 };
+    const objectProto: Partial<StrokePathProto> = { metatype: 270102 };
     if (object.points) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
@@ -1175,9 +1175,9 @@ export class StrokePath extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STROKE_PATH, StrokePath);
-/* ==== DESTACK_GENERATED_END:STRUCT:12102 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12068 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270208 ==== */
 /**
  * A StrokeStyle.
  */
@@ -1566,7 +1566,7 @@ export class StrokeStyle extends Style {
 
   static __packValue__(object: StrokeStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12068;
+    objectValue["1"] = 270208;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1684,7 +1684,7 @@ export class StrokeStyle extends Style {
   }
 
   static __packProto__(object: StrokeStyle): StrokeStyleProto {
-    const objectProto: Partial<StrokeStyleProto> = { metatype: 12068 };
+    const objectProto: Partial<StrokeStyleProto> = { metatype: 270208 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1816,4 +1816,4 @@ export class StrokeStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STROKE_STYLE, StrokeStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12068 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270208 ==== */

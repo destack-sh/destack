@@ -26,7 +26,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:120 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10600 ==== */
 /**
  * An Team with Users and Teams.
  */
@@ -262,7 +262,7 @@ export class Team
 
   static __packValue__(object: Team): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120;
+    objectValue["1"] = 10600;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -345,7 +345,7 @@ export class Team
   }
 
   static __packProto__(object: Team): TeamProto {
-    const objectProto: Partial<TeamProto> = { metatype: 120 };
+    const objectProto: Partial<TeamProto> = { metatype: 10600 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -442,4 +442,4 @@ export class Team
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TEAM, Team);
-/* ==== DESTACK_GENERATED_END:NODE:120 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10600 ==== */

@@ -23,7 +23,7 @@ import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:2550 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:60100 ==== */
 /**
  * LinkType
  */
@@ -35,9 +35,9 @@ export enum LinkType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LINK_TYPE, LinkType);
-/* ==== DESTACK_GENERATED_END:ENUM:2550 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:60100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2550 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60100 ==== */
 /**
  * A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).
  */
@@ -511,7 +511,7 @@ export class Link extends Resource implements IsSpatial {
 
   static __packValue__(object: Link): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2550;
+    objectValue["1"] = 60100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -702,7 +702,7 @@ export class Link extends Resource implements IsSpatial {
   }
 
   static __packProto__(object: Link): LinkProto {
-    const objectProto: Partial<LinkProto> = { metatype: 2550 };
+    const objectProto: Partial<LinkProto> = { metatype: 60100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -883,4 +883,4 @@ export class Link extends Resource implements IsSpatial {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LINK, Link);
-/* ==== DESTACK_GENERATED_END:NODE:2550 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60100 ==== */

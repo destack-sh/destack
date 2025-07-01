@@ -38,7 +38,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:10100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:210300 ==== */
 /**
  * A split container View.
  */
@@ -764,7 +764,7 @@ export class SplitView extends ContainerView {
 
   static __packValue__(object: SplitView): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10100;
+    objectValue["1"] = 210300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1068,7 +1068,7 @@ export class SplitView extends ContainerView {
   }
 
   static __packProto__(object: SplitView): SplitViewProto {
-    const objectProto: Partial<SplitViewProto> = { metatype: 10100 };
+    const objectProto: Partial<SplitViewProto> = { metatype: 210300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1344,4 +1344,4 @@ export class SplitView extends ContainerView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPLIT_VIEW, SplitView);
-/* ==== DESTACK_GENERATED_END:NODE:10100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:210300 ==== */

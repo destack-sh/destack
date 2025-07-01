@@ -100,7 +100,6 @@ import type {
   ObjectDefinitionType,
   PropertyReference,
   PropertyReferenceType,
-  Scope,
   StructDefinitionReference,
   StructDefinitionType,
 } from "@destack/language/core/builtin/relation";
@@ -645,7 +644,6 @@ export type TraitTypeMapping = {
 };
 
 export type StructTypeMapping = {
-  [StructType.SCOPE]: Scope;
   [StructType.NODE_DEFINITION_REFERENCE]: NodeDefinitionReference;
   [StructType.OBJECT_DEFINITION_REFERENCE]: ObjectDefinitionReference;
   [StructType.STRUCT_DEFINITION_REFERENCE]: StructDefinitionReference;

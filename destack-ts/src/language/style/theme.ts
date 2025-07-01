@@ -27,7 +27,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:12000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270000 ==== */
 /**
  * A Theme with common Styles.
  */
@@ -306,7 +306,7 @@ export class Theme
 
   static __packValue__(object: Theme): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12000;
+    objectValue["1"] = 270000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -403,7 +403,7 @@ export class Theme
   }
 
   static __packProto__(object: Theme): ThemeProto {
-    const objectProto: Partial<ThemeProto> = { metatype: 12000 };
+    const objectProto: Partial<ThemeProto> = { metatype: 270000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -516,4 +516,4 @@ export class Theme
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THEME, Theme);
-/* ==== DESTACK_GENERATED_END:NODE:12000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270000 ==== */

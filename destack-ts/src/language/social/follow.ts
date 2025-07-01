@@ -18,7 +18,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:5580 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:120400 ==== */
 /**
  * A Follow is a relationship between a Subject and an IsFollowable Node.
  */
@@ -273,7 +273,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
 
   static __packValue__(object: Follow): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 5580;
+    objectValue["1"] = 120400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -365,7 +365,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   }
 
   static __packProto__(object: Follow): FollowProto {
-    const objectProto: Partial<FollowProto> = { metatype: 5580 };
+    const objectProto: Partial<FollowProto> = { metatype: 120400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -475,4 +475,4 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW, Follow);
-/* ==== DESTACK_GENERATED_END:NODE:5580 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:120400 ==== */

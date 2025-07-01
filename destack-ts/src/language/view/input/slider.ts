@@ -21,7 +21,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:10440 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:230200 ==== */
 /**
  * A slider input View.
  */
@@ -539,7 +539,7 @@ export class SliderInputView extends InputView {
 
   static __packValue__(object: SliderInputView): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10440;
+    objectValue["1"] = 230200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -735,7 +735,7 @@ export class SliderInputView extends InputView {
   }
 
   static __packProto__(object: SliderInputView): SliderInputViewProto {
-    const objectProto: Partial<SliderInputViewProto> = { metatype: 10440 };
+    const objectProto: Partial<SliderInputViewProto> = { metatype: 230200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -927,4 +927,4 @@ export class SliderInputView extends InputView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SLIDER_INPUT_VIEW, SliderInputView);
-/* ==== DESTACK_GENERATED_END:NODE:10440 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:230200 ==== */

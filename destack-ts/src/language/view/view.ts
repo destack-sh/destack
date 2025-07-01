@@ -17,7 +17,7 @@ import type { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:9100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:190400 ==== */
 /**
  * A View is a graphical interface.
  */
@@ -165,4 +165,4 @@ export abstract class View
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.VIEW, View);
-/* ==== DESTACK_GENERATED_END:NODE:9100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:190400 ==== */

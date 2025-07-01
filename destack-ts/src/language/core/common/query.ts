@@ -42,173 +42,7 @@ import { assertNever } from "@destack/utils/functools";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { v4 as uuid4 } from "uuid";
 
-/* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
-/**
- * FunctionType
- */
-export enum FunctionType {
-  ADD = 1,
-  SUBTRACT = 2,
-  MULTIPLY = 3,
-  DIVIDE = 4,
-  MODULO = 5,
-  POWER = 6,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.FUNCTION_TYPE, FunctionType);
-/* ==== DESTACK_GENERATED_END:ENUM:108 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:103 ==== */
-/**
- * ConditionalType
- */
-export enum ConditionalType {
-  NOT = 1,
-  AND = 2,
-  OR = 3,
-  EQUALS = 10,
-  NOT_EQUALS = 11,
-  GREATER_THAN = 12,
-  GREATER_THAN_OR_EQUALS = 13,
-  LESS_THAN = 14,
-  LESS_THAN_OR_EQUALS = 15,
-  MATCHES = 20,
-  STARTS_WITH = 21,
-  ENDS_WITH = 22,
-  IN = 30,
-  NOT_IN = 31,
-  EXISTS = 40,
-  NOT_EXISTS = 41,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.CONDITIONAL_TYPE, ConditionalType);
-/* ==== DESTACK_GENERATED_END:ENUM:103 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:104 ==== */
-/**
- * AggregationType
- */
-export enum AggregationType {
-  EXISTS = 1,
-  COUNT = 2,
-  SUM = 3,
-  MIN = 4,
-  MAX = 5,
-  AVERAGE = 6,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.AGGREGATION_TYPE, AggregationType);
-/* ==== DESTACK_GENERATED_END:ENUM:104 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:109 ==== */
-/**
- * ExpressionType
- */
-export enum ExpressionType {
-  LITERAL = 1,
-  ATTRIBUTE = 2,
-  CONDITION = 3,
-  FUNCTION = 4,
-  AGGREGATION = 5,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.EXPRESSION_TYPE, ExpressionType);
-/* ==== DESTACK_GENERATED_END:ENUM:109 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:106 ==== */
-/**
- * SortType
- */
-export enum SortType {
-  ASCENDING = 1,
-  DESCENDING = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SORT_TYPE, SortType);
-/* ==== DESTACK_GENERATED_END:ENUM:106 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:105 ==== */
-/**
- * SortMode
- */
-export enum SortMode {
-  MAX = 1,
-  MIN = 2,
-  AVERAGE = 3,
-  SUM = 4,
-  MEDIAN = 5,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SORT_MODE, SortMode);
-/* ==== DESTACK_GENERATED_END:ENUM:105 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:107 ==== */
-/**
- * JoinType
- */
-export enum JoinType {
-  LEFT = 1,
-  PARENT = 10,
-  CHILD = 11,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.JOIN_TYPE, JoinType);
-/* ==== DESTACK_GENERATED_END:ENUM:107 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:120 ==== */
-/**
- * QueryType
- */
-export enum QueryType {
-  NODE = 1,
-  SCALAR = 2,
-  GROUPED_NODE = 10,
-  GROUPED_SCALAR = 11,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.QUERY_TYPE, QueryType);
-/* ==== DESTACK_GENERATED_END:ENUM:120 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:121 ==== */
-/**
- * QueryUpdateType
- */
-export enum QueryUpdateType {
-  FULL_RESULT = 1,
-  PARTIAL_RESULT = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.QUERY_UPDATE_TYPE, QueryUpdateType);
-/* ==== DESTACK_GENERATED_END:ENUM:121 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:50101 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:301 ==== */
 /**
  * Function
  */
@@ -339,7 +173,7 @@ export class Function extends StructFrozen {
 
   static __packValue__(object: Function): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50101;
+    objectValue["1"] = 301;
     objectValue["30"] = object.type;
     objectValue["31"] = object.left.toValue();
     if (object.right != null) {
@@ -388,7 +222,7 @@ export class Function extends StructFrozen {
   }
 
   static __packProto__(object: Function): FunctionProto {
-    const objectProto: Partial<FunctionProto> = { metatype: 50101 };
+    const objectProto: Partial<FunctionProto> = { metatype: 301 };
     objectProto.type = Number(object.type) as FunctionTypeProto;
     objectProto.left = object.left.toProto();
     if (object.right != null) {
@@ -442,9 +276,9 @@ export class Function extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.FUNCTION, Function);
-/* ==== DESTACK_GENERATED_END:STRUCT:50101 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:301 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50104 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:304 ==== */
 /**
  * Boolean predicate (AND, =, <, etc.).
  */
@@ -575,7 +409,7 @@ export class Condition extends StructFrozen {
 
   static __packValue__(object: Condition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50104;
+    objectValue["1"] = 304;
     objectValue["30"] = object.type;
     objectValue["31"] = object.left.toValue();
     if (object.right != null) {
@@ -624,7 +458,7 @@ export class Condition extends StructFrozen {
   }
 
   static __packProto__(object: Condition): ConditionProto {
-    const objectProto: Partial<ConditionProto> = { metatype: 50104 };
+    const objectProto: Partial<ConditionProto> = { metatype: 304 };
     objectProto.type = Number(object.type) as ConditionalTypeProto;
     objectProto.left = object.left.toProto();
     if (object.right != null) {
@@ -684,9 +518,9 @@ export class Condition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CONDITION, Condition);
-/* ==== DESTACK_GENERATED_END:STRUCT:50104 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:304 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50103 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:303 ==== */
 /**
  * Aggregation.
  */
@@ -801,7 +635,7 @@ export class Aggregation extends StructFrozen {
 
   static __packValue__(object: Aggregation): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50103;
+    objectValue["1"] = 303;
     objectValue["30"] = object.type;
     if (object.expression != null) {
       objectValue["31"] = object.expression.toValue();
@@ -848,7 +682,7 @@ export class Aggregation extends StructFrozen {
   }
 
   static __packProto__(object: Aggregation): AggregationProto {
-    const objectProto: Partial<AggregationProto> = { metatype: 50103 };
+    const objectProto: Partial<AggregationProto> = { metatype: 303 };
     objectProto.type = Number(object.type) as AggregationTypeProto;
     if (object.expression != null) {
       objectProto.expression = object.expression.toProto();
@@ -906,9 +740,9 @@ export class Aggregation extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AGGREGATION, Aggregation);
-/* ==== DESTACK_GENERATED_END:STRUCT:50103 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:303 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:300 ==== */
 /**
  * Wrapper to unify any scalar / boolean / aggregate sub-tree.
  */
@@ -1103,7 +937,7 @@ export class Expression extends StructFrozen {
 
   static __packValue__(object: Expression): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50100;
+    objectValue["1"] = 300;
     objectValue["30"] = object.type;
     if (object.literal != null) {
       objectValue["31"] = object.literal.toValue();
@@ -1186,7 +1020,7 @@ export class Expression extends StructFrozen {
   }
 
   static __packProto__(object: Expression): ExpressionProto {
-    const objectProto: Partial<ExpressionProto> = { metatype: 50100 };
+    const objectProto: Partial<ExpressionProto> = { metatype: 300 };
     objectProto.type = Number(object.type) as ExpressionTypeProto;
     if (object.literal != null) {
       objectProto.literal = object.literal.toProto();
@@ -1299,7 +1133,7 @@ export class Expression extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EXPRESSION, Expression);
-/* ==== DESTACK_GENERATED_END:STRUCT:50100 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:300 ==== */
 
 export type ExpressionIn =
   | Value
@@ -1311,7 +1145,7 @@ export type ExpressionIn =
   | Aggregation
   | Expression;
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50105 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:305 ==== */
 /**
  * ORDER BY specification.
  */
@@ -1439,7 +1273,7 @@ export class Sort extends StructFrozen {
 
   static __packValue__(object: Sort): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50105;
+    objectValue["1"] = 305;
     objectValue["30"] = object.type;
     objectValue["31"] = object.by.toValue();
     if (object.mode != null) {
@@ -1485,7 +1319,7 @@ export class Sort extends StructFrozen {
   }
 
   static __packProto__(object: Sort): SortProto {
-    const objectProto: Partial<SortProto> = { metatype: 50105 };
+    const objectProto: Partial<SortProto> = { metatype: 305 };
     objectProto.type = Number(object.type) as SortTypeProto;
     objectProto.by = object.by.toProto();
     if (object.mode != null) {
@@ -1536,9 +1370,9 @@ export class Sort extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SORT, Sort);
-/* ==== DESTACK_GENERATED_END:STRUCT:50105 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:305 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50106 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:306 ==== */
 /**
  * Select specific Attributes.
  */
@@ -1649,7 +1483,7 @@ export class Select extends StructFrozen {
 
   static __packValue__(object: Select): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50106;
+    objectValue["1"] = 306;
     if (object.attributes.length > 0) {
       const packedAttributes: any[] = [];
       for (const item of object.attributes) {
@@ -1701,7 +1535,7 @@ export class Select extends StructFrozen {
   }
 
   static __packProto__(object: Select): SelectProto {
-    const objectProto: Partial<SelectProto> = { metatype: 50106 };
+    const objectProto: Partial<SelectProto> = { metatype: 306 };
     if (object.attributes) {
       const packedAttributes: any[] = [];
       for (const item of object.attributes) {
@@ -1760,9 +1594,9 @@ export class Select extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SELECT, Select);
-/* ==== DESTACK_GENERATED_END:STRUCT:50106 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:306 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50102 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:302 ==== */
 /**
  * Join a Query with another Query.
  */
@@ -1933,7 +1767,7 @@ export class Join extends StructFrozen {
 
   static __packValue__(object: Join): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50102;
+    objectValue["1"] = 302;
     objectValue["30"] = object.type;
     if (object.definition != null) {
       objectValue["31"] = object.definition.toValue();
@@ -2003,7 +1837,7 @@ export class Join extends StructFrozen {
   }
 
   static __packProto__(object: Join): JoinProto {
-    const objectProto: Partial<JoinProto> = { metatype: 50102 };
+    const objectProto: Partial<JoinProto> = { metatype: 302 };
     objectProto.type = Number(object.type) as JoinTypeProto;
     if (object.definition != null) {
       objectProto.definition = object.definition.toProto();
@@ -2091,9 +1925,9 @@ export class Join extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.JOIN, Join);
-/* ==== DESTACK_GENERATED_END:STRUCT:50102 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:302 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50114 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:310 ==== */
 /**
  * An update to a QueryResult.
  */
@@ -2208,7 +2042,7 @@ export class QueryUpdate extends StructFrozen {
 
   static __packValue__(object: QueryUpdate): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50114;
+    objectValue["1"] = 310;
     objectValue["30"] = object.type;
     if (object.result != null) {
       objectValue["40"] = object.result.toValue();
@@ -2255,7 +2089,7 @@ export class QueryUpdate extends StructFrozen {
   }
 
   static __packProto__(object: QueryUpdate): QueryUpdateProto {
-    const objectProto: Partial<QueryUpdateProto> = { metatype: 50114 };
+    const objectProto: Partial<QueryUpdateProto> = { metatype: 310 };
     objectProto.type = Number(object.type) as QueryUpdateTypeProto;
     if (object.result != null) {
       objectProto.result = object.result.toProto();
@@ -2302,9 +2136,9 @@ export class QueryUpdate extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
-/* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:310 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50111 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:307 ==== */
 /**
  * A GraphQL-inspired Query node (with subqueries).
  */
@@ -2664,7 +2498,7 @@ export class Query extends StructFrozen {
 
   static __packValue__(object: Query): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50111;
+    objectValue["1"] = 307;
     objectValue["2"] = String(object.id);
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -2815,7 +2649,7 @@ export class Query extends StructFrozen {
   }
 
   static __packProto__(object: Query): QueryProto {
-    const objectProto: Partial<QueryProto> = { metatype: 50111 };
+    const objectProto: Partial<QueryProto> = { metatype: 307 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
     objectProto.name = object.name;
@@ -2960,9 +2794,9 @@ export class Query extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY, Query);
-/* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:307 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50112 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:308 ==== */
 /**
  * The result of a Query.
  * For grouped queries, group results are in Query.groups.
@@ -3183,7 +3017,7 @@ export class QueryResult extends Struct {
 
   static __packValue__(object: QueryResult): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50112;
+    objectValue["1"] = 308;
     objectValue["2"] = String(object.id);
     objectValue["30"] = object.type;
     if (object.groups.length > 0) {
@@ -3285,7 +3119,7 @@ export class QueryResult extends Struct {
   }
 
   static __packProto__(object: QueryResult): QueryResultProto {
-    const objectProto: Partial<QueryResultProto> = { metatype: 50112 };
+    const objectProto: Partial<QueryResultProto> = { metatype: 308 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
     if (object.groups) {
@@ -3387,9 +3221,9 @@ export class QueryResult extends Struct {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_RESULT, QueryResult);
-/* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:308 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50113 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:309 ==== */
 /**
  * A group in a QueryResult.
  */
@@ -3553,7 +3387,7 @@ export class QueryResultGroup extends Struct {
 
   static __packValue__(object: QueryResultGroup): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50113;
+    objectValue["1"] = 309;
     objectValue["30"] = object.type;
     objectValue["31"] = object.discriminator.toValue();
     if (object.nodes.length > 0) {
@@ -3629,7 +3463,7 @@ export class QueryResultGroup extends Struct {
   }
 
   static __packProto__(object: QueryResultGroup): QueryResultGroupProto {
-    const objectProto: Partial<QueryResultGroupProto> = { metatype: 50113 };
+    const objectProto: Partial<QueryResultGroupProto> = { metatype: 309 };
     objectProto.type = Number(object.type) as QueryTypeProto;
     objectProto.discriminator = object.discriminator.toProto();
     if (object.nodes) {
@@ -3711,9 +3545,9 @@ export class QueryResultGroup extends Struct {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_RESULT_GROUP, QueryResultGroup);
-/* ==== DESTACK_GENERATED_END:STRUCT:50113 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:309 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2571 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:312 ==== */
 /**
  * A selection of fields from a Node.
  */
@@ -3787,7 +3621,7 @@ export class Selection extends StructFrozen {
 
   static __packValue__(object: Selection): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2571;
+    objectValue["1"] = 312;
     return objectValue;
   }
 
@@ -3823,7 +3657,7 @@ export class Selection extends StructFrozen {
   }
 
   static __packProto__(object: Selection): SelectionProto {
-    const objectProto: Partial<SelectionProto> = { metatype: 2571 };
+    const objectProto: Partial<SelectionProto> = { metatype: 312 };
     return objectProto as SelectionProto;
   }
 
@@ -3861,9 +3695,9 @@ export class Selection extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SELECTION, Selection);
-/* ==== DESTACK_GENERATED_END:STRUCT:2571 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:312 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50115 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:311 ==== */
 /**
  * A histogram.
  */
@@ -4001,7 +3835,7 @@ export class Histogram extends StructFrozen {
 
   static __packValue__(object: Histogram): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50115;
+    objectValue["1"] = 311;
     if (object.buckets.length > 0) {
       const packedBuckets: any[] = [];
       for (const item of object.buckets) {
@@ -4065,7 +3899,7 @@ export class Histogram extends StructFrozen {
   }
 
   static __packProto__(object: Histogram): HistogramProto {
-    const objectProto: Partial<HistogramProto> = { metatype: 50115 };
+    const objectProto: Partial<HistogramProto> = { metatype: 311 };
     if (object.buckets) {
       const packedBuckets: any[] = [];
       for (const item of object.buckets) {
@@ -4131,4 +3965,170 @@ export class Histogram extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.HISTOGRAM, Histogram);
-/* ==== DESTACK_GENERATED_END:STRUCT:50115 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:311 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10108 ==== */
+/**
+ * FunctionType
+ */
+export enum FunctionType {
+  ADD = 1,
+  SUBTRACT = 2,
+  MULTIPLY = 3,
+  DIVIDE = 4,
+  MODULO = 5,
+  POWER = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.FUNCTION_TYPE, FunctionType);
+/* ==== DESTACK_GENERATED_END:ENUM:10108 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10103 ==== */
+/**
+ * ConditionalType
+ */
+export enum ConditionalType {
+  NOT = 1,
+  AND = 2,
+  OR = 3,
+  EQUALS = 10,
+  NOT_EQUALS = 11,
+  GREATER_THAN = 12,
+  GREATER_THAN_OR_EQUALS = 13,
+  LESS_THAN = 14,
+  LESS_THAN_OR_EQUALS = 15,
+  MATCHES = 20,
+  STARTS_WITH = 21,
+  ENDS_WITH = 22,
+  IN = 30,
+  NOT_IN = 31,
+  EXISTS = 40,
+  NOT_EXISTS = 41,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.CONDITIONAL_TYPE, ConditionalType);
+/* ==== DESTACK_GENERATED_END:ENUM:10103 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10104 ==== */
+/**
+ * AggregationType
+ */
+export enum AggregationType {
+  EXISTS = 1,
+  COUNT = 2,
+  SUM = 3,
+  MIN = 4,
+  MAX = 5,
+  AVERAGE = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.AGGREGATION_TYPE, AggregationType);
+/* ==== DESTACK_GENERATED_END:ENUM:10104 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10109 ==== */
+/**
+ * ExpressionType
+ */
+export enum ExpressionType {
+  LITERAL = 1,
+  ATTRIBUTE = 2,
+  CONDITION = 3,
+  FUNCTION = 4,
+  AGGREGATION = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.EXPRESSION_TYPE, ExpressionType);
+/* ==== DESTACK_GENERATED_END:ENUM:10109 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10106 ==== */
+/**
+ * SortType
+ */
+export enum SortType {
+  ASCENDING = 1,
+  DESCENDING = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SORT_TYPE, SortType);
+/* ==== DESTACK_GENERATED_END:ENUM:10106 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10105 ==== */
+/**
+ * SortMode
+ */
+export enum SortMode {
+  MAX = 1,
+  MIN = 2,
+  AVERAGE = 3,
+  SUM = 4,
+  MEDIAN = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SORT_MODE, SortMode);
+/* ==== DESTACK_GENERATED_END:ENUM:10105 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10107 ==== */
+/**
+ * JoinType
+ */
+export enum JoinType {
+  LEFT = 1,
+  PARENT = 10,
+  CHILD = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.JOIN_TYPE, JoinType);
+/* ==== DESTACK_GENERATED_END:ENUM:10107 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10120 ==== */
+/**
+ * QueryType
+ */
+export enum QueryType {
+  NODE = 1,
+  SCALAR = 2,
+  GROUPED_NODE = 10,
+  GROUPED_SCALAR = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.QUERY_TYPE, QueryType);
+/* ==== DESTACK_GENERATED_END:ENUM:10120 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10121 ==== */
+/**
+ * QueryUpdateType
+ */
+export enum QueryUpdateType {
+  FULL_RESULT = 1,
+  PARTIAL_RESULT = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.QUERY_UPDATE_TYPE, QueryUpdateType);
+/* ==== DESTACK_GENERATED_END:ENUM:10121 ==== */

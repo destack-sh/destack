@@ -40,7 +40,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:11100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:250500 ==== */
 /**
  * An AnnotationShape is a shape that represents an annotation.
  */
@@ -783,7 +783,7 @@ export class AnnotationShape extends Shape {
 
   static __packValue__(object: AnnotationShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 11100;
+    objectValue["1"] = 250500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1096,7 +1096,7 @@ export class AnnotationShape extends Shape {
   }
 
   static __packProto__(object: AnnotationShape): AnnotationShapeProto {
-    const objectProto: Partial<AnnotationShapeProto> = { metatype: 11100 };
+    const objectProto: Partial<AnnotationShapeProto> = { metatype: 250500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1379,4 +1379,4 @@ export class AnnotationShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ANNOTATION_SHAPE, AnnotationShape);
-/* ==== DESTACK_GENERATED_END:NODE:11100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:250500 ==== */

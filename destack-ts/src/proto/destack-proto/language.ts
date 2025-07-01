@@ -20284,6 +20284,34 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_HISTOGRAM = 311,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 312;
+     */
+    STRUCT_TYPE_SELECTION = 312,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 400;
+     */
+    STRUCT_TYPE_VALUE = 400,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 401;
+     */
+    STRUCT_TYPE_TYPE = 401,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_NUMBER_CONSTRAINT = 410;
+     */
+    STRUCT_TYPE_NUMBER_CONSTRAINT = 410,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_STRING_CONSTRAINT = 411;
+     */
+    STRUCT_TYPE_STRING_CONSTRAINT = 411,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_COLLECTION_CONSTRAINT = 412;
+     */
+    STRUCT_TYPE_COLLECTION_CONSTRAINT = 412,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_CONSTRAINT = 413;
+     */
+    STRUCT_TYPE_NODE_CONSTRAINT = 413,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 500;
      */
     STRUCT_TYPE_VECTOR2 = 500,
@@ -20308,38 +20336,6 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_VECTOR4I = 505,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 507;
-     */
-    STRUCT_TYPE_AXIS2 = 507,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 509;
-     */
-    STRUCT_TYPE_AXIS3 = 509,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 60000;
-     */
-    STRUCT_TYPE_VALUE = 60000,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 60001;
-     */
-    STRUCT_TYPE_TYPE = 60001,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NUMBER_CONSTRAINT = 60002;
-     */
-    STRUCT_TYPE_NUMBER_CONSTRAINT = 60002,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STRING_CONSTRAINT = 60003;
-     */
-    STRUCT_TYPE_STRING_CONSTRAINT = 60003,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLLECTION_CONSTRAINT = 60004;
-     */
-    STRUCT_TYPE_COLLECTION_CONSTRAINT = 60004,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_CONSTRAINT = 60005;
-     */
-    STRUCT_TYPE_NODE_CONSTRAINT = 60005,
-    /**
      * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 60020;
      */
     STRUCT_TYPE_TEXT = 60020,
@@ -20351,10 +20347,6 @@ export enum StructTypeProto {
      * @generated from protobuf enum value: STRUCT_TYPE_ICON = 60031;
      */
     STRUCT_TYPE_ICON = 60031,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 60071;
-     */
-    STRUCT_TYPE_SELECTION = 60071,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 70001;
      */
@@ -20403,6 +20395,14 @@ export enum StructTypeProto {
      * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 270032;
      */
     STRUCT_TYPE_CORNERS = 270032,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 270034;
+     */
+    STRUCT_TYPE_AXIS2 = 270034,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 270036;
+     */
+    STRUCT_TYPE_AXIS3 = 270036,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_STROKE = 270100;
      */

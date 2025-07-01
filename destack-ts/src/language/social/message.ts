@@ -28,7 +28,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:5520 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:120100 ==== */
 /**
  * A Message about something (usually in a Thread or a Channel).
  */
@@ -452,7 +452,7 @@ export class Message
 
   static __packValue__(object: Message): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 5520;
+    objectValue["1"] = 120100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -599,7 +599,7 @@ export class Message
   }
 
   static __packProto__(object: Message): MessageProto {
-    const objectProto: Partial<MessageProto> = { metatype: 5520 };
+    const objectProto: Partial<MessageProto> = { metatype: 120100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -778,4 +778,4 @@ export class Message
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MESSAGE, Message);
-/* ==== DESTACK_GENERATED_END:NODE:5520 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:120100 ==== */

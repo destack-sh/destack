@@ -30,7 +30,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:620 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:20600 ==== */
 /**
  * An Agent is an identity for a bot.
  */
@@ -341,7 +341,7 @@ export class Agent
 
   static __packValue__(object: Agent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 620;
+    objectValue["1"] = 20600;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -447,7 +447,7 @@ export class Agent
   }
 
   static __packProto__(object: Agent): AgentProto {
-    const objectProto: Partial<AgentProto> = { metatype: 620 };
+    const objectProto: Partial<AgentProto> = { metatype: 20600 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -573,4 +573,4 @@ export class Agent
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.AGENT, Agent);
-/* ==== DESTACK_GENERATED_END:NODE:620 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20600 ==== */

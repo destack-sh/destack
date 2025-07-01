@@ -35,7 +35,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:51002 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:3 ==== */
 /**
  * An Event is an immutable record of something happening to an Entity.
  */
@@ -107,9 +107,9 @@ export abstract class Event extends Node implements IsSpatial {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EVENT, Event);
-/* ==== DESTACK_GENERATED_END:NODE:51002 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:3 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:200 ==== */
 /**
  * A CustomEventDefinition defines a kind of CustomEvent with custom Properties.
  */
@@ -460,7 +460,7 @@ export class CustomEventDefinition
 
   static __packValue__(object: CustomEventDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4300;
+    objectValue["1"] = 200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -595,7 +595,7 @@ export class CustomEventDefinition
   }
 
   static __packProto__(object: CustomEventDefinition): CustomEventDefinitionProto {
-    const objectProto: Partial<CustomEventDefinitionProto> = { metatype: 4300 };
+    const objectProto: Partial<CustomEventDefinitionProto> = { metatype: 200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -757,9 +757,9 @@ export class CustomEventDefinition
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
-/* ==== DESTACK_GENERATED_END:NODE:4300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4301 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:201 ==== */
 /**
  * A CustomEvent is an instance of a CustomEventDefinition.
  */
@@ -851,9 +851,9 @@ export abstract class CustomEvent extends Event implements IsCustomizable, IsExt
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_EVENT, CustomEvent);
-/* ==== DESTACK_GENERATED_END:NODE:4301 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4302 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90800 ==== */
 /**
  * A Event of an Edit. Only EditEvents of Entities are allowed.
  */
@@ -1189,7 +1189,7 @@ export class EditEvent extends Event {
 
   static __packValue__(object: EditEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4302;
+    objectValue["1"] = 90800;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1299,7 +1299,7 @@ export class EditEvent extends Event {
   }
 
   static __packProto__(object: EditEvent): EditEventProto {
-    const objectProto: Partial<EditEventProto> = { metatype: 4302 };
+    const objectProto: Partial<EditEventProto> = { metatype: 90800 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1438,9 +1438,9 @@ export class EditEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
-/* ==== DESTACK_GENERATED_END:NODE:4302 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90800 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4220 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90401 ==== */
 /**
  * An Event that represents a Measurement.
  */
@@ -1524,4 +1524,4 @@ export abstract class MeasurementEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEASUREMENT_EVENT, MeasurementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:4220 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90401 ==== */

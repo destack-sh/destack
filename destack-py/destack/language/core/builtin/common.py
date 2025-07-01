@@ -257,20 +257,20 @@ class StructType(Enum):
     QUERY_RESULT_GROUP = 309
     QUERY_UPDATE = 310
     HISTOGRAM = 311
+    SELECTION = 312
+    VALUE = 400
+    TYPE = 401
+    NUMBER_CONSTRAINT = 410
+    STRING_CONSTRAINT = 411
+    COLLECTION_CONSTRAINT = 412
+    NODE_CONSTRAINT = 413
+    # geometry
     VECTOR2 = 500, None, None, "fas fa-vector-square"
     VECTOR3 = 501, None, None, "fas fa-vector-square"
     VECTOR4 = 502, None, None, "fas fa-vector-square"
     VECTOR2I = 503, None, None, "fas fa-vector-square"
     VECTOR3I = 504, None, None, "fas fa-vector-square"
     VECTOR4I = 505, None, None, "fas fa-vector-square"
-    AXIS2 = 507, None, None, "fas fa-vector-square"
-    AXIS3 = 509, None, None, "fas fa-vector-square"
-    VALUE = 60_000
-    TYPE = 60_001
-    NUMBER_CONSTRAINT = 60_002
-    STRING_CONSTRAINT = 60_003
-    COLLECTION_CONSTRAINT = 60_004
-    NODE_CONSTRAINT = 60_005
 
     # space [10_000-20_000]
     # ...
@@ -291,7 +291,6 @@ class StructType(Enum):
     TEXT = 60_020, None, None, "fas fa-text"
     TEXT_SPAN = 60_021, None, None, "fas fa-text"
     ICON = 60_031
-    SELECTION = 60_071
     # ...
 
     # logic [70_000-80_000]
@@ -365,6 +364,8 @@ class StructType(Enum):
     GRID_SPAN = 270_028, None, None, "fas fa-grid-2"
     INSETS = 270_030, None, None, "fas fa-corner"
     CORNERS = 270_032, None, None, "fas fa-corner"
+    AXIS2 = 270_034, None, None, "fas fa-vector-square"
+    AXIS3 = 270_036, None, None, "fas fa-vector-square"
     STROKE = 270_100, None, None, "fas fa-stroke"
     STROKE_CAP = 270_101, None, None, "fas fa-stroke"
     STROKE_PATH = 270_102, None, None, "fas fa-stroke"
@@ -503,11 +504,13 @@ class NodeType(Enum):
     NODE = 1, "Node", "Root of all Node types", "fas fa-dot"
     ENTITY = 2, "Entity", "Is an Entity", "fas fa-dot"
     EVENT = 3, "Event", "Is an Event", "fas fa-dot"
-    RESOURCE = 4, "Resource", "Is a Resource", "fas fa-dot"
+    RESOURCE = 10, "Resource", "Is a Resource", "fas fa-dot"
+    METRIC = 20, "Metric", None, "fas fa-gauge"
+    MEASUREMENT_EVENT = 21, "Measurement", None, "fas fa-gauge"
     # custom
     CUSTOM_ENTITY_DEFINITION = 100, "Custom Entity Definition", None, "fas fa-table"
     CUSTOM_ENTITY = 101, "Custom Entity", None, "fas fa-database"
-    CUSTOM_TRAIT_DEFINITION = 102, "Custom Trait Definition", None, "fas fa-table"
+    CUSTOM_TRAIT_DEFINITION = 110, "Custom Trait Definition", None, "fas fa-table"
     CUSTOM_EVENT_DEFINITION = 200, "Custom Event Definition", None, "fas fa-signal"
     CUSTOM_EVENT = 201, "Custom Event", None, "fas fa-signal"
     CUSTOM_STRUCT_DEFINITION = 300, "Custom Struct Definition", None, "fas fa-shapes"
@@ -648,8 +651,7 @@ class NodeType(Enum):
     INTERRUPTION = 90_200, "Interruption", None, "fas fa-hand"
     # JOB, ...
     LOG_EVENT = 90_300, "Log", None, "fas fa-file-lines"
-    METRIC = 90_400, "Metric", None, "fas fa-gauge"
-    MEASUREMENT_EVENT = 90_401, "Measurement", None, "fas fa-gauge"
+
     GAUGE_METRIC = 90_500, "Gauge Metric", None, "fas fa-gauge"
     GAUGE_MEASUREMENT_EVENT = 90_501, "Gauge Measurement", None, "fas fa-gauge"
     COUNTER_METRIC = 90_600, "Counter Metric", None, "fas fa-gauge"

@@ -29,7 +29,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:530 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:20300 ==== */
 /**
  * PermissionType
  */
@@ -41,9 +41,9 @@ export enum PermissionType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
-/* ==== DESTACK_GENERATED_END:ENUM:530 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:20300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:20300 ==== */
 /**
  * A Permission for something.
  */
@@ -339,7 +339,7 @@ export class Permission
 
   static __packValue__(object: Permission): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560;
+    objectValue["1"] = 20300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -442,7 +442,7 @@ export class Permission
   }
 
   static __packProto__(object: Permission): PermissionProto {
-    const objectProto: Partial<PermissionProto> = { metatype: 560 };
+    const objectProto: Partial<PermissionProto> = { metatype: 20300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -559,4 +559,4 @@ export class Permission
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PERMISSION, Permission);
-/* ==== DESTACK_GENERATED_END:NODE:560 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20300 ==== */

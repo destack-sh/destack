@@ -23,7 +23,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:40000 ==== */
 /**
  * A Snapshot is a point in Space time.
  */
@@ -321,7 +321,7 @@ export class Snapshot
 
   static __packValue__(object: Snapshot): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1500;
+    objectValue["1"] = 40000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -422,7 +422,7 @@ export class Snapshot
   }
 
   static __packProto__(object: Snapshot): SnapshotProto {
-    const objectProto: Partial<SnapshotProto> = { metatype: 1500 };
+    const objectProto: Partial<SnapshotProto> = { metatype: 40000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -543,9 +543,9 @@ export class Snapshot
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SNAPSHOT, Snapshot);
-/* ==== DESTACK_GENERATED_END:NODE:1500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:40000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:1510 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:40100 ==== */
 /**
  * A Branch is a version of a Snapshot.
  */
@@ -871,7 +871,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
 
   static __packValue__(object: Branch): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1510;
+    objectValue["1"] = 40100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -981,7 +981,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
   }
 
   static __packProto__(object: Branch): BranchProto {
-    const objectProto: Partial<BranchProto> = { metatype: 1510 };
+    const objectProto: Partial<BranchProto> = { metatype: 40100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1115,4 +1115,4 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.BRANCH, Branch);
-/* ==== DESTACK_GENERATED_END:NODE:1510 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:40100 ==== */

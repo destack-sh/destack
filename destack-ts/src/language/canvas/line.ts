@@ -41,7 +41,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:11010 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:250200 ==== */
 /**
  * A Line is a list of points.
  */
@@ -169,7 +169,7 @@ export class Line extends StructFrozen {
 
   static __packValue__(object: Line): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 11010;
+    objectValue["1"] = 250200;
     if (object.points.length > 0) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
@@ -228,7 +228,7 @@ export class Line extends StructFrozen {
   }
 
   static __packProto__(object: Line): LineProto {
-    const objectProto: Partial<LineProto> = { metatype: 11010 };
+    const objectProto: Partial<LineProto> = { metatype: 250200 };
     if (object.points) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
@@ -287,9 +287,9 @@ export class Line extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.LINE, Line);
-/* ==== DESTACK_GENERATED_END:STRUCT:11010 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:250200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:11040 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:250200 ==== */
 /**
  * A LineShape is a shape that represents a line.
  */
@@ -1059,7 +1059,7 @@ export class LineShape extends Shape {
 
   static __packValue__(object: LineShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 11040;
+    objectValue["1"] = 250200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1386,7 +1386,7 @@ export class LineShape extends Shape {
   }
 
   static __packProto__(object: LineShape): LineShapeProto {
-    const objectProto: Partial<LineShapeProto> = { metatype: 11040 };
+    const objectProto: Partial<LineShapeProto> = { metatype: 250200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1683,4 +1683,4 @@ export class LineShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LINE_SHAPE, LineShape);
-/* ==== DESTACK_GENERATED_END:NODE:11040 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:250200 ==== */

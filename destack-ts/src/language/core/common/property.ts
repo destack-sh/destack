@@ -58,23 +58,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
-/**
- * CustomPropertyType
- */
-export enum CustomPropertyType {
-  MEMBER = 1,
-  INPUT = 2,
-  OUTPUT = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.CUSTOM_PROPERTY_TYPE, CustomPropertyType);
-/* ==== DESTACK_GENERATED_END:ENUM:2580 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:2520 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:320 ==== */
 /**
  * A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.
  */
@@ -770,7 +754,7 @@ export class CustomProperty
 
   static __packValue__(object: CustomProperty): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2520;
+    objectValue["1"] = 320;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1046,7 +1030,7 @@ export class CustomProperty
   }
 
   static __packProto__(object: CustomProperty): CustomPropertyProto {
-    const objectProto: Partial<CustomPropertyProto> = { metatype: 2520 };
+    const objectProto: Partial<CustomPropertyProto> = { metatype: 320 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1395,4 +1379,20 @@ export class CustomProperty
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_PROPERTY, CustomProperty);
-/* ==== DESTACK_GENERATED_END:NODE:2520 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:320 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:506 ==== */
+/**
+ * CustomPropertyType
+ */
+export enum CustomPropertyType {
+  MEMBER = 1,
+  INPUT = 2,
+  OUTPUT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.CUSTOM_PROPERTY_TYPE, CustomPropertyType);
+/* ==== DESTACK_GENERATED_END:ENUM:506 ==== */

@@ -237,13 +237,19 @@ get {ts_name}(): {node_type_str} | null {{
     return null;
 }}"""
                 if not is_readonly:
-                    node_setter_str = f"""\
+                    if prop.is_optional:
+                        node_setter_str = f"""\
 set {ts_name}(value: {node_type_str}) {{
     if (value == null) {{
         this.{ptr_prop_name} = null;
     }} else {{
         this.{ptr_prop_name} = value.toRef();
     }}
+}}"""
+                    else:
+                        node_setter_str = f"""\
+set {ts_name}(value: {node_type_str}) {{
+    this.{ptr_prop_name} = value.toRef();
 }}"""
                     node_prop_str = f"{node_getter_str}\n{node_setter_str}"
                 else:
