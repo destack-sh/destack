@@ -62,12 +62,18 @@ class NodeDefinitionReference(StructFrozen):
         definition_ptr: Optional["NodeReference"] = None
 
     @property
-    def is_single(self) -> bool:
-        return self.type in (NodeDefinitionType.BUILTIN_NODE, NodeDefinitionType.CUSTOM_NODE)
-
-    @property
     def is_multi(self) -> bool:
-        return self.type in (NodeDefinitionType.BUILTIN_TRAIT, NodeDefinitionType.CUSTOM_TRAIT)
+        """Whether this definition references multiple Node definitions"""
+        if self.type == NodeDefinitionType.BUILTIN_NODE:
+            assert self.node_type is not None, f"no node_type for {self!r}"
+            node_cls = NODE_CLASS_BY_TYPE[self.node_type]
+            return TraitType.EXTENSIBLE in node_cls.__traits__
+        elif self.type == NodeDefinitionType.CUSTOM_NODE:
+            raise NotImplementedError(f"unexpected node definition reference: {self!r}")
+        elif self.type in (NodeDefinitionType.BUILTIN_TRAIT, NodeDefinitionType.CUSTOM_TRAIT):
+            return True
+        else:
+            assert_never(self.type)
 
     @property
     def object_cls(self) -> type_[BuiltinObjectBase] | None:

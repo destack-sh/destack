@@ -6,6 +6,9 @@ from .core import *  # noqa: F403
 from .data import *  # noqa: F403
 from .deployment import *  # noqa: F403
 from .entity import *  # noqa: F403
+
+# after all the imports, we can finalize
+from .finalize import finalize
 from .finance import *  # noqa: F403
 from .folder import *  # noqa: F403
 from .infra import *  # noqa: F403
@@ -18,7 +21,6 @@ from .registry import (
     ENUM_TYPE_BY_CLASS,  # noqa: F401
     NODE_CLASS_BY_TYPE,  # noqa: F401
     STRUCT_CLASS_BY_TYPE,  # noqa: F401
-    finalize,
 )
 from .runtime import *  # noqa: F403
 from .scene import *  # noqa: F403
@@ -28,7 +30,6 @@ from .spacetime import *  # noqa: F403
 from .style import *  # noqa: F403
 from .view import *  # noqa: F403
 
-# after all the imports, we can finalize
 finalize()
 
 # builtin destackes (pointers) :Builtins

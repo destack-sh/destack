@@ -14315,7 +14315,7 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "threadCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 72803
+         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 72800
          */
         threadCursor: ThreadCursorProto;
     } | {
@@ -14944,7 +14944,7 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "threadCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 72803
+         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 72800
          */
         threadCursor: ThreadCursorProto;
     } | {
@@ -18763,9 +18763,9 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_SCREEN_CURSOR = 72700,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_THREAD_CURSOR = 72803;
+     * @generated from protobuf enum value: NODE_TYPE_THREAD_CURSOR = 72800;
      */
-    NODE_TYPE_THREAD_CURSOR = 72803,
+    NODE_TYPE_THREAD_CURSOR = 72800,
     /**
      * @generated from protobuf enum value: NODE_TYPE_RUN = 90000;
      */
@@ -20516,57 +20516,57 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_AXIS3 = 270036,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STROKE = 270100;
-     */
-    STRUCT_TYPE_STROKE = 270100,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_CAP = 270101;
-     */
-    STRUCT_TYPE_STROKE_CAP = 270101,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_PATH = 270102;
-     */
-    STRUCT_TYPE_STROKE_PATH = 270102,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_POINT = 270103;
-     */
-    STRUCT_TYPE_STROKE_POINT = 270103,
-    /**
      * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 270300;
      */
     STRUCT_TYPE_COLOR = 270300,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 270301;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 270400;
      */
-    STRUCT_TYPE_FILL = 270301,
+    STRUCT_TYPE_FILL = 270400,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 270302;
+     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 270500;
      */
-    STRUCT_TYPE_FONT = 270302,
+    STRUCT_TYPE_FONT = 270500,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 270303;
+     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 270600;
      */
-    STRUCT_TYPE_BORDER = 270303,
+    STRUCT_TYPE_BORDER = 270600,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 270304;
+     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 270700;
      */
-    STRUCT_TYPE_SHADOW = 270304,
+    STRUCT_TYPE_SHADOW = 270700,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 270305;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 270800;
      */
-    STRUCT_TYPE_GRADIENT = 270305,
+    STRUCT_TYPE_GRADIENT = 270800,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 270306;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 270801;
      */
-    STRUCT_TYPE_GRADIENT_STOP = 270306,
+    STRUCT_TYPE_GRADIENT_STOP = 270801,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 270307;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 270900;
      */
-    STRUCT_TYPE_TRANSITION = 270307,
+    STRUCT_TYPE_TRANSITION = 270900,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 270308;
+     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 2701000;
      */
-    STRUCT_TYPE_EFFECT = 270308
+    STRUCT_TYPE_EFFECT = 2701000,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_STROKE = 2701100;
+     */
+    STRUCT_TYPE_STROKE = 2701100,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_CAP = 2701101;
+     */
+    STRUCT_TYPE_STROKE_CAP = 2701101,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_PATH = 2701102;
+     */
+    STRUCT_TYPE_STROKE_PATH = 2701102,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_POINT = 2701103;
+     */
+    STRUCT_TYPE_STROKE_POINT = 2701103
 }
 /**
  * @generated from protobuf enum symbol.destack.TenancyProto
@@ -53764,7 +53764,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 70200, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
             { no: 72600, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
             { no: 72700, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
-            { no: 72803, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
+            { no: 72800, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
             { no: 71000, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
             { no: 70000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
             { no: 70100, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
@@ -54362,7 +54362,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         screenCursor: ScreenCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
                     };
                     break;
-                case /* symbol.destack.ThreadCursorProto thread_cursor */ 72803:
+                case /* symbol.destack.ThreadCursorProto thread_cursor */ 72800:
                     message.node = {
                         oneofKind: "threadCursor",
                         threadCursor: ThreadCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadCursor)
@@ -54926,9 +54926,9 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.ScreenCursorProto screen_cursor = 72700; */
         if (message.node.oneofKind === "screenCursor")
             ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(72700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThreadCursorProto thread_cursor = 72803; */
+        /* symbol.destack.ThreadCursorProto thread_cursor = 72800; */
         if (message.node.oneofKind === "threadCursor")
-            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(72803, WireType.LengthDelimited).fork(), options).join();
+            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(72800, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.RunProto run = 90000; */
         if (message.node.oneofKind === "run")
             RunProto.internalBinaryWrite(message.node.run, writer.tag(90000, WireType.LengthDelimited).fork(), options).join();
@@ -55248,7 +55248,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 70200, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
             { no: 72600, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
             { no: 72700, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
-            { no: 72803, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
+            { no: 72800, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
             { no: 71000, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
             { no: 70000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
             { no: 70100, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
@@ -55546,7 +55546,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         screenCursor: ScreenCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
                     };
                     break;
-                case /* symbol.destack.ThreadCursorProto thread_cursor */ 72803:
+                case /* symbol.destack.ThreadCursorProto thread_cursor */ 72800:
                     message.node = {
                         oneofKind: "threadCursor",
                         threadCursor: ThreadCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadCursor)
@@ -55897,9 +55897,9 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.ScreenCursorProto screen_cursor = 72700; */
         if (message.node.oneofKind === "screenCursor")
             ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(72700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThreadCursorProto thread_cursor = 72803; */
+        /* symbol.destack.ThreadCursorProto thread_cursor = 72800; */
         if (message.node.oneofKind === "threadCursor")
-            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(72803, WireType.LengthDelimited).fork(), options).join();
+            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(72800, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.RunProto run = 90000; */
         if (message.node.oneofKind === "run")
             RunProto.internalBinaryWrite(message.node.run, writer.tag(90000, WireType.LengthDelimited).fork(), options).join();
