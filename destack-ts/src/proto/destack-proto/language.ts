@@ -142,10 +142,6 @@ export interface AgentProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto cursor_ptr = 52
      */
     cursorPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 200
-     */
-    scriptPtr?: NodeReferenceProto;
 }
 /**
  * @generated from protobuf message symbol.destack.AggregationProto
@@ -206,12 +202,6 @@ export interface AnnotationShapeProto {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 20
      */
     deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
     /**
      * @generated from protobuf field: string order_key = 22
      */
@@ -375,12 +365,6 @@ export interface ArrowShapeProto {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 20
      */
     deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
     /**
      * @generated from protobuf field: string order_key = 22
      */
@@ -753,12 +737,6 @@ export interface CanvasProto {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 20
      */
     deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
     /**
      * @generated from protobuf field: string order_key = 22
      */
@@ -1381,12 +1359,6 @@ export interface ContainerViewProto {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
-    /**
      * @generated from protobuf field: string order_key = 22
      */
     orderKey: string;
@@ -1900,6 +1872,12 @@ export interface CustomEntityDefinitionProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
+     */
+    value: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string order_key = 22
      */
     orderKey: string;
@@ -2002,7 +1980,7 @@ export interface CustomEnumDefinitionProto {
     sourcePtr?: NodeReferenceProto;
 }
 /**
- * An instance of a CustomEventDefinition.
+ * A CustomEvent is an instance of a CustomEventDefinition.
  *
  * @generated from protobuf message symbol.destack.CustomEventProto
  */
@@ -2032,6 +2010,12 @@ export interface CustomEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
+     */
+    value: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto node_ptr = 35
      */
     nodePtr?: NodeReferenceProto;
@@ -2041,7 +2025,7 @@ export interface CustomEventProto {
     definitionPtr?: NodeReferenceProto;
 }
 /**
- * A CustomEventDefinition defines a kind of CustomEvent.
+ * A CustomEventDefinition defines a kind of CustomEvent with custom Properties.
  *
  * @generated from protobuf message symbol.destack.CustomEventDefinitionProto
  */
@@ -2079,6 +2063,12 @@ export interface CustomEventDefinitionProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
+     */
+    value: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string order_key = 22
      */
     orderKey: string;
@@ -2086,6 +2076,14 @@ export interface CustomEventDefinitionProto {
      * @generated from protobuf field: string name = 31
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto prototype_ptr = 40
+     */
+    prototypePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeDefinitionReferenceProto base_type = 41
+     */
+    baseType?: NodeDefinitionReferenceProto;
     /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto source_ptr = 210
      */
@@ -2296,7 +2294,26 @@ export interface CustomPropertyProto {
     sourcePtr?: NodeReferenceProto;
 }
 /**
- * A CustomStructDefinition describes a custom Type with Fields.
+ * @generated from protobuf message symbol.destack.CustomStructProto
+ */
+export interface CustomStructProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto definition_ptr = 6
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
+     */
+    value: {
+        [key: string]: ValueProto;
+    };
+}
+/**
+ * A CustomStructDefinition describes a custom Struct with custom Properties.
  *
  * @generated from protobuf message symbol.destack.CustomStructDefinitionProto
  */
@@ -2356,6 +2373,14 @@ export interface CustomStructDefinitionProto {
      */
     icon?: IconProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.CustomStructProto prototype = 40
+     */
+    prototype?: CustomStructProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.StructDefinitionReferenceProto base_type = 41
+     */
+    baseType?: StructDefinitionReferenceProto;
+    /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto source_ptr = 210
      */
     sourcePtr?: NodeReferenceProto;
@@ -2402,6 +2427,12 @@ export interface CustomTraitDefinitionProto {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 20
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
+     */
+    value: {
+        [key: string]: ValueProto;
+    };
     /**
      * @generated from protobuf field: string order_key = 22
      */
@@ -4354,12 +4385,6 @@ export interface FrameViewProto {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
-    /**
      * @generated from protobuf field: string order_key = 22
      */
     orderKey: string;
@@ -6134,12 +6159,6 @@ export interface LabelViewProto {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
-    /**
      * @generated from protobuf field: string order_key = 22
      */
     orderKey: string;
@@ -6298,12 +6317,6 @@ export interface LayerProto {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 20
      */
     deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
     /**
      * @generated from protobuf field: string order_key = 22
      */
@@ -6576,12 +6589,6 @@ export interface LineShapeProto {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 20
      */
     deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
     /**
      * @generated from protobuf field: string order_key = 22
      */
@@ -8859,12 +8866,6 @@ export interface PolygonShapeProto {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
-    /**
      * @generated from protobuf field: string order_key = 22
      */
     orderKey: string;
@@ -10484,12 +10485,6 @@ export interface SceneProto {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
-    /**
      * @generated from protobuf field: string order_key = 22
      */
     orderKey: string;
@@ -11183,12 +11178,6 @@ export interface ShapeProto {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
-    /**
      * @generated from protobuf field: string order_key = 22
      */
     orderKey: string;
@@ -11653,12 +11642,6 @@ export interface SplitViewProto {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
-     */
-    value: {
-        [key: string]: ValueProto;
-    };
-    /**
      * @generated from protobuf field: string order_key = 22
      */
     orderKey: string;
@@ -12086,6 +12069,27 @@ export interface StructDefinitionProto {
      * @generated from protobuf field: bool is_frozen = 60
      */
     isFrozen: boolean;
+}
+/**
+ * @generated from protobuf message symbol.destack.StructDefinitionReferenceProto
+ */
+export interface StructDefinitionReferenceProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: symbol.destack.StructDefinitionTypeProto type = 30
+     */
+    type: StructDefinitionTypeProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.StructTypeProto struct_type = 40
+     */
+    structType?: StructTypeProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto definition_ptr = 45
+     */
+    definitionPtr?: NodeReferenceProto;
 }
 /**
  * A Style is a style definition.
@@ -13136,17 +13140,13 @@ export interface TypeProto {
      */
     nodeType?: NodeTypeProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto node_definition_ptr = 45
-     */
-    nodeDefinitionPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.StructTypeProto struct_type = 46
+     * @generated from protobuf field: optional symbol.destack.StructTypeProto struct_type = 45
      */
     structType?: StructTypeProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto base_type_ptr = 47
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 46
      */
-    baseTypePtr?: NodeReferenceProto;
+    definitionPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: optional symbol.destack.TypeProto key_type = 48
      */
@@ -13218,6 +13218,12 @@ export interface UserProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 18
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> value = 21
+     */
+    value: {
+        [key: string]: ValueProto;
+    };
     /**
      * @generated from protobuf field: string name = 31
      */
@@ -13740,6 +13746,12 @@ export interface SomeNodeProto {
          */
         customEnumDefinition: CustomEnumDefinitionProto;
     } | {
+        oneofKind: "customOption";
+        /**
+         * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 2530
+         */
+        customOption: CustomOptionProto;
+    } | {
         oneofKind: "gaugeMetric";
         /**
          * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 4240
@@ -13775,12 +13787,6 @@ export interface SomeNodeProto {
          * @generated from protobuf field: symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 4281
          */
         histogramMeasurementEvent: HistogramMeasurementEventProto;
-    } | {
-        oneofKind: "customOption";
-        /**
-         * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 2530
-         */
-        customOption: CustomOptionProto;
     } | {
         oneofKind: "customProperty";
         /**
@@ -14633,6 +14639,12 @@ export interface SomeEntityProto {
          */
         customEnumDefinition: CustomEnumDefinitionProto;
     } | {
+        oneofKind: "customOption";
+        /**
+         * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 2530
+         */
+        customOption: CustomOptionProto;
+    } | {
         oneofKind: "gaugeMetric";
         /**
          * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 4240
@@ -14650,12 +14662,6 @@ export interface SomeEntityProto {
          * @generated from protobuf field: symbol.destack.HistogramMetricProto histogram_metric = 4280
          */
         histogramMetric: HistogramMetricProto;
-    } | {
-        oneofKind: "customOption";
-        /**
-         * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 2530
-         */
-        customOption: CustomOptionProto;
     } | {
         oneofKind: "customProperty";
         /**
@@ -16965,13 +16971,17 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_OBJECT_DEFINITION_TYPE = 50011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 50012;
+     * @generated from protobuf enum value: ENUM_TYPE_STRUCT_DEFINITION_TYPE = 50012;
      */
-    ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 50012,
+    ENUM_TYPE_STRUCT_DEFINITION_TYPE = 50012,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MATERIALIZATION_TYPE = 50013;
+     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 50013;
      */
-    ENUM_TYPE_MATERIALIZATION_TYPE = 50013,
+    ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 50013,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_MATERIALIZATION_TYPE = 50014;
+     */
+    ENUM_TYPE_MATERIALIZATION_TYPE = 50014,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_STORE_ZONE = 50020;
      */
@@ -18358,6 +18368,58 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_UNSPECIFIED = 0,
     /**
+     * @generated from protobuf enum value: NODE_TYPE_NODE = 51000;
+     */
+    NODE_TYPE_NODE = 51000,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_ENTITY = 51001;
+     */
+    NODE_TYPE_ENTITY = 51001,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_EVENT = 51002;
+     */
+    NODE_TYPE_EVENT = 51002,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_RESOURCE = 51003;
+     */
+    NODE_TYPE_RESOURCE = 51003,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 2000;
+     */
+    NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 2000,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY = 2001;
+     */
+    NODE_TYPE_CUSTOM_ENTITY = 2001,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 2002;
+     */
+    NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 2002,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT_DEFINITION = 4300;
+     */
+    NODE_TYPE_CUSTOM_EVENT_DEFINITION = 4300,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT = 4301;
+     */
+    NODE_TYPE_CUSTOM_EVENT = 4301,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 2500;
+     */
+    NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 2500,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENUM_DEFINITION = 2510;
+     */
+    NODE_TYPE_CUSTOM_ENUM_DEFINITION = 2510,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_PROPERTY = 2520;
+     */
+    NODE_TYPE_CUSTOM_PROPERTY = 2520,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_OPTION = 2530;
+     */
+    NODE_TYPE_CUSTOM_OPTION = 2530,
+    /**
      * @generated from protobuf enum value: NODE_TYPE_SPACE = 1;
      */
     NODE_TYPE_SPACE = 1,
@@ -18541,22 +18603,6 @@ export enum NodeTypeProto {
      * @generated from protobuf enum value: NODE_TYPE_BRANCH = 1510;
      */
     NODE_TYPE_BRANCH = 1510,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 2500;
-     */
-    NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 2500,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENUM_DEFINITION = 2510;
-     */
-    NODE_TYPE_CUSTOM_ENUM_DEFINITION = 2510,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_PROPERTY = 2520;
-     */
-    NODE_TYPE_CUSTOM_PROPERTY = 2520,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_OPTION = 2530;
-     */
-    NODE_TYPE_CUSTOM_OPTION = 2530,
     /**
      * @generated from protobuf enum value: NODE_TYPE_FILE = 2540;
      */
@@ -19048,43 +19094,7 @@ export enum NodeTypeProto {
     /**
      * @generated from protobuf enum value: NODE_TYPE_STROKE_STYLE = 12068;
      */
-    NODE_TYPE_STROKE_STYLE = 12068,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_NODE = 51000;
-     */
-    NODE_TYPE_NODE = 51000,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITY = 51001;
-     */
-    NODE_TYPE_ENTITY = 51001,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_EVENT = 51002;
-     */
-    NODE_TYPE_EVENT = 51002,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_RESOURCE = 51003;
-     */
-    NODE_TYPE_RESOURCE = 51003,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 2000;
-     */
-    NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 2000,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY = 2001;
-     */
-    NODE_TYPE_CUSTOM_ENTITY = 2001,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 2002;
-     */
-    NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 2002,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT_DEFINITION = 4300;
-     */
-    NODE_TYPE_CUSTOM_EVENT_DEFINITION = 4300,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT = 4301;
-     */
-    NODE_TYPE_CUSTOM_EVENT = 4301
+    NODE_TYPE_STROKE_STYLE = 12068
 }
 /**
  * A Status of a Notification.
@@ -20138,6 +20148,31 @@ export enum StrokeTypeProto {
     STROKE_TYPE_FREEHAND = 4
 }
 /**
+ * @generated from protobuf enum symbol.destack.StructDefinitionTypeProto
+ */
+export enum StructDefinitionTypeProto {
+    /**
+     * @generated from protobuf enum value: STRUCT_DEFINITION_TYPE_UNSPECIFIED = 0;
+     */
+    STRUCT_DEFINITION_TYPE_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STRUCT_DEFINITION_TYPE_BUILTIN_STRUCT = 1;
+     */
+    STRUCT_DEFINITION_TYPE_BUILTIN_STRUCT = 1,
+    /**
+     * @generated from protobuf enum value: STRUCT_DEFINITION_TYPE_CUSTOM_STRUCT = 2;
+     */
+    STRUCT_DEFINITION_TYPE_CUSTOM_STRUCT = 2,
+    /**
+     * @generated from protobuf enum value: STRUCT_DEFINITION_TYPE_BUILTIN_ENUM = 3;
+     */
+    STRUCT_DEFINITION_TYPE_BUILTIN_ENUM = 3,
+    /**
+     * @generated from protobuf enum value: STRUCT_DEFINITION_TYPE_CUSTOM_ENUM = 4;
+     */
+    STRUCT_DEFINITION_TYPE_CUSTOM_ENUM = 4
+}
+/**
  * @generated from protobuf enum symbol.destack.StructTypeProto
  */
 export enum StructTypeProto {
@@ -20382,25 +20417,33 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 50108,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 50110;
+     * @generated from protobuf enum value: STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 50109;
      */
-    STRUCT_TYPE_QUERY = 50110,
+    STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 50109,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT = 50111;
+     * @generated from protobuf enum value: STRUCT_TYPE_CUSTOM_STRUCT = 50110;
      */
-    STRUCT_TYPE_QUERY_RESULT = 50111,
+    STRUCT_TYPE_CUSTOM_STRUCT = 50110,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT_GROUP = 50112;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 50111;
      */
-    STRUCT_TYPE_QUERY_RESULT_GROUP = 50112,
+    STRUCT_TYPE_QUERY = 50111,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 50113;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT = 50112;
      */
-    STRUCT_TYPE_QUERY_UPDATE = 50113,
+    STRUCT_TYPE_QUERY_RESULT = 50112,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_HISTOGRAM = 50114;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT_GROUP = 50113;
      */
-    STRUCT_TYPE_HISTOGRAM = 50114,
+    STRUCT_TYPE_QUERY_RESULT_GROUP = 50113,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 50114;
+     */
+    STRUCT_TYPE_QUERY_UPDATE = 50114,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_HISTOGRAM = 50115;
+     */
+    STRUCT_TYPE_HISTOGRAM = 50115,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 50200;
      */
@@ -20696,6 +20739,10 @@ export enum TraitTypeProto {
      */
     TRAIT_TYPE_SPATIAL = 50002,
     /**
+     * @generated from protobuf enum value: TRAIT_TYPE_ORDERED = 50100;
+     */
+    TRAIT_TYPE_ORDERED = 50100,
+    /**
      * @generated from protobuf enum value: TRAIT_TYPE_ARCHIVABLE = 50101;
      */
     TRAIT_TYPE_ARCHIVABLE = 50101,
@@ -20708,9 +20755,9 @@ export enum TraitTypeProto {
      */
     TRAIT_TYPE_EXTENSIBLE = 50103,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_ORDERED = 50104;
+     * @generated from protobuf enum value: TRAIT_TYPE_CUSTOMIZABLE = 50104;
      */
-    TRAIT_TYPE_ORDERED = 50104,
+    TRAIT_TYPE_CUSTOMIZABLE = 50104,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_HAS_NAME = 50200;
      */
@@ -21041,8 +21088,7 @@ class AgentProto$Type extends MessageType<AgentProto> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
-            { no: 52, name: "cursor_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceProto }
+            { no: 52, name: "cursor_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
     create(value?: PartialMessage<AgentProto>): AgentProto {
@@ -21099,9 +21145,6 @@ class AgentProto$Type extends MessageType<AgentProto> {
                 case /* optional symbol.destack.NodeReferenceProto cursor_ptr */ 52:
                     message.cursorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.cursorPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 200:
-                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -21153,9 +21196,6 @@ class AgentProto$Type extends MessageType<AgentProto> {
         /* optional symbol.destack.NodeReferenceProto cursor_ptr = 52; */
         if (message.cursorPtr)
             NodeReferenceProto.internalBinaryWrite(message.cursorPtr, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto script_ptr = 200; */
-        if (message.scriptPtr)
-            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21241,7 +21281,6 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionProto },
@@ -21278,7 +21317,6 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.name = "";
         if (value !== undefined)
@@ -21316,9 +21354,6 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -21421,22 +21456,6 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: AnnotationShapeProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof AnnotationShapeProto["value"] | undefined, val: AnnotationShapeProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.AnnotationShapeProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: AnnotationShapeProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -21465,13 +21484,6 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -21585,7 +21597,6 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionProto },
@@ -21625,7 +21636,6 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.name = "";
         message.startType = 0;
@@ -21665,9 +21675,6 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -21779,22 +21786,6 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: ArrowShapeProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof ArrowShapeProto["value"] | undefined, val: ArrowShapeProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.ArrowShapeProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: ArrowShapeProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -21823,13 +21814,6 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -22453,7 +22437,6 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.CanvasTypeProto", CanvasTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -22490,7 +22473,6 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.type = 0;
         message.name = "";
@@ -22529,9 +22511,6 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -22634,22 +22613,6 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: CanvasProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof CanvasProto["value"] | undefined, val: CanvasProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.CanvasProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: CanvasProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -22678,13 +22641,6 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -23924,7 +23880,6 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionProto },
@@ -23960,7 +23915,6 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.name = "";
         if (value !== undefined)
@@ -23998,9 +23952,6 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -24100,22 +24051,6 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: ContainerViewProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof ContainerViewProto["value"] | undefined, val: ContainerViewProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.ContainerViewProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: ContainerViewProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -24144,13 +24079,6 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -25105,6 +25033,7 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 25, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -25120,6 +25049,7 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.value = {};
         message.orderKey = "";
         message.name = "";
         message.baseTraits = [];
@@ -25160,6 +25090,9 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
+                    break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
                     break;
@@ -25198,6 +25131,22 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
         }
         return message;
     }
+    private binaryReadMap21(map: CustomEntityDefinitionProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomEntityDefinitionProto["value"] | undefined, val: CustomEntityDefinitionProto["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.CustomEntityDefinitionProto.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
     internalBinaryWrite(message: CustomEntityDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -25226,6 +25175,13 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -25435,6 +25391,7 @@ class CustomEventProto$Type extends MessageType<CustomEventProto> {
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 15, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 35, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 40, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -25443,6 +25400,7 @@ class CustomEventProto$Type extends MessageType<CustomEventProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.value = {};
         if (value !== undefined)
             reflectionMergePartial<CustomEventProto>(this, message, value);
         return message;
@@ -25470,6 +25428,9 @@ class CustomEventProto$Type extends MessageType<CustomEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 16:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
                     break;
+                case /* map<string, symbol.destack.ValueProto> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
+                    break;
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 35:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
@@ -25486,6 +25447,22 @@ class CustomEventProto$Type extends MessageType<CustomEventProto> {
             }
         }
         return message;
+    }
+    private binaryReadMap21(map: CustomEventProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomEventProto["value"] | undefined, val: CustomEventProto["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.CustomEventProto.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
     }
     internalBinaryWrite(message: CustomEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
@@ -25506,6 +25483,13 @@ class CustomEventProto$Type extends MessageType<CustomEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 16; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* optional symbol.destack.NodeReferenceProto node_ptr = 35; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
@@ -25534,8 +25518,11 @@ class CustomEventDefinitionProto$Type extends MessageType<CustomEventDefinitionP
             { no: 16, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "prototype_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 41, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 210, name: "source_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
@@ -25543,6 +25530,7 @@ class CustomEventDefinitionProto$Type extends MessageType<CustomEventDefinitionP
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.value = {};
         message.orderKey = "";
         message.name = "";
         if (value !== undefined)
@@ -25578,11 +25566,20 @@ class CustomEventDefinitionProto$Type extends MessageType<CustomEventDefinitionP
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
+                case /* map<string, symbol.destack.ValueProto> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
+                    break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto prototype_ptr */ 40:
+                    message.prototypePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.prototypePtr);
+                    break;
+                case /* optional symbol.destack.NodeDefinitionReferenceProto base_type */ 41:
+                    message.baseType = NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseType);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto source_ptr */ 210:
                     message.sourcePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
@@ -25597,6 +25594,22 @@ class CustomEventDefinitionProto$Type extends MessageType<CustomEventDefinitionP
             }
         }
         return message;
+    }
+    private binaryReadMap21(map: CustomEventDefinitionProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomEventDefinitionProto["value"] | undefined, val: CustomEventDefinitionProto["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.CustomEventDefinitionProto.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
     }
     internalBinaryWrite(message: CustomEventDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
@@ -25623,12 +25636,25 @@ class CustomEventDefinitionProto$Type extends MessageType<CustomEventDefinitionP
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto prototype_ptr = 40; */
+        if (message.prototypePtr)
+            NodeReferenceProto.internalBinaryWrite(message.prototypePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeDefinitionReferenceProto base_type = 41; */
+        if (message.baseType)
+            NodeDefinitionReferenceProto.internalBinaryWrite(message.baseType, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto source_ptr = 210; */
         if (message.sourcePtr)
             NodeReferenceProto.internalBinaryWrite(message.sourcePtr, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
@@ -26068,6 +26094,88 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
  */
 export const CustomPropertyProto = new CustomPropertyProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class CustomStructProto$Type extends MessageType<CustomStructProto> {
+    constructor() {
+        super("symbol.destack.CustomStructProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } }
+        ]);
+    }
+    create(value?: PartialMessage<CustomStructProto>): CustomStructProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.value = {};
+        if (value !== undefined)
+            reflectionMergePartial<CustomStructProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomStructProto): CustomStructProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* map<string, symbol.destack.ValueProto> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    private binaryReadMap21(map: CustomStructProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomStructProto["value"] | undefined, val: CustomStructProto["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.CustomStructProto.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
+    internalBinaryWrite(message: CustomStructProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.CustomStructProto
+ */
+export const CustomStructProto = new CustomStructProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitionProto> {
     constructor() {
         super("symbol.destack.CustomStructDefinitionProto", [
@@ -26084,6 +26192,8 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
+            { no: 40, name: "prototype", kind: "message", T: () => CustomStructProto },
+            { no: 41, name: "base_type", kind: "message", T: () => StructDefinitionReferenceProto },
             { no: 210, name: "source_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
@@ -26141,6 +26251,12 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
                     break;
                 case /* optional symbol.destack.IconProto icon */ 34:
                     message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.destack.CustomStructProto prototype */ 40:
+                    message.prototype = CustomStructProto.internalBinaryRead(reader, reader.uint32(), options, message.prototype);
+                    break;
+                case /* optional symbol.destack.StructDefinitionReferenceProto base_type */ 41:
+                    message.baseType = StructDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseType);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto source_ptr */ 210:
                     message.sourcePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
@@ -26216,6 +26332,12 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
         /* optional symbol.destack.IconProto icon = 34; */
         if (message.icon)
             IconProto.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.CustomStructProto prototype = 40; */
+        if (message.prototype)
+            CustomStructProto.internalBinaryWrite(message.prototype, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.StructDefinitionReferenceProto base_type = 41; */
+        if (message.baseType)
+            StructDefinitionReferenceProto.internalBinaryWrite(message.baseType, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto source_ptr = 210; */
         if (message.sourcePtr)
             NodeReferenceProto.internalBinaryWrite(message.sourcePtr, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
@@ -26242,6 +26364,7 @@ class CustomTraitDefinitionProto$Type extends MessageType<CustomTraitDefinitionP
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
@@ -26255,6 +26378,7 @@ class CustomTraitDefinitionProto$Type extends MessageType<CustomTraitDefinitionP
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.value = {};
         message.orderKey = "";
         message.name = "";
         message.baseTraits = [];
@@ -26295,6 +26419,9 @@ class CustomTraitDefinitionProto$Type extends MessageType<CustomTraitDefinitionP
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
+                    break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
                     break;
@@ -26327,6 +26454,22 @@ class CustomTraitDefinitionProto$Type extends MessageType<CustomTraitDefinitionP
         }
         return message;
     }
+    private binaryReadMap21(map: CustomTraitDefinitionProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomTraitDefinitionProto["value"] | undefined, val: CustomTraitDefinitionProto["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.CustomTraitDefinitionProto.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
     internalBinaryWrite(message: CustomTraitDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -26355,6 +26498,13 @@ class CustomTraitDefinitionProto$Type extends MessageType<CustomTraitDefinitionP
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -30869,7 +31019,6 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionProto },
@@ -30905,7 +31054,6 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.name = "";
         if (value !== undefined)
@@ -30943,9 +31091,6 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -31045,22 +31190,6 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: FrameViewProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof FrameViewProto["value"] | undefined, val: FrameViewProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.FrameViewProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: FrameViewProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -31089,13 +31218,6 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -35190,7 +35312,6 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionProto },
@@ -35226,7 +35347,6 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.name = "";
         if (value !== undefined)
@@ -35264,9 +35384,6 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -35366,22 +35483,6 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: LabelViewProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof LabelViewProto["value"] | undefined, val: LabelViewProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.LabelViewProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: LabelViewProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -35410,13 +35511,6 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -35527,7 +35621,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 25, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.LayerTypeProto", LayerTypeProto] },
@@ -35566,7 +35659,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.type = 0;
         message.name = "";
@@ -35605,9 +35697,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -35716,22 +35805,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: LayerProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof LayerProto["value"] | undefined, val: LayerProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.LayerProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: LayerProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -35760,13 +35833,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -36164,7 +36230,6 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionProto },
@@ -36202,7 +36267,6 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.name = "";
         message.points = [];
@@ -36241,9 +36305,6 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -36349,22 +36410,6 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: LineShapeProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof LineShapeProto["value"] | undefined, val: LineShapeProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.LineShapeProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: LineShapeProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -36393,13 +36438,6 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -41662,7 +41700,6 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.PolygonShapeTypeProto", PolygonShapeTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -41701,7 +41738,6 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.type = 0;
         message.name = "";
@@ -41741,9 +41777,6 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -41852,22 +41885,6 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: PolygonShapeProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof PolygonShapeProto["value"] | undefined, val: PolygonShapeProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.PolygonShapeProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: PolygonShapeProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -41896,13 +41913,6 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -45547,7 +45557,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 25, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -45586,7 +45595,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.name = "";
         if (value !== undefined)
@@ -45624,9 +45632,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -45735,22 +45740,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: SceneProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof SceneProto["value"] | undefined, val: SceneProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.SceneProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: SceneProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -45779,13 +45768,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -47315,7 +47297,6 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionProto },
@@ -47351,7 +47332,6 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.name = "";
         if (value !== undefined)
@@ -47389,9 +47369,6 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -47491,22 +47468,6 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: ShapeProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof ShapeProto["value"] | undefined, val: ShapeProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.ShapeProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: ShapeProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -47535,13 +47496,6 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -48340,7 +48294,6 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionProto },
@@ -48376,7 +48329,6 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.value = {};
         message.orderKey = "";
         message.name = "";
         if (value !== undefined)
@@ -48414,9 +48366,6 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 20:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> value */ 21:
-                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string order_key */ 22:
                     message.orderKey = reader.string();
@@ -48516,22 +48465,6 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
         }
         return message;
     }
-    private binaryReadMap21(map: SplitViewProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof SplitViewProto["value"] | undefined, val: SplitViewProto["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.SplitViewProto.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: SplitViewProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -48560,13 +48493,6 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
         /* optional google.protobuf.Timestamp deleted_at = 20; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> value = 21; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 22; */
         if (message.orderKey !== "")
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -49483,6 +49409,75 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
  * @generated MessageType for protobuf message symbol.destack.StructDefinitionProto
  */
 export const StructDefinitionProto = new StructDefinitionProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class StructDefinitionReferenceProto$Type extends MessageType<StructDefinitionReferenceProto> {
+    constructor() {
+        super("symbol.destack.StructDefinitionReferenceProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.StructDefinitionTypeProto", StructDefinitionTypeProto] },
+            { no: 40, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 45, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<StructDefinitionReferenceProto>): StructDefinitionReferenceProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<StructDefinitionReferenceProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StructDefinitionReferenceProto): StructDefinitionReferenceProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.destack.StructDefinitionTypeProto type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional symbol.destack.StructTypeProto struct_type */ 40:
+                    message.structType = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto definition_ptr */ 45:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StructDefinitionReferenceProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.destack.StructDefinitionTypeProto type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbol.destack.StructTypeProto struct_type = 40; */
+        if (message.structType !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.structType);
+        /* symbol.destack.NodeReferenceProto definition_ptr = 45; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.StructDefinitionReferenceProto
+ */
+export const StructDefinitionReferenceProto = new StructDefinitionReferenceProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class StyleProto$Type extends MessageType<StyleProto> {
     constructor() {
@@ -51939,9 +51934,8 @@ class TypeProto$Type extends MessageType<TypeProto> {
             { no: 42, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.destack.PrimitiveTypeProto", PrimitiveTypeProto] },
             { no: 43, name: "enum_type", kind: "enum", opt: true, T: () => ["symbol.destack.EnumTypeProto", EnumTypeProto] },
             { no: 44, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 45, name: "node_definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 46, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 47, name: "base_type_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 45, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 46, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 48, name: "key_type", kind: "message", T: () => TypeProto },
             { no: 50, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 51, name: "is_variable", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
@@ -51985,14 +51979,11 @@ class TypeProto$Type extends MessageType<TypeProto> {
                 case /* optional symbol.destack.NodeTypeProto node_type */ 44:
                     message.nodeType = reader.int32();
                     break;
-                case /* optional symbol.destack.NodeReferenceProto node_definition_ptr */ 45:
-                    message.nodeDefinitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodeDefinitionPtr);
-                    break;
-                case /* optional symbol.destack.StructTypeProto struct_type */ 46:
+                case /* optional symbol.destack.StructTypeProto struct_type */ 45:
                     message.structType = reader.int32();
                     break;
-                case /* optional symbol.destack.NodeReferenceProto base_type_ptr */ 47:
-                    message.baseTypePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 46:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
                 case /* optional symbol.destack.TypeProto key_type */ 48:
                     message.keyType = TypeProto.internalBinaryRead(reader, reader.uint32(), options, message.keyType);
@@ -52051,15 +52042,12 @@ class TypeProto$Type extends MessageType<TypeProto> {
         /* optional symbol.destack.NodeTypeProto node_type = 44; */
         if (message.nodeType !== undefined)
             writer.tag(44, WireType.Varint).int32(message.nodeType);
-        /* optional symbol.destack.NodeReferenceProto node_definition_ptr = 45; */
-        if (message.nodeDefinitionPtr)
-            NodeReferenceProto.internalBinaryWrite(message.nodeDefinitionPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.StructTypeProto struct_type = 46; */
+        /* optional symbol.destack.StructTypeProto struct_type = 45; */
         if (message.structType !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.structType);
-        /* optional symbol.destack.NodeReferenceProto base_type_ptr = 47; */
-        if (message.baseTypePtr)
-            NodeReferenceProto.internalBinaryWrite(message.baseTypePtr, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+            writer.tag(45, WireType.Varint).int32(message.structType);
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 46; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.TypeProto key_type = 48; */
         if (message.keyType)
             TypeProto.internalBinaryWrite(message.keyType, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
@@ -52108,6 +52096,7 @@ class UserProto$Type extends MessageType<UserProto> {
             { no: 16, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
@@ -52126,6 +52115,7 @@ class UserProto$Type extends MessageType<UserProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.value = {};
         message.name = "";
         message.slug = "";
         message.status = 0;
@@ -52159,6 +52149,9 @@ class UserProto$Type extends MessageType<UserProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* map<string, symbol.destack.ValueProto> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -52207,6 +52200,22 @@ class UserProto$Type extends MessageType<UserProto> {
         }
         return message;
     }
+    private binaryReadMap21(map: UserProto["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof UserProto["value"] | undefined, val: UserProto["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.UserProto.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
     internalBinaryWrite(message: UserProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -52229,6 +52238,13 @@ class UserProto$Type extends MessageType<UserProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -53411,13 +53427,13 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 4300, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionProto },
             { no: 4302, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
             { no: 2510, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
+            { no: 2530, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
             { no: 4240, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
             { no: 4241, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
             { no: 4260, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
             { no: 4261, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
             { no: 4280, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
             { no: 4281, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
-            { no: 2530, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
             { no: 2520, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 1500, name: "snapshot", kind: "message", oneof: "node", T: () => SnapshotProto },
             { no: 1510, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
@@ -53598,6 +53614,12 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         customEnumDefinition: CustomEnumDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEnumDefinition)
                     };
                     break;
+                case /* symbol.destack.CustomOptionProto custom_option */ 2530:
+                    message.node = {
+                        oneofKind: "customOption",
+                        customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
+                    };
+                    break;
                 case /* symbol.destack.GaugeMetricProto gauge_metric */ 4240:
                     message.node = {
                         oneofKind: "gaugeMetric",
@@ -53632,12 +53654,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                     message.node = {
                         oneofKind: "histogramMeasurementEvent",
                         histogramMeasurementEvent: HistogramMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMeasurementEvent)
-                    };
-                    break;
-                case /* symbol.destack.CustomOptionProto custom_option */ 2530:
-                    message.node = {
-                        oneofKind: "customOption",
-                        customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
                     };
                     break;
                 case /* symbol.destack.CustomPropertyProto custom_property */ 2520:
@@ -54930,10 +54946,10 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 2002, name: "custom_trait_definition", kind: "message", oneof: "node", T: () => CustomTraitDefinitionProto },
             { no: 4300, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionProto },
             { no: 2510, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
+            { no: 2530, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
             { no: 4240, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
             { no: 4260, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
             { no: 4280, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
-            { no: 2530, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
             { no: 2520, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 1500, name: "snapshot", kind: "message", oneof: "node", T: () => SnapshotProto },
             { no: 1510, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
@@ -55042,6 +55058,12 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         customEnumDefinition: CustomEnumDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEnumDefinition)
                     };
                     break;
+                case /* symbol.destack.CustomOptionProto custom_option */ 2530:
+                    message.node = {
+                        oneofKind: "customOption",
+                        customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
+                    };
+                    break;
                 case /* symbol.destack.GaugeMetricProto gauge_metric */ 4240:
                     message.node = {
                         oneofKind: "gaugeMetric",
@@ -55058,12 +55080,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                     message.node = {
                         oneofKind: "histogramMetric",
                         histogramMetric: HistogramMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMetric)
-                    };
-                    break;
-                case /* symbol.destack.CustomOptionProto custom_option */ 2530:
-                    message.node = {
-                        oneofKind: "customOption",
-                        customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
                     };
                     break;
                 case /* symbol.destack.CustomPropertyProto custom_property */ 2520:
@@ -56490,7 +56506,7 @@ export const SomeEventProto = new SomeEventProto$Type();
 //
 
 // Any...
-export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomEntityProto | CustomTraitDefinitionProto | ResourceProto | MetricProto | EventProto | CustomEventDefinitionProto | CustomEventProto | EditEventProto | MeasurementEventProto | CustomEnumDefinitionProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomOptionProto | CustomPropertyProto | SnapshotProto | BranchProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | PolygonShapeProto | FileProto | LinkProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
-export type AnyStructProto = ScopeProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | TextSpanProto | TextProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | LineProto | PolygonProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
+export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomEntityProto | CustomTraitDefinitionProto | ResourceProto | MetricProto | EventProto | CustomEventDefinitionProto | CustomEventProto | EditEventProto | MeasurementEventProto | CustomEnumDefinitionProto | CustomOptionProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomPropertyProto | SnapshotProto | BranchProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | PolygonShapeProto | FileProto | LinkProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
+export type AnyStructProto = ScopeProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | LineProto | PolygonProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

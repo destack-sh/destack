@@ -204,8 +204,9 @@ class EnumType(Enum):
     TRAIT_TYPE = 50003
     NODE_DEFINITION_TYPE = 50010
     OBJECT_DEFINITION_TYPE = 50011
-    PROPERTY_REFERENCE_TYPE = 50012
-    MATERIALIZATION_TYPE = 50013
+    STRUCT_DEFINITION_TYPE = 50012
+    PROPERTY_REFERENCE_TYPE = 50013
+    MATERIALIZATION_TYPE = 50014
     STORE_ZONE = 50020
     STORE_TYPE = 50021
     STORE_IMPLEMENTATION = 50022
@@ -364,11 +365,13 @@ class StructType(Enum):
     SELECT = 50106
     NODE_DEFINITION_REFERENCE = 50107
     OBJECT_DEFINITION_REFERENCE = 50108
-    QUERY = 50110
-    QUERY_RESULT = 50111
-    QUERY_RESULT_GROUP = 50112
-    QUERY_UPDATE = 50113
-    HISTOGRAM = 50114
+    STRUCT_DEFINITION_REFERENCE = 50109
+    CUSTOM_STRUCT = 50110
+    QUERY = 50111
+    QUERY_RESULT = 50112
+    QUERY_RESULT_GROUP = 50113
+    QUERY_UPDATE = 50114
+    HISTOGRAM = 50115
     VECTOR2 = 50200, None, None, "fas fa-vector-square"
     VECTOR3 = 50201, None, None, "fas fa-vector-square"
     VECTOR4 = 50202, None, None, "fas fa-vector-square"
@@ -480,10 +483,16 @@ class TraitType(Enum):
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
 
     # behavior
+    ORDERED = 50100, "Ordered", "Is ordered", "fas fa-sort"
     ARCHIVABLE = 50101, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 50102, "Deletable", "Can be deleted", "fas fa-trash"
-    EXTENSIBLE = 50103, "Extensible", "Is extensible", "fas fa-expand"
-    ORDERED = 50104, "Ordered", "Is ordered", "fas fa-sort"
+    EXTENSIBLE = 50103, "Extensible", "Can be extended by custom Nodes", "fas fa-expand"
+    CUSTOMIZABLE = (
+        50104,
+        "Customizable",
+        "Can be customized with custom Properties",
+        "fas fa-paint-roller",
+    )
     # attribute
     HAS_NAME = 50200, "Name", "Has a name", "fas fa-font-case"
     HAS_SLUG = 50201, "Slug", "Has a slug", "fas fa-hashtag"
@@ -492,6 +501,26 @@ class TraitType(Enum):
 
 @builtin_enum(EnumType.NODE_TYPE)
 class NodeType(Enum):
+    # meta [1-10_000]
+    # nocheckin: move meta into 1-1000 range
+    #  (and increase spacing.. again.. 100 per node? 10_000 per category?)
+    NODE = 51000, "Node", "Root of all Node types", "fas fa-dot"
+    ENTITY = 51001, "Entity", "Is an Entity", "fas fa-dot"
+    EVENT = 51002, "Event", "Is an Event", "fas fa-dot"
+    RESOURCE = 51003, "Resource", "Is a Resource", "fas fa-dot"
+
+    CUSTOM_ENTITY_DEFINITION = 2000, "Custom Node Definition", None, "fas fa-table"
+    CUSTOM_ENTITY = 2001, "Custom Node Instance", None, "fas fa-database"
+    CUSTOM_TRAIT_DEFINITION = 2002, "Custom Trait Definition", None, "fas fa-table"
+
+    CUSTOM_EVENT_DEFINITION = 4300, "Custom Event Definition", None, "fas fa-signal"
+    CUSTOM_EVENT = 4301, "Custom Event", None, "fas fa-signal"
+
+    CUSTOM_STRUCT_DEFINITION = 2500, "Struct", None, "fas fa-shapes"
+    CUSTOM_ENUM_DEFINITION = 2510, "Enum", None, "fas fa-shapes"
+    CUSTOM_PROPERTY = 2520, "Field", None, "fas fa-triangle"
+    CUSTOM_OPTION = 2530, "Option", None, "fas fa-circle"
+
     # space [1-500]
     SPACE = 1, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
     HANDLE = 20, "Handle", "Unique @handle", "fas fa-at"
@@ -577,10 +606,7 @@ class NodeType(Enum):
     # TRAIT_DEFINITION/TRAIT_IMPLEMENTATION, INTERFACE, ...
 
     # data [2500-3000]
-    CUSTOM_STRUCT_DEFINITION = 2500, "Struct", None, "fas fa-shapes"
-    CUSTOM_ENUM_DEFINITION = 2510, "Enum", None, "fas fa-shapes"
-    CUSTOM_PROPERTY = 2520, "Field", None, "fas fa-triangle"
-    CUSTOM_OPTION = 2530, "Option", None, "fas fa-circle"
+
     FILE = 2540, "File", None, "fas fa-file"
     LINK = 2550, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
@@ -814,20 +840,6 @@ class NodeType(Enum):
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
     # PALETTE, ...
-
-    # meta [50000-51000]
-    # nocheckin: move meta into 1-1000 range (and increase spacing.. again?)
-    NODE = 51000, "Node", "Root of all Node types", "fas fa-dot"
-    ENTITY = 51001, "Entity", "Is an Entity", "fas fa-dot"
-    EVENT = 51002, "Event", "Is an Event", "fas fa-dot"
-    RESOURCE = 51003, "Resource", "Is a Resource", "fas fa-dot"
-
-    CUSTOM_ENTITY_DEFINITION = 2000, "Custom Node Definition", None, "fas fa-table"
-    CUSTOM_ENTITY = 2001, "Custom Node Instance", None, "fas fa-database"
-    CUSTOM_TRAIT_DEFINITION = 2002, "Custom Trait Definition", None, "fas fa-table"
-
-    CUSTOM_EVENT_DEFINITION = 4300, "Custom Event Definition", None, "fas fa-signal"
-    CUSTOM_EVENT = 4301, "Custom Event", None, "fas fa-signal"
 
 
 ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)

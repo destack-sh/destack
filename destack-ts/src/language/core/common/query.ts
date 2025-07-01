@@ -2093,7 +2093,218 @@ export class Join extends StructFrozen {
 registerStructClass(StructType.JOIN, Join);
 /* ==== DESTACK_GENERATED_END:STRUCT:50102 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50110 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:50114 ==== */
+/**
+ * An update to a QueryResult.
+ */
+export class QueryUpdate extends StructFrozen {
+  static metatype: StructType = StructType.QUERY_UPDATE;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * QueryUpdate.type
+   */
+  readonly type: QueryUpdateType;
+
+  /**
+   * QueryUpdate.result
+   */
+  readonly result: QueryResult | null;
+
+  constructor(options: {
+    type: QueryUpdateType;
+    result?: QueryResult | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`QueryUpdate.type is required`);
+    }
+    this.type = _type;
+    let _result = options.result ?? null;
+    this.result = _result;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.result == null) !== (other.result == null) ||
+      (this.result != null && !this.result.equals(other.result))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${QueryUpdateType[this.type]}`);
+      if (this.result !== null) {
+        propertyReprs.push(`result=${this.result.repr()}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<QueryUpdate ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.result !== null) {
+      h = (h * 31 + this.result.hash()) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = QueryUpdate.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: QueryUpdate): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50114;
+    objectValue["30"] = object.type;
+    if (object.result != null) {
+      objectValue["40"] = object.result.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryUpdate {
+    const resultValue = objectValue["40"];
+    const unpackedResult =
+      resultValue != undefined
+        ? QueryResult.fromValue(resultValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new QueryUpdate({
+      type: Number(objectValue["30"]),
+      result: unpackedResult,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryUpdate {
+    return QueryUpdate.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): QueryUpdateProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = QueryUpdate.__packProto__(this);
+    }
+    return this._proto as QueryUpdateProto;
+  }
+
+  static __packProto__(object: QueryUpdate): QueryUpdateProto {
+    const objectProto: Partial<QueryUpdateProto> = { metatype: 50114 };
+    objectProto.type = Number(object.type) as QueryUpdateTypeProto;
+    if (object.result != null) {
+      objectProto.result = object.result.toProto();
+    }
+    return objectProto as QueryUpdateProto;
+  }
+
+  static __unpackProto__(
+    objectProto: QueryUpdateProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryUpdate {
+    return new QueryUpdate({
+      type: Number(objectProto.type) as QueryUpdateType,
+      result:
+        objectProto.result != undefined
+          ? QueryResult.fromProto(objectProto.result!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: QueryUpdateProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryUpdate {
+    return QueryUpdate.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): QueryUpdate {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = QueryUpdateProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
+/* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50111 ==== */
 /**
  * A GraphQL-inspired Query node (with subqueries).
  */
@@ -2453,7 +2664,7 @@ export class Query extends StructFrozen {
 
   static __packValue__(object: Query): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50110;
+    objectValue["1"] = 50111;
     objectValue["2"] = String(object.id);
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -2604,7 +2815,7 @@ export class Query extends StructFrozen {
   }
 
   static __packProto__(object: Query): QueryProto {
-    const objectProto: Partial<QueryProto> = { metatype: 50110 };
+    const objectProto: Partial<QueryProto> = { metatype: 50111 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
     objectProto.name = object.name;
@@ -2749,279 +2960,9 @@ export class Query extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY, Query);
-/* ==== DESTACK_GENERATED_END:STRUCT:50110 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50114 ==== */
-/**
- * A histogram.
- */
-export class Histogram extends StructFrozen {
-  static metatype: StructType = StructType.HISTOGRAM;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Histogram.buckets
-   */
-  readonly buckets: Array<Value>;
-
-  /**
-   * Histogram.counts
-   */
-  readonly counts: Array<number>;
-
-  constructor(options: {
-    buckets?: Array<Value>;
-    counts?: Array<number>;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _buckets = options.buckets ?? null;
-    if (_buckets === null) {
-      _buckets = [];
-    }
-    this.buckets = _buckets;
-    let _counts = options.counts ?? null;
-    if (_counts === null) {
-      _counts = [];
-    }
-    this.counts = _counts;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (this.buckets.length !== other.buckets.length) {
-      return false;
-    }
-    for (let i = 0; i < this.buckets.length; i++) {
-      if (!this.buckets[i].equals(other.buckets[i])) {
-        return false;
-      }
-    }
-    if (this.counts.length !== other.counts.length) {
-      return false;
-    }
-    for (let i = 0; i < this.counts.length; i++) {
-      if (!(this.counts[i] === other.counts[i])) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      if (this.buckets.length > 0) {
-        propertyReprs.push(`buckets=${this.buckets.map((_item) => _item.repr()).join(", ")}`);
-      }
-      if (this.counts.length > 0) {
-        propertyReprs.push(`counts=${this.counts.map((_item) => _item).join(", ")}`);
-      }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
-        this._repr = `<Histogram ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly)
-        this._repr = `<Histogram>`;
-      }
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.buckets && this.buckets.length > 0) {
-      for (const _item of this.buckets) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.counts && this.counts.length > 0) {
-      for (const _item of this.counts) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Histogram.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Histogram): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50114;
-    if (object.buckets.length > 0) {
-      const packedBuckets: any[] = [];
-      for (const item of object.buckets) {
-        packedBuckets.push(item.toValue());
-      }
-      objectValue["40"] = packedBuckets;
-    }
-    if (object.counts.length > 0) {
-      const packedCounts: any[] = [];
-      for (const item of object.counts) {
-        packedCounts.push(item);
-      }
-      objectValue["41"] = packedCounts;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Histogram {
-    const unpackedBuckets: any[] = [];
-    if (objectValue["40"] != undefined) {
-      for (const item of objectValue["40"]) {
-        unpackedBuckets.push(Value.fromValue(item, _session, _supergraph, _graph, _connection));
-      }
-    }
-    const unpackedCounts: any[] = [];
-    if (objectValue["41"] != undefined) {
-      for (const item of objectValue["41"]) {
-        unpackedCounts.push(Number(item));
-      }
-    }
-    return new Histogram({
-      buckets: unpackedBuckets,
-      counts: unpackedCounts,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Histogram {
-    return Histogram.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): HistogramProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Histogram.__packProto__(this);
-    }
-    return this._proto as HistogramProto;
-  }
-
-  static __packProto__(object: Histogram): HistogramProto {
-    const objectProto: Partial<HistogramProto> = { metatype: 50114 };
-    if (object.buckets) {
-      const packedBuckets: any[] = [];
-      for (const item of object.buckets) {
-        packedBuckets.push(item.toProto());
-      }
-      objectProto.buckets = packedBuckets;
-    }
-    if (object.counts) {
-      const packedCounts: any[] = [];
-      for (const item of object.counts) {
-        packedCounts.push(item);
-      }
-      objectProto.counts = packedCounts;
-    }
-    return objectProto as HistogramProto;
-  }
-
-  static __unpackProto__(
-    objectProto: HistogramProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Histogram {
-    const unpackedBuckets: any[] = [];
-    if (objectProto.buckets) {
-      for (const item of objectProto.buckets) {
-        unpackedBuckets.push(Value.fromProto(item!, _session, _supergraph, _graph, _connection));
-      }
-    }
-    const unpackedCounts: any[] = [];
-    if (objectProto.counts) {
-      for (const item of objectProto.counts) {
-        unpackedCounts.push(Number(item));
-      }
-    }
-    return new Histogram({
-      buckets: unpackedBuckets,
-      counts: unpackedCounts,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: HistogramProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Histogram {
-    return Histogram.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Histogram {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = HistogramProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.HISTOGRAM, Histogram);
-/* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:50111 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:50112 ==== */
 /**
  * The result of a Query.
  * For grouped queries, group results are in Query.groups.
@@ -3242,7 +3183,7 @@ export class QueryResult extends Struct {
 
   static __packValue__(object: QueryResult): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50111;
+    objectValue["1"] = 50112;
     objectValue["2"] = String(object.id);
     objectValue["30"] = object.type;
     if (object.groups.length > 0) {
@@ -3344,7 +3285,7 @@ export class QueryResult extends Struct {
   }
 
   static __packProto__(object: QueryResult): QueryResultProto {
-    const objectProto: Partial<QueryResultProto> = { metatype: 50111 };
+    const objectProto: Partial<QueryResultProto> = { metatype: 50112 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
     if (object.groups) {
@@ -3446,9 +3387,9 @@ export class QueryResult extends Struct {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_RESULT, QueryResult);
-/* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:50112 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:50113 ==== */
 /**
  * A group in a QueryResult.
  */
@@ -3612,7 +3553,7 @@ export class QueryResultGroup extends Struct {
 
   static __packValue__(object: QueryResultGroup): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50112;
+    objectValue["1"] = 50113;
     objectValue["30"] = object.type;
     objectValue["31"] = object.discriminator.toValue();
     if (object.nodes.length > 0) {
@@ -3688,7 +3629,7 @@ export class QueryResultGroup extends Struct {
   }
 
   static __packProto__(object: QueryResultGroup): QueryResultGroupProto {
-    const objectProto: Partial<QueryResultGroupProto> = { metatype: 50112 };
+    const objectProto: Partial<QueryResultGroupProto> = { metatype: 50113 };
     objectProto.type = Number(object.type) as QueryTypeProto;
     objectProto.discriminator = object.discriminator.toProto();
     if (object.nodes) {
@@ -3770,217 +3711,6 @@ export class QueryResultGroup extends Struct {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_RESULT_GROUP, QueryResultGroup);
-/* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:50113 ==== */
-/**
- * An update to a QueryResult.
- */
-export class QueryUpdate extends StructFrozen {
-  static metatype: StructType = StructType.QUERY_UPDATE;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * QueryUpdate.type
-   */
-  readonly type: QueryUpdateType;
-
-  /**
-   * QueryUpdate.result
-   */
-  readonly result: QueryResult | null;
-
-  constructor(options: {
-    type: QueryUpdateType;
-    result?: QueryResult | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`QueryUpdate.type is required`);
-    }
-    this.type = _type;
-    let _result = options.result ?? null;
-    this.result = _result;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (
-      (this.result == null) !== (other.result == null) ||
-      (this.result != null && !this.result.equals(other.result))
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${QueryUpdateType[this.type]}`);
-      if (this.result !== null) {
-        propertyReprs.push(`result=${this.result.repr()}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<QueryUpdate ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.result !== null) {
-      h = (h * 31 + this.result.hash()) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = QueryUpdate.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: QueryUpdate): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50113;
-    objectValue["30"] = object.type;
-    if (object.result != null) {
-      objectValue["40"] = object.result.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): QueryUpdate {
-    const resultValue = objectValue["40"];
-    const unpackedResult =
-      resultValue != undefined
-        ? QueryResult.fromValue(resultValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new QueryUpdate({
-      type: Number(objectValue["30"]),
-      result: unpackedResult,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): QueryUpdate {
-    return QueryUpdate.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): QueryUpdateProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = QueryUpdate.__packProto__(this);
-    }
-    return this._proto as QueryUpdateProto;
-  }
-
-  static __packProto__(object: QueryUpdate): QueryUpdateProto {
-    const objectProto: Partial<QueryUpdateProto> = { metatype: 50113 };
-    objectProto.type = Number(object.type) as QueryUpdateTypeProto;
-    if (object.result != null) {
-      objectProto.result = object.result.toProto();
-    }
-    return objectProto as QueryUpdateProto;
-  }
-
-  static __unpackProto__(
-    objectProto: QueryUpdateProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): QueryUpdate {
-    return new QueryUpdate({
-      type: Number(objectProto.type) as QueryUpdateType,
-      result:
-        objectProto.result != undefined
-          ? QueryResult.fromProto(objectProto.result!, _session, _supergraph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: QueryUpdateProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): QueryUpdate {
-    return QueryUpdate.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): QueryUpdate {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = QueryUpdateProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
 /* ==== DESTACK_GENERATED_END:STRUCT:50113 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2571 ==== */
@@ -4132,3 +3862,273 @@ export class Selection extends StructFrozen {
 }
 registerStructClass(StructType.SELECTION, Selection);
 /* ==== DESTACK_GENERATED_END:STRUCT:2571 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50115 ==== */
+/**
+ * A histogram.
+ */
+export class Histogram extends StructFrozen {
+  static metatype: StructType = StructType.HISTOGRAM;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Histogram.buckets
+   */
+  readonly buckets: Array<Value>;
+
+  /**
+   * Histogram.counts
+   */
+  readonly counts: Array<number>;
+
+  constructor(options: {
+    buckets?: Array<Value>;
+    counts?: Array<number>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _buckets = options.buckets ?? null;
+    if (_buckets === null) {
+      _buckets = [];
+    }
+    this.buckets = _buckets;
+    let _counts = options.counts ?? null;
+    if (_counts === null) {
+      _counts = [];
+    }
+    this.counts = _counts;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (this.buckets.length !== other.buckets.length) {
+      return false;
+    }
+    for (let i = 0; i < this.buckets.length; i++) {
+      if (!this.buckets[i].equals(other.buckets[i])) {
+        return false;
+      }
+    }
+    if (this.counts.length !== other.counts.length) {
+      return false;
+    }
+    for (let i = 0; i < this.counts.length; i++) {
+      if (!(this.counts[i] === other.counts[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.buckets.length > 0) {
+        propertyReprs.push(`buckets=${this.buckets.map((_item) => _item.repr()).join(", ")}`);
+      }
+      if (this.counts.length > 0) {
+        propertyReprs.push(`counts=${this.counts.map((_item) => _item).join(", ")}`);
+      }
+      if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
+        this._repr = `<Histogram ${propertyReprs.join(" ")}>`;
+      } else {
+        // @ts-expect-error(readonly)
+        this._repr = `<Histogram>`;
+      }
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.buckets && this.buckets.length > 0) {
+      for (const _item of this.buckets) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.counts && this.counts.length > 0) {
+      for (const _item of this.counts) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Histogram.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Histogram): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50115;
+    if (object.buckets.length > 0) {
+      const packedBuckets: any[] = [];
+      for (const item of object.buckets) {
+        packedBuckets.push(item.toValue());
+      }
+      objectValue["40"] = packedBuckets;
+    }
+    if (object.counts.length > 0) {
+      const packedCounts: any[] = [];
+      for (const item of object.counts) {
+        packedCounts.push(item);
+      }
+      objectValue["41"] = packedCounts;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    const unpackedBuckets: any[] = [];
+    if (objectValue["40"] != undefined) {
+      for (const item of objectValue["40"]) {
+        unpackedBuckets.push(Value.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const unpackedCounts: any[] = [];
+    if (objectValue["41"] != undefined) {
+      for (const item of objectValue["41"]) {
+        unpackedCounts.push(Number(item));
+      }
+    }
+    return new Histogram({
+      buckets: unpackedBuckets,
+      counts: unpackedCounts,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    return Histogram.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): HistogramProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Histogram.__packProto__(this);
+    }
+    return this._proto as HistogramProto;
+  }
+
+  static __packProto__(object: Histogram): HistogramProto {
+    const objectProto: Partial<HistogramProto> = { metatype: 50115 };
+    if (object.buckets) {
+      const packedBuckets: any[] = [];
+      for (const item of object.buckets) {
+        packedBuckets.push(item.toProto());
+      }
+      objectProto.buckets = packedBuckets;
+    }
+    if (object.counts) {
+      const packedCounts: any[] = [];
+      for (const item of object.counts) {
+        packedCounts.push(item);
+      }
+      objectProto.counts = packedCounts;
+    }
+    return objectProto as HistogramProto;
+  }
+
+  static __unpackProto__(
+    objectProto: HistogramProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    const unpackedBuckets: any[] = [];
+    if (objectProto.buckets) {
+      for (const item of objectProto.buckets) {
+        unpackedBuckets.push(Value.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const unpackedCounts: any[] = [];
+    if (objectProto.counts) {
+      for (const item of objectProto.counts) {
+        unpackedCounts.push(Number(item));
+      }
+    }
+    return new Histogram({
+      buckets: unpackedBuckets,
+      counts: unpackedCounts,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: HistogramProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    return Histogram.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Histogram {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = HistogramProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.HISTOGRAM, Histogram);
+/* ==== DESTACK_GENERATED_END:STRUCT:50115 ==== */

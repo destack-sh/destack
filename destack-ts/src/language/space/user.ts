@@ -3,6 +3,7 @@ import type {
   HasIcon,
   HasName,
   HasSlug,
+  IsCustomizable,
   IsFollowable,
   IsGlobal,
   IsOwner,
@@ -20,6 +21,7 @@ import {
   NodeReference,
   NodeType,
   StructType,
+  Value,
 } from "@destack/language/core";
 import type { Cursor } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
@@ -50,7 +52,7 @@ registerEnumClass(EnumType.USER_STATUS, UserStatus);
  */
 export class User
   extends Entity
-  implements IsGlobal, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject
+  implements IsGlobal, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject, IsCustomizable
 {
   static metatype: NodeType = NodeType.USER;
 
@@ -99,6 +101,11 @@ export class User
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsCustomizable.value
+   */
+  value: Map<string, Value>;
 
   /**
    * User.name
@@ -188,6 +195,7 @@ export class User
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
+    value?: Map<string, Value>;
     name: string;
     slug: string;
     icon?: Icon | null;
@@ -234,6 +242,11 @@ export class User
       _parent = _parent.toRef();
     }
     this.parentPtr = _parent;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      _value = new Map();
+    }
+    this.value = _value;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`User.name is required`);
@@ -356,6 +369,17 @@ export class User
     ) {
       return false;
     }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -388,6 +412,12 @@ export class User
     }
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -453,6 +483,13 @@ export class User
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
+    if (object.value.size > 0) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of object.value) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
+    }
     objectValue["31"] = object.name;
     objectValue["33"] = object.slug;
     if (object.icon != null) {
@@ -517,6 +554,15 @@ export class User
       iconValue != undefined
         ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -545,6 +591,7 @@ export class User
       passwordSalt: unpackedPasswordSalt,
       passwordHash: unpackedPasswordHash,
       icon: unpackedIcon,
+      value: unpackedValue,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
@@ -585,6 +632,12 @@ export class User
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
+    if (object.value) {
+      objectProto.value = {};
+      for (const [key, value] of object.value) {
+        objectProto.value![String(key)] = value.toProto();
+      }
+    }
     objectProto.name = object.name;
     objectProto.slug = object.slug;
     if (object.icon != null) {
@@ -621,6 +674,15 @@ export class User
     _graph?: any | null,
     _connection?: any | null,
   ): User {
+    const unpackedValue = new Map();
+    if (objectProto.value) {
+      for (const [key, value] of Object.entries(objectProto.value)) {
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new User({
       name: objectProto.name,
       slug: objectProto.slug,
@@ -664,6 +726,7 @@ export class User
         objectProto.icon != undefined
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
+      value: unpackedValue,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

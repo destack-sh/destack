@@ -15,7 +15,6 @@ import {
   NodeReference,
   NodeType,
   Position,
-  Value,
   Vector2,
 } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
@@ -102,11 +101,6 @@ export abstract class Shape extends ContainerView {
    * IsDeletable.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * IsExtensible.value
-   */
-  declare value: Map<string, Value>;
 
   /**
    * IsOrdered.orderKey

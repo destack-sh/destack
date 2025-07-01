@@ -2,9 +2,15 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Entity, Metric } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
+import {
+  NodeDefinitionReference,
+  NodeReference,
+  PropertyReference,
+} from "@destack/language/core/builtin/relation";
 import type {
   HasName,
+  IsCustomizable,
+  IsExtensible,
   IsSourceable,
   IsSpatial,
   IsSubject,
@@ -105,9 +111,12 @@ registerNodeClass(NodeType.EVENT, Event);
 
 /* ==== DESTACK_GENERATED_START:NODE:4300 ==== */
 /**
- * A CustomEventDefinition defines a kind of CustomEvent.
+ * A CustomEventDefinition defines a kind of CustomEvent with custom Properties.
  */
-export class CustomEventDefinition extends Entity implements IsSpatial, HasName, IsSourceable {
+export class CustomEventDefinition
+  extends Entity
+  implements IsSpatial, HasName, IsSourceable, IsCustomizable
+{
   static metatype: NodeType = NodeType.CUSTOM_EVENT_DEFINITION;
 
   /**
@@ -169,6 +178,11 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * IsCustomizable.value
+   */
+  value: Map<string, Value>;
+
+  /**
    * IsOrdered.orderKey
    */
   readonly orderKey: string;
@@ -177,6 +191,30 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
    * HasName.name
    */
   name: string;
+
+  /**
+   * A custom Event's prototype is the default template new CustomEvent instances are based on.
+   */
+  get prototype(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.prototypePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  set prototype(node: CustomEvent | null) {
+    if (node === null) {
+      this.prototypePtr = null;
+    } else {
+      this.prototypePtr = node.toRef();
+    }
+  }
+  prototypePtr: NodeReference | null;
+
+  /**
+   * CustomEventDefinition.baseType
+   */
+  baseType: NodeDefinitionReference | null;
 
   /**
    * IsSourceable.source
@@ -198,8 +236,11 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
+    value?: Map<string, Value>;
     orderKey?: string;
     name: string;
+    prototype?: CustomEvent | NodeReference | null;
+    baseType?: NodeDefinitionReference | null;
     source?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -240,6 +281,11 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
       _space = _space.toRef();
     }
     this.spacePtr = _space;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      _value = new Map();
+    }
+    this.value = _value;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -253,6 +299,13 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
       throw new Error(`CustomEventDefinition.name is required`);
     }
     this.name = _name;
+    let _prototype = options.prototype ?? null;
+    if (_prototype != null && _prototype instanceof Node) {
+      _prototype = _prototype.toRef();
+    }
+    this.prototypePtr = _prototype;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
     let _source = options.source ?? null;
     if (_source != null && _source instanceof Node) {
       _source = _source.toRef();
@@ -293,6 +346,15 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.prototypePtr?.id === other.prototypePtr?.id)) {
+      return false;
+    }
+    if (
+      (this.baseType == null) !== (other.baseType == null) ||
+      (this.baseType != null && !this.baseType.equals(other.baseType))
+    ) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -302,18 +364,41 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+        return false;
+      }
+    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.prototypePtr !== null) {
+      h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
+    }
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -391,8 +476,21 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
+    if (object.value.size > 0) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of object.value) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
+    }
     objectValue["22"] = object.orderKey;
     objectValue["31"] = object.name;
+    if (object.prototypePtr != null) {
+      objectValue["40"] = object.prototypePtr.toValue();
+    }
+    if (object.baseType != null) {
+      objectValue["41"] = object.baseType.toValue();
+    }
     if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
     }
@@ -406,6 +504,22 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEventDefinition {
+    const prototypePtrValue = objectValue["40"];
+    const unpackedPrototypePtr =
+      prototypePtrValue != undefined
+        ? NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["41"];
+    const unpackedBaseType =
+      baseTypeValue != undefined
+        ? NodeDefinitionReference.fromValue(
+            baseTypeValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -416,6 +530,15 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
       sourcePtrValue != undefined
         ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -432,9 +555,12 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
         ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEventDefinition({
+      prototype: unpackedPrototypePtr,
+      baseType: unpackedBaseType,
       space: unpackedSpacePtr,
       name: objectValue["31"],
       source: unpackedSourcePtr,
+      value: unpackedValue,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
@@ -485,8 +611,20 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
+    if (object.value) {
+      objectProto.value = {};
+      for (const [key, value] of object.value) {
+        objectProto.value![String(key)] = value.toProto();
+      }
+    }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object.name;
+    if (object.prototypePtr != null) {
+      objectProto.prototypePtr = object.prototypePtr.toProto();
+    }
+    if (object.baseType != null) {
+      objectProto.baseType = object.baseType.toProto();
+    }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -500,7 +638,36 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEventDefinition {
+    const unpackedValue = new Map();
+    if (objectProto.value) {
+      for (const [key, value] of Object.entries(objectProto.value)) {
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new CustomEventDefinition({
+      prototype:
+        objectProto.prototypePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.prototypePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseType:
+        objectProto.baseType != undefined
+          ? NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -522,6 +689,7 @@ export class CustomEventDefinition extends Entity implements IsSpatial, HasName,
               _connection,
             )
           : null,
+      value: unpackedValue,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -593,9 +761,9 @@ registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
 
 /* ==== DESTACK_GENERATED_START:NODE:4301 ==== */
 /**
- * An instance of a CustomEventDefinition.
+ * A CustomEvent is an instance of a CustomEventDefinition.
  */
-export abstract class CustomEvent extends Event {
+export abstract class CustomEvent extends Event implements IsCustomizable, IsExtensible {
   static metatype: NodeType = NodeType.CUSTOM_EVENT;
 
   /**
@@ -638,6 +806,11 @@ export abstract class CustomEvent extends Event {
     return null;
   }
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsCustomizable.value
+   */
+  declare value: Map<string, Value>;
 
   /**
    * The Node this Event is about.

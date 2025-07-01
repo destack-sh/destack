@@ -6,7 +6,7 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    IsExtensible,
+    IsCustomizable,
     IsRunnable,
     IsSpatial,
     NodeType,
@@ -132,7 +132,7 @@ class RunCompletedEvent(RunEvent):
 
 
 @builtin_node(NodeType.RUN)
-class Run(IsSpatial, IsExtensible, Entity):
+class Run(IsSpatial, IsCustomizable, Entity):
     """
     Run something somewhere, somehow.
     """

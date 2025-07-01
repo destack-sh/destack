@@ -1,4 +1,4 @@
-import type { IsExtensible, IsSubject } from "@destack/language/core";
+import type { IsSubject } from "@destack/language/core";
 import {
   Align,
   Axis2,
@@ -15,7 +15,6 @@ import {
   NodeReference,
   NodeType,
   Position,
-  Value,
   Vector2,
 } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
@@ -31,7 +30,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A container View contains other Views.
  */
-export abstract class ContainerView extends View implements IsExtensible {
+export abstract class ContainerView extends View {
   static metatype: NodeType = NodeType.CONTAINER_VIEW;
 
   /**
@@ -102,11 +101,6 @@ export abstract class ContainerView extends View implements IsExtensible {
    * IsDeletable.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * IsExtensible.value
-   */
-  declare value: Map<string, Value>;
 
   /**
    * IsOrdered.orderKey

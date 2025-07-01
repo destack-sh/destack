@@ -269,10 +269,14 @@ class IsDeletable(Trait):
 
 @builtin_trait(TraitType.EXTENSIBLE)
 class IsExtensible(Trait):
-    # nocheckin: literally Extensible maybe? (can use as base type)
-    #  related to is_abstract? (IsAbstract .. trait? or just flag?)
-    #  (but then it can't be a trait because it would infect descendants..? Entity should be extensible?)
-    """A Node that can be extended with custom Values (one Value per Field)."""
+    """A Node that be extended by custom Nodes (i.e. used as a base type)."""
+
+    pass
+
+
+@builtin_trait(TraitType.CUSTOMIZABLE)
+class IsCustomizable(Trait):
+    """A Node that can be customized with custom Properties."""
 
     value: dict[UUID, "Value"] = property_(21)
 
