@@ -624,7 +624,7 @@ class NodeType(Enum):
     CURSOR = 72_500, "Cursor", None, "fas fa-mouse-pointer"
     EVENT_CURSOR = 72_600, "Event Cursor", None, "fas fa-signal"
     SCREEN_CURSOR = 72_700, "Screen Cursor", None, "fas fa-mouse"
-    THREAD_CURSOR = 72_803, "Thread Cursor", None, "fas fa-magnifying-glass"
+    THREAD_CURSOR = 72_800, "Thread Cursor", None, "fas fa-magnifying-glass"
     # QUERY_CURSOR, WEB_CURSOR, ...
     # BREAKPOINT, ...
     # ROOM, CHANNEL, LOCK, ...
@@ -648,20 +648,19 @@ class NodeType(Enum):
     RUN_FAILED_EVENT = 90_008, "Run Failed Event", None, "fas fa-play"
     RUN_COMPLETED_EVENT = 90_009, "Run Completed Event", None, "fas fa-play"
     # RUN_QUEUE = 90_001, "Run Queue", "Run Queue", "fas fa-list-check"
-    SPAN_EVENT = 90_100, "Span", None, "fas fa-ruler-horizontal"
-    INTERRUPTION = 90_200, "Interruption", None, "fas fa-hand"
+    SPAN_EVENT = 90_301, "Span", None, "fas fa-ruler-horizontal"
+    INTERRUPTION = 90_400, "Interruption", None, "fas fa-hand"
     # JOB, ...
-    LOG_EVENT = 90_300, "Log", None, "fas fa-file-lines"
-
-    GAUGE_METRIC = 90_500, "Gauge Metric", None, "fas fa-gauge"
-    GAUGE_MEASUREMENT_EVENT = 90_501, "Gauge Measurement", None, "fas fa-gauge"
-    COUNTER_METRIC = 90_600, "Counter Metric", None, "fas fa-gauge"
-    COUNTER_MEASUREMENT_EVENT = 90_601, "Counter Measurement", None, "fas fa-gauge"
-    HISTOGRAM_METRIC = 90_700, "Histogram Metric", None, "fas fa-gauge"
-    HISTOGRAM_MEASUREMENT_EVENT = 90_701, "Histogram Measurement", None, "fas fa-gauge"
+    LOG_EVENT = 91_000, "Log", None, "fas fa-file-lines"
+    # metric
+    GAUGE_METRIC = 92_000, "Gauge Metric", None, "fas fa-gauge"
+    GAUGE_MEASUREMENT_EVENT = 92_001, "Gauge Measurement", None, "fas fa-gauge"
+    COUNTER_METRIC = 92_100, "Counter Metric", None, "fas fa-gauge"
+    COUNTER_MEASUREMENT_EVENT = 92_101, "Counter Measurement", None, "fas fa-gauge"
+    HISTOGRAM_METRIC = 92_200, "Histogram Metric", None, "fas fa-gauge"
+    HISTOGRAM_MEASUREMENT_EVENT = 92_201, "Histogram Measurement", None, "fas fa-gauge"
     # event
-
-    EDIT_EVENT = 90_800, "Edit Event", None, "fas fa-file-lines"
+    EDIT_EVENT = 93_001, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT, QUERY_EVENT, ...
 
     # deployment [100_000-110_000]

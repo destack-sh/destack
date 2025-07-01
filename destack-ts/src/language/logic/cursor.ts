@@ -1182,7 +1182,7 @@ export class ScreenCursor extends Cursor {
 registerNodeClass(NodeType.SCREEN_CURSOR, ScreenCursor);
 /* ==== DESTACK_GENERATED_END:NODE:72700 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:72803 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:72800 ==== */
 /**
  * A ThreadCursor is a cursor corresponding to a Thread.
  */
@@ -1466,7 +1466,7 @@ export class ThreadCursor extends Cursor {
 
   static __packValue__(object: ThreadCursor): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 72803;
+    objectValue["1"] = 72800;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1561,7 +1561,7 @@ export class ThreadCursor extends Cursor {
   }
 
   static __packProto__(object: ThreadCursor): ThreadCursorProto {
-    const objectProto: Partial<ThreadCursorProto> = { metatype: 72803 };
+    const objectProto: Partial<ThreadCursorProto> = { metatype: 72800 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1678,4 +1678,4 @@ export class ThreadCursor extends Cursor {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THREAD_CURSOR, ThreadCursor);
-/* ==== DESTACK_GENERATED_END:NODE:72803 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:72800 ==== */

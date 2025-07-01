@@ -930,7 +930,7 @@ enum NodeTypeProto {
   NODE_TYPE_CURSOR = 72500;
   NODE_TYPE_EVENT_CURSOR = 72600;
   NODE_TYPE_SCREEN_CURSOR = 72700;
-  NODE_TYPE_THREAD_CURSOR = 72803;
+  NODE_TYPE_THREAD_CURSOR = 72800;
   NODE_TYPE_RUN = 90000;
   NODE_TYPE_RUN_EVENT = 90001;
   NODE_TYPE_RUN_STARTED_EVENT = 90002;
@@ -1446,19 +1446,19 @@ enum StructTypeProto {
   STRUCT_TYPE_CORNERS = 270032;
   STRUCT_TYPE_AXIS2 = 270034;
   STRUCT_TYPE_AXIS3 = 270036;
-  STRUCT_TYPE_STROKE = 270100;
-  STRUCT_TYPE_STROKE_CAP = 270101;
-  STRUCT_TYPE_STROKE_PATH = 270102;
-  STRUCT_TYPE_STROKE_POINT = 270103;
   STRUCT_TYPE_COLOR = 270300;
-  STRUCT_TYPE_FILL = 270301;
-  STRUCT_TYPE_FONT = 270302;
-  STRUCT_TYPE_BORDER = 270303;
-  STRUCT_TYPE_SHADOW = 270304;
-  STRUCT_TYPE_GRADIENT = 270305;
-  STRUCT_TYPE_GRADIENT_STOP = 270306;
-  STRUCT_TYPE_TRANSITION = 270307;
-  STRUCT_TYPE_EFFECT = 270308;
+  STRUCT_TYPE_FILL = 270400;
+  STRUCT_TYPE_FONT = 270500;
+  STRUCT_TYPE_BORDER = 270600;
+  STRUCT_TYPE_SHADOW = 270700;
+  STRUCT_TYPE_GRADIENT = 270800;
+  STRUCT_TYPE_GRADIENT_STOP = 270801;
+  STRUCT_TYPE_TRANSITION = 270900;
+  STRUCT_TYPE_EFFECT = 2701000;
+  STRUCT_TYPE_STROKE = 2701100;
+  STRUCT_TYPE_STROKE_CAP = 2701101;
+  STRUCT_TYPE_STROKE_PATH = 2701102;
+  STRUCT_TYPE_STROKE_POINT = 2701103;
 }
 
 enum TenancyProto {
@@ -5662,7 +5662,7 @@ message SomeNodeProto {
     ActionProto action = 70200;
     EventCursorProto event_cursor = 72600;
     ScreenCursorProto screen_cursor = 72700;
-    ThreadCursorProto thread_cursor = 72803;
+    ThreadCursorProto thread_cursor = 72800;
     RouteProto route = 71000;
     ScriptProto script = 70000;
     ServiceProto service = 70100;
@@ -5770,7 +5770,7 @@ message SomeEntityProto {
     ActionProto action = 70200;
     EventCursorProto event_cursor = 72600;
     ScreenCursorProto screen_cursor = 72700;
-    ThreadCursorProto thread_cursor = 72803;
+    ThreadCursorProto thread_cursor = 72800;
     RouteProto route = 71000;
     ScriptProto script = 70000;
     ServiceProto service = 70100;

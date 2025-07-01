@@ -1417,10 +1417,6 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_CORNERS: _ClassVar[StructTypeProto]
     STRUCT_TYPE_AXIS2: _ClassVar[StructTypeProto]
     STRUCT_TYPE_AXIS3: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_STROKE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_STROKE_CAP: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_STROKE_PATH: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_STROKE_POINT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_COLOR: _ClassVar[StructTypeProto]
     STRUCT_TYPE_FILL: _ClassVar[StructTypeProto]
     STRUCT_TYPE_FONT: _ClassVar[StructTypeProto]
@@ -1430,6 +1426,10 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_GRADIENT_STOP: _ClassVar[StructTypeProto]
     STRUCT_TYPE_TRANSITION: _ClassVar[StructTypeProto]
     STRUCT_TYPE_EFFECT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_STROKE: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_STROKE_CAP: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_STROKE_PATH: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_STROKE_POINT: _ClassVar[StructTypeProto]
 
 class TenancyProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2636,10 +2636,6 @@ STRUCT_TYPE_INSETS: StructTypeProto
 STRUCT_TYPE_CORNERS: StructTypeProto
 STRUCT_TYPE_AXIS2: StructTypeProto
 STRUCT_TYPE_AXIS3: StructTypeProto
-STRUCT_TYPE_STROKE: StructTypeProto
-STRUCT_TYPE_STROKE_CAP: StructTypeProto
-STRUCT_TYPE_STROKE_PATH: StructTypeProto
-STRUCT_TYPE_STROKE_POINT: StructTypeProto
 STRUCT_TYPE_COLOR: StructTypeProto
 STRUCT_TYPE_FILL: StructTypeProto
 STRUCT_TYPE_FONT: StructTypeProto
@@ -2649,6 +2645,10 @@ STRUCT_TYPE_GRADIENT: StructTypeProto
 STRUCT_TYPE_GRADIENT_STOP: StructTypeProto
 STRUCT_TYPE_TRANSITION: StructTypeProto
 STRUCT_TYPE_EFFECT: StructTypeProto
+STRUCT_TYPE_STROKE: StructTypeProto
+STRUCT_TYPE_STROKE_CAP: StructTypeProto
+STRUCT_TYPE_STROKE_PATH: StructTypeProto
+STRUCT_TYPE_STROKE_POINT: StructTypeProto
 TENANCY_UNSPECIFIED: TenancyProto
 TENANCY_DEDICATED: TenancyProto
 TENANCY_SHARED: TenancyProto
