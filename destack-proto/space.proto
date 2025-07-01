@@ -6,6 +6,10 @@ import "google/protobuf/struct.proto";
 import "destack-proto/common.proto";
 import "destack-proto/language.proto";
 
+message ScopeProto {
+  string space_id = 1;
+}
+
 message QueryRequest {
   ScopeProto scope = 1;
   // The Query to execute.

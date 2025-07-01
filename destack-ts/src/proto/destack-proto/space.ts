@@ -20,7 +20,15 @@ import { ChangeResultProto } from "./language";
 import { ChangeProto } from "./language";
 import { QueryResultProto } from "./language";
 import { QueryProto } from "./language";
-import { ScopeProto } from "./language";
+/**
+ * @generated from protobuf message symbol.destack.ScopeProto
+ */
+export interface ScopeProto {
+    /**
+     * @generated from protobuf field: string space_id = 1
+     */
+    spaceId: string;
+}
 /**
  * @generated from protobuf message symbol.destack.QueryRequest
  */
@@ -171,6 +179,53 @@ export interface DownloadFilesResponse_DownloadHandle {
      */
     getUrl: string;
 }
+// @generated message type with reflection information, may provide speed optimized methods
+class ScopeProto$Type extends MessageType<ScopeProto> {
+    constructor() {
+        super("symbol.destack.ScopeProto", [
+            { no: 1, name: "space_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ScopeProto>): ScopeProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.spaceId = "";
+        if (value !== undefined)
+            reflectionMergePartial<ScopeProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ScopeProto): ScopeProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string space_id */ 1:
+                    message.spaceId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ScopeProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string space_id = 1; */
+        if (message.spaceId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.spaceId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.ScopeProto
+ */
+export const ScopeProto = new ScopeProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class QueryRequest$Type extends MessageType<QueryRequest> {
     constructor() {

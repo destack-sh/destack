@@ -10,10 +10,10 @@ from destack.language.registry import (
     STRUCT_CLASS_BY_TYPE,
     TRAIT_CLASS_BY_TYPE,
 )
-from destack.proto import NodeReferenceProto, PropertyReferenceProto, ScopeProto
+from destack.proto import NodeReferenceProto, PropertyReferenceProto
 from destack.utils.uuid import UUID
 
-from .common import EnumType, NodeType, PrimitiveType, Region
+from .common import EnumType, NodeType, PrimitiveType
 from .enum import Enum, builtin_enum
 from .object import BuiltinObjectBase
 from .property import PropertyDeclaration, property_
@@ -37,21 +37,12 @@ if TYPE_CHECKING:
 type_ = type
 
 
-@builtin_struct(StructType.SCOPE, frozen=True)
-class Scope(StructFrozen[ScopeProto]):
-    """The scope in the Space graph."""
-
-    region: Optional[Region] = property_(31, is_repr=True)
-    space_id: Optional[UUID] = property_(32, is_repr=True)
-
-
 @builtin_enum(EnumType.NODE_DEFINITION_TYPE)
 class NodeDefinitionType(Enum):
     BUILTIN_NODE = 1
     CUSTOM_NODE = 2
     BUILTIN_TRAIT = 3
     CUSTOM_TRAIT = 4
-    # MULTI?
 
 
 @builtin_struct(StructType.NODE_DEFINITION_REFERENCE, frozen=True)

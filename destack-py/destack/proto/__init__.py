@@ -205,7 +205,6 @@ AnyNodeProto = Union[
     ThemeProto,
 ]
 AnyStructProto = Union[
-    ScopeProto,
     NodeDefinitionReferenceProto,
     ObjectDefinitionReferenceProto,
     StructDefinitionReferenceProto,

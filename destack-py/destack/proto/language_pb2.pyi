@@ -323,32 +323,27 @@ class EntitlementTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ENUM_TYPE_UNSPECIFIED: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_SPACE_STATUS: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_USER_STATUS: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_CONDITIONAL_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_AGGREGATION_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_SORT_MODE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_SORT_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_JOIN_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_FUNCTION_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_EXPRESSION_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_QUERY_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_QUERY_UPDATE_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_MEMBERSHIP_PERMISSION: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_ROLE_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_PERMISSION_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_SANCTION_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_ENTITLEMENT_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_FOLDER_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_TEXT_SPAN_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_FILE_RETENTION_MODE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_FILE_SOURCE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_FILE_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_FILE_FORMAT: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_ICON_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_LINK_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_ENUM_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_NODE_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_STRUCT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_TRAIT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_NODE_DEFINITION_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_OBJECT_DEFINITION_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_STRUCT_DEFINITION_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_MATERIALIZATION_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_STORE_ZONE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_STORE_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_STORE_IMPLEMENTATION: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_PLATFORM_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_RUNTIME_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_OPERATING_SYSTEM: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_EDIT_OPERATION: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_CHANGE_STATUS: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_CHANGE_DEBOUNCE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_NODE_PERMISSION: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_JOINABLE_PERMISSION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_TYPE_CARDINALITY: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SCALAR_TYPE: _ClassVar[EnumTypeProto]
@@ -360,13 +355,39 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_EDGE_DIRECTION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CASCADE_ACTION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_ACTION_CARDINALITY: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_CURSOR_STATUS: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_CONDITIONAL_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_AGGREGATION_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_SORT_MODE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_SORT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_JOIN_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_FUNCTION_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_EXPRESSION_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_QUERY_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_QUERY_UPDATE_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_SPACE_STATUS: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_USER_STATUS: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_MEMBERSHIP_PERMISSION: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_ROLE_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_PERMISSION_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_SANCTION_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_ENTITLEMENT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_FOLDER_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_FILE_RETENTION_MODE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_FILE_SOURCE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_FILE_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_FILE_FORMAT: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_TEXT_SPAN_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_ICON_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_LINK_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_TRIGGER_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SCHEDULE_FREQUENCY: _ClassVar[EnumTypeProto]
     ENUM_TYPE_DAY_OF_WEEK: _ClassVar[EnumTypeProto]
     ENUM_TYPE_MONTH: _ClassVar[EnumTypeProto]
     ENUM_TYPE_TIMER_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_TRIGGER_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_ACTION_CARDINALITY: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_CURSOR_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RUN_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_INTERRUPTION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_INTERRUPTION_STATUS: _ClassVar[EnumTypeProto]
@@ -427,27 +448,6 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_TEXT_SPLIT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_OFFSCREEN_BEHAVIOR: _ClassVar[EnumTypeProto]
     ENUM_TYPE_EASING: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_ENUM_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_NODE_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_STRUCT_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_TRAIT_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_NODE_DEFINITION_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_OBJECT_DEFINITION_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_STRUCT_DEFINITION_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_MATERIALIZATION_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_STORE_ZONE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_STORE_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_STORE_IMPLEMENTATION: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_PLATFORM_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_RUNTIME_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_OPERATING_SYSTEM: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_EDIT_OPERATION: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_CHANGE_STATUS: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_CHANGE_DEBOUNCE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_NODE_PERMISSION: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_JOINABLE_PERMISSION: _ClassVar[EnumTypeProto]
 
 class EnvironmentTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1355,6 +1355,44 @@ class StructDefinitionTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrappe
 class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STRUCT_TYPE_UNSPECIFIED: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_PROPERTY_REFERENCE: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_PROPERTY_DEFINITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_TRAIT_DEFINITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_NODE_DEFINITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_STRUCT_DEFINITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_ENUM_DEFINITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_OPTION_DEFINITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_PERMISSION_DEFINITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_CONSTANT_DEFINITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_NODE_DEFINITION_REFERENCE: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_CUSTOM_STRUCT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_EDIT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_CHANGE: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_CHANGE_RESULT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_ORIGIN: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_EXPRESSION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_FUNCTION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_JOIN: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_AGGREGATION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_CONDITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_SORT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_SELECT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_QUERY: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_QUERY_RESULT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_QUERY_RESULT_GROUP: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_QUERY_UPDATE: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_HISTOGRAM: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR2: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR3: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR4: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR2I: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR3I: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR4I: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_AXIS2: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_AXIS3: _ClassVar[StructTypeProto]
     STRUCT_TYPE_VALUE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_TYPE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_NUMBER_CONSTRAINT: _ClassVar[StructTypeProto]
@@ -1370,18 +1408,9 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_GALAXY_INFO: _ClassVar[StructTypeProto]
     STRUCT_TYPE_LINE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_POLYGON: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_COLOR: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_SHADOW: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_BORDER: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_FONT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_GRADIENT_STOP: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_GRADIENT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_FILL: _ClassVar[StructTypeProto]
     STRUCT_TYPE_LENGTH: _ClassVar[StructTypeProto]
     STRUCT_TYPE_POSITION: _ClassVar[StructTypeProto]
     STRUCT_TYPE_DIMENSION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_TRANSITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_EFFECT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_GRID: _ClassVar[StructTypeProto]
     STRUCT_TYPE_GRID_SPAN: _ClassVar[StructTypeProto]
     STRUCT_TYPE_INSETS: _ClassVar[StructTypeProto]
@@ -1390,45 +1419,15 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_STROKE_CAP: _ClassVar[StructTypeProto]
     STRUCT_TYPE_STROKE_PATH: _ClassVar[StructTypeProto]
     STRUCT_TYPE_STROKE_POINT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_SCOPE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_ORIGIN: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_PROPERTY_REFERENCE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_PROPERTY_DEFINITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_TRAIT_DEFINITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_NODE_DEFINITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_STRUCT_DEFINITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_ENUM_DEFINITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_OPTION_DEFINITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_PERMISSION_DEFINITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_CONSTANT_DEFINITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_EDIT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_CHANGE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_CHANGE_RESULT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_EXPRESSION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_FUNCTION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_JOIN: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_AGGREGATION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_CONDITION: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_SORT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_SELECT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_NODE_DEFINITION_REFERENCE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_CUSTOM_STRUCT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_QUERY: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_QUERY_RESULT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_QUERY_RESULT_GROUP: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_QUERY_UPDATE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_HISTOGRAM: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR2: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR3: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR4: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR2I: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR3I: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR4I: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_AXIS2: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_AXIS3: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_COLOR: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_FILL: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_FONT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_BORDER: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_SHADOW: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_GRADIENT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_GRADIENT_STOP: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_TRANSITION: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_EFFECT: _ClassVar[StructTypeProto]
 
 class TenancyProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1499,6 +1498,16 @@ class ToolTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class TraitTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TRAIT_TYPE_UNSPECIFIED: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_GLOBAL: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_SPATIAL: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_ORDERED: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_ARCHIVABLE: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_DELETABLE: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_EXTENSIBLE: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_CUSTOMIZABLE: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_HAS_NAME: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_HAS_SLUG: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_HAS_ICON: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_OWNABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_JOINABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_SUBJECT: _ClassVar[TraitTypeProto]
@@ -1510,16 +1519,6 @@ class TraitTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_STARABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_REACTABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_FOLLOWABLE: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_GLOBAL: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_SPATIAL: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_ORDERED: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_ARCHIVABLE: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_DELETABLE: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_EXTENSIBLE: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_CUSTOMIZABLE: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_HAS_NAME: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_HAS_SLUG: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_HAS_ICON: _ClassVar[TraitTypeProto]
 
 class TransitionTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1769,32 +1768,27 @@ ENTITLEMENT_TYPE_UNSPECIFIED: EntitlementTypeProto
 ENTITLEMENT_TYPE_PERMISSION: EntitlementTypeProto
 ENTITLEMENT_TYPE_ROLE: EntitlementTypeProto
 ENUM_TYPE_UNSPECIFIED: EnumTypeProto
-ENUM_TYPE_SPACE_STATUS: EnumTypeProto
-ENUM_TYPE_USER_STATUS: EnumTypeProto
-ENUM_TYPE_ORGANIZATION_STATUS: EnumTypeProto
-ENUM_TYPE_CLIENT_TYPE: EnumTypeProto
-ENUM_TYPE_CONDITIONAL_TYPE: EnumTypeProto
-ENUM_TYPE_AGGREGATION_TYPE: EnumTypeProto
-ENUM_TYPE_SORT_MODE: EnumTypeProto
-ENUM_TYPE_SORT_TYPE: EnumTypeProto
-ENUM_TYPE_JOIN_TYPE: EnumTypeProto
-ENUM_TYPE_FUNCTION_TYPE: EnumTypeProto
-ENUM_TYPE_EXPRESSION_TYPE: EnumTypeProto
-ENUM_TYPE_QUERY_TYPE: EnumTypeProto
-ENUM_TYPE_QUERY_UPDATE_TYPE: EnumTypeProto
-ENUM_TYPE_MEMBERSHIP_PERMISSION: EnumTypeProto
-ENUM_TYPE_ROLE_TYPE: EnumTypeProto
-ENUM_TYPE_PERMISSION_TYPE: EnumTypeProto
-ENUM_TYPE_SANCTION_TYPE: EnumTypeProto
-ENUM_TYPE_ENTITLEMENT_TYPE: EnumTypeProto
-ENUM_TYPE_FOLDER_TYPE: EnumTypeProto
-ENUM_TYPE_TEXT_SPAN_TYPE: EnumTypeProto
-ENUM_TYPE_FILE_RETENTION_MODE: EnumTypeProto
-ENUM_TYPE_FILE_SOURCE: EnumTypeProto
-ENUM_TYPE_FILE_TYPE: EnumTypeProto
-ENUM_TYPE_FILE_FORMAT: EnumTypeProto
-ENUM_TYPE_ICON_TYPE: EnumTypeProto
-ENUM_TYPE_LINK_TYPE: EnumTypeProto
+ENUM_TYPE_ENUM_TYPE: EnumTypeProto
+ENUM_TYPE_NODE_TYPE: EnumTypeProto
+ENUM_TYPE_STRUCT_TYPE: EnumTypeProto
+ENUM_TYPE_TRAIT_TYPE: EnumTypeProto
+ENUM_TYPE_NODE_DEFINITION_TYPE: EnumTypeProto
+ENUM_TYPE_OBJECT_DEFINITION_TYPE: EnumTypeProto
+ENUM_TYPE_STRUCT_DEFINITION_TYPE: EnumTypeProto
+ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumTypeProto
+ENUM_TYPE_MATERIALIZATION_TYPE: EnumTypeProto
+ENUM_TYPE_STORE_ZONE: EnumTypeProto
+ENUM_TYPE_STORE_TYPE: EnumTypeProto
+ENUM_TYPE_STORE_IMPLEMENTATION: EnumTypeProto
+ENUM_TYPE_PLATFORM_TYPE: EnumTypeProto
+ENUM_TYPE_RUNTIME_TYPE: EnumTypeProto
+ENUM_TYPE_OPERATING_SYSTEM: EnumTypeProto
+ENUM_TYPE_EDIT_TYPE: EnumTypeProto
+ENUM_TYPE_EDIT_OPERATION: EnumTypeProto
+ENUM_TYPE_CHANGE_STATUS: EnumTypeProto
+ENUM_TYPE_CHANGE_DEBOUNCE: EnumTypeProto
+ENUM_TYPE_NODE_PERMISSION: EnumTypeProto
+ENUM_TYPE_JOINABLE_PERMISSION: EnumTypeProto
 ENUM_TYPE_PRIMITIVE_TYPE: EnumTypeProto
 ENUM_TYPE_TYPE_CARDINALITY: EnumTypeProto
 ENUM_TYPE_SCALAR_TYPE: EnumTypeProto
@@ -1806,13 +1800,39 @@ ENUM_TYPE_EDGE_TYPE: EnumTypeProto
 ENUM_TYPE_EDGE_DIRECTION: EnumTypeProto
 ENUM_TYPE_CASCADE_ACTION: EnumTypeProto
 ENUM_TYPE_RESOURCE_STATUS: EnumTypeProto
-ENUM_TYPE_ACTION_CARDINALITY: EnumTypeProto
-ENUM_TYPE_CURSOR_STATUS: EnumTypeProto
+ENUM_TYPE_CONDITIONAL_TYPE: EnumTypeProto
+ENUM_TYPE_AGGREGATION_TYPE: EnumTypeProto
+ENUM_TYPE_SORT_MODE: EnumTypeProto
+ENUM_TYPE_SORT_TYPE: EnumTypeProto
+ENUM_TYPE_JOIN_TYPE: EnumTypeProto
+ENUM_TYPE_FUNCTION_TYPE: EnumTypeProto
+ENUM_TYPE_EXPRESSION_TYPE: EnumTypeProto
+ENUM_TYPE_QUERY_TYPE: EnumTypeProto
+ENUM_TYPE_QUERY_UPDATE_TYPE: EnumTypeProto
+ENUM_TYPE_SPACE_STATUS: EnumTypeProto
+ENUM_TYPE_USER_STATUS: EnumTypeProto
+ENUM_TYPE_ORGANIZATION_STATUS: EnumTypeProto
+ENUM_TYPE_CLIENT_TYPE: EnumTypeProto
+ENUM_TYPE_MEMBERSHIP_PERMISSION: EnumTypeProto
+ENUM_TYPE_ROLE_TYPE: EnumTypeProto
+ENUM_TYPE_PERMISSION_TYPE: EnumTypeProto
+ENUM_TYPE_SANCTION_TYPE: EnumTypeProto
+ENUM_TYPE_ENTITLEMENT_TYPE: EnumTypeProto
+ENUM_TYPE_FOLDER_TYPE: EnumTypeProto
+ENUM_TYPE_FILE_RETENTION_MODE: EnumTypeProto
+ENUM_TYPE_FILE_SOURCE: EnumTypeProto
+ENUM_TYPE_FILE_TYPE: EnumTypeProto
+ENUM_TYPE_FILE_FORMAT: EnumTypeProto
+ENUM_TYPE_TEXT_SPAN_TYPE: EnumTypeProto
+ENUM_TYPE_ICON_TYPE: EnumTypeProto
+ENUM_TYPE_LINK_TYPE: EnumTypeProto
+ENUM_TYPE_TRIGGER_TYPE: EnumTypeProto
 ENUM_TYPE_SCHEDULE_FREQUENCY: EnumTypeProto
 ENUM_TYPE_DAY_OF_WEEK: EnumTypeProto
 ENUM_TYPE_MONTH: EnumTypeProto
 ENUM_TYPE_TIMER_TYPE: EnumTypeProto
-ENUM_TYPE_TRIGGER_TYPE: EnumTypeProto
+ENUM_TYPE_ACTION_CARDINALITY: EnumTypeProto
+ENUM_TYPE_CURSOR_STATUS: EnumTypeProto
 ENUM_TYPE_RUN_STATUS: EnumTypeProto
 ENUM_TYPE_INTERRUPTION_TYPE: EnumTypeProto
 ENUM_TYPE_INTERRUPTION_STATUS: EnumTypeProto
@@ -1873,27 +1893,6 @@ ENUM_TYPE_REPEAT_TYPE: EnumTypeProto
 ENUM_TYPE_TEXT_SPLIT_TYPE: EnumTypeProto
 ENUM_TYPE_OFFSCREEN_BEHAVIOR: EnumTypeProto
 ENUM_TYPE_EASING: EnumTypeProto
-ENUM_TYPE_ENUM_TYPE: EnumTypeProto
-ENUM_TYPE_NODE_TYPE: EnumTypeProto
-ENUM_TYPE_STRUCT_TYPE: EnumTypeProto
-ENUM_TYPE_TRAIT_TYPE: EnumTypeProto
-ENUM_TYPE_NODE_DEFINITION_TYPE: EnumTypeProto
-ENUM_TYPE_OBJECT_DEFINITION_TYPE: EnumTypeProto
-ENUM_TYPE_STRUCT_DEFINITION_TYPE: EnumTypeProto
-ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumTypeProto
-ENUM_TYPE_MATERIALIZATION_TYPE: EnumTypeProto
-ENUM_TYPE_STORE_ZONE: EnumTypeProto
-ENUM_TYPE_STORE_TYPE: EnumTypeProto
-ENUM_TYPE_STORE_IMPLEMENTATION: EnumTypeProto
-ENUM_TYPE_PLATFORM_TYPE: EnumTypeProto
-ENUM_TYPE_RUNTIME_TYPE: EnumTypeProto
-ENUM_TYPE_OPERATING_SYSTEM: EnumTypeProto
-ENUM_TYPE_EDIT_TYPE: EnumTypeProto
-ENUM_TYPE_EDIT_OPERATION: EnumTypeProto
-ENUM_TYPE_CHANGE_STATUS: EnumTypeProto
-ENUM_TYPE_CHANGE_DEBOUNCE: EnumTypeProto
-ENUM_TYPE_NODE_PERMISSION: EnumTypeProto
-ENUM_TYPE_JOINABLE_PERMISSION: EnumTypeProto
 ENVIRONMENT_TYPE_UNSPECIFIED: EnvironmentTypeProto
 ENVIRONMENT_TYPE_SYSTEM: EnvironmentTypeProto
 ENVIRONMENT_TYPE_DEVELOPMENT: EnvironmentTypeProto
@@ -2573,6 +2572,44 @@ STRUCT_DEFINITION_TYPE_CUSTOM_STRUCT: StructDefinitionTypeProto
 STRUCT_DEFINITION_TYPE_BUILTIN_ENUM: StructDefinitionTypeProto
 STRUCT_DEFINITION_TYPE_CUSTOM_ENUM: StructDefinitionTypeProto
 STRUCT_TYPE_UNSPECIFIED: StructTypeProto
+STRUCT_TYPE_NODE_REFERENCE: StructTypeProto
+STRUCT_TYPE_PROPERTY_REFERENCE: StructTypeProto
+STRUCT_TYPE_PROPERTY_DEFINITION: StructTypeProto
+STRUCT_TYPE_TRAIT_DEFINITION: StructTypeProto
+STRUCT_TYPE_NODE_DEFINITION: StructTypeProto
+STRUCT_TYPE_STRUCT_DEFINITION: StructTypeProto
+STRUCT_TYPE_ENUM_DEFINITION: StructTypeProto
+STRUCT_TYPE_OPTION_DEFINITION: StructTypeProto
+STRUCT_TYPE_PERMISSION_DEFINITION: StructTypeProto
+STRUCT_TYPE_CONSTANT_DEFINITION: StructTypeProto
+STRUCT_TYPE_NODE_DEFINITION_REFERENCE: StructTypeProto
+STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE: StructTypeProto
+STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE: StructTypeProto
+STRUCT_TYPE_CUSTOM_STRUCT: StructTypeProto
+STRUCT_TYPE_EDIT: StructTypeProto
+STRUCT_TYPE_CHANGE: StructTypeProto
+STRUCT_TYPE_CHANGE_RESULT: StructTypeProto
+STRUCT_TYPE_ORIGIN: StructTypeProto
+STRUCT_TYPE_EXPRESSION: StructTypeProto
+STRUCT_TYPE_FUNCTION: StructTypeProto
+STRUCT_TYPE_JOIN: StructTypeProto
+STRUCT_TYPE_AGGREGATION: StructTypeProto
+STRUCT_TYPE_CONDITION: StructTypeProto
+STRUCT_TYPE_SORT: StructTypeProto
+STRUCT_TYPE_SELECT: StructTypeProto
+STRUCT_TYPE_QUERY: StructTypeProto
+STRUCT_TYPE_QUERY_RESULT: StructTypeProto
+STRUCT_TYPE_QUERY_RESULT_GROUP: StructTypeProto
+STRUCT_TYPE_QUERY_UPDATE: StructTypeProto
+STRUCT_TYPE_HISTOGRAM: StructTypeProto
+STRUCT_TYPE_VECTOR2: StructTypeProto
+STRUCT_TYPE_VECTOR3: StructTypeProto
+STRUCT_TYPE_VECTOR4: StructTypeProto
+STRUCT_TYPE_VECTOR2I: StructTypeProto
+STRUCT_TYPE_VECTOR3I: StructTypeProto
+STRUCT_TYPE_VECTOR4I: StructTypeProto
+STRUCT_TYPE_AXIS2: StructTypeProto
+STRUCT_TYPE_AXIS3: StructTypeProto
 STRUCT_TYPE_VALUE: StructTypeProto
 STRUCT_TYPE_TYPE: StructTypeProto
 STRUCT_TYPE_NUMBER_CONSTRAINT: StructTypeProto
@@ -2588,18 +2625,9 @@ STRUCT_TYPE_DATABASE_INFO: StructTypeProto
 STRUCT_TYPE_GALAXY_INFO: StructTypeProto
 STRUCT_TYPE_LINE: StructTypeProto
 STRUCT_TYPE_POLYGON: StructTypeProto
-STRUCT_TYPE_COLOR: StructTypeProto
-STRUCT_TYPE_SHADOW: StructTypeProto
-STRUCT_TYPE_BORDER: StructTypeProto
-STRUCT_TYPE_FONT: StructTypeProto
-STRUCT_TYPE_GRADIENT_STOP: StructTypeProto
-STRUCT_TYPE_GRADIENT: StructTypeProto
-STRUCT_TYPE_FILL: StructTypeProto
 STRUCT_TYPE_LENGTH: StructTypeProto
 STRUCT_TYPE_POSITION: StructTypeProto
 STRUCT_TYPE_DIMENSION: StructTypeProto
-STRUCT_TYPE_TRANSITION: StructTypeProto
-STRUCT_TYPE_EFFECT: StructTypeProto
 STRUCT_TYPE_GRID: StructTypeProto
 STRUCT_TYPE_GRID_SPAN: StructTypeProto
 STRUCT_TYPE_INSETS: StructTypeProto
@@ -2608,45 +2636,15 @@ STRUCT_TYPE_STROKE: StructTypeProto
 STRUCT_TYPE_STROKE_CAP: StructTypeProto
 STRUCT_TYPE_STROKE_PATH: StructTypeProto
 STRUCT_TYPE_STROKE_POINT: StructTypeProto
-STRUCT_TYPE_SCOPE: StructTypeProto
-STRUCT_TYPE_ORIGIN: StructTypeProto
-STRUCT_TYPE_NODE_REFERENCE: StructTypeProto
-STRUCT_TYPE_PROPERTY_REFERENCE: StructTypeProto
-STRUCT_TYPE_PROPERTY_DEFINITION: StructTypeProto
-STRUCT_TYPE_TRAIT_DEFINITION: StructTypeProto
-STRUCT_TYPE_NODE_DEFINITION: StructTypeProto
-STRUCT_TYPE_STRUCT_DEFINITION: StructTypeProto
-STRUCT_TYPE_ENUM_DEFINITION: StructTypeProto
-STRUCT_TYPE_OPTION_DEFINITION: StructTypeProto
-STRUCT_TYPE_PERMISSION_DEFINITION: StructTypeProto
-STRUCT_TYPE_CONSTANT_DEFINITION: StructTypeProto
-STRUCT_TYPE_EDIT: StructTypeProto
-STRUCT_TYPE_CHANGE: StructTypeProto
-STRUCT_TYPE_CHANGE_RESULT: StructTypeProto
-STRUCT_TYPE_EXPRESSION: StructTypeProto
-STRUCT_TYPE_FUNCTION: StructTypeProto
-STRUCT_TYPE_JOIN: StructTypeProto
-STRUCT_TYPE_AGGREGATION: StructTypeProto
-STRUCT_TYPE_CONDITION: StructTypeProto
-STRUCT_TYPE_SORT: StructTypeProto
-STRUCT_TYPE_SELECT: StructTypeProto
-STRUCT_TYPE_NODE_DEFINITION_REFERENCE: StructTypeProto
-STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE: StructTypeProto
-STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE: StructTypeProto
-STRUCT_TYPE_CUSTOM_STRUCT: StructTypeProto
-STRUCT_TYPE_QUERY: StructTypeProto
-STRUCT_TYPE_QUERY_RESULT: StructTypeProto
-STRUCT_TYPE_QUERY_RESULT_GROUP: StructTypeProto
-STRUCT_TYPE_QUERY_UPDATE: StructTypeProto
-STRUCT_TYPE_HISTOGRAM: StructTypeProto
-STRUCT_TYPE_VECTOR2: StructTypeProto
-STRUCT_TYPE_VECTOR3: StructTypeProto
-STRUCT_TYPE_VECTOR4: StructTypeProto
-STRUCT_TYPE_VECTOR2I: StructTypeProto
-STRUCT_TYPE_VECTOR3I: StructTypeProto
-STRUCT_TYPE_VECTOR4I: StructTypeProto
-STRUCT_TYPE_AXIS2: StructTypeProto
-STRUCT_TYPE_AXIS3: StructTypeProto
+STRUCT_TYPE_COLOR: StructTypeProto
+STRUCT_TYPE_FILL: StructTypeProto
+STRUCT_TYPE_FONT: StructTypeProto
+STRUCT_TYPE_BORDER: StructTypeProto
+STRUCT_TYPE_SHADOW: StructTypeProto
+STRUCT_TYPE_GRADIENT: StructTypeProto
+STRUCT_TYPE_GRADIENT_STOP: StructTypeProto
+STRUCT_TYPE_TRANSITION: StructTypeProto
+STRUCT_TYPE_EFFECT: StructTypeProto
 TENANCY_UNSPECIFIED: TenancyProto
 TENANCY_DEDICATED: TenancyProto
 TENANCY_SHARED: TenancyProto
@@ -2687,6 +2685,16 @@ TOOL_TYPE_DRAG: ToolTypeProto
 TOOL_TYPE_INSPECT: ToolTypeProto
 TOOL_TYPE_ANNOTATE: ToolTypeProto
 TRAIT_TYPE_UNSPECIFIED: TraitTypeProto
+TRAIT_TYPE_GLOBAL: TraitTypeProto
+TRAIT_TYPE_SPATIAL: TraitTypeProto
+TRAIT_TYPE_ORDERED: TraitTypeProto
+TRAIT_TYPE_ARCHIVABLE: TraitTypeProto
+TRAIT_TYPE_DELETABLE: TraitTypeProto
+TRAIT_TYPE_EXTENSIBLE: TraitTypeProto
+TRAIT_TYPE_CUSTOMIZABLE: TraitTypeProto
+TRAIT_TYPE_HAS_NAME: TraitTypeProto
+TRAIT_TYPE_HAS_SLUG: TraitTypeProto
+TRAIT_TYPE_HAS_ICON: TraitTypeProto
 TRAIT_TYPE_OWNABLE: TraitTypeProto
 TRAIT_TYPE_JOINABLE: TraitTypeProto
 TRAIT_TYPE_SUBJECT: TraitTypeProto
@@ -2698,16 +2706,6 @@ TRAIT_TYPE_SOURCEABLE: TraitTypeProto
 TRAIT_TYPE_STARABLE: TraitTypeProto
 TRAIT_TYPE_REACTABLE: TraitTypeProto
 TRAIT_TYPE_FOLLOWABLE: TraitTypeProto
-TRAIT_TYPE_GLOBAL: TraitTypeProto
-TRAIT_TYPE_SPATIAL: TraitTypeProto
-TRAIT_TYPE_ORDERED: TraitTypeProto
-TRAIT_TYPE_ARCHIVABLE: TraitTypeProto
-TRAIT_TYPE_DELETABLE: TraitTypeProto
-TRAIT_TYPE_EXTENSIBLE: TraitTypeProto
-TRAIT_TYPE_CUSTOMIZABLE: TraitTypeProto
-TRAIT_TYPE_HAS_NAME: TraitTypeProto
-TRAIT_TYPE_HAS_SLUG: TraitTypeProto
-TRAIT_TYPE_HAS_ICON: TraitTypeProto
 TRANSITION_TYPE_UNSPECIFIED: TransitionTypeProto
 TRANSITION_TYPE_TWEEN: TransitionTypeProto
 TRANSITION_TYPE_SPRING: TransitionTypeProto
@@ -8344,16 +8342,6 @@ class ScheduleProto(_message.Message):
     by_minute: _containers.RepeatedScalarFieldContainer[int]
     by_second: _containers.RepeatedScalarFieldContainer[int]
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., frequency: _Optional[_Union[ScheduleFrequencyProto, str]] = ..., interval: _Optional[int] = ..., start: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., count: _Optional[int] = ..., week_start: _Optional[_Union[DayOfWeekProto, str]] = ..., by_set_pos: _Optional[_Iterable[int]] = ..., by_month: _Optional[_Iterable[_Union[MonthProto, str]]] = ..., by_month_day: _Optional[_Iterable[int]] = ..., by_year_day: _Optional[_Iterable[int]] = ..., by_easter: _Optional[_Iterable[int]] = ..., by_week_no: _Optional[_Iterable[int]] = ..., by_week_day: _Optional[_Iterable[_Union[DayOfWeekProto, str]]] = ..., by_hour: _Optional[_Iterable[int]] = ..., by_minute: _Optional[_Iterable[int]] = ..., by_second: _Optional[_Iterable[int]] = ...) -> None: ...
-
-class ScopeProto(_message.Message):
-    __slots__ = ("metatype", "region", "space_id")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    REGION_FIELD_NUMBER: _ClassVar[int]
-    SPACE_ID_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructTypeProto
-    region: RegionProto
-    space_id: str
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., region: _Optional[_Union[RegionProto, str]] = ..., space_id: _Optional[str] = ...) -> None: ...
 
 class ScreenCursorProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "status", "active_at", "position")
