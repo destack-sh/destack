@@ -298,6 +298,7 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.NODE_REFERENCE,
+                node_type=NodeType.NODE,
                 node_constraint=NodeConstraint(node_types=node_types),
             )
 

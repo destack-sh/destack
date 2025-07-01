@@ -364,17 +364,24 @@ def icons(draw: st.DrawFn):
         return icon("fas fa-circle-dot")
 
 
+NODE_TYPES = [
+    node_type for node_type in NODE_TYPES if not NODE_CLASS_BY_TYPE[node_type].__is_abstract__
+]
+STRUCT_TYPES = list(STRUCT_CLASS_BY_TYPE.keys())
+OBJECT_TYPES = NODE_TYPES + STRUCT_TYPES
+
+
 @cacheable
 @st.composite
 def builtin_objects(
     draw: st.DrawFn,
     object_types: st.SearchStrategy[NodeType | StructType] = st.sampled_from(  # noqa: B008
-        list(NodeType) + list(StructType)
+        OBJECT_TYPES
     ),
 ):
     object_type = draw(object_types)
     return draw(from_object_type(object_type))
 
 
-nodes = builtin_objects(object_types=st.sampled_from(NodeType))
-structs = builtin_objects(object_types=st.sampled_from(StructType))
+nodes = builtin_objects(object_types=st.sampled_from(NODE_TYPES))
+structs = builtin_objects(object_types=st.sampled_from(STRUCT_TYPES))
