@@ -6,8 +6,8 @@ import type {
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { isNode, Node } from "@destack/language/core/builtin/node";
-import { StructFrozen } from "@destack/language/core/builtin/struct";
-import { CustomProperty } from "@destack/language/core/common/property";
+import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStructDefinition } from "@destack/language/core/common/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
@@ -1065,9 +1065,9 @@ export class PropertyReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_START ==== */
 
   static of(attribute: CustomProperty | PropertyReference): PropertyReference {
-    if (attribute instanceof PropertyReference) {
+    if (isStruct(attribute, StructType.PROPERTY_REFERENCE)) {
       return attribute;
-    } else if (attribute instanceof CustomProperty) {
+    } else if (isNode(attribute, NodeType.CUSTOM_PROPERTY)) {
       return new PropertyReference({
         type: PropertyReferenceType.CUSTOM,
         nodeType: NodeType.CUSTOM_ENTITY,

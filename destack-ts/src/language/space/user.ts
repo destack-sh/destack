@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasIcon,
   HasName,
   HasSlug,
@@ -15,7 +16,6 @@ import type {
 import {
   Entity,
   EnumType,
-  Graph,
   Icon,
   Node,
   NodeReference,
@@ -25,7 +25,8 @@ import {
 } from "@destack/language/core";
 import type { Cursor } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import type { Handle, Space } from "@destack/language/space";
+import type { Handle } from "@destack/language/space/handle";
+import type { Space } from "@destack/language/space/space";
 import { UserProto, UserStatusProto } from "@destack/proto";
 import { base64Decode, base64Encode } from "@destack/utils";
 import { hashBool, hashBytes, hashString } from "@destack/utils/hash";

@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasName,
   IsCustomizable,
   IsDeletable,
@@ -16,7 +17,6 @@ import type {
 import {
   Entity,
   EnumType,
-  Graph,
   Node,
   NodeReference,
   NodeType,
@@ -24,7 +24,7 @@ import {
   Text,
   Value,
 } from "@destack/language/core";
-import type { Script } from "@destack/language/logic";
+import type { Script } from "@destack/language/logic/script";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { ActionCardinalityProto, ActionProto } from "@destack/proto";

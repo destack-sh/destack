@@ -1,5 +1,11 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import type { IsSubject, QueryConnection, Session, Supergraph } from "@destack/language/core";
+import type {
+  Graph,
+  IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
 import {
   Align,
   Axis2,
@@ -8,7 +14,6 @@ import {
   Dimension,
   Direction,
   Distribute,
-  Graph,
   Grid,
   GridSpan,
   Insets,
@@ -26,7 +31,7 @@ import { registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
-import { ContainerView } from "@destack/language/view/container";
+import { ContainerView } from "@destack/language/view/container/container";
 import {
   AlignProto,
   DirectionProto,

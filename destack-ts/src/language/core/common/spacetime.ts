@@ -13,8 +13,7 @@ import type {
   IsSubject,
 } from "@destack/language/core/builtin/trait";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
-import type { Supergraph } from "@destack/language/core/runtime/graph";
-import { Graph } from "@destack/language/core/runtime/graph";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";

@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   IsOwnable,
   IsOwner,
   IsSpatial,
@@ -12,7 +13,6 @@ import {
   Entity,
   EnumType,
   Event,
-  Graph,
   Node,
   NodeReference,
   NodeType,

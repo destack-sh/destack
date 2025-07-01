@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { Canvas } from "@destack/language/canvas";
 import type {
+  Graph,
   HasIcon,
   IsOwnable,
   IsOwner,
@@ -18,7 +19,6 @@ import {
   Direction,
   Distribute,
   EnumType,
-  Graph,
   Grid,
   GridSpan,
   Icon,
@@ -33,10 +33,10 @@ import {
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import type { Scene } from "@destack/language/scene";
+import type { Scene } from "@destack/language/scene/scene";
 import type { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
-import { ContainerView } from "@destack/language/view/container";
+import { ContainerView } from "@destack/language/view";
 import {
   AlignProto,
   DirectionProto,

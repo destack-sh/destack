@@ -1,8 +1,14 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import type { IsSubject, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import { Event, Graph, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
+import type {
+  Graph,
+  IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
+import { Event, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Run } from "@destack/language/runtime";
+import type { Run } from "@destack/language/runtime/run";
 import type { Space } from "@destack/language/space";
 import { SpanEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";

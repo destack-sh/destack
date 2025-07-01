@@ -5,6 +5,7 @@ import {
   unpackProtoTimestamp,
 } from "@destack/grpc";
 import type {
+  Graph,
   IsRunnable,
   IsSpatial,
   IsSubject,
@@ -15,14 +16,14 @@ import type {
 import {
   Entity,
   EnumType,
-  Graph,
   Node,
   NodeReference,
   NodeType,
   StructType,
 } from "@destack/language/core";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
-import type { Run, SpanEvent } from "@destack/language/runtime";
+import type { Run } from "@destack/language/runtime/run";
+import type { SpanEvent } from "@destack/language/runtime/span";
 import type { Message } from "@destack/language/social";
 import type { Space } from "@destack/language/space";
 import {

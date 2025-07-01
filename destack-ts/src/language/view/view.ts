@@ -1,4 +1,5 @@
 import type {
+  Dimension,
   HasName,
   IsDeletable,
   IsExtensible,
@@ -7,14 +8,15 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  Position,
 } from "@destack/language/core";
-import { Dimension, Entity, Node, NodeReference, NodeType, Position } from "@destack/language/core";
+import { Entity, Node, NodeReference, NodeType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { ContainerView } from "@destack/language/view/container";
+import type { ContainerView } from "@destack/language/view/container/container";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:190400 ==== */

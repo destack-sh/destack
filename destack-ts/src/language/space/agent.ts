@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasIcon,
   HasName,
   HasSlug,
@@ -12,19 +13,11 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import {
-  Entity,
-  Graph,
-  Icon,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
-} from "@destack/language/core";
+import { Entity, Icon, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Cursor } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/space/space";
 import { AgentProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

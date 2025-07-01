@@ -1,8 +1,13 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import type { IsSubject, QueryConnection, Session, Supergraph } from "@destack/language/core";
+import type {
+  Graph,
+  IsSubject,
+  QueryConnection,
+  Session,
+  Supergraph,
+} from "@destack/language/core";
 import {
   Dimension,
-  Graph,
   Node,
   NodeReference,
   NodeType,
@@ -14,8 +19,8 @@ import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { View } from "@destack/language/view";
-import { ContainerView } from "@destack/language/view/container";
+import type { ContainerView } from "@destack/language/view/container/container";
+import { View } from "@destack/language/view/view";
 import { InternalViewProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

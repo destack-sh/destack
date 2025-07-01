@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import type { Role } from "@destack/language/access";
+import type { Role } from "@destack/language/access/role";
 import type {
+  Graph,
   IsDeletable,
   IsGlobal,
   IsJoinable,
@@ -16,7 +17,6 @@ import {
   Entity,
   EnumType,
   Event,
-  Graph,
   Node,
   NodeReference,
   NodeType,

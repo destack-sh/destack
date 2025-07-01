@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasName,
   IsDeletable,
   IsGlobal,
@@ -11,7 +12,6 @@ import type {
 import {
   ClientType,
   Entity,
-  Graph,
   Node,
   NodeReference,
   NodeType,
@@ -20,7 +20,7 @@ import {
 import type { Machine } from "@destack/language/infra";
 import type { Cursor } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { User } from "@destack/language/space";
+import type { User } from "@destack/language/space/user";
 import { ClientProto, ClientTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";

@@ -6,23 +6,30 @@ import type {
   EntitlementRequestedEvent,
   EntitlementRevokedEvent,
   EntitlementType,
+} from "@destack/language/access/entitlement";
+import type {
   Invite,
   InviteAcceptedEvent,
   InviteEvent,
   InviteRejectedEvent,
   InviteRescindedEvent,
   InviteSentEvent,
+} from "@destack/language/access/invite";
+import type {
   Membership,
   MembershipEvent,
   MembershipJoinedEvent,
   MembershipLeftEvent,
   MembershipPermission,
-  Permission,
-  PermissionType,
+} from "@destack/language/access/membership";
+import type { Permission, PermissionType } from "@destack/language/access/permission";
+import type {
   Role,
   RoleAssignedEvent,
   RoleEvent,
   RoleUnassignedEvent,
+} from "@destack/language/access/role";
+import type {
   Sanction,
   SanctionEvent,
   SanctionExpiredEvent,
@@ -30,21 +37,13 @@ import type {
   SanctionRequestedEvent,
   SanctionRevokedEvent,
   SanctionType,
-} from "@destack/language/access";
-import type {
-  AnnotationShape,
-  Arrow,
-  ArrowHeadType,
-  ArrowShape,
-  Canvas,
-  CanvasType,
-  Line,
-  LineShape,
-  Polygon,
-  PolygonShape,
-  PolygonShapeType,
-  Shape,
-} from "@destack/language/canvas";
+} from "@destack/language/access/sanction";
+import type { AnnotationShape } from "@destack/language/canvas/annotation";
+import type { Arrow, ArrowHeadType, ArrowShape } from "@destack/language/canvas/arrow";
+import type { Canvas, CanvasType } from "@destack/language/canvas/canvas";
+import type { Line, LineShape } from "@destack/language/canvas/line";
+import type { Polygon, PolygonShape, PolygonShapeType } from "@destack/language/canvas/polygon";
+import type { Shape } from "@destack/language/canvas/shape";
 import type { Node } from "@destack/language/core";
 import type {
   CascadeAction,
@@ -229,20 +228,15 @@ import type {
   FileRetentionMode,
   FileSource,
   FileType,
-  Link,
-  LinkType,
-} from "@destack/language/data";
-import type { Environment } from "@destack/language/deployment";
-import type { Folder, FolderType, Tag, Tagging } from "@destack/language/folder";
-import type {
-  Database,
-  DatabaseInfo,
-  DatabaseType,
-  GalaxyInfo,
-  Machine,
-  MachineType,
-} from "@destack/language/infra";
-import type { ModelDeveloper, ModelProvider } from "@destack/language/intelligence";
+} from "@destack/language/data/file";
+import type { Link, LinkType } from "@destack/language/data/link";
+import type { Environment } from "@destack/language/deployment/environment";
+import type { Folder, FolderType } from "@destack/language/folder/folder";
+import type { Tag, Tagging } from "@destack/language/folder/tag";
+import type { Database, DatabaseInfo, DatabaseType } from "@destack/language/infra/database";
+import type { GalaxyInfo } from "@destack/language/infra/galaxy";
+import type { Machine, MachineType } from "@destack/language/infra/machine";
+import type { ModelDeveloper, ModelProvider } from "@destack/language/intelligence/model";
 import type {
   ClickEvent,
   ClipboardEvent,
@@ -279,39 +273,41 @@ import type {
   PointerUpEvent,
   RightClickEvent,
   WheelEvent,
-} from "@destack/language/interaction";
+} from "@destack/language/interaction/input";
+import type { Action, ActionCardinality } from "@destack/language/logic/action";
 import type {
-  Action,
-  ActionCardinality,
   Cursor,
   CursorStatus,
-  DayOfWeek,
   EventCursor,
+  ScreenCursor,
+  ThreadCursor,
+} from "@destack/language/logic/cursor";
+import type { Route } from "@destack/language/logic/route";
+import type {
+  DayOfWeek,
   Month,
-  Route,
   Schedule,
   ScheduleFrequency,
-  ScreenCursor,
-  Script,
-  Service,
-  ThreadCursor,
+} from "@destack/language/logic/schedule";
+import type { Script } from "@destack/language/logic/script";
+import type { Service } from "@destack/language/logic/service";
+import type {
   Timer,
   TimerCancelledEvent,
   TimerCompletedEvent,
   TimerEvent,
   TimerStartedEvent,
   TimerType,
-  Trigger,
-  TriggerEvent,
-  TriggerType,
-} from "@destack/language/logic";
+} from "@destack/language/logic/timer";
+import type { Trigger, TriggerEvent, TriggerType } from "@destack/language/logic/trigger";
 import type {
   Interruption,
   InterruptionResponse,
   InterruptionStatus,
   InterruptionType,
-  LogEvent,
-  LogLevel,
+} from "@destack/language/runtime/interruption";
+import type { LogEvent, LogLevel } from "@destack/language/runtime/log";
+import type {
   Run,
   RunCompletedEvent,
   RunEvent,
@@ -323,24 +319,20 @@ import type {
   RunStartedEvent,
   RunStatus,
   RunStopRequestedEvent,
-  SpanEvent,
-} from "@destack/language/runtime";
+} from "@destack/language/runtime/run";
+import type { SpanEvent } from "@destack/language/runtime/span";
+import type { Layer, LayerType } from "@destack/language/scene/layer";
 import type {
-  Layer,
-  LayerType,
   Scene,
   SceneEnteredEvent,
   SceneEvent,
   SceneExitedEvent,
-  Variant,
-  VariantStateType,
-  VariantType,
-  Window,
-  WindowType,
-} from "@destack/language/scene";
+} from "@destack/language/scene/scene";
+import type { Variant, VariantStateType, VariantType } from "@destack/language/scene/variant";
+import type { Window, WindowType } from "@destack/language/scene/window";
+import type { Follow } from "@destack/language/social/follow";
+import type { Message } from "@destack/language/social/message";
 import type {
-  Follow,
-  Message,
   Notification,
   NotificationDismissedEvent,
   NotificationEvent,
@@ -349,14 +341,13 @@ import type {
   NotificationRescindedEvent,
   NotificationSentEvent,
   NotificationStatus,
-  Reaction,
-  Star,
-  Thread,
-  ThreadStatus,
-} from "@destack/language/social";
+} from "@destack/language/social/notification";
+import type { Reaction } from "@destack/language/social/reaction";
+import type { Star } from "@destack/language/social/star";
+import type { Thread, ThreadStatus } from "@destack/language/social/thread";
+import type { Agent } from "@destack/language/space/agent";
+import type { Client } from "@destack/language/space/client";
 import type {
-  Agent,
-  Client,
   Friendship,
   FriendshipInvite,
   FriendshipInviteAcceptedEvent,
@@ -364,77 +355,87 @@ import type {
   FriendshipInviteRejectedEvent,
   FriendshipInviteRescindedEvent,
   FriendshipInviteSentEvent,
-  Handle,
-  Organization,
-  OrganizationStatus,
-  Space,
-  SpaceStatus,
-  Team,
-  User,
-  UserStatus,
-} from "@destack/language/space";
+} from "@destack/language/space/friendship";
+import type { Handle } from "@destack/language/space/handle";
+import type { Organization, OrganizationStatus } from "@destack/language/space/organization";
+import type { Space, SpaceStatus } from "@destack/language/space/space";
+import type { Team } from "@destack/language/space/team";
+import type { User, UserStatus } from "@destack/language/space/user";
+import type { Border, BorderStyle, BorderType } from "@destack/language/style/border";
 import type {
-  Border,
-  BorderStyle,
-  BorderType,
   Color,
   ColorHue,
   ColorIntent,
   ColorShade,
   ColorStyle,
   ColorType,
-  Easing,
+} from "@destack/language/style/color";
+import type { Easing } from "@destack/language/style/easing";
+import type {
   Effect,
   EffectStyle,
   EffectType,
+  OffscreenBehavior,
+  RepeatType,
+  TextSplitType,
+} from "@destack/language/style/effect";
+import type {
   Fill,
   FillPosition,
   FillSize,
   FillStyle,
   FillType,
+} from "@destack/language/style/fill";
+import type {
   Font,
   FontSize,
   FontStyle,
   FontType,
   FontWeight,
+  TextAlign,
+  TextDecoration,
+  TextTransform,
+} from "@destack/language/style/font";
+import type {
   Gradient,
   GradientStop,
   GradientStyle,
   GradientType,
-  OffscreenBehavior,
-  Palette,
-  RepeatType,
+} from "@destack/language/style/gradient";
+import type { Palette } from "@destack/language/style/palette";
+import type {
   Shadow,
   ShadowPosition,
   ShadowStyle,
   ShadowType,
-  SpringType,
+} from "@destack/language/style/shadow";
+import type {
   Stroke,
   StrokeCap,
   StrokePath,
   StrokePoint,
   StrokeStyle,
   StrokeType,
-  Style,
-  TextAlign,
-  TextDecoration,
-  TextSplitType,
-  TextTransform,
-  Theme,
+} from "@destack/language/style/stroke";
+import type { Style } from "@destack/language/style/style";
+import type { Theme } from "@destack/language/style/theme";
+import type {
+  SpringType,
   Transition,
   TransitionStyle,
   TransitionType,
-} from "@destack/language/style";
-import type { View } from "@destack/language/view";
-import type {
-  ContainerView,
-  FrameView,
-  LabelView,
-  SplitView,
-} from "@destack/language/view/container";
-import type { ContentView, TextView } from "@destack/language/view/content";
-import type { InputView, NumberInputView, SliderInputView } from "@destack/language/view/input";
-import type { InternalView } from "@destack/language/view/internal";
+} from "@destack/language/style/transition";
+import type { ContainerView } from "@destack/language/view/container/container";
+import type { FrameView } from "@destack/language/view/container/frame";
+import type { LabelView } from "@destack/language/view/container/label";
+import type { SplitView } from "@destack/language/view/container/split";
+import type { ContentView } from "@destack/language/view/content/content";
+import type { TextView } from "@destack/language/view/content/text";
+import type { InputView } from "@destack/language/view/input/input";
+import type { NumberInputView } from "@destack/language/view/input/number";
+import type { SliderInputView } from "@destack/language/view/input/slider";
+import type { InternalView } from "@destack/language/view/internal/internal";
+import type { View } from "@destack/language/view/view";
 
 export type NodeTypeMapping = {
   [NodeType.NODE]: Node;

@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasIcon,
   HasName,
   HasSlug,
@@ -17,7 +18,6 @@ import type {
 import {
   Entity,
   Event,
-  Graph,
   Icon,
   Node,
   NodeReference,

@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Graph,
   HasIcon,
   IsOwnable,
   IsOwner,
@@ -17,7 +18,6 @@ import {
   Direction,
   Distribute,
   Event,
-  Graph,
   Grid,
   GridSpan,
   Icon,
@@ -33,10 +33,10 @@ import {
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Window } from "@destack/language/scene";
+import type { Window } from "@destack/language/scene/window";
 import type { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
-import { ContainerView } from "@destack/language/view/container";
+import { ContainerView } from "@destack/language/view";
 import {
   AlignProto,
   DirectionProto,
