@@ -4,15 +4,17 @@ from typing import TYPE_CHECKING, Any, assert_never, cast
 
 from destack.language import (
     BuiltinObjectBase,
+    NodeType,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
     StructBase,
+    StructType,
     Type,
     TypeCardinality,
     TypeDeclaration,
 )
-from destack.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from destack.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.proto import AnyStructProto
 from destack.utils.string import Casing, to_casing
 
@@ -106,12 +108,21 @@ def _generate_to_value(cls: type["BuiltinObjectBase"]) -> str:
 
 def _generate_from_value(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the fromValue method implementation."""
+    unpack_references: set[NodeType | StructType] = set()
     unpack_assignments: list[str] = []
-    unpack_method_parts: list[str] = []
+    unpack_body_parts: list[str] = []
 
     for prop in cls.__wired_properties__.values():
         if prop.is_computed:
             continue  # set implicitly
+        # initializer
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            unpack_references.add(StructType.NODE_REFERENCE)
+        elif prop.scalar_type == ScalarType.STRUCT:
+            assert prop.struct_type is not None, f"no struct type for {prop!r}"
+            unpack_references.add(prop.struct_type)
+
+        # regular unpacking
         unpack_code = _generate_unpack_value_property(prop)
         ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
         self_name = ts_name
@@ -122,24 +133,39 @@ def _generate_from_value(cls: type["BuiltinObjectBase"]) -> str:
             assignment = assignment.strip().rstrip(";")
             unpack_assignments.append(f"{self_name}: {assignment}")
         else:
-            unpack_method_parts.extend(unpack_code)
+            unpack_body_parts.extend(unpack_code)
             unpack_assignments.append(f"{self_name}: unpacked{_upper_first(ts_name)}")
-
     if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append("_value: objectValue")
 
-    unpack_method_parts.append(f"return new {cls.__name__}({{")
+    unpack_body_parts.append(f"return new {cls.__name__}({{")
     for assignment in unpack_assignments:
-        unpack_method_parts.append(f"  {assignment},")
+        unpack_body_parts.append(f"  {assignment},")
     if cls.__is_node__:
-        unpack_method_parts.append("  _session,")
-        unpack_method_parts.append("  _graph,")
-        unpack_method_parts.append("  _connection,")
+        unpack_body_parts.append("  _session,")
+        unpack_body_parts.append("  _graph,")
+        unpack_body_parts.append("  _connection,")
     else:
-        unpack_method_parts.append("  _supergraph,")
-    unpack_method_parts.append("});")
+        unpack_body_parts.append("  _supergraph,")
+    unpack_body_parts.append("});")
 
-    return "\n".join(unpack_method_parts)
+    # initializer
+    unpack_initializer_parts: list[str] = []
+    for ref in sorted(unpack_references):
+        if isinstance(ref, NodeType):
+            reference_cls = NODE_CLASS_BY_TYPE[ref]
+            initializer_str = f"const _{reference_cls.__name__} = NODE_CLASS_BY_TYPE[NodeType.{ref.name}] as typeof {reference_cls.__name__};"
+            unpack_initializer_parts.append(initializer_str)
+        elif isinstance(ref, StructType):
+            reference_cls = STRUCT_CLASS_BY_TYPE[ref]
+            initializer_str = f"const _{reference_cls.__name__} = STRUCT_CLASS_BY_TYPE[StructType.{ref.name}] as typeof {reference_cls.__name__};"
+            unpack_initializer_parts.append(initializer_str)
+        else:
+            assert_never(ref)
+    initializer_str = "\n".join(unpack_initializer_parts)
+    unpack_body_parts.insert(0, initializer_str)
+
+    return "\n".join(unpack_body_parts)
 
 
 def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
@@ -282,9 +308,9 @@ def _generate_unpack_value_scalar(
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"{struct_cls.__name__}.fromValue({value_expr}, _session, _supergraph, _graph, _connection)"
+        return f"_{struct_cls.__name__}.fromValue({value_expr}, _session, _supergraph, _graph, _connection)"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"NodeReference.fromValue({value_expr}, _session, _supergraph, _graph, _connection)"
+        return f"_NodeReference.fromValue({value_expr}, _session, _supergraph, _graph, _connection)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         return f"Node.fromValue({value_expr}, _session, _supergraph, _graph, _connection)"
     else:
@@ -324,7 +350,8 @@ def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, v
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum_type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-        return f"{enum_cls.__name__}.{value.name}"
+        # return f"{enum_cls.__name__}.{value.name}"
+        return f"({int(value)} /* {enum_cls.__name__}.{value.name} */)"
     elif type.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, StructBase), f"value is not a Struct for {type!r}: {value!r}"

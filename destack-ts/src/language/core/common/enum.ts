@@ -2,7 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Entity } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   HasIcon,
   HasName,
@@ -13,15 +13,15 @@ import type {
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
-import { Icon } from "@destack/language/core/common/icon";
+import type { Icon } from "@destack/language/core/common/icon";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStructDefinition } from "@destack/language/core/common/struct";
-import { Value } from "@destack/language/core/common/value";
+import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
-import { registerNodeClass } from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { CustomEnumDefinitionProto, CustomOptionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -321,7 +321,8 @@ export class CustomEnumDefinition
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.CUSTOM_ENUM_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -403,15 +404,18 @@ export class CustomEnumDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEnumDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -421,31 +425,31 @@ export class CustomEnumDefinition
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEnumDefinition({
       space: unpackedSpacePtr,
@@ -531,19 +535,22 @@ export class CustomEnumDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEnumDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new CustomEnumDefinition({
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -554,13 +561,13 @@ export class CustomEnumDefinition
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.sourcePtr!,
               _session,
               _supergraph,
@@ -572,7 +579,7 @@ export class CustomEnumDefinition
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -583,7 +590,7 @@ export class CustomEnumDefinition
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -594,7 +601,7 @@ export class CustomEnumDefinition
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -903,7 +910,8 @@ export class CustomOption
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.CUSTOM_OPTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -978,20 +986,22 @@ export class CustomOption
     _graph?: any | null,
     _connection?: any | null,
   ): CustomOption {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -1001,17 +1011,17 @@ export class CustomOption
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomOption({
       parent: unpackedParentPtr,
@@ -1084,10 +1094,12 @@ export class CustomOption
     _graph?: any | null,
     _connection?: any | null,
   ): CustomOption {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new CustomOption({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1097,7 +1109,7 @@ export class CustomOption
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1108,13 +1120,13 @@ export class CustomOption
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.sourcePtr!,
               _session,
               _supergraph,
@@ -1125,7 +1137,7 @@ export class CustomOption
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1136,7 +1148,7 @@ export class CustomOption
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

@@ -3,13 +3,15 @@ from typing import TYPE_CHECKING, assert_never
 
 from destack.language import (
     BuiltinObjectBase,
+    NodeType,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
+    StructType,
     TypeCardinality,
     TypeDeclaration,
 )
-from destack.language.registry import STRUCT_CLASS_BY_TYPE, get_builtin_type
+from destack.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, get_builtin_type
 from destack.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -105,12 +107,21 @@ def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:
 
 def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the fromProto method implementation."""
+    unpack_references: set[NodeType | StructType] = set()
     unpack_assignments: list[str] = []
-    unpack_method_parts: list[str] = []
+    unpack_body_parts: list[str] = []
 
     for prop in cls.__wired_properties__.values():
         if prop.is_computed:
             continue  # set implicitly
+        # initializer
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            unpack_references.add(StructType.NODE_REFERENCE)
+        elif prop.scalar_type == ScalarType.STRUCT:
+            assert prop.struct_type is not None, f"no struct type for {prop!r}"
+            unpack_references.add(prop.struct_type)
+
+        # regular unpacking
         ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
         unpack_code = _generate_unpack_proto_property(prop)
         if len(unpack_code) == 1:
@@ -118,24 +129,40 @@ def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
             assignment = assignment.strip().rstrip(";")
             unpack_assignments.append(f"{ts_name}: {assignment}")
         else:
-            unpack_method_parts.extend(unpack_code)
+            unpack_body_parts.extend(unpack_code)
             unpack_assignments.append(f"{ts_name}: unpacked{_upper_first(ts_name)}")
 
     if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append("_proto: objectProto")
 
-    unpack_method_parts.append(f"return new {cls.__name__}({{")
+    unpack_body_parts.append(f"return new {cls.__name__}({{")
     for assignment in unpack_assignments:
-        unpack_method_parts.append(f"  {assignment},")
+        unpack_body_parts.append(f"  {assignment},")
     if cls.__is_node__:
-        unpack_method_parts.append("  _session,")
-        unpack_method_parts.append("  _graph,")
-        unpack_method_parts.append("  _connection,")
+        unpack_body_parts.append("  _session,")
+        unpack_body_parts.append("  _graph,")
+        unpack_body_parts.append("  _connection,")
     else:
-        unpack_method_parts.append("  _supergraph,")
-    unpack_method_parts.append("});")
+        unpack_body_parts.append("  _supergraph,")
+    unpack_body_parts.append("});")
 
-    return "\n".join(unpack_method_parts)
+    # initializer
+    unpack_initializer_parts: list[str] = []
+    for ref in sorted(unpack_references):
+        if isinstance(ref, NodeType):
+            reference_cls = NODE_CLASS_BY_TYPE[ref]
+            initializer_str = f"const _{reference_cls.__name__} = NODE_CLASS_BY_TYPE[NodeType.{ref.name}] as typeof {reference_cls.__name__};"
+            unpack_initializer_parts.append(initializer_str)
+        elif isinstance(ref, StructType):
+            reference_cls = STRUCT_CLASS_BY_TYPE[ref]
+            initializer_str = f"const _{reference_cls.__name__} = STRUCT_CLASS_BY_TYPE[StructType.{ref.name}] as typeof {reference_cls.__name__};"
+            unpack_initializer_parts.append(initializer_str)
+        else:
+            assert_never(ref)
+    initializer_str = "\n".join(unpack_initializer_parts)
+    unpack_body_parts.insert(0, initializer_str)
+
+    return "\n".join(unpack_body_parts)
 
 
 def _generate_pack_proto_property(prop: "PropertyDeclaration") -> list[str]:
@@ -271,13 +298,13 @@ def _generate_unpack_proto_scalar(
         return f"Number({value_expr}) as {enum_type_name}"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return (
-            f"NodeReference.fromProto(({value_expr})!, _session, _supergraph, _graph, _connection)"
+            f"_NodeReference.fromProto(({value_expr})!, _session, _supergraph, _graph, _connection)"
         )
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"{struct_cls.__name__}.fromProto(({value_expr})!, _session, _supergraph, _graph, _connection)"
+        return f"_{struct_cls.__name__}.fromProto(({value_expr})!, _session, _supergraph, _graph, _connection)"
     else:
         return value_expr

@@ -7,12 +7,13 @@ import type {
   IsReactable,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
-import { registerNodeClass } from "@destack/language/registry";
+import { Entity, Node, NodeType, StructType } from "@destack/language/core";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { ReactionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -256,7 +257,8 @@ export class Reaction
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.REACTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -325,15 +327,16 @@ export class Reaction
     _graph?: any | null,
     _connection?: any | null,
   ): Reaction {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -343,16 +346,16 @@ export class Reaction
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Reaction({
       parent: unpackedParentPtr,
-      ownedBy: NodeReference.fromValue(
+      ownedBy: _NodeReference.fromValue(
         objectValue["25"],
         _session,
         _supergraph,
@@ -419,10 +422,11 @@ export class Reaction
     _graph?: any | null,
     _connection?: any | null,
   ): Reaction {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Reaction({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -430,7 +434,7 @@ export class Reaction
               _connection,
             )
           : null,
-      ownedBy: NodeReference.fromProto(
+      ownedBy: _NodeReference.fromProto(
         objectProto.ownedByPtr!,
         _session,
         _supergraph,
@@ -440,7 +444,7 @@ export class Reaction
       content: objectProto.content,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -453,7 +457,7 @@ export class Reaction
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -464,7 +468,7 @@ export class Reaction
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

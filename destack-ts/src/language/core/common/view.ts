@@ -2,7 +2,11 @@ import { EnumType, StructType } from "@destack/language/core/builtin/common";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import { registerEnumClass, registerStructClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import {
   Axis2Proto,
   Axis3Proto,
@@ -538,25 +542,26 @@ export class Position extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Position {
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const topValue = objectValue["50"];
     const unpackedTop =
       topValue != undefined
-        ? Length.fromValue(topValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromValue(topValue, _session, _supergraph, _graph, _connection)
         : null;
     const leftValue = objectValue["51"];
     const unpackedLeft =
       leftValue != undefined
-        ? Length.fromValue(leftValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromValue(leftValue, _session, _supergraph, _graph, _connection)
         : null;
     const widthValue = objectValue["52"];
     const unpackedWidth =
       widthValue != undefined
-        ? Length.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
     const heightValue = objectValue["53"];
     const unpackedHeight =
       heightValue != undefined
-        ? Length.fromValue(heightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromValue(heightValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Position({
       type: Number(objectValue["30"]),
@@ -612,23 +617,24 @@ export class Position extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Position {
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     return new Position({
       type: Number(objectProto.type) as PositionType,
       top:
         objectProto.top != undefined
-          ? Length.fromProto(objectProto.top!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.top!, _session, _supergraph, _graph, _connection)
           : null,
       left:
         objectProto.left != undefined
-          ? Length.fromProto(objectProto.left!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.left!, _session, _supergraph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
-          ? Length.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
           : null,
       height:
         objectProto.height != undefined
-          ? Length.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -2186,20 +2192,21 @@ export class Grid extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Grid {
+    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const columnWidthValue = objectValue["52"];
     const unpackedColumnWidth =
       columnWidthValue != undefined
-        ? Dimension.fromValue(columnWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(columnWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const columnMinWidthValue = objectValue["53"];
     const unpackedColumnMinWidth =
       columnMinWidthValue != undefined
-        ? Dimension.fromValue(columnMinWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(columnMinWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const rowHeightValue = objectValue["54"];
     const unpackedRowHeight =
       rowHeightValue != undefined
-        ? Dimension.fromValue(rowHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(rowHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Grid({
       columns: Number(objectValue["50"]),
@@ -2253,12 +2260,13 @@ export class Grid extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Grid {
+    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     return new Grid({
       columns: Number(objectProto.columns),
       rows: Number(objectProto.rows),
       columnWidth:
         objectProto.columnWidth != undefined
-          ? Dimension.fromProto(
+          ? _Dimension.fromProto(
               objectProto.columnWidth!,
               _session,
               _supergraph,
@@ -2268,7 +2276,7 @@ export class Grid extends StructFrozen {
           : null,
       columnMinWidth:
         objectProto.columnMinWidth != undefined
-          ? Dimension.fromProto(
+          ? _Dimension.fromProto(
               objectProto.columnMinWidth!,
               _session,
               _supergraph,
@@ -2278,7 +2286,7 @@ export class Grid extends StructFrozen {
           : null,
       rowHeight:
         objectProto.rowHeight != undefined
-          ? Dimension.fromProto(objectProto.rowHeight!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.rowHeight!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,

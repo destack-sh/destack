@@ -9,19 +9,17 @@ import type {
   IsRunnable,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
+import { Entity, EnumType, Node, NodeType, StructType } from "@destack/language/core";
 import {
-  Entity,
-  EnumType,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
-} from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Run } from "@destack/language/runtime/run";
 import type { SpanEvent } from "@destack/language/runtime/span";
 import type { Message } from "@destack/language/social";
@@ -302,7 +300,7 @@ export class Interruption extends Entity implements IsSpatial {
     this.spanPtr = _span;
     let _status = options.status ?? null;
     if (_status === null) {
-      _status = InterruptionStatus.OPEN;
+      _status = 10 /* InterruptionStatus.OPEN */;
     }
     if (_status === null) {
       throw new Error(`Interruption.status is required`);
@@ -431,7 +429,8 @@ export class Interruption extends Entity implements IsSpatial {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.INTERRUPTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -513,20 +512,21 @@ export class Interruption extends Entity implements IsSpatial {
     _graph?: any | null,
     _connection?: any | null,
   ): Interruption {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const runnablePtrValue = objectValue["32"];
     const unpackedRunnablePtr =
       runnablePtrValue != undefined
-        ? NodeReference.fromValue(runnablePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(runnablePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spanPtrValue = objectValue["37"];
     const unpackedSpanPtr =
       spanPtrValue != undefined
-        ? NodeReference.fromValue(spanPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spanPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const durationValue = objectValue["41"];
     const unpackedDuration =
@@ -541,22 +541,22 @@ export class Interruption extends Entity implements IsSpatial {
     const messagePtrValue = objectValue["55"];
     const unpackedMessagePtr =
       messagePtrValue != undefined
-        ? NodeReference.fromValue(messagePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(messagePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Interruption({
       parent: unpackedParentPtr,
@@ -641,10 +641,11 @@ export class Interruption extends Entity implements IsSpatial {
     _graph?: any | null,
     _connection?: any | null,
   ): Interruption {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Interruption({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -655,7 +656,7 @@ export class Interruption extends Entity implements IsSpatial {
       type: Number(objectProto.type) as InterruptionType,
       runnable:
         objectProto.runnablePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.runnablePtr!,
               _session,
               _supergraph,
@@ -665,7 +666,7 @@ export class Interruption extends Entity implements IsSpatial {
           : null,
       span:
         objectProto.spanPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spanPtr!,
               _session,
               _supergraph,
@@ -684,7 +685,7 @@ export class Interruption extends Entity implements IsSpatial {
           : null,
       message:
         objectProto.messagePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.messagePtr!,
               _session,
               _supergraph,
@@ -694,7 +695,7 @@ export class Interruption extends Entity implements IsSpatial {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -705,7 +706,7 @@ export class Interruption extends Entity implements IsSpatial {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -716,7 +717,7 @@ export class Interruption extends Entity implements IsSpatial {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

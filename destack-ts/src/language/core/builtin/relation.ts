@@ -11,7 +11,11 @@ import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStructDefinition } from "@destack/language/core/common/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import { registerEnumClass, registerStructClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import {
   NodeDefinitionReferenceProto,
   NodeDefinitionTypeProto,
@@ -218,6 +222,7 @@ export class NodeDefinitionReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): NodeDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodeTypeValue = objectValue["40"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
     const traitTypeValue = objectValue["41"];
@@ -225,7 +230,7 @@ export class NodeDefinitionReference extends StructFrozen {
     const definitionPtrValue = objectValue["45"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new NodeDefinitionReference({
       type: Number(objectValue["30"]),
@@ -283,6 +288,7 @@ export class NodeDefinitionReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): NodeDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new NodeDefinitionReference({
       type: Number(objectProto.type) as NodeDefinitionType,
       nodeType:
@@ -291,7 +297,7 @@ export class NodeDefinitionReference extends StructFrozen {
         objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
       definition:
         objectProto.definitionPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
               _supergraph,
@@ -568,6 +574,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): ObjectDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodeTypeValue = objectValue["31"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
     const traitTypeValue = objectValue["32"];
@@ -577,7 +584,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     const definitionPtrValue = objectValue["40"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new ObjectDefinitionReference({
       type: Number(objectValue["30"]),
@@ -639,6 +646,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): ObjectDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new ObjectDefinitionReference({
       type: Number(objectProto.type) as ObjectDefinitionType,
       nodeType:
@@ -649,7 +657,7 @@ export class ObjectDefinitionReference extends StructFrozen {
         objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
       definition:
         objectProto.definitionPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
               _supergraph,
@@ -933,6 +941,7 @@ export class PropertyReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodeTypeValue = objectValue["31"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
     const traitTypeValue = objectValue["32"];
@@ -944,7 +953,7 @@ export class PropertyReference extends StructFrozen {
     const customPropertyPtrValue = objectValue["36"];
     const unpackedCustomPropertyPtr =
       customPropertyPtrValue != undefined
-        ? NodeReference.fromValue(
+        ? _NodeReference.fromValue(
             customPropertyPtrValue,
             _session,
             _supergraph,
@@ -1016,6 +1025,7 @@ export class PropertyReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new PropertyReference({
       type: Number(objectProto.type) as PropertyReferenceType,
       nodeType:
@@ -1027,7 +1037,7 @@ export class PropertyReference extends StructFrozen {
       id: objectProto.id != undefined ? Number(objectProto.id) : null,
       customProperty:
         objectProto.customPropertyPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.customPropertyPtr!,
               _session,
               _supergraph,
@@ -1308,12 +1318,13 @@ export class StructDefinitionReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StructDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const structTypeValue = objectValue["40"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
     return new StructDefinitionReference({
       type: Number(objectValue["30"]),
       structType: unpackedStructType,
-      definition: NodeReference.fromValue(
+      definition: _NodeReference.fromValue(
         objectValue["45"],
         _session,
         _supergraph,
@@ -1366,11 +1377,12 @@ export class StructDefinitionReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StructDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new StructDefinitionReference({
       type: Number(objectProto.type) as StructDefinitionType,
       structType:
         objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
-      definition: NodeReference.fromProto(
+      definition: _NodeReference.fromProto(
         objectProto.definitionPtr!,
         _session,
         _supergraph,

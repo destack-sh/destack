@@ -2,19 +2,14 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructFrozen, StructType } from "@destack/language/core";
 import {
-  EnumType,
-  Node,
-  NodeReference,
-  NodeType,
-  StructFrozen,
-  StructType,
-} from "@destack/language/core";
-import {
+  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
   registerStructClass,
@@ -330,10 +325,11 @@ export class Color extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Color {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const stylePtrValue = objectValue["42"];
     const unpackedStylePtr =
       stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const hueValue = objectValue["50"];
     const unpackedHue = hueValue != undefined ? Number(hueValue) : null;
@@ -419,11 +415,12 @@ export class Color extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Color {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Color({
       type: Number(objectProto.type) as ColorType,
       style:
         objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.stylePtr!,
               _session,
               _supergraph,
@@ -839,7 +836,8 @@ export class ColorStyle extends Style {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.COLOR_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -955,10 +953,12 @@ export class ColorStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): ColorStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const hueValue = objectValue["50"];
     const unpackedHue = hueValue != undefined ? Number(hueValue) : null;
@@ -977,22 +977,22 @@ export class ColorStyle extends Style {
     const darkValue = objectValue["60"];
     const unpackedDark =
       darkValue != undefined
-        ? Color.fromValue(darkValue, _session, _supergraph, _graph, _connection)
+        ? _Color.fromValue(darkValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -1096,10 +1096,12 @@ export class ColorStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): ColorStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     return new ColorStyle({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1117,11 +1119,11 @@ export class ColorStyle extends Style {
       alpha: objectProto.alpha != undefined ? objectProto.alpha : null,
       dark:
         objectProto.dark != undefined
-          ? Color.fromProto(objectProto.dark!, _session, _supergraph, _graph, _connection)
+          ? _Color.fromProto(objectProto.dark!, _session, _supergraph, _graph, _connection)
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1132,7 +1134,7 @@ export class ColorStyle extends Style {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1143,7 +1145,7 @@ export class ColorStyle extends Style {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

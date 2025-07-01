@@ -13,13 +13,15 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
+  Value,
 } from "@destack/language/core";
-import { Entity, Node, NodeReference, NodeType, StructType, Value } from "@destack/language/core";
+import { Entity, Node, NodeType, StructType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic/script";
-import { registerNodeClass } from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { ServiceProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -374,7 +376,8 @@ export class Service
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SERVICE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -462,10 +465,12 @@ export class Service
     _graph?: any | null,
     _connection?: any | null,
   ): Service {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -475,41 +480,41 @@ export class Service
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const scriptPtrValue = objectValue["200"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Service({
       space: unpackedSpacePtr,
@@ -593,19 +598,21 @@ export class Service
     _graph?: any | null,
     _connection?: any | null,
   ): Service {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new Service({
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -618,7 +625,7 @@ export class Service
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -628,7 +635,7 @@ export class Service
           : null,
       script:
         objectProto.scriptPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.scriptPtr!,
               _session,
               _supergraph,
@@ -638,7 +645,7 @@ export class Service
           : null,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.sourcePtr!,
               _session,
               _supergraph,
@@ -650,7 +657,7 @@ export class Service
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -661,7 +668,7 @@ export class Service
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -672,7 +679,7 @@ export class Service
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,

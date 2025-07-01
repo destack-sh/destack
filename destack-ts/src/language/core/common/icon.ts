@@ -1,12 +1,16 @@
 import { EnumType, StructType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { File } from "@destack/language/data";
-import { registerEnumClass, registerStructClass } from "@destack/language/registry";
-import { Color } from "@destack/language/style";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerStructClass,
+} from "@destack/language/registry";
+import type { Color } from "@destack/language/style";
 import { IconProto, IconTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
@@ -248,6 +252,8 @@ export class Icon extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Icon {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const emojiValue = objectValue["31"];
     const unpackedEmoji = emojiValue != undefined ? emojiValue : null;
     const faNameValue = objectValue["33"];
@@ -257,14 +263,14 @@ export class Icon extends StructFrozen {
     const filePtrValue = objectValue["35"];
     const unpackedFilePtr =
       filePtrValue != undefined
-        ? NodeReference.fromValue(filePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(filePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const fileUrlValue = objectValue["36"];
     const unpackedFileUrl = fileUrlValue != undefined ? fileUrlValue : null;
     const colorValue = objectValue["40"];
     const unpackedColor =
       colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Icon({
       type: Number(objectValue["30"]),
@@ -328,6 +334,8 @@ export class Icon extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Icon {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     return new Icon({
       type: Number(objectProto.type) as IconType,
       emoji: objectProto.emoji != undefined ? objectProto.emoji : null,
@@ -335,7 +343,7 @@ export class Icon extends StructFrozen {
       vscName: objectProto.vscName != undefined ? objectProto.vscName : null,
       file:
         objectProto.filePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.filePtr!,
               _session,
               _supergraph,
@@ -346,7 +354,7 @@ export class Icon extends StructFrozen {
       fileUrl: objectProto.fileUrl != undefined ? objectProto.fileUrl : null,
       color:
         objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,

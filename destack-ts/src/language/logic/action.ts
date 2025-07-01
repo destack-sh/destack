@@ -10,22 +10,20 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
-} from "@destack/language/core";
-import {
-  Entity,
-  EnumType,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
   Text,
   Value,
 } from "@destack/language/core";
+import { Entity, EnumType, Node, NodeType, StructType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic/script";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { ActionCardinalityProto, ActionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -233,7 +231,7 @@ export class Action
     this.name = _name;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
-      _cardinality = ActionCardinality.UNARY;
+      _cardinality = 1 /* ActionCardinality.UNARY */;
     }
     if (_cardinality === null) {
       throw new Error(`Action.cardinality is required`);
@@ -358,7 +356,8 @@ export class Action
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.ACTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -441,32 +440,35 @@ export class Action
     _graph?: any | null,
     _connection?: any | null,
   ): Action {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const textValue = objectValue["41"];
     const unpackedText =
       textValue != undefined
-        ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
+        ? _Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -478,12 +480,12 @@ export class Action
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Action({
       parent: unpackedParentPtr,
@@ -565,19 +567,22 @@ export class Action
     _graph?: any | null,
     _connection?: any | null,
   ): Action {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new Action({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -588,11 +593,11 @@ export class Action
       cardinality: Number(objectProto.cardinality) as ActionCardinality,
       text:
         objectProto.text != undefined
-          ? Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
+          ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -603,7 +608,7 @@ export class Action
       name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.sourcePtr!,
               _session,
               _supergraph,
@@ -617,7 +622,7 @@ export class Action
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -628,7 +633,7 @@ export class Action
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

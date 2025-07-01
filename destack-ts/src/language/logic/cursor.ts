@@ -5,20 +5,18 @@ import type {
   IsOwner,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
-} from "@destack/language/core";
-import {
-  Entity,
-  EnumType,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
   Vector2i,
 } from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import { Entity, EnumType, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
   CursorStatusProto,
@@ -304,7 +302,7 @@ export class EventCursor extends Cursor {
     this.ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
-      _status = CursorStatus.CREATED;
+      _status = 1 /* CursorStatus.CREATED */;
     }
     if (_status === null) {
       throw new Error(`EventCursor.status is required`);
@@ -396,7 +394,8 @@ export class EventCursor extends Cursor {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.EVENT_CURSOR,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -470,6 +469,7 @@ export class EventCursor extends Cursor {
     _graph?: any | null,
     _connection?: any | null,
   ): EventCursor {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const activeAtValue = objectValue["41"];
     const unpackedActiveAt =
       activeAtValue != undefined
@@ -478,27 +478,27 @@ export class EventCursor extends Cursor {
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new EventCursor({
       status: Number(objectValue["40"]),
@@ -565,13 +565,14 @@ export class EventCursor extends Cursor {
     _graph?: any | null,
     _connection?: any | null,
   ): EventCursor {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new EventCursor({
       status: Number(objectProto.status) as CursorStatus,
       activeAt:
         objectProto.activeAt != undefined ? unpackProtoTimestamp(objectProto.activeAt!) : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -581,7 +582,7 @@ export class EventCursor extends Cursor {
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -592,7 +593,7 @@ export class EventCursor extends Cursor {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -603,7 +604,7 @@ export class EventCursor extends Cursor {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -614,7 +615,7 @@ export class EventCursor extends Cursor {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -808,7 +809,7 @@ export class ScreenCursor extends Cursor {
     this.ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
-      _status = CursorStatus.CREATED;
+      _status = 1 /* CursorStatus.CREATED */;
     }
     if (_status === null) {
       throw new Error(`ScreenCursor.status is required`);
@@ -911,7 +912,8 @@ export class ScreenCursor extends Cursor {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SCREEN_CURSOR,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -988,10 +990,12 @@ export class ScreenCursor extends Cursor {
     _graph?: any | null,
     _connection?: any | null,
   ): ScreenCursor {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Vector2i = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2I] as typeof Vector2i;
     const positionValue = objectValue["50"];
     const unpackedPosition =
       positionValue != undefined
-        ? Vector2i.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2i.fromValue(positionValue, _session, _supergraph, _graph, _connection)
         : null;
     const activeAtValue = objectValue["41"];
     const unpackedActiveAt =
@@ -1001,27 +1005,27 @@ export class ScreenCursor extends Cursor {
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new ScreenCursor({
       position: unpackedPosition,
@@ -1092,17 +1096,19 @@ export class ScreenCursor extends Cursor {
     _graph?: any | null,
     _connection?: any | null,
   ): ScreenCursor {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Vector2i = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2I] as typeof Vector2i;
     return new ScreenCursor({
       position:
         objectProto.position != undefined
-          ? Vector2i.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          ? _Vector2i.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
           : null,
       status: Number(objectProto.status) as CursorStatus,
       activeAt:
         objectProto.activeAt != undefined ? unpackProtoTimestamp(objectProto.activeAt!) : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1112,7 +1118,7 @@ export class ScreenCursor extends Cursor {
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -1123,7 +1129,7 @@ export class ScreenCursor extends Cursor {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1134,7 +1140,7 @@ export class ScreenCursor extends Cursor {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -1145,7 +1151,7 @@ export class ScreenCursor extends Cursor {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1333,7 +1339,7 @@ export class ThreadCursor extends Cursor {
     this.ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
-      _status = CursorStatus.CREATED;
+      _status = 1 /* CursorStatus.CREATED */;
     }
     if (_status === null) {
       throw new Error(`ThreadCursor.status is required`);
@@ -1425,7 +1431,8 @@ export class ThreadCursor extends Cursor {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.THREAD_CURSOR,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1499,6 +1506,7 @@ export class ThreadCursor extends Cursor {
     _graph?: any | null,
     _connection?: any | null,
   ): ThreadCursor {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const activeAtValue = objectValue["41"];
     const unpackedActiveAt =
       activeAtValue != undefined
@@ -1507,27 +1515,27 @@ export class ThreadCursor extends Cursor {
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new ThreadCursor({
       status: Number(objectValue["40"]),
@@ -1594,13 +1602,14 @@ export class ThreadCursor extends Cursor {
     _graph?: any | null,
     _connection?: any | null,
   ): ThreadCursor {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new ThreadCursor({
       status: Number(objectProto.status) as CursorStatus,
       activeAt:
         objectProto.activeAt != undefined ? unpackProtoTimestamp(objectProto.activeAt!) : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1610,7 +1619,7 @@ export class ThreadCursor extends Cursor {
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -1621,7 +1630,7 @@ export class ThreadCursor extends Cursor {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1632,7 +1641,7 @@ export class ThreadCursor extends Cursor {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -1643,7 +1652,7 @@ export class ThreadCursor extends Cursor {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,

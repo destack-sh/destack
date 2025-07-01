@@ -2,27 +2,22 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
-} from "@destack/language/core";
-import {
-  EnumType,
-  Node,
-  NodeReference,
-  NodeType,
-  StructFrozen,
-  StructType,
   Vector2,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructFrozen, StructType } from "@destack/language/core";
 import {
+  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { Color } from "@destack/language/style/color";
+import type { Color } from "@destack/language/style/color";
 import { Easing } from "@destack/language/style/easing";
 import type { Palette } from "@destack/language/style/palette";
 import { Style } from "@destack/language/style/style";
@@ -409,7 +404,8 @@ export class StrokeStyle extends Style {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.STROKE_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -490,35 +486,37 @@ export class StrokeStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokeStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
     const startValue = objectValue["60"];
     const unpackedStart =
       startValue != undefined
-        ? StrokeCap.fromValue(startValue, _session, _supergraph, _graph, _connection)
+        ? _StrokeCap.fromValue(startValue, _session, _supergraph, _graph, _connection)
         : null;
     const endValue = objectValue["61"];
     const unpackedEnd =
       endValue != undefined
-        ? StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
+        ? _StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -608,6 +606,8 @@ export class StrokeStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokeStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
     return new StrokeStyle({
       type: Number(objectProto.type) as StrokeType,
       size: Number(objectProto.size),
@@ -617,15 +617,15 @@ export class StrokeStyle extends Style {
       easing: Number(objectProto.easing) as Easing,
       start:
         objectProto.start != undefined
-          ? StrokeCap.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection)
+          ? _StrokeCap.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection)
           : null,
       end:
         objectProto.end != undefined
-          ? StrokeCap.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection)
+          ? _StrokeCap.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection)
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -635,7 +635,7 @@ export class StrokeStyle extends Style {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -646,7 +646,7 @@ export class StrokeStyle extends Style {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -657,7 +657,7 @@ export class StrokeStyle extends Style {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -962,20 +962,22 @@ export class Stroke extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Stroke {
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
     const startValue = objectValue["60"];
     const unpackedStart =
       startValue != undefined
-        ? StrokeCap.fromValue(startValue, _session, _supergraph, _graph, _connection)
+        ? _StrokeCap.fromValue(startValue, _session, _supergraph, _graph, _connection)
         : null;
     const endValue = objectValue["61"];
     const unpackedEnd =
       endValue != undefined
-        ? StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
+        ? _StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
         : null;
     const colorValue = objectValue["70"];
     const unpackedColor =
       colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Stroke({
       type: Number(objectValue["30"]),
@@ -1039,6 +1041,8 @@ export class Stroke extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Stroke {
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
     return new Stroke({
       type: Number(objectProto.type) as StrokeType,
       size: Number(objectProto.size),
@@ -1049,15 +1053,15 @@ export class Stroke extends StructFrozen {
       easing: Number(objectProto.easing) as Easing,
       start:
         objectProto.start != undefined
-          ? StrokeCap.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection)
+          ? _StrokeCap.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection)
           : null,
       end:
         objectProto.end != undefined
-          ? StrokeCap.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection)
+          ? _StrokeCap.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection)
           : null,
       color:
         objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -1503,9 +1507,10 @@ export class StrokePoint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokePoint {
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     return new StrokePoint({
-      point: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      originalPoint: Vector2.fromValue(
+      point: _Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      originalPoint: _Vector2.fromValue(
         objectValue["51"],
         _session,
         _supergraph,
@@ -1513,7 +1518,7 @@ export class StrokePoint extends StructFrozen {
         _connection,
       ),
       pressure: objectValue["52"],
-      direction: Vector2.fromValue(objectValue["53"], _session, _supergraph, _graph, _connection),
+      direction: _Vector2.fromValue(objectValue["53"], _session, _supergraph, _graph, _connection),
       distance: objectValue["54"],
       runningLength: objectValue["55"],
       radius: objectValue["56"],
@@ -1559,9 +1564,10 @@ export class StrokePoint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokePoint {
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     return new StrokePoint({
-      point: Vector2.fromProto(objectProto.point!, _session, _supergraph, _graph, _connection),
-      originalPoint: Vector2.fromProto(
+      point: _Vector2.fromProto(objectProto.point!, _session, _supergraph, _graph, _connection),
+      originalPoint: _Vector2.fromProto(
         objectProto.originalPoint!,
         _session,
         _supergraph,
@@ -1569,7 +1575,7 @@ export class StrokePoint extends StructFrozen {
         _connection,
       ),
       pressure: objectProto.pressure,
-      direction: Vector2.fromProto(
+      direction: _Vector2.fromProto(
         objectProto.direction!,
         _session,
         _supergraph,
@@ -1736,11 +1742,12 @@ export class StrokePath extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokePath {
+    const _StrokePoint = STRUCT_CLASS_BY_TYPE[StructType.STROKE_POINT] as typeof StrokePoint;
     const unpackedPoints: any[] = [];
     if (objectValue["100"] != undefined) {
       for (const item of objectValue["100"]) {
         unpackedPoints.push(
-          StrokePoint.fromValue(item, _session, _supergraph, _graph, _connection),
+          _StrokePoint.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1788,11 +1795,12 @@ export class StrokePath extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokePath {
+    const _StrokePoint = STRUCT_CLASS_BY_TYPE[StructType.STROKE_POINT] as typeof StrokePoint;
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
         unpackedPoints.push(
-          StrokePoint.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _StrokePoint.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }

@@ -7,12 +7,17 @@ import {
 import type {
   Graph,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { EnumType, Event, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import { EnumType, Event, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { LogEventProto, LogLevelProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -265,7 +270,8 @@ export class LogEvent extends Event {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.LOG_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -335,10 +341,11 @@ export class LogEvent extends Event {
     _graph?: any | null,
     _connection?: any | null,
   ): LogEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedAttributes = new Map();
     if (objectValue["41"] != undefined) {
@@ -349,17 +356,17 @@ export class LogEvent extends Event {
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new LogEvent({
       parent: unpackedParentPtr,
@@ -425,6 +432,7 @@ export class LogEvent extends Event {
     _graph?: any | null,
     _connection?: any | null,
   ): LogEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const unpackedAttributes = new Map();
     if (objectProto.attributes) {
       for (const [key, value] of Object.entries(objectProto.attributes)) {
@@ -434,7 +442,7 @@ export class LogEvent extends Event {
     return new LogEvent({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -448,7 +456,7 @@ export class LogEvent extends Event {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -458,7 +466,7 @@ export class LogEvent extends Event {
           : null,
       node:
         objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.nodePtr!,
               _session,
               _supergraph,
@@ -468,7 +476,7 @@ export class LogEvent extends Event {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,

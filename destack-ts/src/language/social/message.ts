@@ -8,12 +8,14 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
+  Text,
 } from "@destack/language/core";
-import { Entity, Node, NodeReference, NodeType, StructType, Text } from "@destack/language/core";
-import { registerNodeClass } from "@destack/language/registry";
+import { Entity, Node, NodeType, StructType } from "@destack/language/core";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Thread } from "@destack/language/social/thread";
 import type { Space } from "@destack/language/space";
 import { MessageProto } from "@destack/proto";
@@ -401,7 +403,8 @@ export class Message
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.MESSAGE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -495,15 +498,17 @@ export class Message
     _graph?: any | null,
     _connection?: any | null,
   ): Message {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const threadPtrValue = objectValue["35"];
     const unpackedThreadPtr =
       threadPtrValue != undefined
-        ? NodeReference.fromValue(threadPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(threadPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const editedAtValue = objectValue["40"];
     const unpackedEditedAt =
@@ -513,32 +518,38 @@ export class Message
     const replyToPtrValue = objectValue["50"];
     const unpackedReplyToPtr =
       replyToPtrValue != undefined
-        ? NodeReference.fromValue(replyToPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(replyToPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const forwardedFromPtrValue = objectValue["51"];
     const unpackedForwardedFromPtr =
       forwardedFromPtrValue != undefined
-        ? NodeReference.fromValue(forwardedFromPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(
+            forwardedFromPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const textValue = objectValue["61"];
     const unpackedText =
       textValue != undefined
-        ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
+        ? _Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
         : null;
     const nodePtrValue = objectValue["62"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -548,12 +559,12 @@ export class Message
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Message({
       parent: unpackedParentPtr,
@@ -642,10 +653,12 @@ export class Message
     _graph?: any | null,
     _connection?: any | null,
   ): Message {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     return new Message({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -655,7 +668,7 @@ export class Message
           : null,
       thread:
         objectProto.threadPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.threadPtr!,
               _session,
               _supergraph,
@@ -667,7 +680,7 @@ export class Message
         objectProto.editedAt != undefined ? unpackProtoTimestamp(objectProto.editedAt!) : null,
       replyTo:
         objectProto.replyToPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.replyToPtr!,
               _session,
               _supergraph,
@@ -677,7 +690,7 @@ export class Message
           : null,
       forwardedFrom:
         objectProto.forwardedFromPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.forwardedFromPtr!,
               _session,
               _supergraph,
@@ -687,11 +700,11 @@ export class Message
           : null,
       text:
         objectProto.text != undefined
-          ? Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
+          ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
           : null,
       node:
         objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.nodePtr!,
               _session,
               _supergraph,
@@ -701,7 +714,7 @@ export class Message
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -711,7 +724,7 @@ export class Message
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -724,7 +737,7 @@ export class Message
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -735,7 +748,7 @@ export class Message
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

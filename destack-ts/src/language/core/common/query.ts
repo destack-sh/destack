@@ -2,17 +2,22 @@ import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/c
 import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { isNode } from "@destack/language/core/builtin/node";
-import {
+import type {
   NodeDefinitionReference,
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
 import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import { PropertyDefinition } from "@destack/language/core/common/meta";
 import { CustomProperty } from "@destack/language/core/common/property";
-import { toValue, Value } from "@destack/language/core/common/value";
+import type { Value } from "@destack/language/core/common/value";
+import { toValue } from "@destack/language/core/common/value";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import { registerEnumClass, registerStructClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import {
   AggregationProto,
   AggregationTypeProto,
@@ -189,14 +194,15 @@ export class Function extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Function {
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const rightValue = objectValue["32"];
     const unpackedRight =
       rightValue != undefined
-        ? Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection)
+        ? _Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Function({
       type: Number(objectValue["30"]),
-      left: Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
+      left: _Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
       right: unpackedRight,
       _value: objectValue,
       _supergraph,
@@ -238,12 +244,13 @@ export class Function extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Function {
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     return new Function({
       type: Number(objectProto.type) as FunctionType,
-      left: Expression.fromProto(objectProto.left!, _session, _supergraph, _graph, _connection),
+      left: _Expression.fromProto(objectProto.left!, _session, _supergraph, _graph, _connection),
       right:
         objectProto.right != undefined
-          ? Expression.fromProto(objectProto.right!, _session, _supergraph, _graph, _connection)
+          ? _Expression.fromProto(objectProto.right!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -425,14 +432,15 @@ export class Condition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Condition {
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const rightValue = objectValue["32"];
     const unpackedRight =
       rightValue != undefined
-        ? Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection)
+        ? _Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Condition({
       type: Number(objectValue["30"]),
-      left: Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
+      left: _Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
       right: unpackedRight,
       _value: objectValue,
       _supergraph,
@@ -474,12 +482,13 @@ export class Condition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Condition {
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     return new Condition({
       type: Number(objectProto.type) as ConditionalType,
-      left: Expression.fromProto(objectProto.left!, _session, _supergraph, _graph, _connection),
+      left: _Expression.fromProto(objectProto.left!, _session, _supergraph, _graph, _connection),
       right:
         objectProto.right != undefined
-          ? Expression.fromProto(objectProto.right!, _session, _supergraph, _graph, _connection)
+          ? _Expression.fromProto(objectProto.right!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -650,10 +659,11 @@ export class Aggregation extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Aggregation {
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const expressionValue = objectValue["31"];
     const unpackedExpression =
       expressionValue != undefined
-        ? Expression.fromValue(expressionValue, _session, _supergraph, _graph, _connection)
+        ? _Expression.fromValue(expressionValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Aggregation({
       type: Number(objectValue["30"]),
@@ -697,11 +707,12 @@ export class Aggregation extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Aggregation {
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     return new Aggregation({
       type: Number(objectProto.type) as AggregationType,
       expression:
         objectProto.expression != undefined
-          ? Expression.fromProto(
+          ? _Expression.fromProto(
               objectProto.expression!,
               _session,
               _supergraph,
@@ -964,30 +975,37 @@ export class Expression extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Expression {
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
+    const _Function = STRUCT_CLASS_BY_TYPE[StructType.FUNCTION] as typeof Function;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const literalValue = objectValue["31"];
     const unpackedLiteral =
       literalValue != undefined
-        ? Value.fromValue(literalValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromValue(literalValue, _session, _supergraph, _graph, _connection)
         : null;
     const attributeValue = objectValue["32"];
     const unpackedAttribute =
       attributeValue != undefined
-        ? PropertyReference.fromValue(attributeValue, _session, _supergraph, _graph, _connection)
+        ? _PropertyReference.fromValue(attributeValue, _session, _supergraph, _graph, _connection)
         : null;
     const conditionValue = objectValue["33"];
     const unpackedCondition =
       conditionValue != undefined
-        ? Condition.fromValue(conditionValue, _session, _supergraph, _graph, _connection)
+        ? _Condition.fromValue(conditionValue, _session, _supergraph, _graph, _connection)
         : null;
     const functionValue = objectValue["34"];
     const unpackedFunction =
       functionValue != undefined
-        ? Function.fromValue(functionValue, _session, _supergraph, _graph, _connection)
+        ? _Function.fromValue(functionValue, _session, _supergraph, _graph, _connection)
         : null;
     const aggregationValue = objectValue["35"];
     const unpackedAggregation =
       aggregationValue != undefined
-        ? Aggregation.fromValue(aggregationValue, _session, _supergraph, _graph, _connection)
+        ? _Aggregation.fromValue(aggregationValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Expression({
       type: Number(objectValue["30"]),
@@ -1047,15 +1065,22 @@ export class Expression extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Expression {
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
+    const _Function = STRUCT_CLASS_BY_TYPE[StructType.FUNCTION] as typeof Function;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     return new Expression({
       type: Number(objectProto.type) as ExpressionType,
       literal:
         objectProto.literal != undefined
-          ? Value.fromProto(objectProto.literal!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.literal!, _session, _supergraph, _graph, _connection)
           : null,
       attribute:
         objectProto.attribute != undefined
-          ? PropertyReference.fromProto(
+          ? _PropertyReference.fromProto(
               objectProto.attribute!,
               _session,
               _supergraph,
@@ -1065,15 +1090,15 @@ export class Expression extends StructFrozen {
           : null,
       condition:
         objectProto.condition != undefined
-          ? Condition.fromProto(objectProto.condition!, _session, _supergraph, _graph, _connection)
+          ? _Condition.fromProto(objectProto.condition!, _session, _supergraph, _graph, _connection)
           : null,
       function:
         objectProto.function != undefined
-          ? Function.fromProto(objectProto.function!, _session, _supergraph, _graph, _connection)
+          ? _Function.fromProto(objectProto.function!, _session, _supergraph, _graph, _connection)
           : null,
       aggregation:
         objectProto.aggregation != undefined
-          ? Aggregation.fromProto(
+          ? _Aggregation.fromProto(
               objectProto.aggregation!,
               _session,
               _supergraph,
@@ -1121,9 +1146,12 @@ export class Expression extends StructFrozen {
     } else if (isStruct(thing, StructType.EXPRESSION)) {
       return thing;
     } else if (isNode(thing, NodeType.CUSTOM_PROPERTY)) {
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+        StructType.PROPERTY_REFERENCE
+      ] as typeof PropertyReference;
       return new Expression({
         type: ExpressionType.ATTRIBUTE,
-        attribute: PropertyReference.of(thing),
+        attribute: _PropertyReference.of(thing),
       });
     } else {
       assertNever(thing);
@@ -1289,11 +1317,12 @@ export class Sort extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Sort {
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const modeValue = objectValue["32"];
     const unpackedMode = modeValue != undefined ? Number(modeValue) : null;
     return new Sort({
       type: Number(objectValue["30"]),
-      by: Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
+      by: _Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
       mode: unpackedMode,
       _value: objectValue,
       _supergraph,
@@ -1335,9 +1364,10 @@ export class Sort extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Sort {
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     return new Sort({
       type: Number(objectProto.type) as SortType,
-      by: Expression.fromProto(objectProto.by!, _session, _supergraph, _graph, _connection),
+      by: _Expression.fromProto(objectProto.by!, _session, _supergraph, _graph, _connection),
       mode: objectProto.mode != undefined ? (Number(objectProto.mode) as SortMode) : null,
       _proto: objectProto,
       _supergraph,
@@ -1501,11 +1531,14 @@ export class Select extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Select {
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const unpackedAttributes: any[] = [];
     if (objectValue["31"] != undefined) {
       for (const item of objectValue["31"]) {
         unpackedAttributes.push(
-          PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1553,11 +1586,14 @@ export class Select extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Select {
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const unpackedAttributes: any[] = [];
     if (objectProto.attributes) {
       for (const item of objectProto.attributes) {
         unpackedAttributes.push(
-          PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1588,7 +1624,12 @@ export class Select extends StructFrozen {
 
   /** Make a Select from a shorthand expression. */
   static of(...attributes: (CustomProperty | PropertyReference)[]): Select {
-    return new Select({ attributes: attributes.map((attr) => PropertyReference.of(attr)) });
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
+    return new Select({
+      attributes: attributes.map((attr) => _PropertyReference.of(attr)),
+    });
   }
 
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -1789,10 +1830,14 @@ export class Join extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Join {
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const definitionValue = objectValue["31"];
     const unpackedDefinition =
       definitionValue != undefined
-        ? NodeDefinitionReference.fromValue(
+        ? _NodeDefinitionReference.fromValue(
             definitionValue,
             _session,
             _supergraph,
@@ -1805,7 +1850,7 @@ export class Join extends StructFrozen {
     const onValue = objectValue["35"];
     const unpackedOn =
       onValue != undefined
-        ? Condition.fromValue(onValue, _session, _supergraph, _graph, _connection)
+        ? _Condition.fromValue(onValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Join({
       type: Number(objectValue["30"]),
@@ -1859,11 +1904,15 @@ export class Join extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Join {
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     return new Join({
       type: Number(objectProto.type) as JoinType,
       definition:
         objectProto.definition != undefined
-          ? NodeDefinitionReference.fromProto(
+          ? _NodeDefinitionReference.fromProto(
               objectProto.definition!,
               _session,
               _supergraph,
@@ -1875,7 +1924,7 @@ export class Join extends StructFrozen {
       depth: objectProto.depth != undefined ? Number(objectProto.depth) : null,
       on:
         objectProto.on != undefined
-          ? Condition.fromProto(objectProto.on!, _session, _supergraph, _graph, _connection)
+          ? _Condition.fromProto(objectProto.on!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -1913,9 +1962,12 @@ export class Join extends StructFrozen {
     if (isStruct(joinType, StructType.JOIN)) {
       return joinType;
     }
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
     return new Join({
       type: joinType,
-      definition: options?.definition ? NodeDefinitionReference.of(options.definition) : null,
+      definition: options?.definition ? _NodeDefinitionReference.of(options.definition) : null,
       recursive: options?.recursive ?? false,
       depth: options?.depth ?? null,
       on: options?.on ?? null,
@@ -2057,10 +2109,11 @@ export class QueryUpdate extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryUpdate {
+    const _QueryResult = STRUCT_CLASS_BY_TYPE[StructType.QUERY_RESULT] as typeof QueryResult;
     const resultValue = objectValue["40"];
     const unpackedResult =
       resultValue != undefined
-        ? QueryResult.fromValue(resultValue, _session, _supergraph, _graph, _connection)
+        ? _QueryResult.fromValue(resultValue, _session, _supergraph, _graph, _connection)
         : null;
     return new QueryUpdate({
       type: Number(objectValue["30"]),
@@ -2104,11 +2157,12 @@ export class QueryUpdate extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryUpdate {
+    const _QueryResult = STRUCT_CLASS_BY_TYPE[StructType.QUERY_RESULT] as typeof QueryResult;
     return new QueryUpdate({
       type: Number(objectProto.type) as QueryUpdateType,
       result:
         objectProto.result != undefined
-          ? QueryResult.fromProto(objectProto.result!, _session, _supergraph, _graph, _connection)
+          ? _QueryResult.fromProto(objectProto.result!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -2555,49 +2609,59 @@ export class Query extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Query {
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
+    const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
+    const _Sort = STRUCT_CLASS_BY_TYPE[StructType.SORT] as typeof Sort;
+    const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const joinValue = objectValue["33"];
     const unpackedJoin =
       joinValue != undefined
-        ? Join.fromValue(joinValue, _session, _supergraph, _graph, _connection)
+        ? _Join.fromValue(joinValue, _session, _supergraph, _graph, _connection)
         : null;
     const selectValue = objectValue["34"];
     const unpackedSelect =
       selectValue != undefined
-        ? Select.fromValue(selectValue, _session, _supergraph, _graph, _connection)
+        ? _Select.fromValue(selectValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedSubqueries: any[] = [];
     if (objectValue["35"] != undefined) {
       for (const item of objectValue["35"]) {
-        unpackedSubqueries.push(Query.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedSubqueries.push(_Query.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const whereValue = objectValue["40"];
     const unpackedWhere =
       whereValue != undefined
-        ? Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
+        ? _Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
         : null;
     const havingValue = objectValue["41"];
     const unpackedHaving =
       havingValue != undefined
-        ? Condition.fromValue(havingValue, _session, _supergraph, _graph, _connection)
+        ? _Condition.fromValue(havingValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedGroupBy: any[] = [];
     if (objectValue["42"] != undefined) {
       for (const item of objectValue["42"]) {
         unpackedGroupBy.push(
-          Expression.fromValue(item, _session, _supergraph, _graph, _connection),
+          _Expression.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const aggregationValue = objectValue["43"];
     const unpackedAggregation =
       aggregationValue != undefined
-        ? Aggregation.fromValue(aggregationValue, _session, _supergraph, _graph, _connection)
+        ? _Aggregation.fromValue(aggregationValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedSort: any[] = [];
     if (objectValue["44"] != undefined) {
       for (const item of objectValue["44"]) {
-        unpackedSort.push(Sort.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedSort.push(_Sort.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const limitValue = objectValue["50"];
@@ -2608,7 +2672,7 @@ export class Query extends StructFrozen {
       id: String(objectValue["2"]),
       type: Number(objectValue["30"]),
       name: objectValue["31"],
-      definition: NodeDefinitionReference.fromValue(
+      definition: _NodeDefinitionReference.fromValue(
         objectValue["32"],
         _session,
         _supergraph,
@@ -2706,31 +2770,43 @@ export class Query extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Query {
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
+    const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
+    const _Sort = STRUCT_CLASS_BY_TYPE[StructType.SORT] as typeof Sort;
+    const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const unpackedSubqueries: any[] = [];
     if (objectProto.subqueries) {
       for (const item of objectProto.subqueries) {
-        unpackedSubqueries.push(Query.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedSubqueries.push(
+          _Query.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedGroupBy: any[] = [];
     if (objectProto.groupBy) {
       for (const item of objectProto.groupBy) {
         unpackedGroupBy.push(
-          Expression.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _Expression.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedSort: any[] = [];
     if (objectProto.sort) {
       for (const item of objectProto.sort) {
-        unpackedSort.push(Sort.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedSort.push(_Sort.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new Query({
       id: String(objectProto.id),
       type: Number(objectProto.type) as QueryType,
       name: objectProto.name,
-      definition: NodeDefinitionReference.fromProto(
+      definition: _NodeDefinitionReference.fromProto(
         objectProto.definition!,
         _session,
         _supergraph,
@@ -2739,25 +2815,25 @@ export class Query extends StructFrozen {
       ),
       join:
         objectProto.join != undefined
-          ? Join.fromProto(objectProto.join!, _session, _supergraph, _graph, _connection)
+          ? _Join.fromProto(objectProto.join!, _session, _supergraph, _graph, _connection)
           : null,
       select:
         objectProto.select != undefined
-          ? Select.fromProto(objectProto.select!, _session, _supergraph, _graph, _connection)
+          ? _Select.fromProto(objectProto.select!, _session, _supergraph, _graph, _connection)
           : null,
       subqueries: unpackedSubqueries,
       where:
         objectProto.where != undefined
-          ? Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
+          ? _Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
           : null,
       having:
         objectProto.having != undefined
-          ? Condition.fromProto(objectProto.having!, _session, _supergraph, _graph, _connection)
+          ? _Condition.fromProto(objectProto.having!, _session, _supergraph, _graph, _connection)
           : null,
       groupBy: unpackedGroupBy,
       aggregation:
         objectProto.aggregation != undefined
-          ? Aggregation.fromProto(
+          ? _Aggregation.fromProto(
               objectProto.aggregation!,
               _session,
               _supergraph,
@@ -3060,11 +3136,16 @@ export class QueryResult extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryResult {
+    const _QueryResult = STRUCT_CLASS_BY_TYPE[StructType.QUERY_RESULT] as typeof QueryResult;
+    const _QueryResultGroup = STRUCT_CLASS_BY_TYPE[
+      StructType.QUERY_RESULT_GROUP
+    ] as typeof QueryResultGroup;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedGroups: any[] = [];
     if (objectValue["35"] != undefined) {
       for (const item of objectValue["35"]) {
         unpackedGroups.push(
-          QueryResultGroup.fromValue(item, _session, _supergraph, _graph, _connection),
+          _QueryResultGroup.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -3072,14 +3153,14 @@ export class QueryResult extends Struct {
     if (objectValue["36"] != undefined) {
       for (const item of objectValue["36"]) {
         unpackedSubresults.push(
-          QueryResult.fromValue(item, _session, _supergraph, _graph, _connection),
+          _QueryResult.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedNodes: any[] = [];
     if (objectValue["40"] != undefined) {
       for (const item of objectValue["40"]) {
-        unpackedNodes.push(Value.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedNodes.push(_Value.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const countValue = objectValue["41"];
@@ -3089,7 +3170,7 @@ export class QueryResult extends Struct {
     const scalarValue = objectValue["43"];
     const unpackedScalar =
       scalarValue != undefined
-        ? Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection)
         : null;
     return new QueryResult({
       id: String(objectValue["2"]),
@@ -3162,11 +3243,16 @@ export class QueryResult extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryResult {
+    const _QueryResult = STRUCT_CLASS_BY_TYPE[StructType.QUERY_RESULT] as typeof QueryResult;
+    const _QueryResultGroup = STRUCT_CLASS_BY_TYPE[
+      StructType.QUERY_RESULT_GROUP
+    ] as typeof QueryResultGroup;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedGroups: any[] = [];
     if (objectProto.groups) {
       for (const item of objectProto.groups) {
         unpackedGroups.push(
-          QueryResultGroup.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _QueryResultGroup.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -3174,14 +3260,14 @@ export class QueryResult extends Struct {
     if (objectProto.subresults) {
       for (const item of objectProto.subresults) {
         unpackedSubresults.push(
-          QueryResult.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _QueryResult.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedNodes: any[] = [];
     if (objectProto.nodes) {
       for (const item of objectProto.nodes) {
-        unpackedNodes.push(Value.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedNodes.push(_Value.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new QueryResult({
@@ -3194,7 +3280,7 @@ export class QueryResult extends Struct {
       exists: objectProto.exists != undefined ? objectProto.exists : null,
       scalar:
         objectProto.scalar != undefined
-          ? Value.fromProto(objectProto.scalar!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.scalar!, _session, _supergraph, _graph, _connection)
           : null,
       _supergraph,
     });
@@ -3416,10 +3502,11 @@ export class QueryResultGroup extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryResultGroup {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedNodes: any[] = [];
     if (objectValue["40"] != undefined) {
       for (const item of objectValue["40"]) {
-        unpackedNodes.push(Value.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedNodes.push(_Value.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const countValue = objectValue["41"];
@@ -3429,10 +3516,16 @@ export class QueryResultGroup extends Struct {
     const scalarValue = objectValue["43"];
     const unpackedScalar =
       scalarValue != undefined
-        ? Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection)
         : null;
     return new QueryResultGroup({
-      discriminator: Value.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
+      discriminator: _Value.fromValue(
+        objectValue["31"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       type: Number(objectValue["30"]),
       nodes: unpackedNodes,
       count: unpackedCount,
@@ -3492,14 +3585,15 @@ export class QueryResultGroup extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryResultGroup {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedNodes: any[] = [];
     if (objectProto.nodes) {
       for (const item of objectProto.nodes) {
-        unpackedNodes.push(Value.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedNodes.push(_Value.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new QueryResultGroup({
-      discriminator: Value.fromProto(
+      discriminator: _Value.fromProto(
         objectProto.discriminator!,
         _session,
         _supergraph,
@@ -3512,7 +3606,7 @@ export class QueryResultGroup extends Struct {
       exists: objectProto.exists != undefined ? objectProto.exists : null,
       scalar:
         objectProto.scalar != undefined
-          ? Value.fromProto(objectProto.scalar!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.scalar!, _session, _supergraph, _graph, _connection)
           : null,
       _supergraph,
     });
@@ -3860,10 +3954,11 @@ export class Histogram extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Histogram {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedBuckets: any[] = [];
     if (objectValue["40"] != undefined) {
       for (const item of objectValue["40"]) {
-        unpackedBuckets.push(Value.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedBuckets.push(_Value.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const unpackedCounts: any[] = [];
@@ -3924,10 +4019,11 @@ export class Histogram extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Histogram {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedBuckets: any[] = [];
     if (objectProto.buckets) {
       for (const item of objectProto.buckets) {
-        unpackedBuckets.push(Value.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedBuckets.push(_Value.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     const unpackedCounts: any[] = [];

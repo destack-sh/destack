@@ -11,10 +11,11 @@ import type {
   Insets,
   IsSubject,
   Layout,
+  NodeReference,
   Position,
   Vector2,
 } from "@destack/language/core";
-import { Node, NodeReference, NodeType } from "@destack/language/core";
+import { Node, NodeType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";

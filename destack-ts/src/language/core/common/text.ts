@@ -1,10 +1,14 @@
 import { EnumType, StructType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import { registerEnumClass, registerStructClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import { TextProto, TextSpanProto, TextSpanTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
@@ -118,7 +122,7 @@ export class TextSpan extends StructFrozen {
     // properties
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = TextSpanType.TEXT;
+      _type = 1 /* TextSpanType.TEXT */;
     }
     if (_type === null) {
       throw new Error(`TextSpan.type is required`);
@@ -281,12 +285,13 @@ export class TextSpan extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): TextSpan {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const contentValue = objectValue["33"];
     const unpackedContent = contentValue != undefined ? contentValue : null;
     const nodePtrValue = objectValue["34"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const urlValue = objectValue["35"];
     const unpackedUrl = urlValue != undefined ? urlValue : null;
@@ -370,12 +375,13 @@ export class TextSpan extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): TextSpan {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new TextSpan({
       type: Number(objectProto.type) as TextSpanType,
       content: objectProto.content != undefined ? objectProto.content : null,
       node:
         objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.nodePtr!,
               _session,
               _supergraph,
@@ -619,10 +625,11 @@ export class Text extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Text {
+    const _TextSpan = STRUCT_CLASS_BY_TYPE[StructType.TEXT_SPAN] as typeof TextSpan;
     const unpackedSpans: any[] = [];
     if (objectValue["33"] != undefined) {
       for (const item of objectValue["33"]) {
-        unpackedSpans.push(TextSpan.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedSpans.push(_TextSpan.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const isBoldValue = objectValue["60"];
@@ -699,10 +706,11 @@ export class Text extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Text {
+    const _TextSpan = STRUCT_CLASS_BY_TYPE[StructType.TEXT_SPAN] as typeof TextSpan;
     const unpackedSpans: any[] = [];
     if (objectProto.spans) {
       for (const item of objectProto.spans) {
-        unpackedSpans.push(TextSpan.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedSpans.push(_TextSpan.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new Text({

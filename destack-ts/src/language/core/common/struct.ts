@@ -2,7 +2,10 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Entity } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeReference, StructDefinitionReference } from "@destack/language/core/builtin/relation";
+import type {
+  NodeReference,
+  StructDefinitionReference,
+} from "@destack/language/core/builtin/relation";
 import { Struct } from "@destack/language/core/builtin/struct";
 import type {
   HasIcon,
@@ -14,13 +17,17 @@ import type {
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
-import { Icon } from "@destack/language/core/common/icon";
-import { Value } from "@destack/language/core/common/value";
+import type { Icon } from "@destack/language/core/common/icon";
+import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
-import { registerNodeClass, registerStructClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { CustomStructDefinitionProto, CustomStructProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -158,17 +165,19 @@ export class CustomStruct extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): CustomStruct {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new CustomStruct({
-      definition: NodeReference.fromValue(
+      definition: _NodeReference.fromValue(
         objectValue["6"],
         _session,
         _supergraph,
@@ -213,17 +222,19 @@ export class CustomStruct extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): CustomStruct {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new CustomStruct({
-      definition: NodeReference.fromProto(
+      definition: _NodeReference.fromProto(
         objectProto.definitionPtr!,
         _session,
         _supergraph,
@@ -585,7 +596,8 @@ export class CustomStructDefinition
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.CUSTOM_STRUCT_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -673,15 +685,22 @@ export class CustomStructDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomStructDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _StructDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.STRUCT_DEFINITION_REFERENCE
+    ] as typeof StructDefinitionReference;
+    const _CustomStruct = STRUCT_CLASS_BY_TYPE[StructType.CUSTOM_STRUCT] as typeof CustomStruct;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const prototypeValue = objectValue["40"];
     const unpackedPrototype =
       prototypeValue != undefined
-        ? CustomStruct.fromValue(prototypeValue, _session, _supergraph, _graph, _connection)
+        ? _CustomStruct.fromValue(prototypeValue, _session, _supergraph, _graph, _connection)
         : null;
     const baseTypeValue = objectValue["41"];
     const unpackedBaseType =
       baseTypeValue != undefined
-        ? StructDefinitionReference.fromValue(
+        ? _StructDefinitionReference.fromValue(
             baseTypeValue,
             _session,
             _supergraph,
@@ -692,12 +711,12 @@ export class CustomStructDefinition
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -707,31 +726,31 @@ export class CustomStructDefinition
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomStructDefinition({
       prototype: unpackedPrototype,
@@ -825,19 +844,26 @@ export class CustomStructDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomStructDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _StructDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.STRUCT_DEFINITION_REFERENCE
+    ] as typeof StructDefinitionReference;
+    const _CustomStruct = STRUCT_CLASS_BY_TYPE[StructType.CUSTOM_STRUCT] as typeof CustomStruct;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new CustomStructDefinition({
       prototype:
         objectProto.prototype != undefined
-          ? CustomStruct.fromProto(
+          ? _CustomStruct.fromProto(
               objectProto.prototype!,
               _session,
               _supergraph,
@@ -847,7 +873,7 @@ export class CustomStructDefinition
           : null,
       baseType:
         objectProto.baseType != undefined
-          ? StructDefinitionReference.fromProto(
+          ? _StructDefinitionReference.fromProto(
               objectProto.baseType!,
               _session,
               _supergraph,
@@ -857,7 +883,7 @@ export class CustomStructDefinition
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -868,13 +894,13 @@ export class CustomStructDefinition
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.sourcePtr!,
               _session,
               _supergraph,
@@ -886,7 +912,7 @@ export class CustomStructDefinition
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -897,7 +923,7 @@ export class CustomStructDefinition
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -908,7 +934,7 @@ export class CustomStructDefinition
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,

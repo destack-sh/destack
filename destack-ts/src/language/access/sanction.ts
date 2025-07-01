@@ -5,20 +5,17 @@ import type {
   IsJoinable,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
+import { Entity, EnumType, Event, Node, NodeType, StructType } from "@destack/language/core";
 import {
-  Entity,
-  EnumType,
-  Event,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
-} from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
   SanctionExpiredEventProto,
@@ -334,7 +331,8 @@ export class SanctionRequestedEvent extends SanctionEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SANCTION_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -394,24 +392,25 @@ export class SanctionRequestedEvent extends SanctionEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SanctionRequestedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SanctionRequestedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      target: NodeReference.fromValue(
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      target: _NodeReference.fromValue(
         objectValue["40"],
         _session,
         _supergraph,
@@ -474,15 +473,16 @@ export class SanctionRequestedEvent extends SanctionEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SanctionRequestedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new SanctionRequestedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      target: NodeReference.fromProto(
+      target: _NodeReference.fromProto(
         objectProto.targetPtr!,
         _session,
         _supergraph,
@@ -492,7 +492,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -502,7 +502,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -513,7 +513,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -758,7 +758,8 @@ export class SanctionGrantedEvent extends SanctionEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SANCTION_GRANTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -818,24 +819,25 @@ export class SanctionGrantedEvent extends SanctionEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SanctionGrantedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SanctionGrantedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      target: NodeReference.fromValue(
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      target: _NodeReference.fromValue(
         objectValue["40"],
         _session,
         _supergraph,
@@ -898,15 +900,16 @@ export class SanctionGrantedEvent extends SanctionEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SanctionGrantedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new SanctionGrantedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      target: NodeReference.fromProto(
+      target: _NodeReference.fromProto(
         objectProto.targetPtr!,
         _session,
         _supergraph,
@@ -916,7 +919,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -926,7 +929,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -937,7 +940,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1182,7 +1185,8 @@ export class SanctionRevokedEvent extends SanctionEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SANCTION_REVOKED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1242,24 +1246,25 @@ export class SanctionRevokedEvent extends SanctionEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SanctionRevokedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SanctionRevokedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      target: NodeReference.fromValue(
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      target: _NodeReference.fromValue(
         objectValue["40"],
         _session,
         _supergraph,
@@ -1322,15 +1327,16 @@ export class SanctionRevokedEvent extends SanctionEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SanctionRevokedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new SanctionRevokedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      target: NodeReference.fromProto(
+      target: _NodeReference.fromProto(
         objectProto.targetPtr!,
         _session,
         _supergraph,
@@ -1340,7 +1346,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1350,7 +1356,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1361,7 +1367,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1606,7 +1612,8 @@ export class SanctionExpiredEvent extends SanctionEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SANCTION_EXPIRED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1666,24 +1673,25 @@ export class SanctionExpiredEvent extends SanctionEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SanctionExpiredEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SanctionExpiredEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      target: NodeReference.fromValue(
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      target: _NodeReference.fromValue(
         objectValue["40"],
         _session,
         _supergraph,
@@ -1746,15 +1754,16 @@ export class SanctionExpiredEvent extends SanctionEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SanctionExpiredEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new SanctionExpiredEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      target: NodeReference.fromProto(
+      target: _NodeReference.fromProto(
         objectProto.targetPtr!,
         _session,
         _supergraph,
@@ -1764,7 +1773,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1774,7 +1783,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1785,7 +1794,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -2076,7 +2085,8 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SANCTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -2146,10 +2156,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     _graph?: any | null,
     _connection?: any | null,
   ): Sanction {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const expiresAtValue = objectValue["40"];
     const unpackedExpiresAt =
@@ -2159,7 +2170,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -2169,18 +2180,18 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Sanction({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
       expiresAt: unpackedExpiresAt,
-      target: NodeReference.fromValue(
+      target: _NodeReference.fromValue(
         objectValue["41"],
         _session,
         _supergraph,
@@ -2249,10 +2260,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     _graph?: any | null,
     _connection?: any | null,
   ): Sanction {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Sanction({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -2263,7 +2275,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       type: Number(objectProto.type) as SanctionType,
       expiresAt:
         objectProto.expiresAt != undefined ? unpackProtoTimestamp(objectProto.expiresAt!) : null,
-      target: NodeReference.fromProto(
+      target: _NodeReference.fromProto(
         objectProto.targetPtr!,
         _session,
         _supergraph,
@@ -2272,7 +2284,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       ),
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -2285,7 +2297,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -2296,7 +2308,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

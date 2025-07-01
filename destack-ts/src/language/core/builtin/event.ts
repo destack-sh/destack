@@ -2,7 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Entity, Metric } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
-import {
+import type {
   NodeDefinitionReference,
   NodeReference,
   PropertyReference,
@@ -17,12 +17,12 @@ import type {
 } from "@destack/language/core/builtin/trait";
 import { EditOperation, EditType } from "@destack/language/core/common/edit";
 import type { CustomProperty } from "@destack/language/core/common/property";
-import { Value } from "@destack/language/core/common/value";
+import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
-import { registerNodeClass } from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
   CustomEventDefinitionProto,
@@ -421,7 +421,8 @@ export class CustomEventDefinition
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.CUSTOM_EVENT_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -503,15 +504,20 @@ export class CustomEventDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEventDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const prototypePtrValue = objectValue["40"];
     const unpackedPrototypePtr =
       prototypePtrValue != undefined
-        ? NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const baseTypeValue = objectValue["41"];
     const unpackedBaseType =
       baseTypeValue != undefined
-        ? NodeDefinitionReference.fromValue(
+        ? _NodeDefinitionReference.fromValue(
             baseTypeValue,
             _session,
             _supergraph,
@@ -522,36 +528,36 @@ export class CustomEventDefinition
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEventDefinition({
       prototype: unpackedPrototypePtr,
@@ -637,19 +643,24 @@ export class CustomEventDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEventDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new CustomEventDefinition({
       prototype:
         objectProto.prototypePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.prototypePtr!,
               _session,
               _supergraph,
@@ -659,7 +670,7 @@ export class CustomEventDefinition
           : null,
       baseType:
         objectProto.baseType != undefined
-          ? NodeDefinitionReference.fromProto(
+          ? _NodeDefinitionReference.fromProto(
               objectProto.baseType!,
               _session,
               _supergraph,
@@ -669,7 +680,7 @@ export class CustomEventDefinition
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -680,7 +691,7 @@ export class CustomEventDefinition
       name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.sourcePtr!,
               _session,
               _supergraph,
@@ -692,7 +703,7 @@ export class CustomEventDefinition
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -703,7 +714,7 @@ export class CustomEventDefinition
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -714,7 +725,7 @@ export class CustomEventDefinition
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1223,7 +1234,8 @@ export class EditEvent extends Event {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.EDIT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1313,47 +1325,52 @@ export class EditEvent extends Event {
     _graph?: any | null,
     _connection?: any | null,
   ): EditEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const operationValue = objectValue["31"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
     const propPtrValue = objectValue["36"];
     const unpackedPropPtr =
       propPtrValue != undefined
-        ? PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
+        ? _PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const fieldPtrValue = objectValue["37"];
     const unpackedFieldPtr =
       fieldPtrValue != undefined
-        ? NodeReference.fromValue(fieldPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(fieldPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyValue = objectValue["38"];
     const unpackedKey =
       keyValue != undefined
-        ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
         : null;
     const valueValue = objectValue["40"];
     const unpackedValue =
       valueValue != undefined
-        ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new EditEvent({
       type: Number(objectValue["30"]),
       operation: unpackedOperation,
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       propPtr: unpackedPropPtr,
       field: unpackedFieldPtr,
       key: unpackedKey,
@@ -1423,13 +1440,18 @@ export class EditEvent extends Event {
     _graph?: any | null,
     _connection?: any | null,
   ): EditEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     return new EditEvent({
       type: Number(objectProto.type) as EditType,
       operation:
         objectProto.operation != undefined
           ? (Number(objectProto.operation) as EditOperation)
           : null,
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -1438,7 +1460,7 @@ export class EditEvent extends Event {
       ),
       propPtr:
         objectProto.propPtr != undefined
-          ? PropertyReference.fromProto(
+          ? _PropertyReference.fromProto(
               objectProto.propPtr!,
               _session,
               _supergraph,
@@ -1448,7 +1470,7 @@ export class EditEvent extends Event {
           : null,
       field:
         objectProto.fieldPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.fieldPtr!,
               _session,
               _supergraph,
@@ -1458,16 +1480,16 @@ export class EditEvent extends Event {
           : null,
       key:
         objectProto.key != undefined
-          ? Value.fromProto(objectProto.key!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.key!, _session, _supergraph, _graph, _connection)
           : null,
       value:
         objectProto.value != undefined
-          ? Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1477,7 +1499,7 @@ export class EditEvent extends Event {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1488,7 +1510,7 @@ export class EditEvent extends Event {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,

@@ -1,5 +1,5 @@
-import type { Align, Dimension, IsSubject, Position } from "@destack/language/core";
-import { Node, NodeReference, NodeType } from "@destack/language/core";
+import type { Align, Dimension, IsSubject, NodeReference, Position } from "@destack/language/core";
+import { Node, NodeType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";

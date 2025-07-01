@@ -1,6 +1,6 @@
-import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/common";
+import { EnumType, TraitType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { PropertyDefinition, TraitDefinition } from "@destack/language/core/common/meta";
 import type { Value } from "@destack/language/core/common/value";
@@ -39,8 +39,8 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
  */
 // prettier-ignore
 export const INTER_ORDER_TYPES = [
-  NodeType.VIEW,
-  NodeType.STYLE
+  (190400 /* NodeType.VIEW */),
+  (270200 /* NodeType.STYLE */)
 ];
 
 /* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TYPES ==== */

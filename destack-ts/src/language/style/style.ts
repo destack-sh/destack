@@ -5,8 +5,9 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  NodeReference,
 } from "@destack/language/core";
-import { Entity, Node, NodeReference, NodeType } from "@destack/language/core";
+import { Entity, Node, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";

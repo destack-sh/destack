@@ -2,19 +2,14 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructFrozen, StructType } from "@destack/language/core";
 import {
-  EnumType,
-  Node,
-  NodeReference,
-  NodeType,
-  StructFrozen,
-  StructType,
-} from "@destack/language/core";
-import {
+  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
   registerStructClass,
@@ -261,7 +256,7 @@ export class TransitionStyle extends Style {
     this.orderKey = _orderKey;
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = TransitionType.TWEEN;
+      _type = 10 /* TransitionType.TWEEN */;
     }
     if (_type === null) {
       throw new Error(`TransitionStyle.type is required`);
@@ -449,7 +444,8 @@ export class TransitionStyle extends Style {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.TRANSITION_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -572,6 +568,7 @@ export class TransitionStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): TransitionStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const delayValue = objectValue["50"];
     const unpackedDelay = delayValue != undefined ? delayValue : null;
     const durationValue = objectValue["51"];
@@ -595,22 +592,22 @@ export class TransitionStyle extends Style {
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -718,6 +715,7 @@ export class TransitionStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): TransitionStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const unpackedEase: any[] = [];
     if (objectProto.ease) {
       for (const item of objectProto.ease) {
@@ -737,7 +735,7 @@ export class TransitionStyle extends Style {
         objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -747,7 +745,7 @@ export class TransitionStyle extends Style {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -758,7 +756,7 @@ export class TransitionStyle extends Style {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -769,7 +767,7 @@ export class TransitionStyle extends Style {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -907,7 +905,7 @@ export class Transition extends StructFrozen {
     // properties
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = TransitionType.TWEEN;
+      _type = 10 /* TransitionType.TWEEN */;
     }
     if (_type === null) {
       throw new Error(`Transition.type is required`);
@@ -1151,10 +1149,11 @@ export class Transition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Transition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const stylePtrValue = objectValue["41"];
     const unpackedStylePtr =
       stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const delayValue = objectValue["50"];
     const unpackedDelay = delayValue != undefined ? delayValue : null;
@@ -1254,6 +1253,7 @@ export class Transition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Transition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const unpackedEase: any[] = [];
     if (objectProto.ease) {
       for (const item of objectProto.ease) {
@@ -1264,7 +1264,7 @@ export class Transition extends StructFrozen {
       type: Number(objectProto.type) as TransitionType,
       style:
         objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.stylePtr!,
               _session,
               _supergraph,

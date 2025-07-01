@@ -4,6 +4,7 @@ import type {
   HasIcon,
   HasName,
   HasSlug,
+  Icon,
   IsDeletable,
   IsGlobal,
   IsJoinable,
@@ -11,21 +12,13 @@ import type {
   IsOwner,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
-import {
-  Entity,
-  Event,
-  Icon,
-  Node,
-  NodeReference,
-  NodeType,
-  RoleType,
-  StructType,
-} from "@destack/language/core";
-import { registerNodeClass } from "@destack/language/registry";
+import { Entity, Event, Node, NodeType, RoleType, StructType } from "@destack/language/core";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
   RoleAssignedEventProto,
@@ -331,7 +324,8 @@ export class RoleAssignedEvent extends RoleEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.ROLE_ASSIGNED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -393,28 +387,29 @@ export class RoleAssignedEvent extends RoleEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RoleAssignedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RoleAssignedEvent({
-      subject: NodeReference.fromValue(
+      subject: _NodeReference.fromValue(
         objectValue["40"],
         _session,
         _supergraph,
@@ -480,8 +475,9 @@ export class RoleAssignedEvent extends RoleEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RoleAssignedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RoleAssignedEvent({
-      subject: NodeReference.fromProto(
+      subject: _NodeReference.fromProto(
         objectProto.subjectPtr!,
         _session,
         _supergraph,
@@ -491,7 +487,7 @@ export class RoleAssignedEvent extends RoleEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -501,7 +497,7 @@ export class RoleAssignedEvent extends RoleEvent {
           : null,
       node:
         objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.nodePtr!,
               _session,
               _supergraph,
@@ -511,7 +507,7 @@ export class RoleAssignedEvent extends RoleEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -522,7 +518,7 @@ export class RoleAssignedEvent extends RoleEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -770,7 +766,8 @@ export class RoleUnassignedEvent extends RoleEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.ROLE_UNASSIGNED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -832,28 +829,29 @@ export class RoleUnassignedEvent extends RoleEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RoleUnassignedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RoleUnassignedEvent({
-      subject: NodeReference.fromValue(
+      subject: _NodeReference.fromValue(
         objectValue["40"],
         _session,
         _supergraph,
@@ -919,8 +917,9 @@ export class RoleUnassignedEvent extends RoleEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RoleUnassignedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RoleUnassignedEvent({
-      subject: NodeReference.fromProto(
+      subject: _NodeReference.fromProto(
         objectProto.subjectPtr!,
         _session,
         _supergraph,
@@ -930,7 +929,7 @@ export class RoleUnassignedEvent extends RoleEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -940,7 +939,7 @@ export class RoleUnassignedEvent extends RoleEvent {
           : null,
       node:
         objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.nodePtr!,
               _session,
               _supergraph,
@@ -950,7 +949,7 @@ export class RoleUnassignedEvent extends RoleEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -961,7 +960,7 @@ export class RoleUnassignedEvent extends RoleEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1274,7 +1273,8 @@ export class Role
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.ROLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1354,22 +1354,24 @@ export class Role
     _graph?: any | null,
     _connection?: any | null,
   ): Role {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const slugValue = objectValue["33"];
     const unpackedSlug = slugValue != undefined ? slugValue : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -1379,12 +1381,12 @@ export class Role
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Role({
       parent: unpackedParentPtr,
@@ -1459,10 +1461,12 @@ export class Role
     _graph?: any | null,
     _connection?: any | null,
   ): Role {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Role({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1473,7 +1477,7 @@ export class Role
       type: Number(objectProto.type) as RoleType,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1484,7 +1488,7 @@ export class Role
       slug: objectProto.slug != undefined ? objectProto.slug : null,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
@@ -1493,7 +1497,7 @@ export class Role
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1504,7 +1508,7 @@ export class Role
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

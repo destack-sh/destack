@@ -1,23 +1,24 @@
 import { NodeType, StructType, TraitType } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
-import { NodeDefinitionReference, NodeReference } from "@destack/language/core/builtin/relation";
+import type {
+  NodeDefinitionReference,
+  NodeReference,
+} from "@destack/language/core/builtin/relation";
 import { isStruct } from "@destack/language/core/builtin/struct";
 import type { TraitClass } from "@destack/language/core/builtin/trait";
 import { INTER_ORDER_TYPES, IsOrdered, IsSpatial } from "@destack/language/core/builtin/trait";
-import {
+import type {
   Aggregation,
-  AggregationType,
   Condition,
   Expression,
   ExpressionIn,
   Join,
-  JoinType,
   NodeDefinition,
   Query,
-  QueryType,
   Sort,
 } from "@destack/language/core/common";
+import { AggregationType, JoinType, QueryType } from "@destack/language/core/common/query";
 import {
   Graph,
   QueryConnection,
@@ -26,7 +27,7 @@ import {
   Supergraph,
 } from "@destack/language/core/runtime";
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
-import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
+import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { getOrderKey } from "@destack/utils";
 import { Casing, toCasing } from "@destack/utils/string";
 import { v4 as uuid4 } from "uuid";
@@ -321,10 +322,14 @@ export abstract class Node extends BuiltinObject {
       join?: Join;
     }>,
   ): Query {
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
     const { where, name, join, ...subqueries } = options;
-    const query = new Query({
+    const query = new _Query({
       type: QueryType.NODE,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
+      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -347,14 +352,19 @@ export abstract class Node extends BuiltinObject {
     }>,
   ): Query {
     const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } = options;
-    const query = new Query({
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
+    const query = new _Query({
       type: groupBy ? QueryType.GROUPED_NODE : QueryType.NODE,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
+      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
       having,
-      groupBy: groupBy?.map(Expression.of),
+      groupBy: groupBy?.map(_Expression.of),
       sort,
       limit,
       offset,
@@ -372,13 +382,18 @@ export abstract class Node extends BuiltinObject {
     }>,
   ): Query {
     const { where, name, join, ...subqueries } = options;
-    const query = new Query({
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const query = new _Query({
       type: QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
+      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
-      aggregation: Aggregation.of(AggregationType.EXISTS),
+      aggregation: _Aggregation.of(AggregationType.EXISTS),
       subqueries: toSubqueries(subqueries),
     });
     return query;
@@ -396,15 +411,21 @@ export abstract class Node extends BuiltinObject {
     }>,
   ): Query {
     const { where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const query = new _Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
+      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
       having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.COUNT),
+      groupBy: groupBy?.map(_Expression.of),
+      aggregation: _Aggregation.of(AggregationType.COUNT),
       sort,
       subqueries: toSubqueries(subqueries),
     });
@@ -423,16 +444,22 @@ export abstract class Node extends BuiltinObject {
       sort?: Sort[];
     }>,
   ): Query {
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
+    const query = new _Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
+      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
       having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.MIN, Expression.of(expression)),
+      groupBy: groupBy?.map(_Expression.of),
+      aggregation: _Aggregation.of(AggregationType.MIN, _Expression.of(expression)),
       sort,
       subqueries: toSubqueries(subqueries),
     });
@@ -452,15 +479,21 @@ export abstract class Node extends BuiltinObject {
     }>,
   ): Query {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const query = new _Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
+      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
       having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.MAX, Expression.of(expression)),
+      groupBy: groupBy?.map(_Expression.of),
+      aggregation: _Aggregation.of(AggregationType.MAX, _Expression.of(expression)),
       sort,
       subqueries: toSubqueries(subqueries),
     });
@@ -480,15 +513,21 @@ export abstract class Node extends BuiltinObject {
     }>,
   ): Query {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const query = new _Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      definition: NodeDefinitionReference.of(this as unknown as NodeClass),
+      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
       having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.SUM, Expression.of(expression)),
+      groupBy: groupBy?.map(_Expression.of),
+      aggregation: _Aggregation.of(AggregationType.SUM, _Expression.of(expression)),
       sort,
       subqueries: toSubqueries(subqueries),
     });
@@ -529,13 +568,14 @@ export type WithSubqueries<T, Q = Query> = T & {
 
 /** Convert a WithSubqueries object to an array of Queries. */
 export function toSubqueries(subqueries: WithSubqueries<Record<string, any>>): Query[] {
+  const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
   const queries: Query[] = [];
   for (const [name, subquery] of Object.entries(subqueries)) {
     if (!isStruct(subquery, StructType.QUERY)) {
       continue;
     }
     if (subquery.join === undefined) {
-      const join = new Join({ type: JoinType.CHILD });
+      const join = new _Join({ type: JoinType.CHILD });
       // @ts-expect-error(readonly)
       subquery.join = join;
     }

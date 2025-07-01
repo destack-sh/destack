@@ -15,15 +15,19 @@ import type {
   CustomTraitDefinition,
 } from "@destack/language/core/builtin/entity";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
-import { isNode, Node } from "@destack/language/core/builtin/node";
-import { NodeReference } from "@destack/language/core/builtin/relation";
-import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import { Node, isNode } from "@destack/language/core/builtin/node";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
+import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import type { CustomEnumDefinition } from "@destack/language/core/common/enum";
 import type { CustomStructDefinition } from "@destack/language/core/common/struct";
-import { Value } from "@destack/language/core/common/value";
+import type { Value } from "@destack/language/core/common/value";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import { registerEnumClass, registerStructClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import {
   CollectionConstraintProto,
   DefaultFactoryProto,
@@ -1395,7 +1399,7 @@ export class Type extends StructFrozen {
     // properties
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
-      _cardinality = TypeCardinality.SCALAR;
+      _cardinality = 1 /* TypeCardinality.SCALAR */;
     }
     if (_cardinality === null) {
       throw new Error(`Type.cardinality is required`);
@@ -1678,6 +1682,21 @@ export class Type extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Type {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
+    const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.NUMBER_CONSTRAINT
+    ] as typeof NumberConstraint;
+    const _StringConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.STRING_CONSTRAINT
+    ] as typeof StringConstraint;
+    const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.COLLECTION_CONSTRAINT
+    ] as typeof CollectionConstraint;
+    const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_CONSTRAINT
+    ] as typeof NodeConstraint;
     const primitiveTypeValue = objectValue["42"];
     const unpackedPrimitiveType =
       primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
@@ -1690,12 +1709,12 @@ export class Type extends StructFrozen {
     const definitionPtrValue = objectValue["46"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
       keyTypeValue != undefined
-        ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
+        ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
     const isRequiredValue = objectValue["50"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
@@ -1704,7 +1723,7 @@ export class Type extends StructFrozen {
     const defaultValueValue = objectValue["55"];
     const unpackedDefaultValue =
       defaultValueValue != undefined
-        ? Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
         : null;
     const defaultFactoryValue = objectValue["56"];
     const unpackedDefaultFactory =
@@ -1712,7 +1731,7 @@ export class Type extends StructFrozen {
     const collectionConstraintValue = objectValue["60"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
-        ? CollectionConstraint.fromValue(
+        ? _CollectionConstraint.fromValue(
             collectionConstraintValue,
             _session,
             _supergraph,
@@ -1723,7 +1742,7 @@ export class Type extends StructFrozen {
     const stringConstraintValue = objectValue["61"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
-        ? StringConstraint.fromValue(
+        ? _StringConstraint.fromValue(
             stringConstraintValue,
             _session,
             _supergraph,
@@ -1734,7 +1753,7 @@ export class Type extends StructFrozen {
     const numberConstraintValue = objectValue["62"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
-        ? NumberConstraint.fromValue(
+        ? _NumberConstraint.fromValue(
             numberConstraintValue,
             _session,
             _supergraph,
@@ -1745,7 +1764,7 @@ export class Type extends StructFrozen {
     const nodeConstraintValue = objectValue["63"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
-        ? NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
+        ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Type({
       cardinality: Number(objectValue["40"]),
@@ -1843,6 +1862,21 @@ export class Type extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Type {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
+    const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.NUMBER_CONSTRAINT
+    ] as typeof NumberConstraint;
+    const _StringConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.STRING_CONSTRAINT
+    ] as typeof StringConstraint;
+    const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.COLLECTION_CONSTRAINT
+    ] as typeof CollectionConstraint;
+    const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_CONSTRAINT
+    ] as typeof NodeConstraint;
     return new Type({
       cardinality: Number(objectProto.cardinality) as TypeCardinality,
       scalarType: Number(objectProto.scalarType) as ScalarType,
@@ -1858,7 +1892,7 @@ export class Type extends StructFrozen {
         objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
       definition:
         objectProto.definitionPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
               _supergraph,
@@ -1868,13 +1902,13 @@ export class Type extends StructFrozen {
           : null,
       keyType:
         objectProto.keyType != undefined
-          ? Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
+          ? _Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
           : null,
       isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
       isVariable: objectProto.isVariable != undefined ? objectProto.isVariable : null,
       defaultValue:
         objectProto.defaultValue != undefined
-          ? Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
           : null,
       defaultFactory:
         objectProto.defaultFactory != undefined
@@ -1882,7 +1916,7 @@ export class Type extends StructFrozen {
           : null,
       collectionConstraint:
         objectProto.collectionConstraint != undefined
-          ? CollectionConstraint.fromProto(
+          ? _CollectionConstraint.fromProto(
               objectProto.collectionConstraint!,
               _session,
               _supergraph,
@@ -1892,7 +1926,7 @@ export class Type extends StructFrozen {
           : null,
       stringConstraint:
         objectProto.stringConstraint != undefined
-          ? StringConstraint.fromProto(
+          ? _StringConstraint.fromProto(
               objectProto.stringConstraint!,
               _session,
               _supergraph,
@@ -1902,7 +1936,7 @@ export class Type extends StructFrozen {
           : null,
       numberConstraint:
         objectProto.numberConstraint != undefined
-          ? NumberConstraint.fromProto(
+          ? _NumberConstraint.fromProto(
               objectProto.numberConstraint!,
               _session,
               _supergraph,
@@ -1912,7 +1946,7 @@ export class Type extends StructFrozen {
           : null,
       nodeConstraint:
         objectProto.nodeConstraint != undefined
-          ? NodeConstraint.fromProto(
+          ? _NodeConstraint.fromProto(
               objectProto.nodeConstraint!,
               _session,
               _supergraph,

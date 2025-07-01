@@ -2,12 +2,13 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Event, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
-import { registerNodeClass } from "@destack/language/registry";
+import { Event, Node, NodeType, StructType } from "@destack/language/core";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Run } from "@destack/language/runtime/run";
 import type { Space } from "@destack/language/space";
 import { SpanEventProto } from "@destack/proto";
@@ -220,7 +221,8 @@ export class SpanEvent extends Event {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SPAN_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -282,28 +284,29 @@ export class SpanEvent extends Event {
     _graph?: any | null,
     _connection?: any | null,
   ): SpanEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const nodePtrValue = objectValue["35"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SpanEvent({
-      run: NodeReference.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
+      run: _NodeReference.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
@@ -357,12 +360,19 @@ export class SpanEvent extends Event {
     _graph?: any | null,
     _connection?: any | null,
   ): SpanEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new SpanEvent({
-      run: NodeReference.fromProto(objectProto.runPtr!, _session, _supergraph, _graph, _connection),
+      run: _NodeReference.fromProto(
+        objectProto.runPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -372,7 +382,7 @@ export class SpanEvent extends Event {
           : null,
       node:
         objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.nodePtr!,
               _session,
               _supergraph,
@@ -382,7 +392,7 @@ export class SpanEvent extends Event {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -393,7 +403,7 @@ export class SpanEvent extends Event {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,

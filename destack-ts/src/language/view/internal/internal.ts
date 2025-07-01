@@ -1,22 +1,18 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Dimension,
   Graph,
   IsSubject,
+  NodeReference,
+  Position,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
-import {
-  Dimension,
-  Node,
-  NodeReference,
-  NodeType,
-  Position,
-  StructType,
-} from "@destack/language/core";
+import { Node, NodeType, StructType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
-import { registerNodeClass } from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
 import type { ContainerView } from "@destack/language/view/container/container";
@@ -403,7 +399,8 @@ export class InternalView extends View {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.INTERNAL_VIEW,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -496,65 +493,68 @@ export class InternalView extends View {
     _graph?: any | null,
     _connection?: any | null,
   ): InternalView {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
+    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const positionValue = objectValue["40"];
     const unpackedPosition =
       positionValue != undefined
-        ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        ? _Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
         : null;
     const widthValue = objectValue["41"];
     const unpackedWidth =
       widthValue != undefined
-        ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
     const heightValue = objectValue["42"];
     const unpackedHeight =
       heightValue != undefined
-        ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
         : null;
     const minWidthValue = objectValue["43"];
     const unpackedMinWidth =
       minWidthValue != undefined
-        ? Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const minHeightValue = objectValue["44"];
     const unpackedMinHeight =
       minHeightValue != undefined
-        ? Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxWidthValue = objectValue["45"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
-        ? Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxHeightValue = objectValue["46"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
-        ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const scriptPtrValue = objectValue["200"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -656,10 +656,13 @@ export class InternalView extends View {
     _graph?: any | null,
     _connection?: any | null,
   ): InternalView {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
+    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     return new InternalView({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -669,35 +672,35 @@ export class InternalView extends View {
           : null,
       position:
         objectProto.position != undefined
-          ? Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
-          ? Dimension.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
           : null,
       height:
         objectProto.height != undefined
-          ? Dimension.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
           : null,
       minWidth:
         objectProto.minWidth != undefined
-          ? Dimension.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
           : null,
       minHeight:
         objectProto.minHeight != undefined
-          ? Dimension.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
           : null,
       maxWidth:
         objectProto.maxWidth != undefined
-          ? Dimension.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
           : null,
       maxHeight:
         objectProto.maxHeight != undefined
-          ? Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -708,7 +711,7 @@ export class InternalView extends View {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -719,7 +722,7 @@ export class InternalView extends View {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -731,7 +734,7 @@ export class InternalView extends View {
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.scriptPtr!,
               _session,
               _supergraph,
