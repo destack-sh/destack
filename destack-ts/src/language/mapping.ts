@@ -101,12 +101,15 @@ import type {
   PropertyReference,
   PropertyReferenceType,
   Scope,
+  StructDefinitionReference,
+  StructDefinitionType,
 } from "@destack/language/core/builtin/relation";
 import type {
   HasIcon,
   HasName,
   HasSlug,
   IsArchivable,
+  IsCustomizable,
   IsDeletable,
   IsExtensible,
   IsFollowable,
@@ -134,7 +137,7 @@ import type {
   EditOperation,
   EditType,
 } from "@destack/language/core/common/edit";
-import type { CustomEnumDefinition } from "@destack/language/core/common/enum";
+import type { CustomEnumDefinition, CustomOption } from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
 import type {
   ConstantDefinition,
@@ -154,7 +157,6 @@ import type {
   HistogramMeasurementEvent,
   HistogramMetric,
 } from "@destack/language/core/common/metric";
-import type { CustomOption } from "@destack/language/core/common/option";
 import type { CustomProperty, CustomPropertyType } from "@destack/language/core/common/property";
 import type {
   Aggregation,
@@ -181,7 +183,7 @@ import type {
   SortType,
 } from "@destack/language/core/common/query";
 import type { Branch, Snapshot } from "@destack/language/core/common/spacetime";
-import type { CustomStructDefinition } from "@destack/language/core/common/struct";
+import type { CustomStruct, CustomStructDefinition } from "@destack/language/core/common/struct";
 import type { Text, TextSpan, TextSpanType } from "@destack/language/core/common/text";
 import type {
   CollectionConstraint,
@@ -447,13 +449,13 @@ export type NodeTypeMapping = {
   [NodeType.EDIT_EVENT]: EditEvent;
   [NodeType.MEASUREMENT_EVENT]: MeasurementEvent;
   [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
+  [NodeType.CUSTOM_OPTION]: CustomOption;
   [NodeType.GAUGE_METRIC]: GaugeMetric;
   [NodeType.GAUGE_MEASUREMENT_EVENT]: GaugeMeasurementEvent;
   [NodeType.COUNTER_METRIC]: CounterMetric;
   [NodeType.COUNTER_MEASUREMENT_EVENT]: CounterMeasurementEvent;
   [NodeType.HISTOGRAM_METRIC]: HistogramMetric;
   [NodeType.HISTOGRAM_MEASUREMENT_EVENT]: HistogramMeasurementEvent;
-  [NodeType.CUSTOM_OPTION]: CustomOption;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
   [NodeType.SNAPSHOT]: Snapshot;
   [NodeType.BRANCH]: Branch;
@@ -625,6 +627,7 @@ export type TraitTypeMapping = {
   [TraitType.ARCHIVABLE]: IsArchivable;
   [TraitType.DELETABLE]: IsDeletable;
   [TraitType.EXTENSIBLE]: IsExtensible;
+  [TraitType.CUSTOMIZABLE]: IsCustomizable;
   [TraitType.ORDERED]: IsOrdered;
   [TraitType.REACTABLE]: IsReactable;
   [TraitType.STARABLE]: IsStarable;
@@ -645,6 +648,7 @@ export type StructTypeMapping = {
   [StructType.SCOPE]: Scope;
   [StructType.NODE_DEFINITION_REFERENCE]: NodeDefinitionReference;
   [StructType.OBJECT_DEFINITION_REFERENCE]: ObjectDefinitionReference;
+  [StructType.STRUCT_DEFINITION_REFERENCE]: StructDefinitionReference;
   [StructType.PROPERTY_REFERENCE]: PropertyReference;
   [StructType.NODE_REFERENCE]: NodeReference;
   [StructType.EDIT]: Edit;
@@ -678,6 +682,7 @@ export type StructTypeMapping = {
   [StructType.QUERY_RESULT_GROUP]: QueryResultGroup;
   [StructType.QUERY_UPDATE]: QueryUpdate;
   [StructType.SELECTION]: Selection;
+  [StructType.CUSTOM_STRUCT]: CustomStruct;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;
   [StructType.VECTOR2]: Vector2;
@@ -750,6 +755,7 @@ export type EnumTypeMapping = {
   [EnumType.JOINABLE_PERMISSION]: JoinablePermission;
   [EnumType.NODE_DEFINITION_TYPE]: NodeDefinitionType;
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
+  [EnumType.STRUCT_DEFINITION_TYPE]: StructDefinitionType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;

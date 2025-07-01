@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Entity,
     HasName,
+    IsCustomizable,
     IsDeletable,
     IsExtensible,
     IsOwnable,
@@ -31,8 +32,9 @@ class Service(
     IsTaggable,
     IsRunnable,
     IsScriptable,
-    IsSourceable,
     IsExtensible,
+    IsSourceable,
+    IsCustomizable,
     Entity,
 ):
     """

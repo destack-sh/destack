@@ -248,6 +248,25 @@ class ObjectDefinitionReference(StructFrozen):
             assert_never(base)
 
 
+@builtin_enum(EnumType.STRUCT_DEFINITION_TYPE)
+class StructDefinitionType(Enum):
+    BUILTIN_STRUCT = 1
+    CUSTOM_STRUCT = 2
+    BUILTIN_ENUM = 3
+    CUSTOM_ENUM = 4
+
+
+@builtin_struct(StructType.STRUCT_DEFINITION_REFERENCE, frozen=True)
+class StructDefinitionReference(StructFrozen):
+    """Reference to a Struct definition (builtin, custom or by trait)."""
+
+    type: StructDefinitionType = property_(30, is_repr=True)
+    struct_type: Optional[StructType] = property_(40, is_repr=True)
+    definition: "CustomStructDefinition" = property_(45, is_repr=True)
+    if TYPE_CHECKING:
+        definition_ptr: Optional["NodeReference"] = None
+
+
 @builtin_enum(EnumType.PROPERTY_REFERENCE_TYPE)
 class PropertyReferenceType(Enum):
     """The type of a property reference."""

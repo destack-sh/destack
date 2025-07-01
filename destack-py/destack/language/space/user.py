@@ -8,6 +8,7 @@ from destack.language.core import (
     HasIcon,
     HasName,
     HasSlug,
+    IsCustomizable,
     IsFollowable,
     IsGlobal,
     IsOwner,
@@ -41,6 +42,7 @@ class User(
     IsOwner,
     IsFollowable,
     IsSubject,
+    IsCustomizable,
     Entity,
 ):
     """A User is a human using Destack."""

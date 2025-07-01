@@ -91,6 +91,8 @@ from .relation import (
     PropertyReference,
     PropertyReferenceType,
     Scope,
+    StructDefinitionReference,
+    StructDefinitionType,
 )
 from .struct import StructBase, StructFrozen, StructMutable, builtin_struct
 from .trait import (
@@ -99,6 +101,7 @@ from .trait import (
     HasName,
     HasSlug,
     IsArchivable,
+    IsCustomizable,
     IsDeletable,
     IsExtensible,
     IsFollowable,
@@ -174,6 +177,7 @@ __all__ = [
     "HasSlug",
     "IndexIn",
     "IsArchivable",
+    "IsCustomizable",
     "IsDeletable",
     "IsExtensible",
     "IsFollowable",
@@ -222,6 +226,8 @@ __all__ = [
     "StoreType",
     "StoreZone",
     "StructBase",
+    "StructDefinitionReference",
+    "StructDefinitionType",
     "StructFrozen",
     "StructMutable",
     "StructType",

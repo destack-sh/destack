@@ -5,7 +5,7 @@ import {
   unpackProtoTimestamp,
 } from "@destack/grpc";
 import type {
-  IsExtensible,
+  IsCustomizable,
   IsRunnable,
   IsSpatial,
   IsSubject,
@@ -3573,7 +3573,7 @@ registerNodeClass(NodeType.RUN_COMPLETED_EVENT, RunCompletedEvent);
 /**
  * Run something somewhere, somehow.
  */
-export class Run extends Entity implements IsSpatial, IsExtensible {
+export class Run extends Entity implements IsSpatial, IsCustomizable {
   static metatype: NodeType = NodeType.RUN;
 
   /**
@@ -3635,7 +3635,7 @@ export class Run extends Entity implements IsSpatial, IsExtensible {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsExtensible.value
+   * IsCustomizable.value
    */
   value: Map<string, Value>;
 

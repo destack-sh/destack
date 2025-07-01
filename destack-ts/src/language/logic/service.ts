@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   HasName,
+  IsCustomizable,
   IsDeletable,
   IsExtensible,
   IsOwnable,
@@ -46,8 +47,9 @@ export class Service
     IsTaggable,
     IsRunnable,
     IsScriptable,
+    IsExtensible,
     IsSourceable,
-    IsExtensible
+    IsCustomizable
 {
   static metatype: NodeType = NodeType.SERVICE;
 
@@ -115,7 +117,7 @@ export class Service
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsExtensible.value
+   * IsCustomizable.value
    */
   value: Map<string, Value>;
 

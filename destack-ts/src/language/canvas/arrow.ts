@@ -20,7 +20,6 @@ import {
   NodeType,
   Position,
   StructType,
-  Value,
   Vector2,
 } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
@@ -133,11 +132,6 @@ export class ArrowShape extends Shape {
    * IsDeletable.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * IsExtensible.value
-   */
-  value: Map<string, Value>;
 
   /**
    * IsOrdered.orderKey
@@ -327,7 +321,6 @@ export class ArrowShape extends Shape {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    value?: Map<string, Value>;
     orderKey?: string;
     name: string;
     position?: Position | null;
@@ -402,11 +395,6 @@ export class ArrowShape extends Shape {
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _value = options.value ?? null;
-    if (_value === null) {
-      _value = new Map();
-    }
-    this.value = _value;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -688,17 +676,6 @@ export class ArrowShape extends Shape {
     ) {
       return false;
     }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
-      return false;
-    }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
-        return false;
-      }
-      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
-        return false;
-      }
-    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -799,12 +776,6 @@ export class ArrowShape extends Shape {
     if (this.maxHeight !== null) {
       h = (h * 31 + this.maxHeight.hash()) & 0xffffffff;
     }
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -890,13 +861,6 @@ export class ArrowShape extends Shape {
     }
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    if (object.value.size > 0) {
-      const packedValue: { [key: string]: any } = {};
-      for (const [key, value] of object.value) {
-        packedValue[String(String(key))] = value.toValue();
-      }
-      objectValue["21"] = packedValue;
     }
     objectValue["22"] = object.orderKey;
     objectValue["31"] = object.name;
@@ -1103,15 +1067,6 @@ export class ArrowShape extends Shape {
       maxHeightValue != undefined
         ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
-          String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -1169,7 +1124,6 @@ export class ArrowShape extends Shape {
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
-      value: unpackedValue,
       space: unpackedSpacePtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1219,12 +1173,6 @@ export class ArrowShape extends Shape {
     }
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
-    }
-    if (object.value) {
-      objectProto.value = {};
-      for (const [key, value] of object.value) {
-        objectProto.value![String(key)] = value.toProto();
-      }
     }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object.name;
@@ -1323,15 +1271,6 @@ export class ArrowShape extends Shape {
     _graph?: any | null,
     _connection?: any | null,
   ): ArrowShape {
-    const unpackedValue = new Map();
-    if (objectProto.value) {
-      for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(
-          String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new ArrowShape({
       startType: Number(objectProto.startType) as ArrowHeadType,
       start: Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
@@ -1426,7 +1365,6 @@ export class ArrowShape extends Shape {
         objectProto.maxHeight != undefined
           ? Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
-      value: unpackedValue,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(

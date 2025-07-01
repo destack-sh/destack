@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     Entity,
     HasName,
+    IsCustomizable,
     IsDeletable,
-    IsExtensible,
     IsOrdered,
     IsRunnable,
     IsScriptable,
@@ -28,7 +28,7 @@ class Script(
     IsOrdered,
     IsDeletable,
     IsRunnable,
-    IsExtensible,
+    IsCustomizable,
     Entity,
 ):
     """A Script."""

@@ -7,7 +7,7 @@ from .edit import (
     EditOperation,
     EditType,
 )
-from .enum import CustomEnumDefinition
+from .enum import CustomEnumDefinition, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import (
     ConstantDefinition,
@@ -26,7 +26,6 @@ from .metric import (
     HistogramMeasurementEvent,
     HistogramMetric,
 )
-from .option import CustomOption
 from .property import CustomProperty, CustomPropertyType
 from .query import (
     Aggregation,
@@ -55,7 +54,7 @@ from .query import (
     SortType,
 )
 from .spacetime import Branch, Snapshot
-from .struct import CustomStructDefinition
+from .struct import CustomStruct, CustomStructDefinition
 from .text import (
     Text,
     TextIn,
@@ -139,6 +138,7 @@ __all__ = [
     "CustomOption",
     "CustomProperty",
     "CustomPropertyType",
+    "CustomStruct",
     "CustomStructDefinition",
     "Dimension",
     "DimensionType",

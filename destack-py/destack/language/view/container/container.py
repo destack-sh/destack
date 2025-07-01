@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from destack.language.core import IsExtensible, NodeType, builtin_node, property_
+from destack.language.core import NodeType, builtin_node, property_
 
 from ..view import View
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.CONTAINER_VIEW, is_abstract=True)
-class ContainerView(View, IsExtensible):
+class ContainerView(View):
     """A container View contains other Views."""
 
     # layout

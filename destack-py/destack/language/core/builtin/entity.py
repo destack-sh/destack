@@ -13,6 +13,7 @@ from .property import (
 )
 from .trait import (
     HasName,
+    IsCustomizable,
     IsDeletable,
     IsExtensible,
     IsOwnable,
@@ -119,6 +120,7 @@ class Entity(Node):
 class CustomEntityDefinition(
     IsSpatial,
     HasName,
+    IsCustomizable,
     IsTaggable,
     IsOwnable,
     IsDeletable,
@@ -146,6 +148,7 @@ class CustomEntityDefinition(
 class CustomEntity(
     IsSpatial,
     IsExtensible,
+    IsCustomizable,
     IsDeletable,
     Entity,
 ):
@@ -173,6 +176,7 @@ class CustomTraitDefinition(
     IsSourceable,
     IsDeletable,
     IsScriptable,
+    IsCustomizable,
     Entity,
 ):
     """

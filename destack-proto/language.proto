@@ -435,8 +435,9 @@ enum EnumTypeProto {
   ENUM_TYPE_TRAIT_TYPE = 50003;
   ENUM_TYPE_NODE_DEFINITION_TYPE = 50010;
   ENUM_TYPE_OBJECT_DEFINITION_TYPE = 50011;
-  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 50012;
-  ENUM_TYPE_MATERIALIZATION_TYPE = 50013;
+  ENUM_TYPE_STRUCT_DEFINITION_TYPE = 50012;
+  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 50013;
+  ENUM_TYPE_MATERIALIZATION_TYPE = 50014;
   ENUM_TYPE_STORE_ZONE = 50020;
   ENUM_TYPE_STORE_TYPE = 50021;
   ENUM_TYPE_STORE_IMPLEMENTATION = 50022;
@@ -852,6 +853,19 @@ enum NodePermissionProto {
 
 enum NodeTypeProto {
   NODE_TYPE_UNSPECIFIED = 0;
+  NODE_TYPE_NODE = 51000;
+  NODE_TYPE_ENTITY = 51001;
+  NODE_TYPE_EVENT = 51002;
+  NODE_TYPE_RESOURCE = 51003;
+  NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 2000;
+  NODE_TYPE_CUSTOM_ENTITY = 2001;
+  NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 2002;
+  NODE_TYPE_CUSTOM_EVENT_DEFINITION = 4300;
+  NODE_TYPE_CUSTOM_EVENT = 4301;
+  NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 2500;
+  NODE_TYPE_CUSTOM_ENUM_DEFINITION = 2510;
+  NODE_TYPE_CUSTOM_PROPERTY = 2520;
+  NODE_TYPE_CUSTOM_OPTION = 2530;
   NODE_TYPE_SPACE = 1;
   NODE_TYPE_HANDLE = 20;
   NODE_TYPE_USER = 40;
@@ -898,10 +912,6 @@ enum NodeTypeProto {
   NODE_TYPE_TAGGING = 1011;
   NODE_TYPE_SNAPSHOT = 1500;
   NODE_TYPE_BRANCH = 1510;
-  NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 2500;
-  NODE_TYPE_CUSTOM_ENUM_DEFINITION = 2510;
-  NODE_TYPE_CUSTOM_PROPERTY = 2520;
-  NODE_TYPE_CUSTOM_OPTION = 2530;
   NODE_TYPE_FILE = 2540;
   NODE_TYPE_LINK = 2550;
   NODE_TYPE_SCRIPT = 3000;
@@ -1025,15 +1035,6 @@ enum NodeTypeProto {
   NODE_TYPE_TRANSITION_STYLE = 12066;
   NODE_TYPE_EFFECT_STYLE = 12067;
   NODE_TYPE_STROKE_STYLE = 12068;
-  NODE_TYPE_NODE = 51000;
-  NODE_TYPE_ENTITY = 51001;
-  NODE_TYPE_EVENT = 51002;
-  NODE_TYPE_RESOURCE = 51003;
-  NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 2000;
-  NODE_TYPE_CUSTOM_ENTITY = 2001;
-  NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 2002;
-  NODE_TYPE_CUSTOM_EVENT_DEFINITION = 4300;
-  NODE_TYPE_CUSTOM_EVENT = 4301;
 }
 
 // A Status of a Notification.
@@ -1373,6 +1374,14 @@ enum StrokeTypeProto {
   STROKE_TYPE_FREEHAND = 4;
 }
 
+enum StructDefinitionTypeProto {
+  STRUCT_DEFINITION_TYPE_UNSPECIFIED = 0;
+  STRUCT_DEFINITION_TYPE_BUILTIN_STRUCT = 1;
+  STRUCT_DEFINITION_TYPE_CUSTOM_STRUCT = 2;
+  STRUCT_DEFINITION_TYPE_BUILTIN_ENUM = 3;
+  STRUCT_DEFINITION_TYPE_CUSTOM_ENUM = 4;
+}
+
 enum StructTypeProto {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_VALUE = 2500;
@@ -1434,11 +1443,13 @@ enum StructTypeProto {
   STRUCT_TYPE_SELECT = 50106;
   STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 50107;
   STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 50108;
-  STRUCT_TYPE_QUERY = 50110;
-  STRUCT_TYPE_QUERY_RESULT = 50111;
-  STRUCT_TYPE_QUERY_RESULT_GROUP = 50112;
-  STRUCT_TYPE_QUERY_UPDATE = 50113;
-  STRUCT_TYPE_HISTOGRAM = 50114;
+  STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 50109;
+  STRUCT_TYPE_CUSTOM_STRUCT = 50110;
+  STRUCT_TYPE_QUERY = 50111;
+  STRUCT_TYPE_QUERY_RESULT = 50112;
+  STRUCT_TYPE_QUERY_RESULT_GROUP = 50113;
+  STRUCT_TYPE_QUERY_UPDATE = 50114;
+  STRUCT_TYPE_HISTOGRAM = 50115;
   STRUCT_TYPE_VECTOR2 = 50200;
   STRUCT_TYPE_VECTOR3 = 50201;
   STRUCT_TYPE_VECTOR4 = 50202;
@@ -1530,10 +1541,11 @@ enum TraitTypeProto {
   TRAIT_TYPE_FOLLOWABLE = 5534;
   TRAIT_TYPE_GLOBAL = 50001;
   TRAIT_TYPE_SPATIAL = 50002;
+  TRAIT_TYPE_ORDERED = 50100;
   TRAIT_TYPE_ARCHIVABLE = 50101;
   TRAIT_TYPE_DELETABLE = 50102;
   TRAIT_TYPE_EXTENSIBLE = 50103;
-  TRAIT_TYPE_ORDERED = 50104;
+  TRAIT_TYPE_CUSTOMIZABLE = 50104;
   TRAIT_TYPE_HAS_NAME = 50200;
   TRAIT_TYPE_HAS_SLUG = 50201;
   TRAIT_TYPE_HAS_ICON = 50202;
@@ -1620,7 +1632,6 @@ message AgentProto {
   string slug = 33;
   optional IconProto icon = 34;
   optional NodeReferenceProto cursor_ptr = 52;
-  optional NodeReferenceProto script_ptr = 200;
 }
 
 message AggregationProto {
@@ -1640,7 +1651,6 @@ message AnnotationShapeProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
   optional PositionProto position = 40;
@@ -1684,7 +1694,6 @@ message ArrowShapeProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
   optional PositionProto position = 40;
@@ -1790,7 +1799,6 @@ message CanvasProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   CanvasTypeProto type = 30;
   string name = 31;
@@ -1968,7 +1976,6 @@ message ContainerViewProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
   optional PositionProto position = 40;
@@ -2115,6 +2122,7 @@ message CustomEntityDefinitionProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
+  map<string, ValueProto> value = 21;
   string order_key = 22;
   optional NodeReferenceProto owned_by_ptr = 25;
   string name = 31;
@@ -2144,7 +2152,7 @@ message CustomEnumDefinitionProto {
   optional NodeReferenceProto source_ptr = 210;
 }
 
-// An instance of a CustomEventDefinition.
+// A CustomEvent is an instance of a CustomEventDefinition.
 message CustomEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -2152,11 +2160,12 @@ message CustomEventProto {
   optional NodeReferenceProto space_ptr = 5;
   google.protobuf.Timestamp created_at = 15;
   optional NodeReferenceProto created_by_ptr = 16;
+  map<string, ValueProto> value = 21;
   optional NodeReferenceProto node_ptr = 35;
   NodeReferenceProto definition_ptr = 40;
 }
 
-// A CustomEventDefinition defines a kind of CustomEvent.
+// A CustomEventDefinition defines a kind of CustomEvent with custom Properties.
 message CustomEventDefinitionProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -2166,8 +2175,11 @@ message CustomEventDefinitionProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
+  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
+  optional NodeReferenceProto prototype_ptr = 40;
+  optional NodeDefinitionReferenceProto base_type = 41;
   optional NodeReferenceProto source_ptr = 210;
 }
 
@@ -2226,7 +2238,13 @@ message CustomPropertyProto {
   optional NodeReferenceProto source_ptr = 210;
 }
 
-// A CustomStructDefinition describes a custom Type with Fields.
+message CustomStructProto {
+  StructTypeProto metatype = 1;
+  NodeReferenceProto definition_ptr = 6;
+  map<string, ValueProto> value = 21;
+}
+
+// A CustomStructDefinition describes a custom Struct with custom Properties.
 message CustomStructDefinitionProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -2241,6 +2259,8 @@ message CustomStructDefinitionProto {
   string order_key = 22;
   string name = 31;
   optional IconProto icon = 34;
+  optional CustomStructProto prototype = 40;
+  optional StructDefinitionReferenceProto base_type = 41;
   optional NodeReferenceProto source_ptr = 210;
 }
 
@@ -2255,6 +2275,7 @@ message CustomTraitDefinitionProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
+  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
   optional NodeDefinitionReferenceProto base_type = 41;
@@ -2824,7 +2845,6 @@ message FrameViewProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
   optional PositionProto position = 40;
@@ -3349,7 +3369,6 @@ message LabelViewProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
   optional PositionProto position = 40;
@@ -3392,7 +3411,6 @@ message LayerProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   optional NodeReferenceProto owned_by_ptr = 25;
   LayerTypeProto type = 30;
@@ -3469,7 +3487,6 @@ message LineShapeProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
   optional PositionProto position = 40;
@@ -4131,7 +4148,6 @@ message PolygonShapeProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   PolygonShapeTypeProto type = 30;
   string name = 31;
@@ -4603,7 +4619,6 @@ message SceneProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   optional NodeReferenceProto owned_by_ptr = 25;
   string name = 31;
@@ -4803,7 +4818,6 @@ message ShapeProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
   optional PositionProto position = 40;
@@ -4933,7 +4947,6 @@ message SplitViewProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
   string order_key = 22;
   string name = 31;
   optional PositionProto position = 40;
@@ -5056,6 +5069,13 @@ message StructDefinitionProto {
   optional string description = 36;
   repeated PropertyDefinitionProto properties = 50;
   bool is_frozen = 60;
+}
+
+message StructDefinitionReferenceProto {
+  StructTypeProto metatype = 1;
+  StructDefinitionTypeProto type = 30;
+  optional StructTypeProto struct_type = 40;
+  NodeReferenceProto definition_ptr = 45;
 }
 
 // A Style is a style definition.
@@ -5364,9 +5384,8 @@ message TypeProto {
   optional PrimitiveTypeProto primitive_type = 42;
   optional EnumTypeProto enum_type = 43;
   optional NodeTypeProto node_type = 44;
-  optional NodeReferenceProto node_definition_ptr = 45;
-  optional StructTypeProto struct_type = 46;
-  optional NodeReferenceProto base_type_ptr = 47;
+  optional StructTypeProto struct_type = 45;
+  optional NodeReferenceProto definition_ptr = 46;
   optional TypeProto key_type = 48;
   optional bool is_required = 50;
   optional bool is_variable = 51;
@@ -5387,6 +5406,7 @@ message UserProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
+  map<string, ValueProto> value = 21;
   string name = 31;
   string slug = 33;
   optional IconProto icon = 34;
@@ -5538,13 +5558,13 @@ message SomeNodeProto {
     CustomEventDefinitionProto custom_event_definition = 4300;
     EditEventProto edit_event = 4302;
     CustomEnumDefinitionProto custom_enum_definition = 2510;
+    CustomOptionProto custom_option = 2530;
     GaugeMetricProto gauge_metric = 4240;
     GaugeMeasurementEventProto gauge_measurement_event = 4241;
     CounterMetricProto counter_metric = 4260;
     CounterMeasurementEventProto counter_measurement_event = 4261;
     HistogramMetricProto histogram_metric = 4280;
     HistogramMeasurementEventProto histogram_measurement_event = 4281;
-    CustomOptionProto custom_option = 2530;
     CustomPropertyProto custom_property = 2520;
     SnapshotProto snapshot = 1500;
     BranchProto branch = 1510;
@@ -5690,10 +5710,10 @@ message SomeEntityProto {
     CustomTraitDefinitionProto custom_trait_definition = 2002;
     CustomEventDefinitionProto custom_event_definition = 4300;
     CustomEnumDefinitionProto custom_enum_definition = 2510;
+    CustomOptionProto custom_option = 2530;
     GaugeMetricProto gauge_metric = 4240;
     CounterMetricProto counter_metric = 4260;
     HistogramMetricProto histogram_metric = 4280;
-    CustomOptionProto custom_option = 2530;
     CustomPropertyProto custom_property = 2520;
     SnapshotProto snapshot = 1500;
     BranchProto branch = 1510;

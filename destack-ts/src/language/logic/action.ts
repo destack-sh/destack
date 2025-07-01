@@ -1,8 +1,8 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   HasName,
+  IsCustomizable,
   IsDeletable,
-  IsExtensible,
   IsRunnable,
   IsScriptable,
   IsSourceable,
@@ -53,7 +53,7 @@ registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
  */
 export class Action
   extends Entity
-  implements IsSpatial, HasName, IsTaggable, IsSourceable, IsExtensible, IsDeletable, IsRunnable
+  implements IsSpatial, HasName, IsTaggable, IsSourceable, IsCustomizable, IsDeletable, IsRunnable
 {
   static metatype: NodeType = NodeType.ACTION;
 
@@ -121,7 +121,7 @@ export class Action
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsExtensible.value
+   * IsCustomizable.value
    */
   value: Map<string, Value>;
 

@@ -1,8 +1,8 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   HasName,
+  IsCustomizable,
   IsDeletable,
-  IsExtensible,
   IsOrdered,
   IsRunnable,
   IsScriptable,
@@ -35,7 +35,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Script
   extends Entity
-  implements IsSpatial, HasName, IsOrdered, IsDeletable, IsRunnable, IsExtensible
+  implements IsSpatial, HasName, IsOrdered, IsDeletable, IsRunnable, IsCustomizable
 {
   static metatype: NodeType = NodeType.SCRIPT;
 
@@ -103,7 +103,7 @@ export class Script
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsExtensible.value
+   * IsCustomizable.value
    */
   value: Map<string, Value>;
 

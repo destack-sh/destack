@@ -5,6 +5,7 @@ import { Node } from "@destack/language/core/builtin/node";
 import { NodeDefinitionReference, NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   HasName,
+  IsCustomizable,
   IsDeletable,
   IsExtensible,
   IsOwnable,
@@ -96,7 +97,15 @@ registerNodeClass(NodeType.ENTITY, Entity);
  */
 export class CustomEntityDefinition
   extends Entity
-  implements IsSpatial, HasName, IsTaggable, IsOwnable, IsDeletable, IsScriptable, IsSourceable
+  implements
+    IsSpatial,
+    HasName,
+    IsCustomizable,
+    IsTaggable,
+    IsOwnable,
+    IsDeletable,
+    IsScriptable,
+    IsSourceable
 {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY_DEFINITION;
 
@@ -162,6 +171,11 @@ export class CustomEntityDefinition
    * IsDeletable.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsCustomizable.value
+   */
+  value: Map<string, Value>;
 
   /**
    * IsOrdered.orderKey
@@ -266,6 +280,7 @@ export class CustomEntityDefinition
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    value?: Map<string, Value>;
     orderKey?: string;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
@@ -316,6 +331,11 @@ export class CustomEntityDefinition
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      _value = new Map();
+    }
+    this.value = _value;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -425,6 +445,17 @@ export class CustomEntityDefinition
     if (!(this.name === other.name)) {
       return false;
     }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+        return false;
+      }
+    }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
@@ -459,6 +490,12 @@ export class CustomEntityDefinition
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
@@ -550,6 +587,13 @@ export class CustomEntityDefinition
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (object.value.size > 0) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of object.value) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
+    }
     objectValue["22"] = object.orderKey;
     if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
@@ -619,6 +663,15 @@ export class CustomEntityDefinition
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -657,6 +710,7 @@ export class CustomEntityDefinition
       isAbstract: objectValue["45"],
       space: unpackedSpacePtr,
       name: objectValue["31"],
+      value: unpackedValue,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
@@ -713,6 +767,12 @@ export class CustomEntityDefinition
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object.value) {
+      objectProto.value = {};
+      for (const [key, value] of object.value) {
+        objectProto.value![String(key)] = value.toProto();
+      }
+    }
     objectProto.orderKey = object.orderKey;
     if (object.ownedByPtr != null) {
       objectProto.ownedByPtr = object.ownedByPtr.toProto();
@@ -753,6 +813,15 @@ export class CustomEntityDefinition
       for (const item of objectProto.baseTraits) {
         unpackedBaseTraits.push(
           NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedValue = new Map();
+    if (objectProto.value) {
+      for (const [key, value] of Object.entries(objectProto.value)) {
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -800,6 +869,7 @@ export class CustomEntityDefinition
             )
           : null,
       name: objectProto.name,
+      value: unpackedValue,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? NodeReference.fromProto(
@@ -895,7 +965,10 @@ registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
 /**
  * A CustomEntity is an instance of a CustomEntityDefinition.
  */
-export abstract class CustomEntity extends Entity implements IsSpatial, IsExtensible, IsDeletable {
+export abstract class CustomEntity
+  extends Entity
+  implements IsSpatial, IsExtensible, IsCustomizable, IsDeletable
+{
   static metatype: NodeType = NodeType.CUSTOM_ENTITY;
 
   /**
@@ -974,7 +1047,7 @@ export abstract class CustomEntity extends Entity implements IsSpatial, IsExtens
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsExtensible.value
+   * IsCustomizable.value
    */
   declare value: Map<string, Value>;
 
@@ -991,7 +1064,7 @@ registerNodeClass(NodeType.CUSTOM_ENTITY, CustomEntity);
  */
 export class CustomTraitDefinition
   extends Entity
-  implements IsSpatial, HasName, IsSourceable, IsDeletable, IsScriptable
+  implements IsSpatial, HasName, IsSourceable, IsDeletable, IsScriptable, IsCustomizable
 {
   static metatype: NodeType = NodeType.CUSTOM_TRAIT_DEFINITION;
 
@@ -1059,6 +1132,11 @@ export class CustomTraitDefinition
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * IsCustomizable.value
+   */
+  value: Map<string, Value>;
+
+  /**
    * IsOrdered.orderKey
    */
   readonly orderKey: string;
@@ -1123,6 +1201,7 @@ export class CustomTraitDefinition
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    value?: Map<string, Value>;
     orderKey?: string;
     name: string;
     baseType?: NodeDefinitionReference | null;
@@ -1171,6 +1250,11 @@ export class CustomTraitDefinition
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      _value = new Map();
+    }
+    this.value = _value;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -1273,6 +1357,17 @@ export class CustomTraitDefinition
     if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -1303,6 +1398,12 @@ export class CustomTraitDefinition
     }
     if (this.scriptPtr !== null) {
       h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -1380,6 +1481,13 @@ export class CustomTraitDefinition
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (object.value.size > 0) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of object.value) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
+    }
     objectValue["22"] = object.orderKey;
     objectValue["31"] = object.name;
     if (object.baseType != null) {
@@ -1453,6 +1561,15 @@ export class CustomTraitDefinition
       scriptPtrValue != undefined
         ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1473,6 +1590,7 @@ export class CustomTraitDefinition
       source: unpackedSourcePtr,
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
+      value: unpackedValue,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
@@ -1525,6 +1643,12 @@ export class CustomTraitDefinition
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object.value) {
+      objectProto.value = {};
+      for (const [key, value] of object.value) {
+        objectProto.value![String(key)] = value.toProto();
+      }
+    }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object.name;
     if (object.baseType != null) {
@@ -1559,6 +1683,15 @@ export class CustomTraitDefinition
       for (const item of objectProto.baseTraits) {
         unpackedBaseTraits.push(
           NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedValue = new Map();
+    if (objectProto.value) {
+      for (const [key, value] of Object.entries(objectProto.value)) {
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1618,6 +1751,7 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
+      value: unpackedValue,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

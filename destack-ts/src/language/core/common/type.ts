@@ -10,9 +10,12 @@ import {
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
 import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
+import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import { NodeReference } from "@destack/language/core/builtin/relation";
 import { Struct, StructFrozen } from "@destack/language/core/builtin/struct";
+import type { CustomEnumDefinition } from "@destack/language/core/common/enum";
+import type { CustomStructDefinition } from "@destack/language/core/common/struct";
 import { Value } from "@destack/language/core/common/value";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
@@ -1148,39 +1151,34 @@ export class Type extends StructFrozen {
   readonly nodeType: NodeType | null;
 
   /**
-   * node_definition
-   */
-  get nodeDefinition(): CustomEntityDefinition | null {
-    const nodePtr: NodeReference | null = this.nodeDefinitionPtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
-    }
-    return null;
-  }
-  readonly nodeDefinitionPtr: NodeReference | null;
-
-  /**
    * Type.structType
    */
   readonly structType: StructType | null;
 
   /**
-   * base_type
+   * definition
    */
-  get baseType(): Node | null {
-    const nodePtr: NodeReference | null = this.baseTypePtr;
+  get definition():
+    | CustomEntityDefinition
+    | CustomEventDefinition
+    | CustomEnumDefinition
+    | CustomStructDefinition
+    | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as
+        | CustomEntityDefinition
+        | CustomEventDefinition
+        | CustomEnumDefinition
+        | CustomStructDefinition
+        | null;
     }
     return null;
   }
-  readonly baseTypePtr: NodeReference | null;
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * Type.keyType
@@ -1233,9 +1231,14 @@ export class Type extends StructFrozen {
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
     nodeType?: NodeType | null;
-    nodeDefinition?: CustomEntityDefinition | NodeReference | null;
     structType?: StructType | null;
-    baseType?: Node | NodeReference | null;
+    definition?:
+      | CustomEntityDefinition
+      | CustomEventDefinition
+      | CustomEnumDefinition
+      | CustomStructDefinition
+      | NodeReference
+      | null;
     keyType?: Type | null;
     isRequired?: boolean | null;
     isVariable?: boolean | null;
@@ -1279,18 +1282,13 @@ export class Type extends StructFrozen {
     this.enumType = _enumType;
     let _nodeType = options.nodeType ?? null;
     this.nodeType = _nodeType;
-    let _nodeDefinition = options.nodeDefinition ?? null;
-    if (_nodeDefinition != null && _nodeDefinition instanceof Node) {
-      _nodeDefinition = _nodeDefinition.toRef();
-    }
-    this.nodeDefinitionPtr = _nodeDefinition;
     let _structType = options.structType ?? null;
     this.structType = _structType;
-    let _baseType = options.baseType ?? null;
-    if (_baseType != null && _baseType instanceof Node) {
-      _baseType = _baseType.toRef();
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition instanceof Node) {
+      _definition = _definition.toRef();
     }
-    this.baseTypePtr = _baseType;
+    this.definitionPtr = _definition;
     let _keyType = options.keyType ?? null;
     this.keyType = _keyType;
     let _isRequired = options.isRequired ?? null;
@@ -1340,13 +1338,10 @@ export class Type extends StructFrozen {
     if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (!(this.nodeDefinitionPtr?.id === other.nodeDefinitionPtr?.id)) {
-      return false;
-    }
     if (!(this.structType === other.structType)) {
       return false;
     }
-    if (!(this.baseTypePtr?.id === other.baseTypePtr?.id)) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
     if (
@@ -1412,14 +1407,11 @@ export class Type extends StructFrozen {
       if (this.nodeType !== null) {
         propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
       }
-      if (this.nodeDefinition !== null) {
-        propertyReprs.push(`nodeDefinition=${this.nodeDefinition?.repr()}`);
-      }
       if (this.structType !== null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
-      if (this.baseType !== null) {
-        propertyReprs.push(`baseType=${this.baseType?.repr()}`);
+      if (this.definition !== null) {
+        propertyReprs.push(`definition=${this.definition?.repr()}`);
       }
       if (this.keyType !== null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
@@ -1448,14 +1440,11 @@ export class Type extends StructFrozen {
     if (this.nodeType !== null) {
       h = (h * 31 + this.nodeType) & 0xffffffff;
     }
-    if (this.nodeDefinitionPtr !== null) {
-      h = (h * 31 + hashString(this.nodeDefinitionPtr.id)) & 0xffffffff;
-    }
     if (this.structType !== null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    if (this.baseTypePtr !== null) {
-      h = (h * 31 + hashString(this.baseTypePtr.id)) & 0xffffffff;
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     if (this.keyType !== null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
@@ -1516,14 +1505,11 @@ export class Type extends StructFrozen {
     if (object.nodeType != null) {
       objectValue["44"] = object.nodeType;
     }
-    if (object.nodeDefinitionPtr != null) {
-      objectValue["45"] = object.nodeDefinitionPtr.toValue();
-    }
     if (object.structType != null) {
-      objectValue["46"] = object.structType;
+      objectValue["45"] = object.structType;
     }
-    if (object.baseTypePtr != null) {
-      objectValue["47"] = object.baseTypePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["46"] = object.definitionPtr.toValue();
     }
     if (object.keyType != null) {
       objectValue["48"] = object.keyType.toValue();
@@ -1569,23 +1555,12 @@ export class Type extends StructFrozen {
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
     const nodeTypeValue = objectValue["44"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const nodeDefinitionPtrValue = objectValue["45"];
-    const unpackedNodeDefinitionPtr =
-      nodeDefinitionPtrValue != undefined
-        ? NodeReference.fromValue(
-            nodeDefinitionPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
-        : null;
-    const structTypeValue = objectValue["46"];
+    const structTypeValue = objectValue["45"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const baseTypePtrValue = objectValue["47"];
-    const unpackedBaseTypePtr =
-      baseTypePtrValue != undefined
-        ? NodeReference.fromValue(baseTypePtrValue, _session, _supergraph, _graph, _connection)
+    const definitionPtrValue = objectValue["46"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
@@ -1648,9 +1623,8 @@ export class Type extends StructFrozen {
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
-      nodeDefinition: unpackedNodeDefinitionPtr,
       structType: unpackedStructType,
-      baseType: unpackedBaseTypePtr,
+      definition: unpackedDefinitionPtr,
       keyType: unpackedKeyType,
       isRequired: unpackedIsRequired,
       isVariable: unpackedIsVariable,
@@ -1696,14 +1670,11 @@ export class Type extends StructFrozen {
     if (object.nodeType != null) {
       objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
     }
-    if (object.nodeDefinitionPtr != null) {
-      objectProto.nodeDefinitionPtr = object.nodeDefinitionPtr.toProto();
-    }
     if (object.structType != null) {
       objectProto.structType = Number(object.structType) as StructTypeProto;
     }
-    if (object.baseTypePtr != null) {
-      objectProto.baseTypePtr = object.baseTypePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
     }
     if (object.keyType != null) {
       objectProto.keyType = object.keyType.toProto();
@@ -1753,22 +1724,12 @@ export class Type extends StructFrozen {
         objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
       nodeType:
         objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
-      nodeDefinition:
-        objectProto.nodeDefinitionPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.nodeDefinitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       structType:
         objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
-      baseType:
-        objectProto.baseTypePtr != undefined
+      definition:
+        objectProto.definitionPtr != undefined
           ? NodeReference.fromProto(
-              objectProto.baseTypePtr!,
+              objectProto.definitionPtr!,
               _session,
               _supergraph,
               _graph,

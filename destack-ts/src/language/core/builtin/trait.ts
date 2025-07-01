@@ -368,21 +368,16 @@ registerTraitClass(TraitType.DELETABLE, IsDeletable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:50103 ==== */
 /**
- * A Node that can be extended with custom Values (one Value per Field).
+ * A Node that be extended by custom Nodes (i.e. used as a base type).
  */
 export interface IsExtensible {
-  /**
-   * IsExtensible.value
-   */
-  value: Map<string, Value>;
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /**
- * A Node that can be extended with custom Values (one Value per Field).
+ * A Node that be extended by custom Nodes (i.e. used as a base type).
  */
 class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {}
 
@@ -392,13 +387,13 @@ registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:50104 ==== */
 /**
- * A Node that can be ordered.
+ * A Node that can be customized with custom Properties.
  */
-export interface IsOrdered {
+export interface IsCustomizable {
   /**
-   * IsOrdered.orderKey
+   * IsCustomizable.value
    */
-  readonly orderKey: string;
+  value: Map<string, Value>;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -406,12 +401,12 @@ export interface IsOrdered {
 }
 
 /**
- * A Node that can be ordered.
+ * A Node that can be customized with custom Properties.
  */
-class IsOrdered$Type extends TraitClass<IsOrdered, TraitType.ORDERED> {}
+class IsCustomizable$Type extends TraitClass<IsCustomizable, TraitType.CUSTOMIZABLE> {}
 
-export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
-registerTraitClass(TraitType.ORDERED, IsOrdered);
+export const IsCustomizable = new IsCustomizable$Type(TraitType.CUSTOMIZABLE);
+registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
 /* ==== DESTACK_GENERATED_END:TRAIT:50104 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:50001 ==== */
@@ -466,3 +461,27 @@ export const INTER_ORDER_TYPES = [
 ];
 
 /* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TYPES ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:50100 ==== */
+/**
+ * A Node that can be ordered.
+ */
+export interface IsOrdered {
+  /**
+   * IsOrdered.orderKey
+   */
+  readonly orderKey: string;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be ordered.
+ */
+class IsOrdered$Type extends TraitClass<IsOrdered, TraitType.ORDERED> {}
+
+export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
+registerTraitClass(TraitType.ORDERED, IsOrdered);
+/* ==== DESTACK_GENERATED_END:TRAIT:50100 ==== */

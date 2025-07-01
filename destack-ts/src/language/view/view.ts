@@ -1,6 +1,7 @@
 import type {
   HasName,
   IsDeletable,
+  IsExtensible,
   IsOrdered,
   IsScriptable,
   IsSpatial,
@@ -22,7 +23,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export abstract class View
   extends Entity
-  implements IsSpatial, HasName, IsOrdered, IsTaggable, IsScriptable, IsDeletable
+  implements IsSpatial, HasName, IsOrdered, IsTaggable, IsScriptable, IsExtensible, IsDeletable
 {
   static metatype: NodeType = NodeType.VIEW;
 

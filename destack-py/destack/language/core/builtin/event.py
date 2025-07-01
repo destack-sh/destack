@@ -6,7 +6,7 @@ from .const import UNSET
 from .entity import Entity
 from .node import Node, NodeType, builtin_node
 from .property import property_
-from .trait import HasName, IsSourceable, IsSpatial
+from .trait import HasName, IsCustomizable, IsExtensible, IsSourceable, IsSpatial
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
         EditType,
         IsSubject,
         Metric,
+        NodeDefinitionReference,
         NodeReference,
         PropertyReference,
         Value,
@@ -48,15 +49,25 @@ class Event[N: Node = Node](IsSpatial, Node):
 
 
 @builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
-class CustomEventDefinition(IsSpatial, HasName, IsSourceable, Entity):
-    """A CustomEventDefinition defines a kind of CustomEvent."""
+class CustomEventDefinition(
+    IsSpatial,
+    HasName,
+    IsSourceable,
+    IsCustomizable,
+    Entity,
+):
+    """A CustomEventDefinition defines a kind of CustomEvent with custom Properties."""
 
-    pass
+    prototype: Optional["CustomEvent"] = property_(
+        40,
+        description="A custom Event's prototype is the default template new CustomEvent instances are based on.",
+    )
+    base_type: Optional["NodeDefinitionReference"] = property_(41)
 
 
 @builtin_node(NodeType.CUSTOM_EVENT, pretend_frozen=True, is_abstract=True)
-class CustomEvent(Event):
-    """An instance of a CustomEventDefinition."""
+class CustomEvent(Event, IsCustomizable, IsExtensible):
+    """A CustomEvent is an instance of a CustomEventDefinition."""
 
     definition: "CustomEventDefinition" = property_(
         40, description="The CustomEventDefinition this CustomEvent is an instance of."
