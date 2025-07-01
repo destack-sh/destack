@@ -1,7 +1,8 @@
-import { NodeType, TraitType } from "@destack/language/core/builtin/common";
+import { NodeType, StructType, TraitType } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import { NodeDefinitionReference, NodeReference } from "@destack/language/core/builtin/relation";
+import { isStruct } from "@destack/language/core/builtin/struct";
 import { INTER_ORDER_TYPES, IsOrdered, IsSpatial } from "@destack/language/core/builtin/trait";
 import type { TraitClass } from "@destack/language/core/builtin/trait_class";
 import {
@@ -506,7 +507,12 @@ export type NodeClass<N extends Node = Node> = (NodeConstructor<N> | AbstractNod
 
 /** Check if a value is a Node of a specific type. */
 export function isNode<T extends NodeType>(value: any, nodeType?: T): value is NodeTypeMapping[T] {
-  return value instanceof Node && (nodeType === undefined || value.metatype === nodeType);
+  return (
+    value instanceof Node &&
+    (nodeType == null ||
+      value.metatype === nodeType ||
+      value.__definition__.extends.includes(nodeType))
+  );
 }
 
 /** Check if a value is a Node with a specific trait. */
@@ -525,7 +531,7 @@ export type WithSubqueries<T, Q = Query> = T & {
 export function toSubqueries(subqueries: WithSubqueries<Record<string, any>>): Query[] {
   const queries: Query[] = [];
   for (const [name, subquery] of Object.entries(subqueries)) {
-    if (!(subquery instanceof Query)) {
+    if (!isStruct(subquery, StructType.QUERY)) {
       continue;
     }
     if (subquery.join === undefined) {

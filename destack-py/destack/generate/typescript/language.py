@@ -389,8 +389,8 @@ super(
         # convert node to node reference
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             body_parts.append(f"""\
-if (_{ts_name_in} != null && _{ts_name_in} instanceof Node) {{
-    _{ts_name_in} = _{ts_name_in}.toRef();
+if (_{ts_name_in} != null && _{ts_name_in}.metatype != StructType.NODE_REFERENCE) {{
+    _{ts_name_in} = (_{ts_name_in} as Node).toRef();
 }}""")
         # init non-scalars if unset
         if prop.cardinality == TypeCardinality.LIST:
@@ -455,9 +455,9 @@ if (options.id == null) {
     throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
   }
   this.createdAt = options.createdAt;
-  this.createdByPtr = options.createdBy != null ? (options.createdBy instanceof Node ? options.createdBy.toRef() : options.createdBy) : null;
+  this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
   this.updatedAt = options.updatedAt; 
-  this.updatedByPtr = options.updatedBy != null ? (options.updatedBy instanceof Node ? options.updatedBy.toRef() : options.updatedBy) : null;
+  this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
 }
 """
         elif issubclass(cls, Event):
@@ -471,7 +471,7 @@ if (options.id == null) {
     throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
   }
   this.createdAt = options.createdAt;
-  this.createdByPtr = options.createdBy != null ? (options.createdBy instanceof Node ? options.createdBy.toRef() : options.createdBy) : null;
+  this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
 }
 """
         else:
@@ -1608,13 +1608,13 @@ def _generate_file(
         "activeSession",
     }
     value_dependencies.update(("ACTIVE_SESSION", "activeSession"))
-    language_imports_by_module["core.builtin.node"] = {"Node", "NodeClass"}
-    value_dependencies.add("Node")
+    language_imports_by_module["core.builtin.node"] = {"Node", "NodeClass", "isNode", "hasTrait"}
+    value_dependencies.update(("Node", "isNode", "hasTrait"))
     language_imports_by_module["core.builtin.trait_class"] = {"TraitClass"}
     language_imports_by_module["core.builtin.object"] = {"BuiltinObject"}
     value_dependencies.add("BuiltinObject")
-    language_imports_by_module["core.builtin.struct"] = {"Struct", "StructFrozen"}
-    value_dependencies.update(("Struct", "StructFrozen"))
+    language_imports_by_module["core.builtin.struct"] = {"Struct", "StructFrozen", "isStruct"}
+    value_dependencies.update(("Struct", "StructFrozen", "isStruct"))
     language_imports_by_module["registry"] = {
         "registerNodeClass",
         "registerStructClass",

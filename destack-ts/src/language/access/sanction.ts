@@ -248,26 +248,26 @@ export class SanctionRequestedEvent extends SanctionEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`SanctionRequestedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`SanctionRequestedEvent.target is required`);
@@ -286,9 +286,9 @@ export class SanctionRequestedEvent extends SanctionEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -672,26 +672,26 @@ export class SanctionGrantedEvent extends SanctionEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`SanctionGrantedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`SanctionGrantedEvent.target is required`);
@@ -710,9 +710,9 @@ export class SanctionGrantedEvent extends SanctionEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1096,26 +1096,26 @@ export class SanctionRevokedEvent extends SanctionEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`SanctionRevokedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`SanctionRevokedEvent.target is required`);
@@ -1134,9 +1134,9 @@ export class SanctionRevokedEvent extends SanctionEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1520,26 +1520,26 @@ export class SanctionExpiredEvent extends SanctionEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`SanctionExpiredEvent.node is required`);
     }
     this.nodePtr = _node;
     let _target = options.target;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`SanctionExpiredEvent.target is required`);
@@ -1558,9 +1558,9 @@ export class SanctionExpiredEvent extends SanctionEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1965,13 +1965,13 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
@@ -1984,8 +1984,8 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     let _expiresAt = options.expiresAt ?? null;
     this.expiresAt = _expiresAt;
     let _target = options.target;
-    if (_target != null && _target instanceof Node) {
-      _target = _target.toRef();
+    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+      _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`Sanction.target is required`);
@@ -2008,16 +2008,16 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }

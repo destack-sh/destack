@@ -206,8 +206,8 @@ export class Edit extends StructFrozen {
     let _operation = options.operation ?? null;
     this.operation = _operation;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`Edit.node is required`);
@@ -216,8 +216,8 @@ export class Edit extends StructFrozen {
     let _propPtr = options.propPtr ?? null;
     this.propPtr = _propPtr;
     let _field = options.field ?? null;
-    if (_field != null && _field instanceof Node) {
-      _field = _field.toRef();
+    if (_field != null && _field.metatype != StructType.NODE_REFERENCE) {
+      _field = (_field as Node).toRef();
     }
     this.fieldPtr = _field;
     let _key = options.key ?? null;
@@ -650,8 +650,8 @@ export class Change extends StructFrozen {
     }
     this.createdAt = _createdAt;
     let _createdBy = options.createdBy ?? null;
-    if (_createdBy != null && _createdBy instanceof Node) {
-      _createdBy = _createdBy.toRef();
+    if (_createdBy != null && _createdBy.metatype != StructType.NODE_REFERENCE) {
+      _createdBy = (_createdBy as Node).toRef();
     }
     this.createdByPtr = _createdBy;
     let _origin = options.origin ?? null;

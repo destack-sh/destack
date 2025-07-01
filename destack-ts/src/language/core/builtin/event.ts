@@ -271,13 +271,13 @@ export class CustomEventDefinition
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _value = options.value ?? null;
@@ -299,15 +299,15 @@ export class CustomEventDefinition
     }
     this.name = _name;
     let _prototype = options.prototype ?? null;
-    if (_prototype != null && _prototype instanceof Node) {
-      _prototype = _prototype.toRef();
+    if (_prototype != null && _prototype.metatype != StructType.NODE_REFERENCE) {
+      _prototype = (_prototype as Node).toRef();
     }
     this.prototypePtr = _prototype;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
     let _source = options.source ?? null;
-    if (_source != null && _source instanceof Node) {
-      _source = _source.toRef();
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
 
@@ -327,16 +327,16 @@ export class CustomEventDefinition
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }
@@ -1088,13 +1088,13 @@ export class EditEvent extends Event {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _type = options.type;
@@ -1105,8 +1105,8 @@ export class EditEvent extends Event {
     let _operation = options.operation ?? null;
     this.operation = _operation;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`EditEvent.node is required`);
@@ -1115,8 +1115,8 @@ export class EditEvent extends Event {
     let _propPtr = options.propPtr ?? null;
     this.propPtr = _propPtr;
     let _field = options.field ?? null;
-    if (_field != null && _field instanceof Node) {
-      _field = _field.toRef();
+    if (_field != null && _field.metatype != StructType.NODE_REFERENCE) {
+      _field = (_field as Node).toRef();
     }
     this.fieldPtr = _field;
     let _key = options.key ?? null;
@@ -1136,9 +1136,9 @@ export class EditEvent extends Event {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }

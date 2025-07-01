@@ -7,7 +7,7 @@ import {
   StructType,
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
-import { Node } from "@destack/language/core/builtin/node";
+import { isNode } from "@destack/language/core/builtin/node";
 import { BuiltinObject } from "@destack/language/core/builtin/object";
 import { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
@@ -44,12 +44,10 @@ export function toValue(
   }
   // coerce nodes into node references
   if (type.scalarType == ScalarType.NODE_REFERENCE) {
-    if (type.cardinality == TypeCardinality.SCALAR && valueUnpacked instanceof Node) {
+    if (type.cardinality == TypeCardinality.SCALAR && isNode(valueUnpacked)) {
       valueUnpacked = valueUnpacked.toRef();
     } else if (type.cardinality == TypeCardinality.LIST) {
-      valueUnpacked = valueUnpacked.map((item: any) =>
-        item instanceof Node ? item.toRef() : item,
-      );
+      valueUnpacked = valueUnpacked.map((item: any) => (isNode(item) ? item.toRef() : item));
     }
   }
   // pack value

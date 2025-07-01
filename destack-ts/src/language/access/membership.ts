@@ -304,42 +304,42 @@ export class MembershipJoinedEvent extends MembershipEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`MembershipJoinedEvent.node is required`);
     }
     this.nodePtr = _node;
     let _joinable = options.joinable;
-    if (_joinable != null && _joinable instanceof Node) {
-      _joinable = _joinable.toRef();
+    if (_joinable != null && _joinable.metatype != StructType.NODE_REFERENCE) {
+      _joinable = (_joinable as Node).toRef();
     }
     if (_joinable === null) {
       throw new Error(`MembershipJoinedEvent.joinable is required`);
     }
     this.joinablePtr = _joinable;
     let _member = options.member;
-    if (_member != null && _member instanceof Node) {
-      _member = _member.toRef();
+    if (_member != null && _member.metatype != StructType.NODE_REFERENCE) {
+      _member = (_member as Node).toRef();
     }
     if (_member === null) {
       throw new Error(`MembershipJoinedEvent.member is required`);
     }
     this.memberPtr = _member;
     let _role = options.role;
-    if (_role != null && _role instanceof Node) {
-      _role = _role.toRef();
+    if (_role != null && _role.metatype != StructType.NODE_REFERENCE) {
+      _role = (_role as Node).toRef();
     }
     if (_role === null) {
       throw new Error(`MembershipJoinedEvent.role is required`);
@@ -363,9 +363,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -807,34 +807,34 @@ export class MembershipLeftEvent extends MembershipEvent {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _node = options.node;
-    if (_node != null && _node instanceof Node) {
-      _node = _node.toRef();
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`MembershipLeftEvent.node is required`);
     }
     this.nodePtr = _node;
     let _joinable = options.joinable;
-    if (_joinable != null && _joinable instanceof Node) {
-      _joinable = _joinable.toRef();
+    if (_joinable != null && _joinable.metatype != StructType.NODE_REFERENCE) {
+      _joinable = (_joinable as Node).toRef();
     }
     if (_joinable === null) {
       throw new Error(`MembershipLeftEvent.joinable is required`);
     }
     this.joinablePtr = _joinable;
     let _member = options.member;
-    if (_member != null && _member instanceof Node) {
-      _member = _member.toRef();
+    if (_member != null && _member.metatype != StructType.NODE_REFERENCE) {
+      _member = (_member as Node).toRef();
     }
     if (_member === null) {
       throw new Error(`MembershipLeftEvent.member is required`);
@@ -853,9 +853,9 @@ export class MembershipLeftEvent extends MembershipEvent {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
     }
   }
@@ -1314,33 +1314,33 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy instanceof Node) {
-      _ownedBy = _ownedBy.toRef();
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
     this.ownedByPtr = _ownedBy;
     let _member = options.member;
-    if (_member != null && _member instanceof Node) {
-      _member = _member.toRef();
+    if (_member != null && _member.metatype != StructType.NODE_REFERENCE) {
+      _member = (_member as Node).toRef();
     }
     if (_member === null) {
       throw new Error(`Membership.member is required`);
     }
     this.memberPtr = _member;
     let _role = options.role ?? null;
-    if (_role != null && _role instanceof Node) {
-      _role = _role.toRef();
+    if (_role != null && _role.metatype != StructType.NODE_REFERENCE) {
+      _role = (_role as Node).toRef();
     }
     this.rolePtr = _role;
     let _roleType = options.roleType ?? null;
@@ -1362,16 +1362,16 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }

@@ -187,8 +187,8 @@ export class Organization
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _name = options.name;
@@ -212,16 +212,16 @@ export class Organization
     }
     this.status = _status;
     let _space = options.space;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     if (_space === null) {
       throw new Error(`Organization.space is required`);
     }
     this.spacePtr = _space;
     let _handle = options.handle ?? null;
-    if (_handle != null && _handle instanceof Node) {
-      _handle = _handle.toRef();
+    if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
+      _handle = (_handle as Node).toRef();
     }
     this.handlePtr = _handle;
 
@@ -241,16 +241,16 @@ export class Organization
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }

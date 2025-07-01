@@ -265,13 +265,13 @@ export class FillStyle extends Style {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
@@ -299,8 +299,8 @@ export class FillStyle extends Style {
     let _gradient = options.gradient ?? null;
     this.gradient = _gradient;
     let _image = options.image ?? null;
-    if (_image != null && _image instanceof Node) {
-      _image = _image.toRef();
+    if (_image != null && _image.metatype != StructType.NODE_REFERENCE) {
+      _image = (_image as Node).toRef();
     }
     this.imagePtr = _image;
     let _position = options.position ?? null;
@@ -324,16 +324,16 @@ export class FillStyle extends Style {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }
@@ -844,8 +844,8 @@ export class Fill extends StructFrozen {
     }
     this.type = _type;
     let _style = options.style ?? null;
-    if (_style != null && _style instanceof Node) {
-      _style = _style.toRef();
+    if (_style != null && _style.metatype != StructType.NODE_REFERENCE) {
+      _style = (_style as Node).toRef();
     }
     this.stylePtr = _style;
     let _color = options.color ?? null;
@@ -853,8 +853,8 @@ export class Fill extends StructFrozen {
     let _gradient = options.gradient ?? null;
     this.gradient = _gradient;
     let _image = options.image ?? null;
-    if (_image != null && _image instanceof Node) {
-      _image = _image.toRef();
+    if (_image != null && _image.metatype != StructType.NODE_REFERENCE) {
+      _image = (_image as Node).toRef();
     }
     this.imagePtr = _image;
     let _position = options.position ?? null;

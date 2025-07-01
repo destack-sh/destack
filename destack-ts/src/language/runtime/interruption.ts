@@ -276,13 +276,13 @@ export class Interruption extends Entity implements IsSpatial {
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent instanceof Node) {
-      _parent = _parent.toRef();
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
     let _space = options.space ?? null;
-    if (_space != null && _space instanceof Node) {
-      _space = _space.toRef();
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
     let _type = options.type;
@@ -291,13 +291,13 @@ export class Interruption extends Entity implements IsSpatial {
     }
     this.type = _type;
     let _runnable = options.runnable ?? null;
-    if (_runnable != null && _runnable instanceof Node) {
-      _runnable = _runnable.toRef();
+    if (_runnable != null && _runnable.metatype != StructType.NODE_REFERENCE) {
+      _runnable = (_runnable as Node).toRef();
     }
     this.runnablePtr = _runnable;
     let _span = options.span ?? null;
-    if (_span != null && _span instanceof Node) {
-      _span = _span.toRef();
+    if (_span != null && _span.metatype != StructType.NODE_REFERENCE) {
+      _span = (_span as Node).toRef();
     }
     this.spanPtr = _span;
     let _status = options.status ?? null;
@@ -315,8 +315,8 @@ export class Interruption extends Entity implements IsSpatial {
     let _response = options.response ?? null;
     this.response = _response;
     let _message = options.message ?? null;
-    if (_message != null && _message instanceof Node) {
-      _message = _message.toRef();
+    if (_message != null && _message.metatype != StructType.NODE_REFERENCE) {
+      _message = (_message as Node).toRef();
     }
     this.messagePtr = _message;
 
@@ -336,16 +336,16 @@ export class Interruption extends Entity implements IsSpatial {
       this.createdAt = options.createdAt;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy instanceof Node
-            ? options.createdBy.toRef()
-            : options.createdBy
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy instanceof Node
-            ? options.updatedBy.toRef()
-            : options.updatedBy
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
           : null;
     }
   }
