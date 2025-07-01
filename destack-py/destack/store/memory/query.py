@@ -391,10 +391,11 @@ def _query_node(
     sort: Sequence[Sort] | None,
     limit: int | None,
     offset: int | None,
+    _ignore_multi: bool = False,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
     # handle multi-definitions
-    if definition.type == NodeDefinitionType.BUILTIN_TRAIT:
+    if definition.is_multi and not _ignore_multi:
         # fan out trait definitions
         if limit is not None or offset is not None:
             raise NotImplementedError(f"cannot limit/offset for multi definition: {definition!r}")
@@ -410,6 +411,7 @@ def _query_node(
                 sort=sort,
                 limit=limit,
                 offset=offset,
+                _ignore_multi=True,
             )
             all_values.extend(values)
             all_ptrs.extend(ptrs)

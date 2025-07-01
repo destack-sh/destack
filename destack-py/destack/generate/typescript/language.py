@@ -33,7 +33,7 @@ from destack.language import (
     TypeCardinality,
     TypeDeclaration,
     Value,
-    get_node_types,
+    expand_node_types,
 )
 from destack.language.registry import (
     CONSTANT_DEFINITIONS,
@@ -110,7 +110,7 @@ def _generate_property_scalar_type(prop: TypeDeclaration, as_ptr: bool = True) -
         if as_ptr:
             return "NodeReference"
         else:
-            resolved_node_types = get_node_types(prop.node_types)
+            resolved_node_types = expand_node_types(prop.node_types)
             if not resolved_node_types or len(resolved_node_types) == len(NodeType):
                 return "Node"
             node_classes: list[str] = []

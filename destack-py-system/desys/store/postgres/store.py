@@ -164,8 +164,21 @@ class PostgresStoreContext(PostgresContext):
 
     @override
     def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
-        if definition.type in (NodeDefinitionType.BUILTIN_NODE, NodeDefinitionType.CUSTOM_NODE):
-            return (definition,)
+        if definition.type == NodeDefinitionType.BUILTIN_NODE:
+            assert definition.node_type is not None, f"no node_type for {definition!r}"
+            node_cls = NODE_CLASS_BY_TYPE[definition.node_type]
+            if not node_cls.__inherited_by__:
+                return (definition,)
+            subdefinitions: list[NodeDefinitionReference] = []
+            for node_type in node_cls.__inherited_by__:
+                subdefinitions.append(
+                    NODE_DEFINITION_REFERENCE_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]]
+                )
+            if not node_cls.__is_abstract__:
+                subdefinitions.append(definition)
+            return tuple(subdefinitions)
+        elif definition.type == NodeDefinitionType.CUSTOM_NODE:
+            raise NotImplementedError(f"cannot resolve {definition!r}")
         elif definition.type == NodeDefinitionType.BUILTIN_TRAIT:
             assert definition.trait_type is not None, f"no trait_type for {definition!r}"
             node_types = NODE_TYPES_BY_TRAIT_TYPE.get(definition.trait_type, ())

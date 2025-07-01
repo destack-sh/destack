@@ -3,6 +3,7 @@ from collections.abc import Collection, Sequence
 from typing import (
     TYPE_CHECKING,
     Optional,
+    assert_never,
     final,
     override,
 )
@@ -14,7 +15,6 @@ from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     NODE_TYPE_BY_CLASS,
     NODE_TYPES_BY_TRAIT_TYPE,
-    TRAIT_CLASS_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
 )
 from destack.utils.fractional import INTEGER_ZERO
@@ -300,7 +300,7 @@ class PolyGraph(Graph):
     def get_roots[N: Node = Node](
         self, node_type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
-        node_types = get_node_types(node_type)
+        node_types = expand_node_types(node_type)
         if node_types is None:
             roots = tuple(
                 node
@@ -321,7 +321,7 @@ class PolyGraph(Graph):
         self, node_type: NodeType | TraitType | type[N] | None = None, node: "Node | None" = None
     ) -> Sequence[N]:
         if node is None:
-            node_types = get_node_types(node_type)
+            node_types = expand_node_types(node_type)
             if node_types is None:
                 leaves = tuple(node for node in self.nodes if not self.nodes_by_parent.get(node.id))
             else:
@@ -362,22 +362,10 @@ class PolyGraph(Graph):
             return children
         else:
             # turn into type
-            node_cls: type_[Node]
-            node_types: tuple[NodeType, ...]
-            if isinstance(type, type_):
-                if node_t := NODE_TYPE_BY_CLASS.get(type):
-                    node_cls = type
-                    node_types = (node_t,)
-                else:
-                    node_cls = type
-                    node_types = NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[type]]  # type: ignore
-            else:
-                if isinstance(type, NodeType):
-                    node_cls = NODE_CLASS_BY_TYPE[type]
-                    node_types = (type,)
-                else:
-                    node_cls = TRAIT_CLASS_BY_TYPE[type]  # type: ignore
-                    node_types = NODE_TYPES_BY_TRAIT_TYPE[type]
+            node_types = expand_node_types(type, expand_inheritance=True)
+            if not node_types:
+                return ()
+            node_cls = NODE_CLASS_BY_TYPE[node_types[0]]
 
             # collect
             if len(node_types) == 1:
@@ -403,7 +391,7 @@ class PolyGraph(Graph):
         current = node.parent_ptr
 
         # collect node types to filter by
-        node_types = get_node_types(type)
+        node_types = expand_node_types(type, expand_inheritance=True)
 
         # traverse up the parent chain
         while current is not None:
@@ -429,7 +417,7 @@ class PolyGraph(Graph):
         descendants: list[Node] = []
 
         # collect
-        node_types = get_node_types(type)
+        node_types = expand_node_types(type, expand_inheritance=True)
         while queue:
             current = queue.pop(0)
             children_by_type = self.nodes_by_parent.get(current.id)
@@ -517,17 +505,54 @@ class Supergraph:
         return node
 
 
-def get_node_types(
+def expand_node_traits(types: Collection[NodeType | TraitType]) -> tuple[NodeType, ...]:
+    """
+    Expand a collection of NodeTypes and Traits into a flat collection of NodeTypes.
+    """
+    node_types: set[NodeType] = set()
+    for typ in types:
+        if isinstance(typ, NodeType):
+            node_types.add(typ)
+        elif isinstance(typ, TraitType):
+            node_types.update(NODE_TYPES_BY_TRAIT_TYPE.get(typ, ()))
+        else:
+            assert_never(typ)
+    return tuple(node_types)
+
+
+def expand_node_inheritance(types: Collection[NodeType | TraitType]) -> tuple[NodeType, ...]:
+    """
+    Expand a collection of NodeTypes and Traits into a flat collection of NodeTypes.
+    """
+    node_types: set[NodeType] = set()
+    for typ in types:
+        if isinstance(typ, NodeType):
+            node_cls = NODE_CLASS_BY_TYPE[typ]
+            if node_cls.__is_abstract__:
+                node_types.update(node_cls.__inherited_by__)
+            else:
+                node_types.add(typ)
+        elif isinstance(typ, TraitType):
+            node_types.update(NODE_TYPES_BY_TRAIT_TYPE.get(typ, ()))
+        else:
+            assert_never(typ)
+    return tuple(node_types)
+
+
+def expand_node_types(
     node_type: "NodeType | TraitType | Collection[NodeType | TraitType] | type[Node] | None",
-) -> Sequence["NodeType"] | None:
+    expand_inheritance: bool = True,
+) -> Sequence["NodeType"]:
     """Resolve the NodeTypes for a NodeType, TraitType, or Node class."""
     if node_type is None:
-        return None
-    elif isinstance(node_type, type):
+        return ()
+
+    node_types: Sequence[NodeType] = []
+    if isinstance(node_type, type):
         if node_t := NODE_TYPE_BY_CLASS.get(node_type):
-            return (node_t,)
+            node_types.append(node_t)
         else:
-            return NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[node_type]]  # type: ignore
+            node_types.extend(NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[node_type]])  # type: ignore
     elif isinstance(node_type, Collection):
         node_types = []
         for t in node_type:
@@ -535,9 +560,13 @@ def get_node_types(
                 node_types.append(t)
             else:
                 node_types.extend(NODE_TYPES_BY_TRAIT_TYPE[t])
-        return node_types
     else:
         if isinstance(node_type, NodeType):
-            return (node_type,)
+            node_types.append(node_type)
         else:
-            return NODE_TYPES_BY_TRAIT_TYPE[node_type]
+            node_types.extend(NODE_TYPES_BY_TRAIT_TYPE[node_type])
+
+    if expand_inheritance:
+        node_types = expand_node_inheritance(node_types)
+
+    return node_types

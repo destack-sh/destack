@@ -9,7 +9,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:90100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90301 ==== */
 /**
  * A Span is a trace inside a Run.
  */
@@ -250,7 +250,7 @@ export class SpanEvent extends Event {
 
   static __packValue__(object: SpanEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 90100;
+    objectValue["1"] = 90301;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -325,7 +325,7 @@ export class SpanEvent extends Event {
   }
 
   static __packProto__(object: SpanEvent): SpanEventProto {
-    const objectProto: Partial<SpanEventProto> = { metatype: 90100 };
+    const objectProto: Partial<SpanEventProto> = { metatype: 90301 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -422,4 +422,4 @@ export class SpanEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPAN_EVENT, SpanEvent);
-/* ==== DESTACK_GENERATED_END:NODE:90100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90301 ==== */

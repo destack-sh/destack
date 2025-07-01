@@ -21,6 +21,7 @@ from destack.language import (
     NodeReference,
     NodeType,
     PropertyReference,
+    PropertyReferenceType,
     Query,
     QueryResult,
     QueryResultGroup,
@@ -31,7 +32,6 @@ from destack.language import (
     Value,
     to_value,
 )
-from destack.language.core.builtin.relation import PropertyReferenceType
 from destack.utils.uuid import UUID
 
 from .core import PostgresContext
@@ -429,9 +429,10 @@ async def _query_node(
     sort: Sequence[Sort] | None,
     limit: int | None,
     offset: int | None,
+    _ignore_multi: bool = False,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
-    if definition.is_multi:
+    if definition.is_multi and not _ignore_multi:
         # fan out multi definitions
         if limit is not None or offset is not None:
             raise NotImplementedError(f"cannot limit/offset for multi definition: {definition!r}")
@@ -448,6 +449,7 @@ async def _query_node(
                 sort=sort,
                 limit=limit,
                 offset=offset,
+                _ignore_multi=True,
             )
             nodes_value.extend(subnodes_value)
             nodes_ptr.extend(subnodes_ptr)
