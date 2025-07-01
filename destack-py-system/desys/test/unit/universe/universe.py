@@ -43,7 +43,7 @@ async def universe(universe_service):
         yield UniverseClient(channel=channel)
 
 
-async def test_user_registration(destack: UniverseClient):
+async def test_user_signup_login_logout(universe: UniverseClient):
     """Create a User, login and logout. Try some wrong passwords and tokens. Read back data to confirm."""
 
     user_slug = "florian"
@@ -68,17 +68,17 @@ async def test_user_registration(destack: UniverseClient):
         password="Password123!",
         region=proto.RegionProto.REGION_ZURICH,
     )
-    signup_rep = await destack.signup_user(signup_req)
+    signup_rep = await universe.signup_user(signup_req)
     assert signup_rep.user.slug == user_slug
 
     # login, wrong password -> fail
     login_req = LoginUserRequest(slug=user_slug, password="321Password!!!", client=client_in)
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
-        _ = await destack.login_user(login_req)
+        _ = await universe.login_user(login_req)
 
     # login, correct password -> success
     login_req = LoginUserRequest(slug=user_slug, password="Password123!", client=client_in)
-    login_rep = await destack.login_user(login_req)
+    login_rep = await universe.login_user(login_req)
     assert login_rep.access_token
     access_metadata = RpcMetadata(
         client_id=login_rep.client.id, client_access_token=login_rep.access_token
@@ -90,7 +90,7 @@ async def test_user_registration(destack: UniverseClient):
         bad_access_metadata = access_metadata.__deepcopy__()
         bad_access_metadata.client_access_token = "bad"
         bad_access_headers = pack_rpc_headers(bad_access_metadata)
-        _ = await destack.logout_user(LogoutUserRequest(), metadata=bad_access_headers)
+        _ = await universe.logout_user(LogoutUserRequest(), metadata=bad_access_headers)
 
     # logout, valid token -> success
-    _ = await destack.logout_user(LogoutUserRequest(), metadata=access_headers)
+    _ = await universe.logout_user(LogoutUserRequest(), metadata=access_headers)

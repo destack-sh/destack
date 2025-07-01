@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 class Store(abc.ABC):
     """
     The read/write Store backing (part of) the Supergraph.
-    Could be a primary or secondary Storage from Databases or search or whatever.
     Some Stores only support a subset of Edits.
     """
 

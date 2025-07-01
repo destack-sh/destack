@@ -1,5 +1,6 @@
 import { ACTIVE_SESSION, Session } from "destack";
 import Canvas from "./Canvas";
+import React from "react";
 
 const session = new Session({});
 ACTIVE_SESSION.set(session);

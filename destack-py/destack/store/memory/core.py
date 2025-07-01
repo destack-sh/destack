@@ -4,6 +4,7 @@ from typing import Any, assert_never
 
 from destack.language import (
     CustomEntityDefinition,
+    CustomEventDefinition,
     Edit,
     NodeDefinitionReference,
     NodeDefinitionType,
@@ -124,7 +125,7 @@ class MemoryTable:
         self,
         database: "MemoryDatabase",
         metatype: NodeType,
-        definition: CustomEntityDefinition | None,
+        definition: CustomEntityDefinition | CustomEventDefinition | None,
     ):
         self.database = database
         self.node_type = metatype
