@@ -118,7 +118,10 @@ class PostgresStore(Store):
                         self.context.apply(edits)
                 except Exception as e:
                     logger.error(
-                        "postgres.commit.change.error", change=change, exc_info=e, span="current"
+                        "postgres.commit.change.error",
+                        change=change,
+                        exc_info=e,
+                        span="current",
                     )
                     result = ChangeResult(id=change.id, status=ChangeStatus.FAILED)
                 results.append(result)
@@ -170,12 +173,12 @@ class PostgresStoreContext(PostgresContext):
             if not node_cls.__inherited_by__:
                 return (definition,)
             subdefinitions: list[NodeDefinitionReference] = []
-            for node_type in node_cls.__inherited_by__:
-                subdefinitions.append(
-                    NODE_DEFINITION_REFERENCE_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]]
-                )
             if not node_cls.__is_abstract__:
                 subdefinitions.append(definition)
+            for subnode_type in node_cls.__inherited_by__:
+                subnode_cls = NODE_CLASS_BY_TYPE[subnode_type]
+                if not subnode_cls.__is_abstract__:
+                    subdefinitions.append(NODE_DEFINITION_REFERENCE_BY_CLASS[subnode_cls])
             return tuple(subdefinitions)
         elif definition.type == NodeDefinitionType.CUSTOM_NODE:
             raise NotImplementedError(f"cannot resolve {definition!r}")
@@ -183,8 +186,9 @@ class PostgresStoreContext(PostgresContext):
             assert definition.trait_type is not None, f"no trait_type for {definition!r}"
             node_types = NODE_TYPES_BY_TRAIT_TYPE.get(definition.trait_type, ())
             return tuple(
-                NODE_DEFINITION_REFERENCE_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]]
+                NODE_DEFINITION_REFERENCE_BY_CLASS[node_cls]
                 for node_type in node_types
+                if not (node_cls := NODE_CLASS_BY_TYPE[node_type]).__is_abstract__
             )
         elif definition.type == NodeDefinitionType.CUSTOM_TRAIT:
             raise NotImplementedError(f"cannot resolve {definition!r}")

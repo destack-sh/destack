@@ -389,8 +389,6 @@ class PolyGraph(Graph):
     ) -> Sequence[N]:
         ancestors: list[Node] = []
         current = node.parent_ptr
-
-        # collect node types to filter by
         node_types = expand_node_types(type, expand_inheritance=True)
 
         # traverse up the parent chain
@@ -415,9 +413,9 @@ class PolyGraph(Graph):
 
         queue: list[Node] = [node]
         descendants: list[Node] = []
-
-        # collect
         node_types = expand_node_types(type, expand_inheritance=True)
+
+        # BFS
         while queue:
             current = queue.pop(0)
             children_by_type = self.nodes_by_parent.get(current.id)
@@ -426,8 +424,7 @@ class PolyGraph(Graph):
             for children_of_type in children_by_type.values():
                 queue.extend(children_of_type)
 
-            # collect level
-            if node_types is None:
+            if not node_types:
                 for children_of_type in children_by_type.values():
                     descendants.extend(children_of_type)
             else:

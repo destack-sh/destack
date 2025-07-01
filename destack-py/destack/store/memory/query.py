@@ -394,9 +394,8 @@ def _query_node(
     _ignore_multi: bool = False,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
-    # handle multi-definitions
+    # fan out trait definitions
     if definition.is_multi and not _ignore_multi:
-        # fan out trait definitions
         if limit is not None or offset is not None:
             raise NotImplementedError(f"cannot limit/offset for multi definition: {definition!r}")
         definitions = context.resolve(definition)

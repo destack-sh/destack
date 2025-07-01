@@ -900,7 +900,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         is_computed=True,  # is set statically by class decorator
         is_wired=True,
         is_stored=False,
-        primitive_type=PrimitiveType.INT16,
+        primitive_type=PrimitiveType.INT32,
         enum_type=EnumType.NODE_TYPE if is_node else EnumType.STRUCT_TYPE,
         component=cls,
     )

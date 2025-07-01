@@ -67,7 +67,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
             if prop.node_has_type:
                 node_type_column = PostgresColumn(
                     name=f"{prop.name}_type",
-                    type=PrimitiveType.INT16,
+                    type=PrimitiveType.INT32,
                     is_nullable=prop.is_optional,
                     prop=prop,
                 )
