@@ -32,7 +32,7 @@ class Route(
 ):
     """A Route is a path to a Scene."""
 
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Folder"] = property_parent_(node_is_extensible=False)
     scene: Optional["Scene"] = property_(
         40,
         description="The Scene to route to.",

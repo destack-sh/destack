@@ -16,7 +16,7 @@ import {
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import type { Theme } from "@destack/language/style";
+import type { Palette, Theme } from "@destack/language/style";
 import { Style } from "@destack/language/style";
 import type { View } from "@destack/language/view";
 import {
@@ -31,7 +31,7 @@ import { base64Decode } from "@destack/utils";
 import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:270200 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:270300 ==== */
 /**
  * A color value.
  */
@@ -288,7 +288,7 @@ export class Color extends StructFrozen {
 
   static __packValue__(object: Color): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270200;
+    objectValue["1"] = 270300;
     objectValue["30"] = object.type;
     if (object.stylePtr != null) {
       objectValue["42"] = object.stylePtr.toValue();
@@ -377,7 +377,7 @@ export class Color extends StructFrozen {
   }
 
   static __packProto__(object: Color): ColorProto {
-    const objectProto: Partial<ColorProto> = { metatype: 270200 };
+    const objectProto: Partial<ColorProto> = { metatype: 270300 };
     objectProto.type = Number(object.type) as ColorTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -467,9 +467,9 @@ export class Color extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.COLOR, Color);
-/* ==== DESTACK_GENERATED_END:STRUCT:270200 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:270300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:270200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270300 ==== */
 /**
  * A color style, with an optional dark variant.
  */
@@ -479,10 +479,10 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.parent
    */
-  get parent(): Scene | View | Theme | null {
+  get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
   }
@@ -596,7 +596,7 @@ export class ColorStyle extends Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | View | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | Palette | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -893,7 +893,7 @@ export class ColorStyle extends Style {
 
   static __packValue__(object: ColorStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270200;
+    objectValue["1"] = 270300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1034,7 +1034,7 @@ export class ColorStyle extends Style {
   }
 
   static __packProto__(object: ColorStyle): ColorStyleProto {
-    const objectProto: Partial<ColorStyleProto> = { metatype: 270200 };
+    const objectProto: Partial<ColorStyleProto> = { metatype: 270300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1213,7 +1213,7 @@ export class ColorStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COLOR_STYLE, ColorStyle);
-/* ==== DESTACK_GENERATED_END:NODE:270200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270300 ==== */
 
 /** y-encoded sRGB → linear */
 function srgbToLinear(c: number): number {

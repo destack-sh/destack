@@ -34,7 +34,7 @@ class Script(
     """A Script."""
 
     parent: Union["Folder", IsScriptable, "Script", None] = property_parent_(
-        node_is_customizable=True
+        node_is_extensible=True
     )
     # type, language, code, ...
 

@@ -17,7 +17,7 @@ import {
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import type { Theme } from "@destack/language/style";
+import type { Palette, Theme } from "@destack/language/style";
 import { Color, Style } from "@destack/language/style";
 import type { View } from "@destack/language/view";
 import {
@@ -60,417 +60,7 @@ export enum ShadowPosition {
 registerEnumClass(EnumType.SHADOW_POSITION, ShadowPosition);
 /* ==== DESTACK_GENERATED_END:ENUM:270208 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:270204 ==== */
-/**
- * A shadow value.
- */
-export class Shadow extends StructFrozen {
-  static metatype: StructType = StructType.SHADOW;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Shadow.type
-   */
-  readonly type: ShadowType;
-
-  /**
-   * style
-   */
-  get style(): ShadowStyle | null {
-    const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as ShadowStyle | null;
-    }
-    return null;
-  }
-  readonly stylePtr: NodeReference | null;
-
-  /**
-   * Shadow.color
-   */
-  readonly color: Color | null;
-
-  /**
-   * Shadow.position
-   */
-  readonly position: ShadowPosition;
-
-  /**
-   * Shadow.offset
-   */
-  readonly offset: Axis2 | null;
-
-  /**
-   * Shadow.blur
-   */
-  readonly blur: number | null;
-
-  /**
-   * Shadow.spread
-   */
-  readonly spread: number | null;
-
-  /**
-   * Shadow.diffusion
-   */
-  readonly diffusion: number | null;
-
-  constructor(options: {
-    type?: ShadowType;
-    style?: ShadowStyle | NodeReference | null;
-    color?: Color | null;
-    position?: ShadowPosition;
-    offset?: Axis2 | null;
-    blur?: number | null;
-    spread?: number | null;
-    diffusion?: number | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type ?? null;
-    if (_type === null) {
-      _type = ShadowType.BOX;
-    }
-    if (_type === null) {
-      throw new Error(`Shadow.type is required`);
-    }
-    this.type = _type;
-    let _style = options.style ?? null;
-    if (_style != null && _style instanceof Node) {
-      _style = _style.toRef();
-    }
-    this.stylePtr = _style;
-    let _color = options.color ?? null;
-    this.color = _color;
-    let _position = options.position ?? null;
-    if (_position === null) {
-      _position = ShadowPosition.OUTSIDE;
-    }
-    if (_position === null) {
-      throw new Error(`Shadow.position is required`);
-    }
-    this.position = _position;
-    let _offset = options.offset ?? null;
-    this.offset = _offset;
-    let _blur = options.blur ?? null;
-    this.blur = _blur;
-    let _spread = options.spread ?? null;
-    this.spread = _spread;
-    let _diffusion = options.diffusion ?? null;
-    this.diffusion = _diffusion;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
-      return false;
-    }
-    if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
-    ) {
-      return false;
-    }
-    if (!(this.position === other.position)) {
-      return false;
-    }
-    if (
-      (this.offset == null) !== (other.offset == null) ||
-      (this.offset != null && !this.offset.equals(other.offset))
-    ) {
-      return false;
-    }
-    if (!(this.blur === other.blur)) {
-      return false;
-    }
-    if (!(this.spread === other.spread)) {
-      return false;
-    }
-    if (
-      (this.diffusion == null) !== (other.diffusion == null) ||
-      (this.diffusion != null &&
-        !(this.diffusion === other.diffusion || Math.abs(this.diffusion - other.diffusion) < 1e-10))
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${ShadowType[this.type]}`);
-      if (this.style !== null) {
-        propertyReprs.push(`style=${this.style?.repr()}`);
-      }
-      if (this.color !== null) {
-        propertyReprs.push(`color=${this.color.repr()}`);
-      }
-      propertyReprs.push(`position=${ShadowPosition[this.position]}`);
-      if (this.offset !== null) {
-        propertyReprs.push(`offset=${this.offset.repr()}`);
-      }
-      if (this.blur !== null) {
-        propertyReprs.push(`blur=${this.blur}`);
-      }
-      if (this.spread !== null) {
-        propertyReprs.push(`spread=${this.spread}`);
-      }
-      if (this.diffusion !== null) {
-        propertyReprs.push(`diffusion=${this.diffusion}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<Shadow ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
-      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
-    }
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
-    }
-    h = (h * 31 + this.position) & 0xffffffff;
-    if (this.offset !== null) {
-      h = (h * 31 + this.offset.hash()) & 0xffffffff;
-    }
-    if (this.blur !== null) {
-      h = (h * 31 + hashInt(this.blur)) & 0xffffffff;
-    }
-    if (this.spread !== null) {
-      h = (h * 31 + hashInt(this.spread)) & 0xffffffff;
-    }
-    if (this.diffusion !== null) {
-      h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Shadow.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Shadow): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270204;
-    objectValue["30"] = object.type;
-    if (object.stylePtr != null) {
-      objectValue["41"] = object.stylePtr.toValue();
-    }
-    if (object.color != null) {
-      objectValue["50"] = object.color.toValue();
-    }
-    objectValue["51"] = object.position;
-    if (object.offset != null) {
-      objectValue["52"] = object.offset.toValue();
-    }
-    if (object.blur != null) {
-      objectValue["53"] = object.blur;
-    }
-    if (object.spread != null) {
-      objectValue["54"] = object.spread;
-    }
-    if (object.diffusion != null) {
-      objectValue["55"] = object.diffusion;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Shadow {
-    const stylePtrValue = objectValue["41"];
-    const unpackedStylePtr =
-      stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const colorValue = objectValue["50"];
-    const unpackedColor =
-      colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const offsetValue = objectValue["52"];
-    const unpackedOffset =
-      offsetValue != undefined
-        ? Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const blurValue = objectValue["53"];
-    const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
-    const spreadValue = objectValue["54"];
-    const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
-    const diffusionValue = objectValue["55"];
-    const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
-    return new Shadow({
-      type: Number(objectValue["30"]),
-      style: unpackedStylePtr,
-      color: unpackedColor,
-      position: Number(objectValue["51"]),
-      offset: unpackedOffset,
-      blur: unpackedBlur,
-      spread: unpackedSpread,
-      diffusion: unpackedDiffusion,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Shadow {
-    return Shadow.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): ShadowProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Shadow.__packProto__(this);
-    }
-    return this._proto as ShadowProto;
-  }
-
-  static __packProto__(object: Shadow): ShadowProto {
-    const objectProto: Partial<ShadowProto> = { metatype: 270204 };
-    objectProto.type = Number(object.type) as ShadowTypeProto;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
-    }
-    objectProto.position = Number(object.position) as ShadowPositionProto;
-    if (object.offset != null) {
-      objectProto.offset = object.offset.toProto();
-    }
-    if (object.blur != null) {
-      objectProto.blur = object.blur;
-    }
-    if (object.spread != null) {
-      objectProto.spread = object.spread;
-    }
-    if (object.diffusion != null) {
-      objectProto.diffusion = object.diffusion;
-    }
-    return objectProto as ShadowProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ShadowProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Shadow {
-    return new Shadow({
-      type: Number(objectProto.type) as ShadowType,
-      style:
-        objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.stylePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      color:
-        objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      position: Number(objectProto.position) as ShadowPosition,
-      offset:
-        objectProto.offset != undefined
-          ? Axis2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
-          : null,
-      blur: objectProto.blur != undefined ? Number(objectProto.blur) : null,
-      spread: objectProto.spread != undefined ? Number(objectProto.spread) : null,
-      diffusion: objectProto.diffusion != undefined ? objectProto.diffusion : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: ShadowProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Shadow {
-    return Shadow.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Shadow {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ShadowProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.SHADOW, Shadow);
-/* ==== DESTACK_GENERATED_END:STRUCT:270204 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:270204 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270700 ==== */
 /**
  * A shadow style.
  */
@@ -480,10 +70,10 @@ export class ShadowStyle extends Style {
   /**
    * Style.parent
    */
-  get parent(): Scene | View | Theme | null {
+  get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
   }
@@ -587,7 +177,7 @@ export class ShadowStyle extends Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | View | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | Palette | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -862,7 +452,7 @@ export class ShadowStyle extends Style {
 
   static __packValue__(object: ShadowStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270204;
+    objectValue["1"] = 270700;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -990,7 +580,7 @@ export class ShadowStyle extends Style {
   }
 
   static __packProto__(object: ShadowStyle): ShadowStyleProto {
-    const objectProto: Partial<ShadowStyleProto> = { metatype: 270204 };
+    const objectProto: Partial<ShadowStyleProto> = { metatype: 270700 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1126,4 +716,414 @@ export class ShadowStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SHADOW_STYLE, ShadowStyle);
-/* ==== DESTACK_GENERATED_END:NODE:270204 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270700 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:270700 ==== */
+/**
+ * A shadow value.
+ */
+export class Shadow extends StructFrozen {
+  static metatype: StructType = StructType.SHADOW;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Shadow.type
+   */
+  readonly type: ShadowType;
+
+  /**
+   * style
+   */
+  get style(): ShadowStyle | null {
+    const nodePtr: NodeReference | null = this.stylePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as ShadowStyle | null;
+    }
+    return null;
+  }
+  readonly stylePtr: NodeReference | null;
+
+  /**
+   * Shadow.color
+   */
+  readonly color: Color | null;
+
+  /**
+   * Shadow.position
+   */
+  readonly position: ShadowPosition;
+
+  /**
+   * Shadow.offset
+   */
+  readonly offset: Axis2 | null;
+
+  /**
+   * Shadow.blur
+   */
+  readonly blur: number | null;
+
+  /**
+   * Shadow.spread
+   */
+  readonly spread: number | null;
+
+  /**
+   * Shadow.diffusion
+   */
+  readonly diffusion: number | null;
+
+  constructor(options: {
+    type?: ShadowType;
+    style?: ShadowStyle | NodeReference | null;
+    color?: Color | null;
+    position?: ShadowPosition;
+    offset?: Axis2 | null;
+    blur?: number | null;
+    spread?: number | null;
+    diffusion?: number | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = ShadowType.BOX;
+    }
+    if (_type === null) {
+      throw new Error(`Shadow.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style instanceof Node) {
+      _style = _style.toRef();
+    }
+    this.stylePtr = _style;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _position = options.position ?? null;
+    if (_position === null) {
+      _position = ShadowPosition.OUTSIDE;
+    }
+    if (_position === null) {
+      throw new Error(`Shadow.position is required`);
+    }
+    this.position = _position;
+    let _offset = options.offset ?? null;
+    this.offset = _offset;
+    let _blur = options.blur ?? null;
+    this.blur = _blur;
+    let _spread = options.spread ?? null;
+    this.spread = _spread;
+    let _diffusion = options.diffusion ?? null;
+    this.diffusion = _diffusion;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+      return false;
+    }
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
+      return false;
+    }
+    if (!(this.position === other.position)) {
+      return false;
+    }
+    if (
+      (this.offset == null) !== (other.offset == null) ||
+      (this.offset != null && !this.offset.equals(other.offset))
+    ) {
+      return false;
+    }
+    if (!(this.blur === other.blur)) {
+      return false;
+    }
+    if (!(this.spread === other.spread)) {
+      return false;
+    }
+    if (
+      (this.diffusion == null) !== (other.diffusion == null) ||
+      (this.diffusion != null &&
+        !(this.diffusion === other.diffusion || Math.abs(this.diffusion - other.diffusion) < 1e-10))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${ShadowType[this.type]}`);
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style?.repr()}`);
+      }
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      propertyReprs.push(`position=${ShadowPosition[this.position]}`);
+      if (this.offset !== null) {
+        propertyReprs.push(`offset=${this.offset.repr()}`);
+      }
+      if (this.blur !== null) {
+        propertyReprs.push(`blur=${this.blur}`);
+      }
+      if (this.spread !== null) {
+        propertyReprs.push(`spread=${this.spread}`);
+      }
+      if (this.diffusion !== null) {
+        propertyReprs.push(`diffusion=${this.diffusion}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Shadow ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + this.position) & 0xffffffff;
+    if (this.offset !== null) {
+      h = (h * 31 + this.offset.hash()) & 0xffffffff;
+    }
+    if (this.blur !== null) {
+      h = (h * 31 + hashInt(this.blur)) & 0xffffffff;
+    }
+    if (this.spread !== null) {
+      h = (h * 31 + hashInt(this.spread)) & 0xffffffff;
+    }
+    if (this.diffusion !== null) {
+      h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Shadow.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Shadow): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 270700;
+    objectValue["30"] = object.type;
+    if (object.stylePtr != null) {
+      objectValue["41"] = object.stylePtr.toValue();
+    }
+    if (object.color != null) {
+      objectValue["50"] = object.color.toValue();
+    }
+    objectValue["51"] = object.position;
+    if (object.offset != null) {
+      objectValue["52"] = object.offset.toValue();
+    }
+    if (object.blur != null) {
+      objectValue["53"] = object.blur;
+    }
+    if (object.spread != null) {
+      objectValue["54"] = object.spread;
+    }
+    if (object.diffusion != null) {
+      objectValue["55"] = object.diffusion;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Shadow {
+    const stylePtrValue = objectValue["41"];
+    const unpackedStylePtr =
+      stylePtrValue != undefined
+        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const colorValue = objectValue["50"];
+    const unpackedColor =
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const offsetValue = objectValue["52"];
+    const unpackedOffset =
+      offsetValue != undefined
+        ? Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const blurValue = objectValue["53"];
+    const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
+    const spreadValue = objectValue["54"];
+    const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
+    const diffusionValue = objectValue["55"];
+    const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
+    return new Shadow({
+      type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
+      color: unpackedColor,
+      position: Number(objectValue["51"]),
+      offset: unpackedOffset,
+      blur: unpackedBlur,
+      spread: unpackedSpread,
+      diffusion: unpackedDiffusion,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Shadow {
+    return Shadow.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ShadowProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Shadow.__packProto__(this);
+    }
+    return this._proto as ShadowProto;
+  }
+
+  static __packProto__(object: Shadow): ShadowProto {
+    const objectProto: Partial<ShadowProto> = { metatype: 270700 };
+    objectProto.type = Number(object.type) as ShadowTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    objectProto.position = Number(object.position) as ShadowPositionProto;
+    if (object.offset != null) {
+      objectProto.offset = object.offset.toProto();
+    }
+    if (object.blur != null) {
+      objectProto.blur = object.blur;
+    }
+    if (object.spread != null) {
+      objectProto.spread = object.spread;
+    }
+    if (object.diffusion != null) {
+      objectProto.diffusion = object.diffusion;
+    }
+    return objectProto as ShadowProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ShadowProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Shadow {
+    return new Shadow({
+      type: Number(objectProto.type) as ShadowType,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      position: Number(objectProto.position) as ShadowPosition,
+      offset:
+        objectProto.offset != undefined
+          ? Axis2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          : null,
+      blur: objectProto.blur != undefined ? Number(objectProto.blur) : null,
+      spread: objectProto.spread != undefined ? Number(objectProto.spread) : null,
+      diffusion: objectProto.diffusion != undefined ? objectProto.diffusion : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ShadowProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Shadow {
+    return Shadow.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Shadow {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ShadowProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.SHADOW, Shadow);
+/* ==== DESTACK_GENERATED_END:STRUCT:270700 ==== */

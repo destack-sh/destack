@@ -59,7 +59,7 @@ class Folder(
 ):
     """A Folder is a sub-space of a Space."""
 
-    parent: Union["Space", "Folder", None] = property_parent_(node_is_customizable=False)
+    parent: Union["Space", "Folder", None] = property_parent_(node_is_extensible=False)
     type: FolderType = property_(30, is_repr=True, default=FolderType.GENERAL)
 
     main_scene: Optional["Scene"] = property_(41)

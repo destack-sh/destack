@@ -27,6 +27,7 @@ from .font import (
     TextTransform,
 )
 from .gradient import Gradient, GradientStop, GradientStyle, GradientType
+from .palette import Palette
 from .shadow import Shadow, ShadowStyle, ShadowType
 from .stroke import Stroke, StrokePath, StrokePoint, StrokeStyle, StrokeType
 from .style import Style
@@ -61,6 +62,7 @@ __all__ = [
     "GradientStop",
     "GradientStyle",
     "GradientType",
+    "Palette",
     "Shadow",
     "ShadowStyle",
     "ShadowType",

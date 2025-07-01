@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.06.30.0"
+VERSION = "2025.07.01.0"
 
 # import from all generated files
 from .health_pb2 import *
@@ -200,6 +200,7 @@ AnyNodeProto = Union[
     GradientStyleProto,
     FillStyleProto,
     FontStyleProto,
+    PaletteProto,
     ShadowStyleProto,
     StrokeStyleProto,
     ThemeProto,
@@ -259,6 +260,7 @@ AnyStructProto = Union[
     Axis3Proto,
     GridProto,
     GridSpanProto,
+    ArrowProto,
     LineProto,
     PolygonProto,
     DatabaseInfoProto,

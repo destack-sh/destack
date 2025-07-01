@@ -62,7 +62,7 @@ class DatabaseInfo(StructFrozen):
 class Database(IsSpatial, HasName, Resource):
     """A primary storage Database of some flavor."""
 
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
 
     type: DatabaseType = property_(30, can_write=RoleType.SYSTEM, is_repr=True)
     region: Region = property_(50, can_write=RoleType.SYSTEM, is_repr=True)

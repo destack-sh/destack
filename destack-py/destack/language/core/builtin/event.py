@@ -37,7 +37,7 @@ class Event[N: Node = Node](IsSpatial, Node):
         is_managed=True,
         is_eq=False,
         node_space_from="self",
-        node_is_customizable=False,
+        node_is_extensible=False,
         can_write=RoleType.SYSTEM,
     )
 

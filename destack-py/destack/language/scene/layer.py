@@ -33,5 +33,5 @@ class LayerType(Enum):
 class Layer(HasIcon, IsOwnable, ContainerView):
     """A Layer is a named container for Views."""
 
-    parent: Union["Scene", "Canvas", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Scene", "Canvas", None] = property_parent_(node_is_extensible=True)
     type: LayerType = property_(30, default=LayerType.GENERAL)

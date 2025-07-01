@@ -17,7 +17,7 @@ import {
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import type { Theme } from "@destack/language/style";
+import type { Palette, Theme } from "@destack/language/style";
 import { Color, Style } from "@destack/language/style";
 import type { View } from "@destack/language/view";
 import { BorderProto, BorderStyleProto, BorderTypeProto } from "@destack/proto";
@@ -43,309 +43,7 @@ export enum BorderType {
 registerEnumClass(EnumType.BORDER_TYPE, BorderType);
 /* ==== DESTACK_GENERATED_END:ENUM:270206 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:270203 ==== */
-/**
- * A border value.
- */
-export class Border extends StructFrozen {
-  static metatype: StructType = StructType.BORDER;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Border.type
-   */
-  readonly type: BorderType;
-
-  /**
-   * style
-   */
-  get style(): BorderStyle | null {
-    const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as BorderStyle | null;
-    }
-    return null;
-  }
-  readonly stylePtr: NodeReference | null;
-
-  /**
-   * Border.color
-   */
-  readonly color: Color | null;
-
-  /**
-   * Border.width
-   */
-  readonly width: Insets | null;
-
-  constructor(options: {
-    type?: BorderType;
-    style?: BorderStyle | NodeReference | null;
-    color?: Color | null;
-    width?: Insets | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type ?? null;
-    if (_type === null) {
-      _type = BorderType.SOLID;
-    }
-    if (_type === null) {
-      throw new Error(`Border.type is required`);
-    }
-    this.type = _type;
-    let _style = options.style ?? null;
-    if (_style != null && _style instanceof Node) {
-      _style = _style.toRef();
-    }
-    this.stylePtr = _style;
-    let _color = options.color ?? null;
-    this.color = _color;
-    let _width = options.width ?? null;
-    this.width = _width;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
-    ) {
-      return false;
-    }
-    if (
-      (this.width == null) !== (other.width == null) ||
-      (this.width != null && !this.width.equals(other.width))
-    ) {
-      return false;
-    }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${BorderType[this.type]}`);
-      if (this.color !== null) {
-        propertyReprs.push(`color=${this.color.repr()}`);
-      }
-      if (this.width !== null) {
-        propertyReprs.push(`width=${this.width.repr()}`);
-      }
-      if (this.style !== null) {
-        propertyReprs.push(`style=${this.style?.repr()}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<Border ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
-    }
-    if (this.width !== null) {
-      h = (h * 31 + this.width.hash()) & 0xffffffff;
-    }
-    if (this.stylePtr !== null) {
-      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Border.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Border): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270203;
-    objectValue["30"] = object.type;
-    if (object.stylePtr != null) {
-      objectValue["41"] = object.stylePtr.toValue();
-    }
-    if (object.color != null) {
-      objectValue["50"] = object.color.toValue();
-    }
-    if (object.width != null) {
-      objectValue["51"] = object.width.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Border {
-    const colorValue = objectValue["50"];
-    const unpackedColor =
-      colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const widthValue = objectValue["51"];
-    const unpackedWidth =
-      widthValue != undefined
-        ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const stylePtrValue = objectValue["41"];
-    const unpackedStylePtr =
-      stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new Border({
-      type: Number(objectValue["30"]),
-      color: unpackedColor,
-      width: unpackedWidth,
-      style: unpackedStylePtr,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Border {
-    return Border.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): BorderProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Border.__packProto__(this);
-    }
-    return this._proto as BorderProto;
-  }
-
-  static __packProto__(object: Border): BorderProto {
-    const objectProto: Partial<BorderProto> = { metatype: 270203 };
-    objectProto.type = Number(object.type) as BorderTypeProto;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
-    }
-    if (object.width != null) {
-      objectProto.width = object.width.toProto();
-    }
-    return objectProto as BorderProto;
-  }
-
-  static __unpackProto__(
-    objectProto: BorderProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Border {
-    return new Border({
-      type: Number(objectProto.type) as BorderType,
-      color:
-        objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      width:
-        objectProto.width != undefined
-          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
-          : null,
-      style:
-        objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.stylePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: BorderProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Border {
-    return Border.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Border {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = BorderProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.BORDER, Border);
-/* ==== DESTACK_GENERATED_END:STRUCT:270203 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:270203 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270600 ==== */
 /**
  * A border style.
  */
@@ -355,10 +53,10 @@ export class BorderStyle extends Style {
   /**
    * Style.parent
    */
-  get parent(): Scene | View | Theme | null {
+  get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
   }
@@ -461,7 +159,7 @@ export class BorderStyle extends Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | View | Theme | NodeReference | null;
+    parent?: Scene | View | Theme | Palette | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -697,7 +395,7 @@ export class BorderStyle extends Style {
 
   static __packValue__(object: BorderStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270203;
+    objectValue["1"] = 270600;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -814,7 +512,7 @@ export class BorderStyle extends Style {
   }
 
   static __packProto__(object: BorderStyle): BorderStyleProto {
-    const objectProto: Partial<BorderStyleProto> = { metatype: 270203 };
+    const objectProto: Partial<BorderStyleProto> = { metatype: 270600 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -949,4 +647,306 @@ export class BorderStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.BORDER_STYLE, BorderStyle);
-/* ==== DESTACK_GENERATED_END:NODE:270203 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270600 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:270600 ==== */
+/**
+ * A border value.
+ */
+export class Border extends StructFrozen {
+  static metatype: StructType = StructType.BORDER;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Border.type
+   */
+  readonly type: BorderType;
+
+  /**
+   * style
+   */
+  get style(): BorderStyle | null {
+    const nodePtr: NodeReference | null = this.stylePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as BorderStyle | null;
+    }
+    return null;
+  }
+  readonly stylePtr: NodeReference | null;
+
+  /**
+   * Border.color
+   */
+  readonly color: Color | null;
+
+  /**
+   * Border.width
+   */
+  readonly width: Insets | null;
+
+  constructor(options: {
+    type?: BorderType;
+    style?: BorderStyle | NodeReference | null;
+    color?: Color | null;
+    width?: Insets | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = BorderType.SOLID;
+    }
+    if (_type === null) {
+      throw new Error(`Border.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style instanceof Node) {
+      _style = _style.toRef();
+    }
+    this.stylePtr = _style;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _width = options.width ?? null;
+    this.width = _width;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
+      return false;
+    }
+    if (
+      (this.width == null) !== (other.width == null) ||
+      (this.width != null && !this.width.equals(other.width))
+    ) {
+      return false;
+    }
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${BorderType[this.type]}`);
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      if (this.width !== null) {
+        propertyReprs.push(`width=${this.width.repr()}`);
+      }
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style?.repr()}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Border ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    if (this.width !== null) {
+      h = (h * 31 + this.width.hash()) & 0xffffffff;
+    }
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Border.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Border): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 270600;
+    objectValue["30"] = object.type;
+    if (object.stylePtr != null) {
+      objectValue["41"] = object.stylePtr.toValue();
+    }
+    if (object.color != null) {
+      objectValue["50"] = object.color.toValue();
+    }
+    if (object.width != null) {
+      objectValue["51"] = object.width.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Border {
+    const colorValue = objectValue["50"];
+    const unpackedColor =
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const widthValue = objectValue["51"];
+    const unpackedWidth =
+      widthValue != undefined
+        ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const stylePtrValue = objectValue["41"];
+    const unpackedStylePtr =
+      stylePtrValue != undefined
+        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Border({
+      type: Number(objectValue["30"]),
+      color: unpackedColor,
+      width: unpackedWidth,
+      style: unpackedStylePtr,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Border {
+    return Border.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): BorderProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Border.__packProto__(this);
+    }
+    return this._proto as BorderProto;
+  }
+
+  static __packProto__(object: Border): BorderProto {
+    const objectProto: Partial<BorderProto> = { metatype: 270600 };
+    objectProto.type = Number(object.type) as BorderTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.width != null) {
+      objectProto.width = object.width.toProto();
+    }
+    return objectProto as BorderProto;
+  }
+
+  static __unpackProto__(
+    objectProto: BorderProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Border {
+    return new Border({
+      type: Number(objectProto.type) as BorderType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      width:
+        objectProto.width != undefined
+          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          : null,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: BorderProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Border {
+    return Border.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Border {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = BorderProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.BORDER, Border);
+/* ==== DESTACK_GENERATED_END:STRUCT:270600 ==== */

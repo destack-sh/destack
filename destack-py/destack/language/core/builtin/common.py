@@ -351,34 +351,35 @@ class StructType(Enum):
 
     # canvas [250_000-260_000]
     LINE = 250_200, "Line", None, "fas fa-line"
-    POLYGON = 250_300, "Polygon", None, "fas fa-polygon"
+    ARROW = 250_300, "Arrow", None, "fas fa-arrow-right"
+    POLYGON = 250_500, "Polygon", None, "fas fa-polygon"
 
     # animation [260_000-270_000]
     # ...
 
     # style [270_000-280_000]
-    LENGTH = 270_018, None, None, "fas fa-ruler"
-    POSITION = 270_020, None, None, "fas fa-location-crosshair"
-    DIMENSION = 270_022, None, None, "fas fa-ruler"
-    GRID = 270_026, None, None, "fas fa-grid-2"
-    GRID_SPAN = 270_028, None, None, "fas fa-grid-2"
-    INSETS = 270_030, None, None, "fas fa-corner"
-    CORNERS = 270_032, None, None, "fas fa-corner"
-    AXIS2 = 270_034, None, None, "fas fa-vector-square"
-    AXIS3 = 270_036, None, None, "fas fa-vector-square"
-    STROKE = 270_100, None, None, "fas fa-stroke"
-    STROKE_CAP = 270_101, None, None, "fas fa-stroke"
-    STROKE_PATH = 270_102, None, None, "fas fa-stroke"
-    STROKE_POINT = 270_103, None, None, "fas fa-stroke"
-    COLOR = 270_200, None, None, "fas fa-palette"
-    FILL = 270_201, None, None, "fas fa-fill"
-    FONT = 270_202, None, None, "fas fa-text"
-    BORDER = 270_203, None, None, "fas fa-border-outer"
-    SHADOW = 270_204, None, None, "fas fa-eclipse"
-    GRADIENT = 270_205, None, None, "fas fa-gradient"
-    GRADIENT_STOP = 270_206, None, None, "fas fa-gradient"
-    TRANSITION = 270_207, None, None, "fas fa-bezier-curve"
-    EFFECT = 270_208, None, None, "fas fa-sparkle"
+    LENGTH = 270_018, "Length", None, "fas fa-ruler"
+    POSITION = 270_020, "Position", None, "fas fa-location-crosshair"
+    DIMENSION = 270_022, "Dimension", None, "fas fa-ruler"
+    GRID = 270_026, "Grid", None, "fas fa-grid-2"
+    GRID_SPAN = 270_028, "Grid Span", None, "fas fa-grid-2"
+    INSETS = 270_030, "Insets", None, "fas fa-corner"
+    CORNERS = 270_032, "Corners", None, "fas fa-corner"
+    AXIS2 = 270_034, "Axis2", None, "fas fa-vector-square"
+    AXIS3 = 270_036, "Axis3", None, "fas fa-vector-square"
+    COLOR = 270_300, "Color", None, "fas fa-palette"
+    FILL = 270_400, "Fill", None, "fas fa-fill"
+    FONT = 270_500, "Font", None, "fas fa-text"
+    BORDER = 270_600, "Border", None, "fas fa-border-outer"
+    SHADOW = 270_700, "Shadow", None, "fas fa-eclipse"
+    GRADIENT = 270_800, "Gradient", None, "fas fa-gradient"
+    GRADIENT_STOP = 270_801, "Gradient Stop", None, "fas fa-gradient"
+    TRANSITION = 270_900, "Transition", None, "fas fa-bezier-curve"
+    EFFECT = 270_1000, "Effect", None, "fas fa-sparkle"
+    STROKE = 270_1100, "Stroke", None, "fas fa-stroke"
+    STROKE_CAP = 270_1101, "Stroke Cap", None, "fas fa-stroke"
+    STROKE_PATH = 270_1102, "Stroke Path", None, "fas fa-stroke"
+    STROKE_POINT = 270_1103, "Stroke Point", None, "fas fa-stroke"
 
 
 @builtin_enum(EnumType.TRAIT_TYPE)
@@ -612,20 +613,20 @@ class NodeType(Enum):
     SCRIPT = 70_000, "Script", None, "fas fa-code"
     SERVICE = 70_100, "Service", None, "fas fa-screwdriver-wrench"
     ACTION = 70_200, "Action", None, "fas fa-step-forward"
-    ROUTE = 70_300, "Route", None, "fas fa-route"
-    TRIGGER = 70_400, "Trigger", None, "fas fa-bolt"
-    TRIGGER_EVENT = 70_401, "Trigger Event", None, "fas fa-bolt"
-    TIMER = 70_500, "Timer", None, "fas fa-clock"
-    TIMER_EVENT = 70_501, "Timer Event", None, "fas fa-clock"
-    TIMER_STARTED_EVENT = 70_502, "Timer Started Event", None, "fas fa-clock"
-    TIMER_COMPLETED_EVENT = 70_503, "Timer Completed Event", None, "fas fa-clock"
-    TIMER_CANCELLED_EVENT = 70_504, "Timer Cancelled Event", None, "fas fa-clock"
-    # BREAKPOINT, ...
-    CURSOR = 70_600, "Cursor", None, "fas fa-mouse-pointer"
-    EVENT_CURSOR = 70_601, "Event Cursor", None, "fas fa-signal"
-    SCREEN_CURSOR = 70_602, "Screen Cursor", None, "fas fa-mouse"
-    THREAD_CURSOR = 70_603, "Thread Cursor", None, "fas fa-magnifying-glass"
+    ROUTE = 71_000, "Route", None, "fas fa-route"
+    TRIGGER = 72_000, "Trigger", None, "fas fa-bolt"
+    TRIGGER_EVENT = 72_001, "Trigger Event", None, "fas fa-bolt"
+    TIMER = 72_100, "Timer", None, "fas fa-clock"
+    TIMER_EVENT = 72_101, "Timer Event", None, "fas fa-clock"
+    TIMER_STARTED_EVENT = 72_102, "Timer Started Event", None, "fas fa-clock"
+    TIMER_COMPLETED_EVENT = 72_103, "Timer Completed Event", None, "fas fa-clock"
+    TIMER_CANCELLED_EVENT = 72_104, "Timer Cancelled Event", None, "fas fa-clock"
+    CURSOR = 72_500, "Cursor", None, "fas fa-mouse-pointer"
+    EVENT_CURSOR = 72_600, "Event Cursor", None, "fas fa-signal"
+    SCREEN_CURSOR = 72_700, "Screen Cursor", None, "fas fa-mouse"
+    THREAD_CURSOR = 72_803, "Thread Cursor", None, "fas fa-magnifying-glass"
     # QUERY_CURSOR, WEB_CURSOR, ...
+    # BREAKPOINT, ...
     # ROOM, CHANNEL, LOCK, ...
     # TASK, ...
     # RATE_LIMIT, ...
@@ -707,9 +708,9 @@ class NodeType(Enum):
 
     # infra [160_000-170_000]
     DATABASE = 160_000, "Database", "Database for Postgres data", "fas fa-database"
-    # SEARCH/INDEX, VAULT, CACHE, S3, ...
-    # GALAXY = 5_010, "Galaxy", "Galaxy", "fas fa-galaxy"
     MACHINE = 160_100, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
+    # SEARCH/INDEX, VAULT, CACHE, S3, ...
+    # GALAXY, ...
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
     # intelligence [170_000-180_000]
@@ -811,9 +812,9 @@ class NodeType(Enum):
     CANVAS = 250_000, "Canvas", None, "fas fa-canvas"
     SHAPE = 250_100, "Shape", None, "fas fa-shapes"
     LINE_SHAPE = 250_200, "Line Shape", None, "fas fa-line"
-    POLYGON_SHAPE = 250_300, "Plane Shape", None, "fas fa-shapes"
-    ARROW_SHAPE = 250_400, "Arrow Shape", None, "fas fa-arrow-right"
-    ANNOTATION_SHAPE = 250_500, "Annotation Shape", None, "fas fa-comment"
+    ARROW_SHAPE = 250_300, "Arrow Shape", None, "fas fa-arrow-right"
+    ANNOTATION_SHAPE = 250_400, "Annotation Shape", None, "fas fa-comment"
+    POLYGON_SHAPE = 250_500, "Polygon Shape", None, "fas fa-shapes"
     # VECTOR/POINT, VECTOR_NETWORK, ...
     # BITMAP, ...
 
@@ -823,19 +824,19 @@ class NodeType(Enum):
 
     # style [270_000-280_000]
     THEME = 270_000, "Theme", None, "fas fa-palette"
-    STYLE = 270_100, "Style", None, "fas fa-palette"
-    COLOR_STYLE = 270_200, "Color Style", None, "fas fa-palette"
-    FILL_STYLE = 270_201, "Fill Style", None, "fas fa-fill"
-    FONT_STYLE = 270_202, "Font Style", None, "fas fa-text"
-    BORDER_STYLE = 270_203, "Border Style", None, "fas fa-border-outer"
-    SHADOW_STYLE = 270_204, "Shadow Style", None, "fas fa-eclipse"
-    GRADIENT_STYLE = 270_205, "Gradient Style", None, "fas fa-gradient"
-    TRANSITION_STYLE = 270_206, "Transition Style", None, "fas fa-bezier-curve"
-    EFFECT_STYLE = 270_207, "Effect Style", None, "fas fa-sparkle"
-    STROKE_STYLE = 270_208, "Stroke Style", None, "fas fa-stroke"
+    PALETTE = 270_100, "Palette", None, "fas fa-palette"
+    STYLE = 270_200, "Style", None, "fas fa-palette"
+    COLOR_STYLE = 270_300, "Color Style", None, "fas fa-palette"
+    FILL_STYLE = 270_400, "Fill Style", None, "fas fa-fill"
+    FONT_STYLE = 270_500, "Font Style", None, "fas fa-text"
+    BORDER_STYLE = 270_600, "Border Style", None, "fas fa-border-outer"
+    SHADOW_STYLE = 270_700, "Shadow Style", None, "fas fa-eclipse"
+    GRADIENT_STYLE = 270_800, "Gradient Style", None, "fas fa-gradient"
+    TRANSITION_STYLE = 270_900, "Transition Style", None, "fas fa-bezier-curve"
+    EFFECT_STYLE = 270_1000, "Effect Style", None, "fas fa-sparkle"
+    STROKE_STYLE = 270_1100, "Stroke Style", None, "fas fa-stroke"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
-    # PALETTE, ...
 
 
 ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)

@@ -63,7 +63,7 @@ class SanctionType(Enum):
 class Sanction(IsSpatial, IsDeletable, Entity):
     """A Sanction on some Subject."""
 
-    parent: Union["IsSubject", "IsJoinable", None] = property_parent_(node_is_customizable=True)
+    parent: Union["IsSubject", "IsJoinable", None] = property_parent_(node_is_extensible=True)
     type: SanctionType = property_(30)
     expires_at: Optional[datetime] = property_(40)
     target: IsSubject = property_(41)

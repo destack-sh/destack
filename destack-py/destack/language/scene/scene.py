@@ -43,6 +43,6 @@ class SceneExitedEvent(SceneEvent):
 class Scene(HasIcon, IsOwnable, ContainerView):
     """A Scene is a container for a specific interaction point."""
 
-    parent: Union["Folder", "Scene", "Window", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Folder", "Scene", "Window", None] = property_parent_(node_is_extensible=True)
 
     root_view: Optional["ContainerView"] = property_(100, description="The root view of the Scene.")

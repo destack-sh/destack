@@ -50,18 +50,18 @@ export class Line extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
-   * Line.points
-   */
-  readonly points: Array<Vector2>;
-
-  /**
    * Line.stroke
    */
   readonly stroke: Stroke | null;
 
+  /**
+   * Line.points
+   */
+  readonly points: Array<Vector2>;
+
   constructor(options: {
-    points?: Array<Vector2>;
     stroke?: Stroke | null;
+    points?: Array<Vector2>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -77,13 +77,13 @@ export class Line extends StructFrozen {
     );
 
     // properties
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
     let _points = options.points ?? null;
     if (_points === null) {
       _points = [];
     }
     this.points = _points;
-    let _stroke = options.stroke ?? null;
-    this.stroke = _stroke;
 
     // identity
     // @ts-expect-error(readonly)
@@ -100,6 +100,12 @@ export class Line extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (
+      (this.stroke == null) !== (other.stroke == null) ||
+      (this.stroke != null && !this.stroke.equals(other.stroke))
+    ) {
+      return false;
+    }
     if (this.points.length !== other.points.length) {
       return false;
     }
@@ -107,12 +113,6 @@ export class Line extends StructFrozen {
       if (!this.points[i].equals(other.points[i])) {
         return false;
       }
-    }
-    if (
-      (this.stroke == null) !== (other.stroke == null) ||
-      (this.stroke != null && !this.stroke.equals(other.stroke))
-    ) {
-      return false;
     }
     return true;
   }
@@ -141,13 +141,13 @@ export class Line extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.stroke !== null) {
+      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
+    }
     if (this.points && this.points.length > 0) {
       for (const _item of this.points) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
-    }
-    if (this.stroke !== null) {
-      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -170,15 +170,15 @@ export class Line extends StructFrozen {
   static __packValue__(object: Line): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 250200;
+    if (object.stroke != null) {
+      objectValue["80"] = object.stroke.toValue();
+    }
     if (object.points.length > 0) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.toValue());
       }
       objectValue["100"] = packedPoints;
-    }
-    if (object.stroke != null) {
-      objectValue["101"] = object.stroke.toValue();
     }
     return objectValue;
   }
@@ -190,20 +190,20 @@ export class Line extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Line {
+    const strokeValue = objectValue["80"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedPoints: any[] = [];
     if (objectValue["100"] != undefined) {
       for (const item of objectValue["100"]) {
         unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
-    const strokeValue = objectValue["101"];
-    const unpackedStroke =
-      strokeValue != undefined
-        ? Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Line({
-      points: unpackedPoints,
       stroke: unpackedStroke,
+      points: unpackedPoints,
       _value: objectValue,
       _supergraph,
     });
@@ -229,15 +229,15 @@ export class Line extends StructFrozen {
 
   static __packProto__(object: Line): LineProto {
     const objectProto: Partial<LineProto> = { metatype: 250200 };
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
+    }
     if (object.points) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.toProto());
       }
       objectProto.points = packedPoints;
-    }
-    if (object.stroke != null) {
-      objectProto.stroke = object.stroke.toProto();
     }
     return objectProto as LineProto;
   }
@@ -256,11 +256,11 @@ export class Line extends StructFrozen {
       }
     }
     return new Line({
-      points: unpackedPoints,
       stroke:
         objectProto.stroke != undefined
           ? Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
           : null,
+      points: unpackedPoints,
       _proto: objectProto,
       _supergraph,
     });
@@ -506,14 +506,14 @@ export class LineShape extends Shape {
   radius: Corners | null;
 
   /**
+   * Shape.stroke
+   */
+  stroke: Stroke | null;
+
+  /**
    * LineShape.points
    */
   points: Array<Vector2>;
-
-  /**
-   * LineShape.stroke
-   */
-  stroke: Stroke | null;
 
   /**
    * The main / root Script of this Node.
@@ -571,8 +571,8 @@ export class LineShape extends Shape {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
-    points?: Array<Vector2>;
     stroke?: Stroke | null;
+    points?: Array<Vector2>;
     script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -680,13 +680,13 @@ export class LineShape extends Shape {
     this.border = _border;
     let _radius = options.radius ?? null;
     this.radius = _radius;
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
     let _points = options.points ?? null;
     if (_points === null) {
       _points = [];
     }
     this.points = _points;
-    let _stroke = options.stroke ?? null;
-    this.stroke = _stroke;
     let _script = options.script ?? null;
     if (_script != null && _script instanceof Node) {
       _script = _script.toRef();
@@ -1158,15 +1158,15 @@ export class LineShape extends Shape {
     if (object.radius != null) {
       objectValue["68"] = object.radius.toValue();
     }
+    if (object.stroke != null) {
+      objectValue["80"] = object.stroke.toValue();
+    }
     if (object.points.length > 0) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.toValue());
       }
       objectValue["100"] = packedPoints;
-    }
-    if (object.stroke != null) {
-      objectValue["101"] = object.stroke.toValue();
     }
     if (object.scriptPtr != null) {
       objectValue["200"] = object.scriptPtr.toValue();
@@ -1187,7 +1187,7 @@ export class LineShape extends Shape {
         unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
-    const strokeValue = objectValue["101"];
+    const strokeValue = objectValue["80"];
     const unpackedStroke =
       strokeValue != undefined
         ? Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
@@ -1485,15 +1485,15 @@ export class LineShape extends Shape {
     if (object.radius != null) {
       objectProto.radius = object.radius.toProto();
     }
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
+    }
     if (object.points) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.toProto());
       }
       objectProto.points = packedPoints;
-    }
-    if (object.stroke != null) {
-      objectProto.stroke = object.stroke.toProto();
     }
     if (object.scriptPtr != null) {
       objectProto.scriptPtr = object.scriptPtr.toProto();

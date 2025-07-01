@@ -33,6 +33,7 @@ import type {
 } from "@destack/language/access";
 import type {
   AnnotationShape,
+  Arrow,
   ArrowHeadType,
   ArrowShape,
   Canvas,
@@ -401,6 +402,7 @@ import type {
   GradientStyle,
   GradientType,
   OffscreenBehavior,
+  Palette,
   RepeatType,
   Shadow,
   ShadowPosition,
@@ -614,6 +616,7 @@ export type NodeTypeMapping = {
   [NodeType.GRADIENT_STYLE]: GradientStyle;
   [NodeType.FILL_STYLE]: FillStyle;
   [NodeType.FONT_STYLE]: FontStyle;
+  [NodeType.PALETTE]: Palette;
   [NodeType.SHADOW_STYLE]: ShadowStyle;
   [NodeType.STROKE_STYLE]: StrokeStyle;
   [NodeType.THEME]: Theme;
@@ -698,6 +701,7 @@ export type StructTypeMapping = {
   [StructType.AXIS3]: Axis3;
   [StructType.GRID]: Grid;
   [StructType.GRID_SPAN]: GridSpan;
+  [StructType.ARROW]: Arrow;
   [StructType.LINE]: Line;
   [StructType.POLYGON]: Polygon;
   [StructType.DATABASE_INFO]: DatabaseInfo;

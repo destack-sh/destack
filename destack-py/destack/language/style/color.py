@@ -16,7 +16,7 @@ from destack.language.core import (
 from .style import Style
 
 if TYPE_CHECKING:
-    from destack.language import Scene, Theme, View
+    from destack.language import Palette, Scene, Theme, View
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -115,7 +115,9 @@ class Color(StructFrozen):
 class ColorStyle(Style):
     """A color style, with an optional dark variant."""
 
-    parent: Union["Scene", "View", "Theme", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Scene", "View", "Theme", "Palette", None] = property_parent_(
+        node_is_extensible=True
+    )
     type: ColorType = property_(30, is_repr=True)
     hue: Optional[ColorHue] = property_(50, is_repr=True)
     shade: Optional[ColorShade] = property_(51, is_repr=True)

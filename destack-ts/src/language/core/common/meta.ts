@@ -167,9 +167,9 @@ export class PropertyDefinition extends StructFrozen {
   readonly nodeConstraint: NodeConstraint | null;
 
   /**
-   * PropertyDefinition.nodeIsCustomizable
+   * PropertyDefinition.nodeIsExtensible
    */
-  readonly nodeIsCustomizable: boolean;
+  readonly nodeIsExtensible: boolean;
 
   /**
    * PropertyDefinition.nodeHasType
@@ -263,7 +263,7 @@ export class PropertyDefinition extends StructFrozen {
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
     nodeConstraint?: NodeConstraint | null;
-    nodeIsCustomizable: boolean;
+    nodeIsExtensible: boolean;
     nodeHasType: boolean;
     nodeHasSpace: boolean;
     nodeHasDefinition: boolean;
@@ -356,11 +356,11 @@ export class PropertyDefinition extends StructFrozen {
     this.numberConstraint = _numberConstraint;
     let _nodeConstraint = options.nodeConstraint ?? null;
     this.nodeConstraint = _nodeConstraint;
-    let _nodeIsCustomizable = options.nodeIsCustomizable;
-    if (_nodeIsCustomizable === null) {
-      throw new Error(`PropertyDefinition.nodeIsCustomizable is required`);
+    let _nodeIsExtensible = options.nodeIsExtensible;
+    if (_nodeIsExtensible === null) {
+      throw new Error(`PropertyDefinition.nodeIsExtensible is required`);
     }
-    this.nodeIsCustomizable = _nodeIsCustomizable;
+    this.nodeIsExtensible = _nodeIsExtensible;
     let _nodeHasType = options.nodeHasType;
     if (_nodeHasType === null) {
       throw new Error(`PropertyDefinition.nodeHasType is required`);
@@ -526,7 +526,7 @@ export class PropertyDefinition extends StructFrozen {
     ) {
       return false;
     }
-    if (!(this.nodeIsCustomizable === other.nodeIsCustomizable)) {
+    if (!(this.nodeIsExtensible === other.nodeIsExtensible)) {
       return false;
     }
     if (!(this.nodeHasType === other.nodeHasType)) {
@@ -675,7 +675,7 @@ export class PropertyDefinition extends StructFrozen {
     if (this.nodeConstraint !== null) {
       h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.nodeIsCustomizable)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.nodeIsExtensible)) & 0xffffffff;
     h = (h * 31 + hashBool(this.nodeHasType)) & 0xffffffff;
     h = (h * 31 + hashBool(this.nodeHasSpace)) & 0xffffffff;
     h = (h * 31 + hashBool(this.nodeHasDefinition)) & 0xffffffff;
@@ -766,7 +766,7 @@ export class PropertyDefinition extends StructFrozen {
     if (object.nodeConstraint != null) {
       objectValue["63"] = object.nodeConstraint.toValue();
     }
-    objectValue["73"] = object.nodeIsCustomizable;
+    objectValue["73"] = object.nodeIsExtensible;
     objectValue["74"] = object.nodeHasType;
     objectValue["75"] = object.nodeHasSpace;
     objectValue["76"] = object.nodeHasDefinition;
@@ -904,7 +904,7 @@ export class PropertyDefinition extends StructFrozen {
       stringConstraint: unpackedStringConstraint,
       numberConstraint: unpackedNumberConstraint,
       nodeConstraint: unpackedNodeConstraint,
-      nodeIsCustomizable: objectValue["73"],
+      nodeIsExtensible: objectValue["73"],
       nodeHasType: objectValue["74"],
       nodeHasSpace: objectValue["75"],
       nodeHasDefinition: objectValue["76"],
@@ -1001,7 +1001,7 @@ export class PropertyDefinition extends StructFrozen {
     if (object.nodeConstraint != null) {
       objectProto.nodeConstraint = object.nodeConstraint.toProto();
     }
-    objectProto.nodeIsCustomizable = object.nodeIsCustomizable;
+    objectProto.nodeIsExtensible = object.nodeIsExtensible;
     objectProto.nodeHasType = object.nodeHasType;
     objectProto.nodeHasSpace = object.nodeHasSpace;
     objectProto.nodeHasDefinition = object.nodeHasDefinition;
@@ -1118,7 +1118,7 @@ export class PropertyDefinition extends StructFrozen {
               _connection,
             )
           : null,
-      nodeIsCustomizable: objectProto.nodeIsCustomizable,
+      nodeIsExtensible: objectProto.nodeIsExtensible,
       nodeHasType: objectProto.nodeHasType,
       nodeHasSpace: objectProto.nodeHasSpace,
       nodeHasDefinition: objectProto.nodeHasDefinition,

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Enum,
@@ -17,12 +17,9 @@ from destack.proto import PolygonProto
 from .shape import Shape
 
 if TYPE_CHECKING:
-    from destack.language import Stroke
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
-
-# nocheckin: separate different Polygons? add base shapes as plain Structs? abstract PolygonShape?
-#  (Ellipse/EllipseShape, Rectangle/..., Triangle/..., Polygon/..., )
 
 
 @builtin_enum(EnumType.POLYGON_SHAPE_TYPE)
@@ -48,4 +45,3 @@ class PolygonShape(Shape):
 
     type: PolygonShapeType = property_(30, is_repr=True)
     points: list[Vector2] = property_(100)
-    stroke: Optional["Stroke"] = property_(101, is_repr=True)

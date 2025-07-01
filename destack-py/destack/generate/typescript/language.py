@@ -1517,7 +1517,7 @@ def _generate_file(
             if definition is None:
                 if block.custom_content and block.custom_content.count("\n") > 1:
                     raise RuntimeError(
-                        f"cannot auto-remove stale definition {key} in {file.path}:\n{block.custom_content[:200]}"
+                        f"stale definition {key} has custom content in {file.path}:\n{block.custom_content[:200]}"
                     )
                 continue
 

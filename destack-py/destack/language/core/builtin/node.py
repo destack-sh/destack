@@ -145,7 +145,7 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
     # 1-14: node identity
     # Node.metatype: 1
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    parent: Optional["Node"] = property_parent_(node_is_customizable=True)
+    parent: Optional["Node"] = property_parent_(node_is_extensible=True)
     # Node.store: 4
     # Spatial.space: 5
     # IsCustomNode.definition: 6

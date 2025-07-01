@@ -47,5 +47,5 @@ class CustomOption(
     Entity,
 ):
     parent: Union["CustomStructDefinition", "CustomProperty", None] = property_parent_(
-        node_is_customizable=True
+        node_is_extensible=True
     )

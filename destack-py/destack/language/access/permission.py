@@ -41,5 +41,5 @@ class Permission(
 ):
     """A Permission for something."""
 
-    parent: Union["IsJoinable", "Folder", None] = property_parent_(node_is_customizable=False)
+    parent: Union["IsJoinable", "Folder", None] = property_parent_(node_is_extensible=False)
     type: PermissionType = property_(30)

@@ -10,11 +10,11 @@ import { Entity, Node, NodeReference, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import type { Theme } from "@destack/language/style";
+import type { Palette, Theme } from "@destack/language/style";
 import type { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:270100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:270200 ==== */
 /**
  * A Style is a style definition.
  */
@@ -27,10 +27,10 @@ export abstract class Style
   /**
    * Style.parent
    */
-  get parent(): Scene | View | Theme | null {
+  get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | null;
+      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
   }
@@ -102,4 +102,4 @@ export abstract class Style
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STYLE, Style);
-/* ==== DESTACK_GENERATED_END:NODE:270100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:270200 ==== */

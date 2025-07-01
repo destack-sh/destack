@@ -2,9 +2,12 @@ from destack.language.core import (
     Enum,
     EnumType,
     NodeType,
+    StructFrozen,
+    StructType,
     Vector2,
     builtin_enum,
     builtin_node,
+    builtin_struct,
     property_,
 )
 
@@ -18,6 +21,16 @@ class ArrowHeadType(Enum):
     ARROW = 1
     TRIANGLE = 2
     DOT = 3
+
+
+@builtin_struct(StructType.ARROW, frozen=True)
+class Arrow(StructFrozen):
+    """An Arrow is a shape that represents an arrow."""
+
+    start_type: ArrowHeadType = property_(100)
+    start: Vector2 = property_(101)
+    end_type: ArrowHeadType = property_(110)
+    end: Vector2 = property_(111)
 
 
 @builtin_node(NodeType.ARROW_SHAPE, pretend_frozen=True)

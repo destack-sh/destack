@@ -1440,7 +1440,7 @@ export class EditEvent extends Event {
 registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
 /* ==== DESTACK_GENERATED_END:NODE:90800 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:90401 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:21 ==== */
 /**
  * An Event that represents a Measurement.
  */
@@ -1524,4 +1524,4 @@ export abstract class MeasurementEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEASUREMENT_EVENT, MeasurementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:90401 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:21 ==== */

@@ -1058,7 +1058,7 @@ export abstract class CustomEntity
 registerNodeClass(NodeType.CUSTOM_ENTITY, CustomEntity);
 /* ==== DESTACK_GENERATED_END:NODE:101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:102 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:110 ==== */
 /**
  * A CustomTraitDefinition defines a kind of CustomTrait.
  */
@@ -1462,7 +1462,7 @@ export class CustomTraitDefinition
 
   static __packValue__(object: CustomTraitDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 102;
+    objectValue["1"] = 110;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1624,7 +1624,7 @@ export class CustomTraitDefinition
   }
 
   static __packProto__(object: CustomTraitDefinition): CustomTraitDefinitionProto {
-    const objectProto: Partial<CustomTraitDefinitionProto> = { metatype: 102 };
+    const objectProto: Partial<CustomTraitDefinitionProto> = { metatype: 110 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1809,9 +1809,9 @@ export class CustomTraitDefinition
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_TRAIT_DEFINITION, CustomTraitDefinition);
-/* ==== DESTACK_GENERATED_END:NODE:102 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:110 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10 ==== */
 /**
  * A Resource represents an external asset.
  * The lifecycle of a Resource may be managed by some provisioner.
@@ -1885,9 +1885,9 @@ export abstract class Resource extends Entity implements IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RESOURCE, Resource);
-/* ==== DESTACK_GENERATED_END:NODE:4 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:90400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:20 ==== */
 /**
  * An Entity that represents a Metric.
  */
@@ -1979,4 +1979,4 @@ export abstract class Metric extends Entity implements IsSpatial, HasName, IsSou
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.METRIC, Metric);
-/* ==== DESTACK_GENERATED_END:NODE:90400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20 ==== */

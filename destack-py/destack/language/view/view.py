@@ -44,7 +44,7 @@ class View(
     """A View is a graphical interface."""
 
     parent: Union["Window", "Scene", "Layer", "ContainerView", "Folder", None] = property_parent_(
-        node_is_customizable=True
+        node_is_extensible=True
     )
 
     # sizing
