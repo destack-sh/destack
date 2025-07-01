@@ -9,6 +9,7 @@ import type {
   IsOwner,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
@@ -18,12 +19,15 @@ import {
   EnumType,
   Event,
   Node,
-  NodeReference,
   NodeType,
   RoleType,
   StructType,
 } from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
   MembershipJoinedEventProto,
@@ -423,7 +427,8 @@ export class MembershipJoinedEvent extends MembershipEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.MEMBERSHIP_JOINED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -486,33 +491,34 @@ export class MembershipJoinedEvent extends MembershipEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): MembershipJoinedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new MembershipJoinedEvent({
-      role: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      role: _NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       roleType: Number(objectValue["51"]),
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      joinable: NodeReference.fromValue(
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      joinable: _NodeReference.fromValue(
         objectValue["40"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      member: NodeReference.fromValue(
+      member: _NodeReference.fromValue(
         objectValue["41"],
         _session,
         _supergraph,
@@ -578,8 +584,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): MembershipJoinedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new MembershipJoinedEvent({
-      role: NodeReference.fromProto(
+      role: _NodeReference.fromProto(
         objectProto.rolePtr!,
         _session,
         _supergraph,
@@ -587,21 +594,21 @@ export class MembershipJoinedEvent extends MembershipEvent {
         _connection,
       ),
       roleType: Number(objectProto.roleType) as RoleType,
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      joinable: NodeReference.fromProto(
+      joinable: _NodeReference.fromProto(
         objectProto.joinablePtr!,
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      member: NodeReference.fromProto(
+      member: _NodeReference.fromProto(
         objectProto.memberPtr!,
         _session,
         _supergraph,
@@ -611,7 +618,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -621,7 +628,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -632,7 +639,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -905,7 +912,8 @@ export class MembershipLeftEvent extends MembershipEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.MEMBERSHIP_LEFT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -966,31 +974,32 @@ export class MembershipLeftEvent extends MembershipEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): MembershipLeftEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new MembershipLeftEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      joinable: NodeReference.fromValue(
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      joinable: _NodeReference.fromValue(
         objectValue["40"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      member: NodeReference.fromValue(
+      member: _NodeReference.fromValue(
         objectValue["41"],
         _session,
         _supergraph,
@@ -1054,22 +1063,23 @@ export class MembershipLeftEvent extends MembershipEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): MembershipLeftEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new MembershipLeftEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      joinable: NodeReference.fromProto(
+      joinable: _NodeReference.fromProto(
         objectProto.joinablePtr!,
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      member: NodeReference.fromProto(
+      member: _NodeReference.fromProto(
         objectProto.memberPtr!,
         _session,
         _supergraph,
@@ -1079,7 +1089,7 @@ export class MembershipLeftEvent extends MembershipEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1089,7 +1099,7 @@ export class MembershipLeftEvent extends MembershipEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1100,7 +1110,7 @@ export class MembershipLeftEvent extends MembershipEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1438,7 +1448,8 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.MEMBERSHIP,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1521,27 +1532,28 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     _graph?: any | null,
     _connection?: any | null,
   ): Membership {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const rolePtrValue = objectValue["41"];
     const unpackedRolePtr =
       rolePtrValue != undefined
-        ? NodeReference.fromValue(rolePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(rolePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const roleTypeValue = objectValue["42"];
     const unpackedRoleType = roleTypeValue != undefined ? Number(roleTypeValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -1551,16 +1563,16 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Membership({
       parent: unpackedParentPtr,
-      member: NodeReference.fromValue(
+      member: _NodeReference.fromValue(
         objectValue["40"],
         _session,
         _supergraph,
@@ -1637,10 +1649,11 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     _graph?: any | null,
     _connection?: any | null,
   ): Membership {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Membership({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1648,7 +1661,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
               _connection,
             )
           : null,
-      member: NodeReference.fromProto(
+      member: _NodeReference.fromProto(
         objectProto.memberPtr!,
         _session,
         _supergraph,
@@ -1657,7 +1670,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       ),
       role:
         objectProto.rolePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.rolePtr!,
               _session,
               _supergraph,
@@ -1669,7 +1682,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
         objectProto.roleType != undefined ? (Number(objectProto.roleType) as RoleType) : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1679,7 +1692,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -1692,7 +1705,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1703,7 +1716,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

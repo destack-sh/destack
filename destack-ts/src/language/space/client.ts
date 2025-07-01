@@ -5,21 +5,15 @@ import type {
   IsDeletable,
   IsGlobal,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
-import {
-  ClientType,
-  Entity,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
-} from "@destack/language/core";
+import { ClientType, Entity, Node, NodeType, StructType } from "@destack/language/core";
 import type { Machine } from "@destack/language/infra";
 import type { Cursor } from "@destack/language/logic";
-import { registerNodeClass } from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { User } from "@destack/language/space/user";
 import { ClientProto, ClientTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -428,7 +422,8 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.CLIENT,
       id: this.id,
       _session: this._session,
@@ -526,20 +521,21 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     _graph?: any | null,
     _connection?: any | null,
   ): Client {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const machinePtrValue = objectValue["36"];
     const unpackedMachinePtr =
       machinePtrValue != undefined
-        ? NodeReference.fromValue(machinePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(machinePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const userPtrValue = objectValue["37"];
     const unpackedUserPtr =
       userPtrValue != undefined
-        ? NodeReference.fromValue(userPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(userPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const accessTokenValue = objectValue["50"];
     const unpackedAccessToken = accessTokenValue != undefined ? accessTokenValue : null;
@@ -556,7 +552,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     const cursorPtrValue = objectValue["55"];
     const unpackedCursorPtr =
       cursorPtrValue != undefined
-        ? NodeReference.fromValue(cursorPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(cursorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deviceTypeValue = objectValue["40"];
     const unpackedDeviceType = deviceTypeValue != undefined ? deviceTypeValue : null;
@@ -576,12 +572,12 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Client({
       parent: unpackedParentPtr,
@@ -686,10 +682,11 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     _graph?: any | null,
     _connection?: any | null,
   ): Client {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Client({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -700,7 +697,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       type: Number(objectProto.type) as ClientType,
       machine:
         objectProto.machinePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.machinePtr!,
               _session,
               _supergraph,
@@ -710,7 +707,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
           : null,
       user:
         objectProto.userPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.userPtr!,
               _session,
               _supergraph,
@@ -724,7 +721,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
         objectProto.loggedInAt != undefined ? unpackProtoTimestamp(objectProto.loggedInAt!) : null,
       cursor:
         objectProto.cursorPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.cursorPtr!,
               _session,
               _supergraph,
@@ -744,7 +741,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -755,7 +752,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

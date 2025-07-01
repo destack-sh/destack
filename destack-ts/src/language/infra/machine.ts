@@ -3,6 +3,7 @@ import type {
   Graph,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
@@ -10,13 +11,16 @@ import type {
 import {
   EnumType,
   Node,
-  NodeReference,
   NodeType,
   Resource,
   ResourceStatus,
   StructType,
 } from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/space";
 import { MachineProto, MachineTypeProto, ResourceStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -268,7 +272,7 @@ export class Machine extends Resource implements IsSpatial {
     this.deletedAt = _deletedAt;
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = MachineType.RUNTIME;
+      _type = 10 /* MachineType.RUNTIME */;
     }
     if (_type === null) {
       throw new Error(`Machine.type is required`);
@@ -276,7 +280,7 @@ export class Machine extends Resource implements IsSpatial {
     this.type = _type;
     let _status = options.status ?? null;
     if (_status === null) {
-      _status = ResourceStatus.PENDING;
+      _status = 1 /* ResourceStatus.PENDING */;
     }
     if (_status === null) {
       throw new Error(`Machine.status is required`);
@@ -492,7 +496,8 @@ export class Machine extends Resource implements IsSpatial {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.MACHINE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -586,6 +591,7 @@ export class Machine extends Resource implements IsSpatial {
     _graph?: any | null,
     _connection?: any | null,
   ): Machine {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const externalNameValue = objectValue["62"];
     const unpackedExternalName = externalNameValue != undefined ? externalNameValue : null;
     const externalIdValue = objectValue["63"];
@@ -599,12 +605,12 @@ export class Machine extends Resource implements IsSpatial {
     const clientPtrValue = objectValue["69"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const targetStatusValue = objectValue["41"];
     const unpackedTargetStatus =
@@ -614,7 +620,7 @@ export class Machine extends Resource implements IsSpatial {
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -624,12 +630,12 @@ export class Machine extends Resource implements IsSpatial {
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Machine({
       type: Number(objectValue["30"]),
@@ -734,6 +740,7 @@ export class Machine extends Resource implements IsSpatial {
     _graph?: any | null,
     _connection?: any | null,
   ): Machine {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Machine({
       type: Number(objectProto.type) as MachineType,
       version: objectProto.version,
@@ -744,7 +751,7 @@ export class Machine extends Resource implements IsSpatial {
       vncUrl: objectProto.vncUrl != undefined ? objectProto.vncUrl : null,
       client:
         objectProto.clientPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.clientPtr!,
               _session,
               _supergraph,
@@ -759,7 +766,7 @@ export class Machine extends Resource implements IsSpatial {
       isHeadless: objectProto.isHeadless,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -775,7 +782,7 @@ export class Machine extends Resource implements IsSpatial {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -788,7 +795,7 @@ export class Machine extends Resource implements IsSpatial {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -799,7 +806,7 @@ export class Machine extends Resource implements IsSpatial {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

@@ -1,27 +1,24 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Condition,
   Graph,
   HasName,
   IsRunnable,
   IsSpatial,
   IsSubject,
+  NodeDefinitionReference,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
-} from "@destack/language/core";
-import {
-  Condition,
-  Entity,
-  EnumType,
-  Event,
-  Node,
-  NodeDefinitionReference,
-  NodeReference,
-  NodeType,
-  StructType,
   Value,
 } from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import { Entity, EnumType, Event, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { TriggerProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -397,7 +394,8 @@ export class Trigger extends Entity implements IsSpatial, HasName {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.TRIGGER,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -476,49 +474,55 @@ export class Trigger extends Entity implements IsSpatial, HasName {
     _graph?: any | null,
     _connection?: any | null,
   ): Trigger {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const eventValue = objectValue["40"];
     const unpackedEvent =
       eventValue != undefined
-        ? NodeDefinitionReference.fromValue(eventValue, _session, _supergraph, _graph, _connection)
+        ? _NodeDefinitionReference.fromValue(eventValue, _session, _supergraph, _graph, _connection)
         : null;
     const whereValue = objectValue["41"];
     const unpackedWhere =
       whereValue != undefined
-        ? Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
+        ? _Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedArguments = new Map();
     if (objectValue["51"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["51"])) {
         unpackedArguments.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Trigger({
       event: unpackedEvent,
       where: unpackedWhere,
-      target: NodeReference.fromValue(
+      target: _NodeReference.fromValue(
         objectValue["50"],
         _session,
         _supergraph,
@@ -595,19 +599,25 @@ export class Trigger extends Entity implements IsSpatial, HasName {
     _graph?: any | null,
     _connection?: any | null,
   ): Trigger {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedArguments = new Map();
     if (objectProto.arguments) {
       for (const [key, value] of Object.entries(objectProto.arguments)) {
         unpackedArguments.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new Trigger({
       event:
         objectProto.event != undefined
-          ? NodeDefinitionReference.fromProto(
+          ? _NodeDefinitionReference.fromProto(
               objectProto.event!,
               _session,
               _supergraph,
@@ -617,9 +627,9 @@ export class Trigger extends Entity implements IsSpatial, HasName {
           : null,
       where:
         objectProto.where != undefined
-          ? Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
+          ? _Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
           : null,
-      target: NodeReference.fromProto(
+      target: _NodeReference.fromProto(
         objectProto.targetPtr!,
         _session,
         _supergraph,
@@ -629,7 +639,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
       arguments: unpackedArguments,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -641,7 +651,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -652,7 +662,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -663,7 +673,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,

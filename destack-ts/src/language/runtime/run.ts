@@ -10,21 +10,18 @@ import type {
   IsRunnable,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
-} from "@destack/language/core";
-import {
-  Entity,
-  EnumType,
-  Event,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
   Value,
 } from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import { Entity, EnumType, Event, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Interruption } from "@destack/language/runtime/interruption";
 import type { Space } from "@destack/language/space";
 import {
@@ -358,7 +355,8 @@ export class RunStartedEvent extends RunEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.RUN_STARTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -420,28 +418,29 @@ export class RunStartedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunStartedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectValue["40"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RunStartedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -495,8 +494,9 @@ export class RunStartedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunStartedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunStartedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -505,7 +505,7 @@ export class RunStartedEvent extends RunEvent {
       ),
       target:
         objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.targetPtr!,
               _session,
               _supergraph,
@@ -516,7 +516,7 @@ export class RunStartedEvent extends RunEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -526,7 +526,7 @@ export class RunStartedEvent extends RunEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -537,7 +537,7 @@ export class RunStartedEvent extends RunEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -779,7 +779,8 @@ export class RunPauseRequestedEvent extends RunEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.RUN_PAUSE_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -841,28 +842,29 @@ export class RunPauseRequestedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunPauseRequestedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectValue["40"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RunPauseRequestedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -922,8 +924,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunPauseRequestedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunPauseRequestedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -932,7 +935,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       ),
       target:
         objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.targetPtr!,
               _session,
               _supergraph,
@@ -943,7 +946,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -953,7 +956,7 @@ export class RunPauseRequestedEvent extends RunEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -964,7 +967,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1212,7 +1215,8 @@ export class RunPausedEvent extends RunEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.RUN_PAUSED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1274,28 +1278,29 @@ export class RunPausedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunPausedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectValue["40"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RunPausedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1349,8 +1354,9 @@ export class RunPausedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunPausedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunPausedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -1359,7 +1365,7 @@ export class RunPausedEvent extends RunEvent {
       ),
       target:
         objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.targetPtr!,
               _session,
               _supergraph,
@@ -1370,7 +1376,7 @@ export class RunPausedEvent extends RunEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1380,7 +1386,7 @@ export class RunPausedEvent extends RunEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1391,7 +1397,7 @@ export class RunPausedEvent extends RunEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1633,7 +1639,8 @@ export class RunResumeRequestedEvent extends RunEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.RUN_RESUME_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1695,28 +1702,29 @@ export class RunResumeRequestedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunResumeRequestedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectValue["40"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RunResumeRequestedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1776,8 +1784,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunResumeRequestedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunResumeRequestedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -1786,7 +1795,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       ),
       target:
         objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.targetPtr!,
               _session,
               _supergraph,
@@ -1797,7 +1806,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1807,7 +1816,7 @@ export class RunResumeRequestedEvent extends RunEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1818,7 +1827,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -2066,7 +2075,8 @@ export class RunResumedEvent extends RunEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.RUN_RESUMED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -2128,28 +2138,29 @@ export class RunResumedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunResumedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectValue["40"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RunResumedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -2203,8 +2214,9 @@ export class RunResumedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunResumedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunResumedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -2213,7 +2225,7 @@ export class RunResumedEvent extends RunEvent {
       ),
       target:
         objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.targetPtr!,
               _session,
               _supergraph,
@@ -2224,7 +2236,7 @@ export class RunResumedEvent extends RunEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -2234,7 +2246,7 @@ export class RunResumedEvent extends RunEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -2245,7 +2257,7 @@ export class RunResumedEvent extends RunEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -2487,7 +2499,8 @@ export class RunStopRequestedEvent extends RunEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.RUN_STOP_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -2549,28 +2562,29 @@ export class RunStopRequestedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunStopRequestedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectValue["40"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RunStopRequestedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -2630,8 +2644,9 @@ export class RunStopRequestedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunStopRequestedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunStopRequestedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -2640,7 +2655,7 @@ export class RunStopRequestedEvent extends RunEvent {
       ),
       target:
         objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.targetPtr!,
               _session,
               _supergraph,
@@ -2651,7 +2666,7 @@ export class RunStopRequestedEvent extends RunEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -2661,7 +2676,7 @@ export class RunStopRequestedEvent extends RunEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -2672,7 +2687,7 @@ export class RunStopRequestedEvent extends RunEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -2920,7 +2935,8 @@ export class RunFailedEvent extends RunEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.RUN_FAILED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -2982,28 +2998,29 @@ export class RunFailedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunFailedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectValue["40"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RunFailedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -3057,8 +3074,9 @@ export class RunFailedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunFailedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunFailedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -3067,7 +3085,7 @@ export class RunFailedEvent extends RunEvent {
       ),
       target:
         objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.targetPtr!,
               _session,
               _supergraph,
@@ -3078,7 +3096,7 @@ export class RunFailedEvent extends RunEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -3088,7 +3106,7 @@ export class RunFailedEvent extends RunEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -3099,7 +3117,7 @@ export class RunFailedEvent extends RunEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -3341,7 +3359,8 @@ export class RunCompletedEvent extends RunEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.RUN_COMPLETED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -3403,28 +3422,29 @@ export class RunCompletedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunCompletedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectValue["40"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RunCompletedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -3484,8 +3504,9 @@ export class RunCompletedEvent extends RunEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): RunCompletedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunCompletedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -3494,7 +3515,7 @@ export class RunCompletedEvent extends RunEvent {
       ),
       target:
         objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.targetPtr!,
               _session,
               _supergraph,
@@ -3505,7 +3526,7 @@ export class RunCompletedEvent extends RunEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -3515,7 +3536,7 @@ export class RunCompletedEvent extends RunEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -3526,7 +3547,7 @@ export class RunCompletedEvent extends RunEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -3939,7 +3960,8 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.RUN,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -4044,15 +4066,17 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     _graph?: any | null,
     _connection?: any | null,
   ): Run {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const targetPtrValue = objectValue["40"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const durationValue = objectValue["42"];
     const unpackedDuration =
@@ -4085,31 +4109,31 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     const interruptionPtrValue = objectValue["51"];
     const unpackedInterruptionPtr =
       interruptionPtrValue != undefined
-        ? NodeReference.fromValue(interruptionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(interruptionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Run({
       parent: unpackedParentPtr,
@@ -4207,19 +4231,21 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     _graph?: any | null,
     _connection?: any | null,
   ): Run {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new Run({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -4229,7 +4255,7 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
           : null,
       target:
         objectProto.targetPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.targetPtr!,
               _session,
               _supergraph,
@@ -4257,7 +4283,7 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
           : null,
       interruption:
         objectProto.interruptionPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.interruptionPtr!,
               _session,
               _supergraph,
@@ -4267,7 +4293,7 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -4279,7 +4305,7 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -4290,7 +4316,7 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

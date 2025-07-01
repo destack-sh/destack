@@ -1,14 +1,18 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { ClientType, EnumType, StructType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import type { IsSubject } from "@destack/language/core/builtin/trait";
 import type { CustomProperty } from "@destack/language/core/common/property";
-import { Value } from "@destack/language/core/common/value";
+import type { Value } from "@destack/language/core/common/value";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import { registerEnumClass, registerStructClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import {
   ChangeDebounceProto,
   ChangeProto,
@@ -388,38 +392,44 @@ export class Edit extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Edit {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
+    const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const operationValue = objectValue["31"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
     const propPtrValue = objectValue["33"];
     const unpackedPropPtr =
       propPtrValue != undefined
-        ? PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
+        ? _PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const fieldPtrValue = objectValue["34"];
     const unpackedFieldPtr =
       fieldPtrValue != undefined
-        ? NodeReference.fromValue(fieldPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(fieldPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyValue = objectValue["35"];
     const unpackedKey =
       keyValue != undefined
-        ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
         : null;
     const valueValue = objectValue["40"];
     const unpackedValue =
       valueValue != undefined
-        ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
     const undoValue = objectValue["50"];
     const unpackedUndo =
       undoValue != undefined
-        ? Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection)
+        ? _Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Edit({
       id: String(objectValue["2"]),
       type: Number(objectValue["30"]),
       operation: unpackedOperation,
-      node: NodeReference.fromValue(objectValue["32"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["32"], _session, _supergraph, _graph, _connection),
       propPtr: unpackedPropPtr,
       field: unpackedFieldPtr,
       key: unpackedKey,
@@ -481,6 +491,12 @@ export class Edit extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Edit {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
+    const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     return new Edit({
       id: String(objectProto.id),
       type: Number(objectProto.type) as EditType,
@@ -488,7 +504,7 @@ export class Edit extends StructFrozen {
         objectProto.operation != undefined
           ? (Number(objectProto.operation) as EditOperation)
           : null,
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -497,7 +513,7 @@ export class Edit extends StructFrozen {
       ),
       propPtr:
         objectProto.propPtr != undefined
-          ? PropertyReference.fromProto(
+          ? _PropertyReference.fromProto(
               objectProto.propPtr!,
               _session,
               _supergraph,
@@ -507,7 +523,7 @@ export class Edit extends StructFrozen {
           : null,
       field:
         objectProto.fieldPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.fieldPtr!,
               _session,
               _supergraph,
@@ -517,15 +533,15 @@ export class Edit extends StructFrozen {
           : null,
       key:
         objectProto.key != undefined
-          ? Value.fromProto(objectProto.key!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.key!, _session, _supergraph, _graph, _connection)
           : null,
       value:
         objectProto.value != undefined
-          ? Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
           : null,
       undo:
         objectProto.undo != undefined
-          ? Edit.fromProto(objectProto.undo!, _session, _supergraph, _graph, _connection)
+          ? _Edit.fromProto(objectProto.undo!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -812,24 +828,27 @@ export class Change extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Change {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
+    const _Origin = STRUCT_CLASS_BY_TYPE[StructType.ORIGIN] as typeof Origin;
     const nameValue = objectValue["31"];
     const unpackedName = nameValue != undefined ? nameValue : null;
     const createdByPtrValue = objectValue["33"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const originValue = objectValue["34"];
     const unpackedOrigin =
       originValue != undefined
-        ? Origin.fromValue(originValue, _session, _supergraph, _graph, _connection)
+        ? _Origin.fromValue(originValue, _session, _supergraph, _graph, _connection)
         : null;
     const debounceValue = objectValue["35"];
     const unpackedDebounce = debounceValue != undefined ? Number(debounceValue) : null;
     const unpackedEdits: any[] = [];
     if (objectValue["40"] != undefined) {
       for (const item of objectValue["40"]) {
-        unpackedEdits.push(Edit.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedEdits.push(_Edit.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     return new Change({
@@ -896,10 +915,13 @@ export class Change extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Change {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
+    const _Origin = STRUCT_CLASS_BY_TYPE[StructType.ORIGIN] as typeof Origin;
     const unpackedEdits: any[] = [];
     if (objectProto.edits) {
       for (const item of objectProto.edits) {
-        unpackedEdits.push(Edit.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedEdits.push(_Edit.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new Change({
@@ -908,7 +930,7 @@ export class Change extends StructFrozen {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -918,7 +940,7 @@ export class Change extends StructFrozen {
           : null,
       origin:
         objectProto.origin != undefined
-          ? Origin.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
+          ? _Origin.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
           : null,
       debounce:
         objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
@@ -1180,19 +1202,20 @@ export class ChangeResult extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): ChangeResult {
+    const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
     const debounceValue = objectValue["35"];
     const unpackedDebounce = debounceValue != undefined ? Number(debounceValue) : null;
     const unpackedEdits: any[] = [];
     if (objectValue["41"] != undefined) {
       for (const item of objectValue["41"]) {
-        unpackedEdits.push(Edit.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedEdits.push(_Edit.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const unpackedCascadedEdits: any[] = [];
     if (objectValue["42"] != undefined) {
       for (const item of objectValue["42"]) {
         unpackedCascadedEdits.push(
-          Edit.fromValue(item, _session, _supergraph, _graph, _connection),
+          _Edit.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1258,17 +1281,18 @@ export class ChangeResult extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): ChangeResult {
+    const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
     const unpackedEdits: any[] = [];
     if (objectProto.edits) {
       for (const item of objectProto.edits) {
-        unpackedEdits.push(Edit.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedEdits.push(_Edit.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     const unpackedCascadedEdits: any[] = [];
     if (objectProto.cascadedEdits) {
       for (const item of objectProto.cascadedEdits) {
         unpackedCascadedEdits.push(
-          Edit.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _Edit.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }

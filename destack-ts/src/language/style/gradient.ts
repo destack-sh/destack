@@ -1,28 +1,23 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Axis2,
   Graph,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructFrozen, StructType } from "@destack/language/core";
 import {
-  Axis2,
-  EnumType,
-  Node,
-  NodeReference,
-  NodeType,
-  StructFrozen,
-  StructType,
-} from "@destack/language/core";
-import {
+  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { Color } from "@destack/language/style/color";
+import type { Color } from "@destack/language/style/color";
 import type { Palette } from "@destack/language/style/palette";
 import { Style } from "@destack/language/style/style";
 import type { Theme } from "@destack/language/style/theme";
@@ -225,7 +220,7 @@ export class GradientStyle extends Style {
     this.orderKey = _orderKey;
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = GradientType.LINEAR;
+      _type = 10 /* GradientType.LINEAR */;
     }
     if (_type === null) {
       throw new Error(`GradientStyle.type is required`);
@@ -368,7 +363,8 @@ export class GradientStyle extends Style {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.GRADIENT_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -464,45 +460,49 @@ export class GradientStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): GradientStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
+    const _Gradient = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT] as typeof Gradient;
+    const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
     const angleValue = objectValue["50"];
     const unpackedAngle = angleValue != undefined ? angleValue : null;
     const unpackedStops: any[] = [];
     if (objectValue["51"] != undefined) {
       for (const item of objectValue["51"]) {
         unpackedStops.push(
-          GradientStop.fromValue(item, _session, _supergraph, _graph, _connection),
+          _GradientStop.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const centerAnchorValue = objectValue["52"];
     const unpackedCenterAnchor =
       centerAnchorValue != undefined
-        ? Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
+        ? _Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
         : null;
     const darkValue = objectValue["60"];
     const unpackedDark =
       darkValue != undefined
-        ? Gradient.fromValue(darkValue, _session, _supergraph, _graph, _connection)
+        ? _Gradient.fromValue(darkValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -594,11 +594,15 @@ export class GradientStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): GradientStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
+    const _Gradient = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT] as typeof Gradient;
+    const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
     const unpackedStops: any[] = [];
     if (objectProto.stops) {
       for (const item of objectProto.stops) {
         unpackedStops.push(
-          GradientStop.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _GradientStop.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -608,15 +612,15 @@ export class GradientStyle extends Style {
       stops: unpackedStops,
       centerAnchor:
         objectProto.centerAnchor != undefined
-          ? Axis2.fromProto(objectProto.centerAnchor!, _session, _supergraph, _graph, _connection)
+          ? _Axis2.fromProto(objectProto.centerAnchor!, _session, _supergraph, _graph, _connection)
           : null,
       dark:
         objectProto.dark != undefined
-          ? Gradient.fromProto(objectProto.dark!, _session, _supergraph, _graph, _connection)
+          ? _Gradient.fromProto(objectProto.dark!, _session, _supergraph, _graph, _connection)
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -626,7 +630,7 @@ export class GradientStyle extends Style {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -637,7 +641,7 @@ export class GradientStyle extends Style {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -648,7 +652,7 @@ export class GradientStyle extends Style {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -820,10 +824,11 @@ export class GradientStop extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): GradientStop {
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const colorValue = objectValue["50"];
     const unpackedColor =
       colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     return new GradientStop({
       color: unpackedColor,
@@ -867,10 +872,11 @@ export class GradientStop extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): GradientStop {
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     return new GradientStop({
       color:
         objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
           : null,
       position: objectProto.position,
       _proto: objectProto,
@@ -967,7 +973,7 @@ export class Gradient extends StructFrozen {
     // properties
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = GradientType.LINEAR;
+      _type = 10 /* GradientType.LINEAR */;
     }
     if (_type === null) {
       throw new Error(`Gradient.type is required`);
@@ -1125,10 +1131,13 @@ export class Gradient extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Gradient {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
+    const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
     const stylePtrValue = objectValue["40"];
     const unpackedStylePtr =
       stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const angleValue = objectValue["50"];
     const unpackedAngle = angleValue != undefined ? angleValue : null;
@@ -1136,14 +1145,14 @@ export class Gradient extends StructFrozen {
     if (objectValue["51"] != undefined) {
       for (const item of objectValue["51"]) {
         unpackedStops.push(
-          GradientStop.fromValue(item, _session, _supergraph, _graph, _connection),
+          _GradientStop.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const centerAnchorValue = objectValue["52"];
     const unpackedCenterAnchor =
       centerAnchorValue != undefined
-        ? Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
+        ? _Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Gradient({
       type: Number(objectValue["30"]),
@@ -1203,11 +1212,14 @@ export class Gradient extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Gradient {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
+    const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
     const unpackedStops: any[] = [];
     if (objectProto.stops) {
       for (const item of objectProto.stops) {
         unpackedStops.push(
-          GradientStop.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _GradientStop.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1215,7 +1227,7 @@ export class Gradient extends StructFrozen {
       type: Number(objectProto.type) as GradientType,
       style:
         objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.stylePtr!,
               _session,
               _supergraph,
@@ -1227,7 +1239,7 @@ export class Gradient extends StructFrozen {
       stops: unpackedStops,
       centerAnchor:
         objectProto.centerAnchor != undefined
-          ? Axis2.fromProto(objectProto.centerAnchor!, _session, _supergraph, _graph, _connection)
+          ? _Axis2.fromProto(objectProto.centerAnchor!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,

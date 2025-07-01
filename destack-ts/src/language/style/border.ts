@@ -1,28 +1,23 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
+  Insets,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructFrozen, StructType } from "@destack/language/core";
 import {
-  EnumType,
-  Insets,
-  Node,
-  NodeReference,
-  NodeType,
-  StructFrozen,
-  StructType,
-} from "@destack/language/core";
-import {
+  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { Color } from "@destack/language/style/color";
+import type { Color } from "@destack/language/style/color";
 import type { Palette } from "@destack/language/style/palette";
 import { Style } from "@destack/language/style/style";
 import type { Theme } from "@destack/language/style/theme";
@@ -230,7 +225,7 @@ export class BorderStyle extends Style {
     this.orderKey = _orderKey;
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = BorderType.SOLID;
+      _type = 10 /* BorderType.SOLID */;
     }
     if (_type === null) {
       throw new Error(`BorderStyle.type is required`);
@@ -354,7 +349,8 @@ export class BorderStyle extends Style {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.BORDER_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -443,40 +439,43 @@ export class BorderStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): BorderStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const colorValue = objectValue["50"];
     const unpackedColor =
       colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     const widthValue = objectValue["51"];
     const unpackedWidth =
       widthValue != undefined
-        ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
     const stylePtrValue = objectValue["41"];
     const unpackedStylePtr =
       stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -560,19 +559,22 @@ export class BorderStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): BorderStyle {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     return new BorderStyle({
       type: Number(objectProto.type) as BorderType,
       color:
         objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
-          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
           : null,
       style:
         objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.stylePtr!,
               _session,
               _supergraph,
@@ -582,7 +584,7 @@ export class BorderStyle extends Style {
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -592,7 +594,7 @@ export class BorderStyle extends Style {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -603,7 +605,7 @@ export class BorderStyle extends Style {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -614,7 +616,7 @@ export class BorderStyle extends Style {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -716,7 +718,7 @@ export class Border extends StructFrozen {
     // properties
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = BorderType.SOLID;
+      _type = 10 /* BorderType.SOLID */;
     }
     if (_type === null) {
       throw new Error(`Border.type is required`);
@@ -845,20 +847,23 @@ export class Border extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Border {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const colorValue = objectValue["50"];
     const unpackedColor =
       colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     const widthValue = objectValue["51"];
     const unpackedWidth =
       widthValue != undefined
-        ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
     const stylePtrValue = objectValue["41"];
     const unpackedStylePtr =
       stylePtrValue != undefined
-        ? NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Border({
       type: Number(objectValue["30"]),
@@ -910,19 +915,22 @@ export class Border extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Border {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     return new Border({
       type: Number(objectProto.type) as BorderType,
       color:
         objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
-          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
           : null,
       style:
         objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.stylePtr!,
               _session,
               _supergraph,

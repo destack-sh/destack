@@ -4,26 +4,24 @@ import type {
   HasIcon,
   HasName,
   HasSlug,
+  Icon,
   IsDeletable,
   IsOwnable,
   IsOwner,
   IsSpatial,
   IsSubject,
+  Length,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
+import { Entity, EnumType, Node, NodeType, StructType } from "@destack/language/core";
 import {
-  Entity,
-  EnumType,
-  Icon,
-  Length,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
-} from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Layer } from "@destack/language/scene/layer";
 import type { Scene } from "@destack/language/scene/scene";
 import type { Space } from "@destack/language/space";
@@ -417,7 +415,8 @@ export class Variant
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.VARIANT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -513,47 +512,50 @@ export class Variant
     _graph?: any | null,
     _connection?: any | null,
   ): Variant {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxWidthValue = objectValue["50"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
-        ? Length.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxHeightValue = objectValue["51"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
-        ? Length.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const minWidthValue = objectValue["52"];
     const unpackedMinWidth =
       minWidthValue != undefined
-        ? Length.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const minHeightValue = objectValue["53"];
     const unpackedMinHeight =
       minHeightValue != undefined
-        ? Length.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const slugValue = objectValue["33"];
     const unpackedSlug = slugValue != undefined ? slugValue : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -563,12 +565,12 @@ export class Variant
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Variant({
       parent: unpackedParentPtr,
@@ -661,10 +663,13 @@ export class Variant
     _graph?: any | null,
     _connection?: any | null,
   ): Variant {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     return new Variant({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -675,23 +680,23 @@ export class Variant
       type: Number(objectProto.type) as VariantType,
       maxWidth:
         objectProto.maxWidth != undefined
-          ? Length.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
           : null,
       maxHeight:
         objectProto.maxHeight != undefined
-          ? Length.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
       minWidth:
         objectProto.minWidth != undefined
-          ? Length.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
           : null,
       minHeight:
         objectProto.minHeight != undefined
-          ? Length.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -703,11 +708,11 @@ export class Variant
       slug: objectProto.slug != undefined ? objectProto.slug : null,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -720,7 +725,7 @@ export class Variant
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -731,7 +736,7 @@ export class Variant
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

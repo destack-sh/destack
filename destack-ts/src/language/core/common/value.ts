@@ -1,5 +1,4 @@
 import { packProtoJson, unpackProtoJson } from "@destack/grpc";
-import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import {
   NodeType,
   PrimitiveType,
@@ -9,12 +8,17 @@ import {
 } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
 import { BuiltinObject } from "@destack/language/core/builtin/object";
-import { NodeReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import { toType, Type } from "@destack/language/core/common/type";
+import type { Type } from "@destack/language/core/common/type";
+import { toType } from "@destack/language/core/common/type";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import { registerStructClass } from "@destack/language/registry";
+import {
+  NODE_CLASS_BY_TYPE,
+  STRUCT_CLASS_BY_TYPE,
+  registerStructClass,
+} from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
 import {
   assertNever,
@@ -183,7 +187,8 @@ function _unpackScalarValue(
   } else if (type.scalarType == ScalarType.ENUM) {
     return value;
   } else if (type.scalarType == ScalarType.NODE_REFERENCE) {
-    return NodeReference.fromValue(value, _session, _supergraph, _graph, _connection);
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return _NodeReference.fromValue(value, _session, _supergraph, _graph, _connection);
   } else if (type.scalarType == ScalarType.NODE_VALUE) {
     const nodeType = Number(value["1"]) as NodeType;
     const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
@@ -322,8 +327,9 @@ export class Value extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Value {
+    const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     return new Value({
-      type: Type.fromValue(objectValue["30"], _session, _supergraph, _graph, _connection),
+      type: _Type.fromValue(objectValue["30"], _session, _supergraph, _graph, _connection),
       value: objectValue["40"],
       _value: objectValue,
       _supergraph,
@@ -362,8 +368,9 @@ export class Value extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Value {
+    const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     return new Value({
-      type: Type.fromProto(objectProto.type!, _session, _supergraph, _graph, _connection),
+      type: _Type.fromProto(objectProto.type!, _session, _supergraph, _graph, _connection),
       value: unpackProtoJson(objectProto.value!),
       _proto: objectProto,
       _supergraph,

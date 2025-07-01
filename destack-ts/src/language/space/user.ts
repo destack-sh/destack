@@ -4,27 +4,25 @@ import type {
   HasIcon,
   HasName,
   HasSlug,
+  Icon,
   IsCustomizable,
   IsFollowable,
   IsGlobal,
   IsOwner,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
-} from "@destack/language/core";
-import {
-  Entity,
-  EnumType,
-  Icon,
-  Node,
-  NodeReference,
-  NodeType,
-  StructType,
   Value,
 } from "@destack/language/core";
+import { Entity, EnumType, Node, NodeType, StructType } from "@destack/language/core";
 import type { Cursor } from "@destack/language/logic";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Handle } from "@destack/language/space/handle";
 import type { Space } from "@destack/language/space/space";
 import { UserProto, UserStatusProto } from "@destack/proto";
@@ -262,7 +260,7 @@ export class User
     this.icon = _icon;
     let _status = options.status ?? null;
     if (_status === null) {
-      _status = UserStatus.CREATING;
+      _status = 2 /* UserStatus.CREATING */;
     }
     if (_status === null) {
       throw new Error(`User.status is required`);
@@ -441,7 +439,8 @@ export class User
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.USER,
       id: this.id,
       _session: this._session,
@@ -527,6 +526,9 @@ export class User
     _graph?: any | null,
     _connection?: any | null,
   ): User {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const lastLoggedInAtValue = objectValue["41"];
     const unpackedLastLoggedInAt =
       lastLoggedInAtValue != undefined
@@ -535,12 +537,12 @@ export class User
     const handlePtrValue = objectValue["51"];
     const unpackedHandlePtr =
       handlePtrValue != undefined
-        ? NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const cursorPtrValue = objectValue["52"];
     const unpackedCursorPtr =
       cursorPtrValue != undefined
-        ? NodeReference.fromValue(cursorPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(cursorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const emailValue = objectValue["60"];
     const unpackedEmail = emailValue != undefined ? emailValue : null;
@@ -553,31 +555,31 @@ export class User
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new User({
       name: objectValue["31"],
@@ -585,7 +587,13 @@ export class User
       status: Number(objectValue["40"]),
       lastLoggedInAt: unpackedLastLoggedInAt,
       isStaff: objectValue["45"],
-      space: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromValue(
+        objectValue["50"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       handle: unpackedHandlePtr,
       cursor: unpackedCursorPtr,
       email: unpackedEmail,
@@ -675,12 +683,15 @@ export class User
     _graph?: any | null,
     _connection?: any | null,
   ): User {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -693,7 +704,7 @@ export class User
           ? unpackProtoTimestamp(objectProto.lastLoggedInAt!)
           : null,
       isStaff: objectProto.isStaff,
-      space: NodeReference.fromProto(
+      space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,
         _supergraph,
@@ -702,7 +713,7 @@ export class User
       ),
       handle:
         objectProto.handlePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.handlePtr!,
               _session,
               _supergraph,
@@ -712,7 +723,7 @@ export class User
           : null,
       cursor:
         objectProto.cursorPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.cursorPtr!,
               _session,
               _supergraph,
@@ -725,13 +736,13 @@ export class User
       passwordHash: objectProto.passwordHash != undefined ? objectProto.passwordHash : null,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       value: unpackedValue,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -742,7 +753,7 @@ export class User
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -753,7 +764,7 @@ export class User
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,

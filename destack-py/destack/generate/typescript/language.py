@@ -32,7 +32,6 @@ from destack.language import (
     Type,
     TypeCardinality,
     TypeDeclaration,
-    Value,
     expand_node_types,
 )
 from destack.language.registry import (
@@ -927,7 +926,8 @@ def _generate_to_ref(cls: type["Node"]) -> str:
     if node_type == NodeType.SPACE:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-  return new NodeReference({{
+  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+  return new _NodeReference({{
     nodeType: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.id,
@@ -939,7 +939,8 @@ __toRef__(): NodeReference {{
     elif NodeType.CUSTOM_ENTITY in cls.__extends__ or NodeType.CUSTOM_EVENT in cls.__extends__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-  return new NodeReference({{
+  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+  return new _NodeReference({{
     nodeType: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
@@ -952,7 +953,8 @@ __toRef__(): NodeReference {{
     elif TraitType.SPATIAL in cls.__traits__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-  return new NodeReference({{
+  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+  return new _NodeReference({{
     nodeType: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
@@ -964,7 +966,8 @@ __toRef__(): NodeReference {{
     else:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-  return new NodeReference({{
+  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+  return new _NodeReference({{
     nodeType: NodeType.{node_type.name},
     id: this.id,
     _session: this._session,
@@ -1202,7 +1205,9 @@ export const {definition.name} = {generate_value(definition.value.type, definiti
 
 
 def _get_type_dependencies(
-    type: Type | TypeDeclaration | PropertyDeclaration | PropertyDefinition, is_abstract: bool
+    type: Type | TypeDeclaration | PropertyDeclaration | PropertyDefinition,
+    is_abstract: bool,
+    is_value: bool = False,
 ) -> tuple[dict[str, Definition], set[str]]:
     """Get the dependencies of a type."""
     dependencies: dict[str, Definition] = {}
@@ -1222,11 +1227,13 @@ def _get_type_dependencies(
             if type.node_type is not None:
                 node_cls = NODE_CLASS_BY_TYPE[type.node_type]
                 dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[type.node_type]
+        if is_value:
+            value_dependencies.add("NodeReference")
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
         dependencies[struct_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[type.struct_type]
-        if not is_abstract:
+        if is_value:
             value_dependencies.add(struct_cls.__name__)
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum_type for {type!r}"
@@ -1235,13 +1242,6 @@ def _get_type_dependencies(
         if not is_abstract:
             value_dependencies.add(enum_cls.__name__)
     return dependencies, value_dependencies
-
-
-def _get_value_dependencies(
-    value: Value, is_abstract: bool
-) -> tuple[dict[str, Definition], set[str]]:
-    """Get the dependencies of a value."""
-    return _get_type_dependencies(value.type, is_abstract)
 
 
 def _get_builtin_object_dependencies(
@@ -1327,8 +1327,8 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = definition._declaration.module
         definition_str = _generate_constant(definition)
         name = definition.name
-        dependencies, value_dependencies = _get_value_dependencies(
-            definition.value, is_abstract=False
+        dependencies, value_dependencies = _get_type_dependencies(
+            definition.value.type, is_abstract=False, is_value=True
         )
     else:
         assert_never(definition)
@@ -1580,7 +1580,6 @@ def _generate_file(
     language_imports_by_module["core.runtime.session"] = {"Session"}
     language_imports_by_module["core.runtime.connection"] = {"QueryConnection"}
     language_imports_by_module["core.builtin.relation"] = {"NodeReference"}
-    value_dependencies.add("NodeReference")
     language_imports_by_module["core.builtin.common"] = {
         "NodeType",
         "TraitType",
@@ -1620,6 +1619,10 @@ def _generate_file(
         "registerStructClass",
         "registerEnumClass",
         "registerTraitClass",
+        "STRUCT_CLASS_BY_TYPE",
+        "NODE_CLASS_BY_TYPE",
+        "TRAIT_CLASS_BY_TYPE",
+        "ENUM_CLASS_BY_TYPE",
     }
     value_dependencies.update(language_imports_by_module["registry"])
     seen_language_imports: set[str] = {*language_imports_by_module["core"]}
@@ -1912,7 +1915,7 @@ def generate():
         file.path.parent.mkdir(parents=True, exist_ok=True)
         file.path.write_text(file.new_str)
 
-    # update registry file
+    # update registry/mapping/lookup files
     registry_path = Path(GENERATION_PATH) / "registry.ts"
     mapping_path = Path(GENERATION_PATH) / "mapping.ts"
     lookup_path = Path(GENERATION_PATH) / "lookup.ts"

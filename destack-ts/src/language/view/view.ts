@@ -8,9 +8,10 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  NodeReference,
   Position,
 } from "@destack/language/core";
-import { Entity, Node, NodeReference, NodeType } from "@destack/language/core";
+import { Entity, Node, NodeType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";

@@ -2,7 +2,10 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { ResourceStatus } from "@destack/language/core/builtin/common";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeDefinitionReference, NodeReference } from "@destack/language/core/builtin/relation";
+import type {
+  NodeDefinitionReference,
+  NodeReference,
+} from "@destack/language/core/builtin/relation";
 import type {
   HasName,
   IsCustomizable,
@@ -16,13 +19,13 @@ import type {
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
-import { Value } from "@destack/language/core/common/value";
+import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
-import { registerNodeClass } from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { CustomEntityDefinitionProto, CustomTraitDefinitionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -526,7 +529,8 @@ export class CustomEntityDefinition
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.CUSTOM_ENTITY_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -628,20 +632,25 @@ export class CustomEntityDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEntityDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const prototypePtrValue = objectValue["40"];
     const unpackedPrototypePtr =
       prototypePtrValue != undefined
-        ? NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const baseTypeValue = objectValue["41"];
     const unpackedBaseType =
       baseTypeValue != undefined
-        ? NodeDefinitionReference.fromValue(
+        ? _NodeDefinitionReference.fromValue(
             baseTypeValue,
             _session,
             _supergraph,
@@ -653,28 +662,28 @@ export class CustomEntityDefinition
     if (objectValue["42"] != undefined) {
       for (const item of objectValue["42"]) {
         unpackedBaseTraits.push(
-          NodeDefinitionReference.fromValue(item, _session, _supergraph, _graph, _connection),
+          _NodeDefinitionReference.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -684,22 +693,22 @@ export class CustomEntityDefinition
     const scriptPtrValue = objectValue["200"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEntityDefinition({
       parent: unpackedParentPtr,
@@ -807,11 +816,16 @@ export class CustomEntityDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEntityDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedBaseTraits: any[] = [];
     if (objectProto.baseTraits) {
       for (const item of objectProto.baseTraits) {
         unpackedBaseTraits.push(
-          NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -820,14 +834,14 @@ export class CustomEntityDefinition
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new CustomEntityDefinition({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -837,7 +851,7 @@ export class CustomEntityDefinition
           : null,
       prototype:
         objectProto.prototypePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.prototypePtr!,
               _session,
               _supergraph,
@@ -847,7 +861,7 @@ export class CustomEntityDefinition
           : null,
       baseType:
         objectProto.baseType != undefined
-          ? NodeDefinitionReference.fromProto(
+          ? _NodeDefinitionReference.fromProto(
               objectProto.baseType!,
               _session,
               _supergraph,
@@ -859,7 +873,7 @@ export class CustomEntityDefinition
       isAbstract: objectProto.isAbstract,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -871,7 +885,7 @@ export class CustomEntityDefinition
       value: unpackedValue,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -883,7 +897,7 @@ export class CustomEntityDefinition
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       script:
         objectProto.scriptPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.scriptPtr!,
               _session,
               _supergraph,
@@ -893,7 +907,7 @@ export class CustomEntityDefinition
           : null,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.sourcePtr!,
               _session,
               _supergraph,
@@ -904,7 +918,7 @@ export class CustomEntityDefinition
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -915,7 +929,7 @@ export class CustomEntityDefinition
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -1423,7 +1437,8 @@ export class CustomTraitDefinition
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.CUSTOM_TRAIT_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1516,15 +1531,20 @@ export class CustomTraitDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomTraitDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const baseTypeValue = objectValue["41"];
     const unpackedBaseType =
       baseTypeValue != undefined
-        ? NodeDefinitionReference.fromValue(
+        ? _NodeDefinitionReference.fromValue(
             baseTypeValue,
             _session,
             _supergraph,
@@ -1536,19 +1556,19 @@ export class CustomTraitDefinition
     if (objectValue["42"] != undefined) {
       for (const item of objectValue["42"]) {
         unpackedBaseTraits.push(
-          NodeDefinitionReference.fromValue(item, _session, _supergraph, _graph, _connection),
+          _NodeDefinitionReference.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -1558,26 +1578,26 @@ export class CustomTraitDefinition
     const scriptPtrValue = objectValue["200"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(
           String(key),
-          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomTraitDefinition({
       parent: unpackedParentPtr,
@@ -1677,11 +1697,16 @@ export class CustomTraitDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomTraitDefinition {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedBaseTraits: any[] = [];
     if (objectProto.baseTraits) {
       for (const item of objectProto.baseTraits) {
         unpackedBaseTraits.push(
-          NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1690,14 +1715,14 @@ export class CustomTraitDefinition
       for (const [key, value] of Object.entries(objectProto.value)) {
         unpackedValue.set(
           String(key),
-          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new CustomTraitDefinition({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1707,7 +1732,7 @@ export class CustomTraitDefinition
           : null,
       baseType:
         objectProto.baseType != undefined
-          ? NodeDefinitionReference.fromProto(
+          ? _NodeDefinitionReference.fromProto(
               objectProto.baseType!,
               _session,
               _supergraph,
@@ -1719,7 +1744,7 @@ export class CustomTraitDefinition
       isAbstract: objectProto.isAbstract,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1730,7 +1755,7 @@ export class CustomTraitDefinition
       name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.sourcePtr!,
               _session,
               _supergraph,
@@ -1742,7 +1767,7 @@ export class CustomTraitDefinition
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       script:
         objectProto.scriptPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.scriptPtr!,
               _session,
               _supergraph,
@@ -1754,7 +1779,7 @@ export class CustomTraitDefinition
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1765,7 +1790,7 @@ export class CustomTraitDefinition
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

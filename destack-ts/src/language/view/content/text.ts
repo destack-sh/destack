@@ -1,26 +1,21 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Dimension,
   Graph,
   IsSubject,
+  NodeReference,
+  Position,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
-import {
-  Align,
-  Dimension,
-  Node,
-  NodeReference,
-  NodeType,
-  Position,
-  StructType,
-} from "@destack/language/core";
+import { Align, Node, NodeType, StructType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
-import { registerNodeClass } from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Space } from "@destack/language/space";
-import { Fill, Font } from "@destack/language/style";
+import type { Fill, Font } from "@destack/language/style";
 import type { ContainerView } from "@destack/language/view/container/container";
 import { ContentView } from "@destack/language/view/content/content";
 import { AlignProto, TextViewProto } from "@destack/proto";
@@ -513,7 +508,8 @@ export class TextView extends ContentView {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.TEXT_VIEW,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -627,17 +623,22 @@ export class TextView extends ContentView {
     _graph?: any | null,
     _connection?: any | null,
   ): TextView {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
+    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    const _Font = STRUCT_CLASS_BY_TYPE[StructType.FONT] as typeof Font;
     const userSelectValue = objectValue["65"];
     const unpackedUserSelect = userSelectValue != undefined ? userSelectValue : null;
     const fontValue = objectValue["66"];
     const unpackedFont =
       fontValue != undefined
-        ? Font.fromValue(fontValue, _session, _supergraph, _graph, _connection)
+        ? _Font.fromValue(fontValue, _session, _supergraph, _graph, _connection)
         : null;
     const colorValue = objectValue["67"];
     const unpackedColor =
       colorValue != undefined
-        ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     const textValue = objectValue["100"];
     const unpackedText = textValue != undefined ? textValue : null;
@@ -650,62 +651,62 @@ export class TextView extends ContentView {
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const positionValue = objectValue["40"];
     const unpackedPosition =
       positionValue != undefined
-        ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        ? _Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
         : null;
     const widthValue = objectValue["41"];
     const unpackedWidth =
       widthValue != undefined
-        ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
     const heightValue = objectValue["42"];
     const unpackedHeight =
       heightValue != undefined
-        ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
         : null;
     const minWidthValue = objectValue["43"];
     const unpackedMinWidth =
       minWidthValue != undefined
-        ? Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const minHeightValue = objectValue["44"];
     const unpackedMinHeight =
       minHeightValue != undefined
-        ? Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxWidthValue = objectValue["45"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
-        ? Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxHeightValue = objectValue["46"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
-        ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const scriptPtrValue = objectValue["200"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -835,15 +836,20 @@ export class TextView extends ContentView {
     _graph?: any | null,
     _connection?: any | null,
   ): TextView {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
+    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    const _Font = STRUCT_CLASS_BY_TYPE[StructType.FONT] as typeof Font;
     return new TextView({
       userSelect: objectProto.userSelect != undefined ? objectProto.userSelect : null,
       font:
         objectProto.font != undefined
-          ? Font.fromProto(objectProto.font!, _session, _supergraph, _graph, _connection)
+          ? _Font.fromProto(objectProto.font!, _session, _supergraph, _graph, _connection)
           : null,
       color:
         objectProto.color != undefined
-          ? Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          ? _Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
           : null,
       text: objectProto.text != undefined ? objectProto.text : null,
       align: objectProto.align != undefined ? (Number(objectProto.align) as Align) : null,
@@ -851,7 +857,7 @@ export class TextView extends ContentView {
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -861,35 +867,35 @@ export class TextView extends ContentView {
           : null,
       position:
         objectProto.position != undefined
-          ? Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
-          ? Dimension.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
           : null,
       height:
         objectProto.height != undefined
-          ? Dimension.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
           : null,
       minWidth:
         objectProto.minWidth != undefined
-          ? Dimension.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
           : null,
       minHeight:
         objectProto.minHeight != undefined
-          ? Dimension.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
           : null,
       maxWidth:
         objectProto.maxWidth != undefined
-          ? Dimension.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
           : null,
       maxHeight:
         objectProto.maxHeight != undefined
-          ? Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -900,7 +906,7 @@ export class TextView extends ContentView {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -911,7 +917,7 @@ export class TextView extends ContentView {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -923,7 +929,7 @@ export class TextView extends ContentView {
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.scriptPtr!,
               _session,
               _supergraph,

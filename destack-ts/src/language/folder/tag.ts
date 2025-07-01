@@ -3,18 +3,20 @@ import type {
   Graph,
   HasIcon,
   HasName,
+  Icon,
   IsDeletable,
   IsOrdered,
   IsSpatial,
   IsSubject,
   IsTaggable,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Icon, Node, NodeReference, NodeType, StructType } from "@destack/language/core";
+import { Entity, Node, NodeType, StructType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder/folder";
-import { registerNodeClass } from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { TagProto, TaggingProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -259,7 +261,8 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.TAG,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -331,20 +334,22 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     _graph?: any | null,
     _connection?: any | null,
   ): Tag {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -354,12 +359,12 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Tag({
       parent: unpackedParentPtr,
@@ -428,10 +433,12 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     _graph?: any | null,
     _connection?: any | null,
   ): Tag {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Tag({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -441,7 +448,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -452,7 +459,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       orderKey: objectProto.orderKey,
       deletedAt:
@@ -460,7 +467,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -471,7 +478,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -746,7 +753,8 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.TAGGING,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -815,20 +823,21 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     _graph?: any | null,
     _connection?: any | null,
   ): Tagging {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const tagPtrValue = objectValue["40"];
     const unpackedTagPtr =
       tagPtrValue != undefined
-        ? NodeReference.fromValue(tagPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(tagPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -838,12 +847,12 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Tagging({
       parent: unpackedParentPtr,
@@ -910,10 +919,11 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     _graph?: any | null,
     _connection?: any | null,
   ): Tagging {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Tagging({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -923,11 +933,17 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
           : null,
       tag:
         objectProto.tagPtr != undefined
-          ? NodeReference.fromProto(objectProto.tagPtr!, _session, _supergraph, _graph, _connection)
+          ? _NodeReference.fromProto(
+              objectProto.tagPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -941,7 +957,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -952,7 +968,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

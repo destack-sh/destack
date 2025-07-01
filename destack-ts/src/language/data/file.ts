@@ -10,6 +10,7 @@ import type {
   IsGlobal,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
@@ -17,13 +18,16 @@ import type {
 import {
   EnumType,
   Node,
-  NodeReference,
   NodeType,
   Resource,
   ResourceStatus,
   StructType,
 } from "@destack/language/core";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
   FileFormatProto,
@@ -453,7 +457,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     this.name = _name;
     let _status = options.status ?? null;
     if (_status === null) {
-      _status = ResourceStatus.PENDING;
+      _status = 1 /* ResourceStatus.PENDING */;
     }
     if (_status === null) {
       throw new Error(`File.status is required`);
@@ -694,7 +698,8 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.FILE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -830,6 +835,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     _graph?: any | null,
     _connection?: any | null,
   ): File {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const mimeTypeValue = objectValue["61"];
     const unpackedMimeType = mimeTypeValue != undefined ? mimeTypeValue : null;
     const formatValue = objectValue["62"];
@@ -868,7 +874,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const targetStatusValue = objectValue["41"];
     const unpackedTargetStatus =
@@ -878,7 +884,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -888,12 +894,12 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new File({
       type: Number(objectValue["30"]),
@@ -1030,6 +1036,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     _graph?: any | null,
     _connection?: any | null,
   ): File {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new File({
       type: Number(objectProto.type) as FileType,
       source: Number(objectProto.source) as FileSource,
@@ -1054,7 +1061,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
       content: objectProto.content != undefined ? objectProto.content : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1071,7 +1078,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1084,7 +1091,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1095,7 +1102,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

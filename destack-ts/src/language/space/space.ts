@@ -4,6 +4,7 @@ import type {
   HasIcon,
   HasName,
   HasSlug,
+  Icon,
   IsFollowable,
   IsGlobal,
   IsJoinable,
@@ -12,23 +13,19 @@ import type {
   IsSpatial,
   IsStarable,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
 } from "@destack/language/core";
-import {
-  Entity,
-  EnumType,
-  Icon,
-  Node,
-  NodeReference,
-  NodeType,
-  Region,
-  StructType,
-} from "@destack/language/core";
+import { Entity, EnumType, Node, NodeType, Region, StructType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Database } from "@destack/language/infra";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Handle } from "@destack/language/space/handle";
 import { RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -462,7 +459,8 @@ export class Space
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SPACE,
       id: this.id,
       spaceId: this.id,
@@ -547,57 +545,59 @@ export class Space
     _graph?: any | null,
     _connection?: any | null,
   ): Space {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const handlePtrValue = objectValue["41"];
     const unpackedHandlePtr =
       handlePtrValue != undefined
-        ? NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const systemFolderPtrValue = objectValue["42"];
     const unpackedSystemFolderPtr =
       systemFolderPtrValue != undefined
-        ? NodeReference.fromValue(systemFolderPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(systemFolderPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const homeFolderPtrValue = objectValue["43"];
     const unpackedHomeFolderPtr =
       homeFolderPtrValue != undefined
-        ? NodeReference.fromValue(homeFolderPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(homeFolderPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const galaxyNameValue = objectValue["51"];
     const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
     const databasePtrValue = objectValue["55"];
     const unpackedDatabasePtr =
       databasePtrValue != undefined
-        ? NodeReference.fromValue(databasePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(databasePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Space({
       name: objectValue["31"],
@@ -690,13 +690,15 @@ export class Space
     _graph?: any | null,
     _connection?: any | null,
   ): Space {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Space({
       name: objectProto.name,
       slug: objectProto.slug,
       status: Number(objectProto.status) as SpaceStatus,
       handle:
         objectProto.handlePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.handlePtr!,
               _session,
               _supergraph,
@@ -706,7 +708,7 @@ export class Space
           : null,
       systemFolder:
         objectProto.systemFolderPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.systemFolderPtr!,
               _session,
               _supergraph,
@@ -716,7 +718,7 @@ export class Space
           : null,
       homeFolder:
         objectProto.homeFolderPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.homeFolderPtr!,
               _session,
               _supergraph,
@@ -728,7 +730,7 @@ export class Space
       galaxyName: objectProto.galaxyName != undefined ? objectProto.galaxyName : null,
       database:
         objectProto.databasePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.databasePtr!,
               _session,
               _supergraph,
@@ -738,11 +740,11 @@ export class Space
           : null,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -752,7 +754,7 @@ export class Space
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -763,7 +765,7 @@ export class Space
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -774,7 +776,7 @@ export class Space
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -785,7 +787,7 @@ export class Space
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,

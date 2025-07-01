@@ -1,41 +1,41 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
-  Graph,
-  HasIcon,
-  IsOwnable,
-  IsOwner,
-  IsSubject,
-  QueryConnection,
-  Session,
-  Supergraph,
-} from "@destack/language/core";
-import {
-  Align,
   Axis2,
   Axis3,
   Corners,
   Dimension,
+  Graph,
+  Grid,
+  GridSpan,
+  HasIcon,
+  Icon,
+  Insets,
+  IsOwnable,
+  IsOwner,
+  IsSubject,
+  NodeReference,
+  Position,
+  QueryConnection,
+  Session,
+  Supergraph,
+  Vector2,
+} from "@destack/language/core";
+import {
+  Align,
   Direction,
   Distribute,
   Event,
-  Grid,
-  GridSpan,
-  Icon,
-  Insets,
   Layout,
   Node,
-  NodeReference,
   NodeType,
-  Position,
   StructType,
-  Vector2,
 } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
-import { registerNodeClass } from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Window } from "@destack/language/scene/window";
 import type { Space } from "@destack/language/space";
-import { Border, Fill, Shadow } from "@destack/language/style";
+import type { Border, Fill, Shadow } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view";
 import {
   AlignProto,
@@ -294,7 +294,8 @@ export class SceneEnteredEvent extends SceneEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SCENE_ENTERED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -353,23 +354,24 @@ export class SceneEnteredEvent extends SceneEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SceneEnteredEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SceneEnteredEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -425,8 +427,9 @@ export class SceneEnteredEvent extends SceneEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SceneEnteredEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new SceneEnteredEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -436,7 +439,7 @@ export class SceneEnteredEvent extends SceneEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -446,7 +449,7 @@ export class SceneEnteredEvent extends SceneEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -457,7 +460,7 @@ export class SceneEnteredEvent extends SceneEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -674,7 +677,8 @@ export class SceneExitedEvent extends SceneEvent {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SCENE_EXITED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -733,23 +737,24 @@ export class SceneExitedEvent extends SceneEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SceneExitedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SceneExitedEvent({
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -805,8 +810,9 @@ export class SceneExitedEvent extends SceneEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): SceneExitedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new SceneExitedEvent({
-      node: NodeReference.fromProto(
+      node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
         _supergraph,
@@ -816,7 +822,7 @@ export class SceneExitedEvent extends SceneEvent {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -826,7 +832,7 @@ export class SceneExitedEvent extends SceneEvent {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -837,7 +843,7 @@ export class SceneExitedEvent extends SceneEvent {
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1641,7 +1647,8 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.SCENE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -1803,25 +1810,39 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     _graph?: any | null,
     _connection?: any | null,
   ): Scene {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
+    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+    const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
+    const _GridSpan = STRUCT_CLASS_BY_TYPE[StructType.GRID_SPAN] as typeof GridSpan;
+    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
+    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
+    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
+    const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const rootViewPtrValue = objectValue["100"];
     const unpackedRootViewPtr =
       rootViewPtrValue != undefined
-        ? NodeReference.fromValue(rootViewPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(rootViewPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const layoutValue = objectValue["50"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
@@ -1834,22 +1855,22 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     const gapValue = objectValue["54"];
     const unpackedGap =
       gapValue != undefined
-        ? Axis2.fromValue(gapValue, _session, _supergraph, _graph, _connection)
+        ? _Axis2.fromValue(gapValue, _session, _supergraph, _graph, _connection)
         : null;
     const paddingValue = objectValue["55"];
     const unpackedPadding =
       paddingValue != undefined
-        ? Insets.fromValue(paddingValue, _session, _supergraph, _graph, _connection)
+        ? _Insets.fromValue(paddingValue, _session, _supergraph, _graph, _connection)
         : null;
     const gridValue = objectValue["56"];
     const unpackedGrid =
       gridValue != undefined
-        ? Grid.fromValue(gridValue, _session, _supergraph, _graph, _connection)
+        ? _Grid.fromValue(gridValue, _session, _supergraph, _graph, _connection)
         : null;
     const gridSpanValue = objectValue["57"];
     const unpackedGridSpan =
       gridSpanValue != undefined
-        ? GridSpan.fromValue(gridSpanValue, _session, _supergraph, _graph, _connection)
+        ? _GridSpan.fromValue(gridSpanValue, _session, _supergraph, _graph, _connection)
         : null;
     const aspectRatioValue = objectValue["58"];
     const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
@@ -1862,89 +1883,89 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     const fillValue = objectValue["62"];
     const unpackedFill =
       fillValue != undefined
-        ? Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection)
+        ? _Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection)
         : null;
     const rotationValue = objectValue["63"];
     const unpackedRotation =
       rotationValue != undefined
-        ? Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection)
+        ? _Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection)
         : null;
     const skewValue = objectValue["64"];
     const unpackedSkew =
       skewValue != undefined
-        ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
         : null;
     const scaleValue = objectValue["65"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
     const shadowValue = objectValue["66"];
     const unpackedShadow =
       shadowValue != undefined
-        ? Shadow.fromValue(shadowValue, _session, _supergraph, _graph, _connection)
+        ? _Shadow.fromValue(shadowValue, _session, _supergraph, _graph, _connection)
         : null;
     const borderValue = objectValue["67"];
     const unpackedBorder =
       borderValue != undefined
-        ? Border.fromValue(borderValue, _session, _supergraph, _graph, _connection)
+        ? _Border.fromValue(borderValue, _session, _supergraph, _graph, _connection)
         : null;
     const radiusValue = objectValue["68"];
     const unpackedRadius =
       radiusValue != undefined
-        ? Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection)
+        ? _Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection)
         : null;
     const positionValue = objectValue["40"];
     const unpackedPosition =
       positionValue != undefined
-        ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        ? _Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
         : null;
     const widthValue = objectValue["41"];
     const unpackedWidth =
       widthValue != undefined
-        ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
     const heightValue = objectValue["42"];
     const unpackedHeight =
       heightValue != undefined
-        ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
         : null;
     const minWidthValue = objectValue["43"];
     const unpackedMinWidth =
       minWidthValue != undefined
-        ? Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const minHeightValue = objectValue["44"];
     const unpackedMinHeight =
       minHeightValue != undefined
-        ? Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxWidthValue = objectValue["45"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
-        ? Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxHeightValue = objectValue["46"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
-        ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const scriptPtrValue = objectValue["200"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -2134,10 +2155,24 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     _graph?: any | null,
     _connection?: any | null,
   ): Scene {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
+    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+    const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
+    const _GridSpan = STRUCT_CLASS_BY_TYPE[StructType.GRID_SPAN] as typeof GridSpan;
+    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
+    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
+    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
+    const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     return new Scene({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -2147,7 +2182,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
           : null,
       rootView:
         objectProto.rootViewPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.rootViewPtr!,
               _session,
               _supergraph,
@@ -2157,11 +2192,11 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
           : null,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
               _session,
               _supergraph,
@@ -2177,19 +2212,19 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       align: objectProto.align != undefined ? (Number(objectProto.align) as Align) : null,
       gap:
         objectProto.gap != undefined
-          ? Axis2.fromProto(objectProto.gap!, _session, _supergraph, _graph, _connection)
+          ? _Axis2.fromProto(objectProto.gap!, _session, _supergraph, _graph, _connection)
           : null,
       padding:
         objectProto.padding != undefined
-          ? Insets.fromProto(objectProto.padding!, _session, _supergraph, _graph, _connection)
+          ? _Insets.fromProto(objectProto.padding!, _session, _supergraph, _graph, _connection)
           : null,
       grid:
         objectProto.grid != undefined
-          ? Grid.fromProto(objectProto.grid!, _session, _supergraph, _graph, _connection)
+          ? _Grid.fromProto(objectProto.grid!, _session, _supergraph, _graph, _connection)
           : null,
       gridSpan:
         objectProto.gridSpan != undefined
-          ? GridSpan.fromProto(objectProto.gridSpan!, _session, _supergraph, _graph, _connection)
+          ? _GridSpan.fromProto(objectProto.gridSpan!, _session, _supergraph, _graph, _connection)
           : null,
       aspectRatio: objectProto.aspectRatio != undefined ? objectProto.aspectRatio : null,
       isWrap: objectProto.isWrap != undefined ? objectProto.isWrap : null,
@@ -2197,61 +2232,61 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
       fill:
         objectProto.fill != undefined
-          ? Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
+          ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
           : null,
       rotation:
         objectProto.rotation != undefined
-          ? Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
+          ? _Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
           : null,
       skew:
         objectProto.skew != undefined
-          ? Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       scale: objectProto.scale != undefined ? objectProto.scale : null,
       shadow:
         objectProto.shadow != undefined
-          ? Shadow.fromProto(objectProto.shadow!, _session, _supergraph, _graph, _connection)
+          ? _Shadow.fromProto(objectProto.shadow!, _session, _supergraph, _graph, _connection)
           : null,
       border:
         objectProto.border != undefined
-          ? Border.fromProto(objectProto.border!, _session, _supergraph, _graph, _connection)
+          ? _Border.fromProto(objectProto.border!, _session, _supergraph, _graph, _connection)
           : null,
       radius:
         objectProto.radius != undefined
-          ? Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
+          ? _Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
           : null,
       id: String(objectProto.id),
       position:
         objectProto.position != undefined
-          ? Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
-          ? Dimension.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
           : null,
       height:
         objectProto.height != undefined
-          ? Dimension.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
           : null,
       minWidth:
         objectProto.minWidth != undefined
-          ? Dimension.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
           : null,
       minHeight:
         objectProto.minHeight != undefined
-          ? Dimension.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
           : null,
       maxWidth:
         objectProto.maxWidth != undefined
-          ? Dimension.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
           : null,
       maxHeight:
         objectProto.maxHeight != undefined
-          ? Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
+          ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -2262,7 +2297,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -2273,7 +2308,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
@@ -2285,7 +2320,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.scriptPtr!,
               _session,
               _supergraph,

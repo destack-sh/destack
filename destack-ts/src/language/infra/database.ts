@@ -4,6 +4,7 @@ import type {
   HasName,
   IsSpatial,
   IsSubject,
+  NodeReference,
   QueryConnection,
   Session,
   Supergraph,
@@ -11,7 +12,6 @@ import type {
 import {
   EnumType,
   Node,
-  NodeReference,
   NodeType,
   Region,
   Resource,
@@ -21,6 +21,7 @@ import {
   Tenancy,
 } from "@destack/language/core";
 import {
+  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
   registerStructClass,
@@ -139,7 +140,7 @@ export class DatabaseInfo extends StructFrozen {
     this.customSchemaName = _customSchemaName;
     let _tenancy = options.tenancy ?? null;
     if (_tenancy === null) {
-      _tenancy = Tenancy.DEDICATED;
+      _tenancy = 1 /* Tenancy.DEDICATED */;
     }
     if (_tenancy === null) {
       throw new Error(`DatabaseInfo.tenancy is required`);
@@ -562,7 +563,7 @@ export class Database extends Resource implements IsSpatial, HasName {
     this.name = _name;
     let _status = options.status ?? null;
     if (_status === null) {
-      _status = ResourceStatus.PENDING;
+      _status = 1 /* ResourceStatus.PENDING */;
     }
     if (_status === null) {
       throw new Error(`Database.status is required`);
@@ -586,7 +587,7 @@ export class Database extends Resource implements IsSpatial, HasName {
     this.customSchemaName = _customSchemaName;
     let _tenancy = options.tenancy ?? null;
     if (_tenancy === null) {
-      _tenancy = Tenancy.DEDICATED;
+      _tenancy = 1 /* Tenancy.DEDICATED */;
     }
     if (_tenancy === null) {
       throw new Error(`Database.tenancy is required`);
@@ -713,7 +714,8 @@ export class Database extends Resource implements IsSpatial, HasName {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.DATABASE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -808,10 +810,11 @@ export class Database extends Resource implements IsSpatial, HasName {
     _graph?: any | null,
     _connection?: any | null,
   ): Database {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const galaxyNameValue = objectValue["51"];
     const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
@@ -823,7 +826,7 @@ export class Database extends Resource implements IsSpatial, HasName {
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const targetStatusValue = objectValue["41"];
     const unpackedTargetStatus =
@@ -838,12 +841,12 @@ export class Database extends Resource implements IsSpatial, HasName {
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Database({
       parent: unpackedParentPtr,
@@ -932,10 +935,11 @@ export class Database extends Resource implements IsSpatial, HasName {
     _graph?: any | null,
     _connection?: any | null,
   ): Database {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Database({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -953,7 +957,7 @@ export class Database extends Resource implements IsSpatial, HasName {
       connectionUrl: objectProto.connectionUrl != undefined ? objectProto.connectionUrl : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -973,7 +977,7 @@ export class Database extends Resource implements IsSpatial, HasName {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -984,7 +988,7 @@ export class Database extends Resource implements IsSpatial, HasName {
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,

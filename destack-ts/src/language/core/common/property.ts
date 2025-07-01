@@ -13,7 +13,7 @@ import {
 import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
 import { Entity } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   HasIcon,
   HasName,
@@ -24,21 +24,25 @@ import type {
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
-import { Icon } from "@destack/language/core/common/icon";
+import type { Icon } from "@destack/language/core/common/icon";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
-import {
+import type {
   CollectionConstraint,
   NodeConstraint,
   NumberConstraint,
   StringConstraint,
   Type,
 } from "@destack/language/core/common/type";
-import { Value } from "@destack/language/core/common/value";
+import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
   CascadeActionProto,
@@ -381,7 +385,7 @@ export class CustomProperty
     this.orderKey = _orderKey;
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = CustomPropertyType.MEMBER;
+      _type = 1 /* CustomPropertyType.MEMBER */;
     }
     if (_type === null) {
       throw new Error(`CustomProperty.type is required`);
@@ -396,7 +400,7 @@ export class CustomProperty
     this.icon = _icon;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
-      _cardinality = TypeCardinality.SCALAR;
+      _cardinality = 1 /* TypeCardinality.SCALAR */;
     }
     if (_cardinality === null) {
       throw new Error(`CustomProperty.cardinality is required`);
@@ -692,7 +696,8 @@ export class CustomProperty
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference({
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
       nodeType: NodeType.CUSTOM_PROPERTY,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
@@ -850,10 +855,26 @@ export class CustomProperty
     _graph?: any | null,
     _connection?: any | null,
   ): CustomProperty {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
+    const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.NUMBER_CONSTRAINT
+    ] as typeof NumberConstraint;
+    const _StringConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.STRING_CONSTRAINT
+    ] as typeof StringConstraint;
+    const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.COLLECTION_CONSTRAINT
+    ] as typeof CollectionConstraint;
+    const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_CONSTRAINT
+    ] as typeof NodeConstraint;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const primitiveTypeValue = objectValue["42"];
     const unpackedPrimitiveType =
@@ -865,7 +886,7 @@ export class CustomProperty
     const nodeDefinitionPtrValue = objectValue["45"];
     const unpackedNodeDefinitionPtr =
       nodeDefinitionPtrValue != undefined
-        ? NodeReference.fromValue(
+        ? _NodeReference.fromValue(
             nodeDefinitionPtrValue,
             _session,
             _supergraph,
@@ -878,12 +899,12 @@ export class CustomProperty
     const baseTypePtrValue = objectValue["47"];
     const unpackedBaseTypePtr =
       baseTypePtrValue != undefined
-        ? NodeReference.fromValue(baseTypePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(baseTypePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
       keyTypeValue != undefined
-        ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
+        ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
     const isRequiredValue = objectValue["50"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
@@ -892,7 +913,7 @@ export class CustomProperty
     const defaultValueValue = objectValue["55"];
     const unpackedDefaultValue =
       defaultValueValue != undefined
-        ? Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
         : null;
     const defaultFactoryValue = objectValue["56"];
     const unpackedDefaultFactory =
@@ -900,7 +921,7 @@ export class CustomProperty
     const collectionConstraintValue = objectValue["60"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
-        ? CollectionConstraint.fromValue(
+        ? _CollectionConstraint.fromValue(
             collectionConstraintValue,
             _session,
             _supergraph,
@@ -911,7 +932,7 @@ export class CustomProperty
     const stringConstraintValue = objectValue["61"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
-        ? StringConstraint.fromValue(
+        ? _StringConstraint.fromValue(
             stringConstraintValue,
             _session,
             _supergraph,
@@ -922,7 +943,7 @@ export class CustomProperty
     const numberConstraintValue = objectValue["62"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
-        ? NumberConstraint.fromValue(
+        ? _NumberConstraint.fromValue(
             numberConstraintValue,
             _session,
             _supergraph,
@@ -933,7 +954,7 @@ export class CustomProperty
     const nodeConstraintValue = objectValue["63"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
-        ? NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
+        ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     const edgeTypeValue = objectValue["70"];
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
@@ -946,12 +967,12 @@ export class CustomProperty
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined
-        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
@@ -961,17 +982,17 @@ export class CustomProperty
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByPtrValue = objectValue["18"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomProperty({
       parent: unpackedParentPtr,
@@ -1126,10 +1147,26 @@ export class CustomProperty
     _graph?: any | null,
     _connection?: any | null,
   ): CustomProperty {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
+    const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.NUMBER_CONSTRAINT
+    ] as typeof NumberConstraint;
+    const _StringConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.STRING_CONSTRAINT
+    ] as typeof StringConstraint;
+    const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.COLLECTION_CONSTRAINT
+    ] as typeof CollectionConstraint;
+    const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_CONSTRAINT
+    ] as typeof NodeConstraint;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new CustomProperty({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.parentPtr!,
               _session,
               _supergraph,
@@ -1150,7 +1187,7 @@ export class CustomProperty
         objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
       nodeDefinition:
         objectProto.nodeDefinitionPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.nodeDefinitionPtr!,
               _session,
               _supergraph,
@@ -1162,7 +1199,7 @@ export class CustomProperty
         objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
       baseType:
         objectProto.baseTypePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.baseTypePtr!,
               _session,
               _supergraph,
@@ -1172,13 +1209,13 @@ export class CustomProperty
           : null,
       keyType:
         objectProto.keyType != undefined
-          ? Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
+          ? _Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
           : null,
       isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
       isUnique: objectProto.isUnique != undefined ? objectProto.isUnique : null,
       defaultValue:
         objectProto.defaultValue != undefined
-          ? Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
           : null,
       defaultFactory:
         objectProto.defaultFactory != undefined
@@ -1186,7 +1223,7 @@ export class CustomProperty
           : null,
       collectionConstraint:
         objectProto.collectionConstraint != undefined
-          ? CollectionConstraint.fromProto(
+          ? _CollectionConstraint.fromProto(
               objectProto.collectionConstraint!,
               _session,
               _supergraph,
@@ -1196,7 +1233,7 @@ export class CustomProperty
           : null,
       stringConstraint:
         objectProto.stringConstraint != undefined
-          ? StringConstraint.fromProto(
+          ? _StringConstraint.fromProto(
               objectProto.stringConstraint!,
               _session,
               _supergraph,
@@ -1206,7 +1243,7 @@ export class CustomProperty
           : null,
       numberConstraint:
         objectProto.numberConstraint != undefined
-          ? NumberConstraint.fromProto(
+          ? _NumberConstraint.fromProto(
               objectProto.numberConstraint!,
               _session,
               _supergraph,
@@ -1216,7 +1253,7 @@ export class CustomProperty
           : null,
       nodeConstraint:
         objectProto.nodeConstraint != undefined
-          ? NodeConstraint.fromProto(
+          ? _NodeConstraint.fromProto(
               objectProto.nodeConstraint!,
               _session,
               _supergraph,
@@ -1232,7 +1269,7 @@ export class CustomProperty
       isStatic: objectProto.isStatic != undefined ? objectProto.isStatic : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.spacePtr!,
               _session,
               _supergraph,
@@ -1243,13 +1280,13 @@ export class CustomProperty
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.sourcePtr!,
               _session,
               _supergraph,
@@ -1260,7 +1297,7 @@ export class CustomProperty
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
               _supergraph,
@@ -1271,7 +1308,7 @@ export class CustomProperty
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
+          ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
               _supergraph,
