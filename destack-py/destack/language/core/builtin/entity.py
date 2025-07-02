@@ -11,7 +11,7 @@ from .property import (
     builtin_property_parent,
 )
 from .trait import (
-    HasName,
+    IsArchivable,
     IsCustomizable,
     IsDeletable,
     IsExtensible,
@@ -25,6 +25,7 @@ from .trait import (
 if TYPE_CHECKING:
     from destack.language import (
         Folder,
+        Icon,
         IsSubject,
         NodeDefinitionReference,
         NodeReference,
@@ -40,14 +41,14 @@ class Entity(Node):
     """
 
     created_at: datetime = builtin_property(
-        15,
+        20,
         is_managed=True,
         is_eq=False,
         is_readonly=True,
         can_write=RoleType.SYSTEM,
     )
     created_by: Optional["IsSubject"] = builtin_property(
-        16,
+        21,
         default=None,
         is_managed=True,
         is_eq=False,
@@ -57,13 +58,13 @@ class Entity(Node):
         can_write=RoleType.SYSTEM,
     )
     updated_at: datetime = builtin_property(
-        17,
+        22,
         is_managed=True,
         is_eq=False,
         can_write=RoleType.SYSTEM,
     )
     updated_by: Optional["IsSubject"] = builtin_property(
-        18,
+        23,
         default=None,
         is_managed=True,
         is_eq=False,
@@ -130,7 +131,6 @@ class Entity(Node):
 @builtin_node(NodeType.CUSTOM_ENTITY_DEFINITION)
 class CustomEntityDefinition(
     IsSpatial,
-    HasName,
     IsCustomizable,
     IsTaggable,
     IsOwnable,
@@ -157,16 +157,24 @@ class CustomEntityDefinition(
         description="A custom Entity's prototype is the default template new CustomEntity instances are based on.",
     )
 
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+
 
 @builtin_node(NodeType.CUSTOM_ENTITY, is_abstract=True)
 class CustomEntity(
     IsSpatial,
     IsExtensible,
+    IsArchivable,
     IsDeletable,
+    IsOwnable,
     Entity,
 ):
     """
     A generic CustomEntity instance of a CustomEntityDefinition.
+    The Archivable, Deletable, and Ownable traits are always present for plain CustomEntities
+     (but must be explicitly added to the CustomEntityDefinition to use them).
+    More specific base Entity types will be instanced of that base type instead.
     """
 
     definition: "CustomEntityDefinition" = builtin_property(
@@ -182,7 +190,6 @@ class CustomEntity(
 @builtin_node(NodeType.CUSTOM_TRAIT_DEFINITION)
 class CustomTraitDefinition(
     IsSpatial,
-    HasName,
     IsSourceable,
     IsDeletable,
     IsScriptable,
@@ -198,6 +205,9 @@ class CustomTraitDefinition(
     base_traits: list["NodeDefinitionReference"] = builtin_property(41)
     is_abstract: bool = builtin_property(45, default=False)
 
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+
 
 @builtin_node(NodeType.RESOURCE, is_abstract=True)
 class Resource(IsDeletable, IsExtensible, Entity):
@@ -211,7 +221,8 @@ class Resource(IsDeletable, IsExtensible, Entity):
 
 
 @builtin_node(NodeType.METRIC, is_abstract=True)
-class Metric(IsSpatial, HasName, IsSourceable, Entity):
+class Metric(IsSpatial, IsSourceable, Entity):
     """An Entity that represents a Metric."""
 
-    pass
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)

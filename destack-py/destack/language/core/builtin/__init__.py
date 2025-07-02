@@ -96,9 +96,6 @@ from .relation import (
 from .struct import StructBase, StructFrozen, StructMutable, builtin_struct
 from .trait import (
     TRAIT_PREFIXES,
-    HasIcon,
-    HasName,
-    HasSlug,
     IsArchivable,
     IsCustomizable,
     IsDeletable,
@@ -169,9 +166,6 @@ __all__ = [
     "EnumType",
     "EnvironmentType",
     "Event",
-    "HasIcon",
-    "HasName",
-    "HasSlug",
     "IndexIn",
     "IsArchivable",
     "IsCustomizable",

@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    HasName,
     IsDeletable,
     IsOrdered,
     IsOwnable,
@@ -31,7 +30,6 @@ class WindowType(Enum):
 @builtin_node(NodeType.WINDOW)
 class Window(
     IsSpatial,
-    HasName,
     IsOwnable,
     IsOrdered,
     IsDeletable,
@@ -41,4 +39,5 @@ class Window(
     A Window for someone to interact with a Space via Scenes.
     """
 
-    type: WindowType = builtin_property(30)
+    type: WindowType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)

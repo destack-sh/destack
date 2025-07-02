@@ -5,9 +5,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    HasIcon,
-    HasName,
-    HasSlug,
     IsCustomizable,
     IsFollowable,
     IsGlobal,
@@ -36,9 +33,6 @@ class UserStatus(Enum):
 @builtin_node(NodeType.USER, root_type=None)
 class User(
     IsGlobal,
-    HasName,
-    HasIcon,
-    HasSlug,
     IsOwner,
     IsFollowable,
     IsSubject,
@@ -48,21 +42,22 @@ class User(
     """A User is a human using Destack."""
 
     # meta
-    name: str = builtin_property(31, is_repr=True)
-    slug: str = builtin_property(33, is_repr=True)
-    status: UserStatus = builtin_property(
-        40, can_write=RoleType.SYSTEM, is_repr=True, default=UserStatus.CREATING
-    )
-    last_logged_in_at: Optional[datetime] = builtin_property(41, can_write=RoleType.SYSTEM)
-    # last_active_at, seen_at, ...
-    is_staff: bool = builtin_property(45, default=False, can_write=RoleType.SYSTEM)
+    name: str = builtin_property(101, is_repr=True)
+    slug: str = builtin_property(102, is_repr=True)
 
-    space: "Space" = builtin_property(50, can_write=RoleType.SYSTEM, node_space_from="self")
+    status: UserStatus = builtin_property(
+        110, can_write=RoleType.SYSTEM, is_repr=True, default=UserStatus.CREATING
+    )
+    last_logged_in_at: Optional[datetime] = builtin_property(111, can_write=RoleType.SYSTEM)
+    # last_active_at, seen_at, ...
+    is_staff: bool = builtin_property(112, default=False, can_write=RoleType.SYSTEM)
+
+    space: "Space" = builtin_property(120, can_write=RoleType.SYSTEM, node_space_from="self")
     handle: Optional["Handle"] = builtin_property(
-        51, can_write=RoleType.SYSTEM, node_space_from="self"
+        121, can_write=RoleType.SYSTEM, node_space_from="self"
     )
     cursor: Optional["Cursor"] = builtin_property(
-        52, can_write=RoleType.SYSTEM, node_space_from="self"
+        122, can_write=RoleType.SYSTEM, node_space_from="self"
     )
     if TYPE_CHECKING:
         space_ptr: NodeReference = builtin_property()
@@ -73,17 +68,17 @@ class User(
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client
     #  (multiple auth methods, multiple connected accounts, etc.)
     email: str | None = builtin_property(
-        60,
+        130,
         format=StringFormat.EMAIL,
         can_read=RoleType.OWNER,
         can_write=RoleType.SYSTEM,
         is_unique=True,
     )
     password_salt: Optional[bytes] = builtin_property(
-        61, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
+        131, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
     )
     password_hash: Optional[bytes] = builtin_property(
-        62, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
+        132, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
     )
     # challenges?
     # password_reset_token, email_confirmation_token, ...

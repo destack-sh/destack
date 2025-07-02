@@ -90,7 +90,7 @@ class PostgresStore(Store):
             for change in changes:
                 # duplicate context if we're mutating custom node definitions
                 has_custom_edits = any(
-                    edit.node_ptr.node_type
+                    edit.node_ptr.type
                     in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.CUSTOM_PROPERTY)
                     for edit in change.edits
                 )
@@ -157,7 +157,7 @@ class PostgresStoreContext(PostgresContext):
     def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
         applied_edits: list[Edit] = []
         for edit in edits:
-            if edit.node_ptr.node_type in (
+            if edit.node_ptr.type in (
                 NodeType.CUSTOM_ENTITY_DEFINITION,
                 NodeType.CUSTOM_PROPERTY,
             ):
@@ -199,8 +199,8 @@ class PostgresStoreContext(PostgresContext):
     def get(self, definition: NodeDefinitionReference | NodeReference) -> PostgresTable:
         # map definitions to table names
         if isinstance(definition, NodeReference):
-            if definition.node_type != NodeType.CUSTOM_ENTITY:
-                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.node_type.name.lower()}"
+            if definition.type != NodeType.CUSTOM_ENTITY:
+                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.type.name.lower()}"
             else:
                 assert definition.definition_id is not None, f"no definition_id for {definition!r}"
                 table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{definition.definition_id}"

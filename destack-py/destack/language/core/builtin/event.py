@@ -6,12 +6,13 @@ from .const import UNSET
 from .entity import Entity
 from .node import Node, NodeType, builtin_node
 from .property import builtin_property, builtin_property_parent
-from .trait import HasName, IsCustomizable, IsExtensible, IsSourceable, IsSpatial
+from .trait import IsCustomizable, IsExtensible, IsSourceable, IsSpatial
 
 if TYPE_CHECKING:
     from destack.language import (
         EditOperation,
         EditType,
+        Icon,
         IsSubject,
         Metric,
         NodeDefinitionReference,
@@ -35,14 +36,14 @@ class Event[N: Node = Node](IsSpatial, Node):
         is_readonly=True,
     )
     created_at: datetime = builtin_property(
-        15,
+        20,
         is_managed=True,
         is_eq=False,
         is_readonly=True,
         can_write=RoleType.SYSTEM,
     )
     created_by: Optional["IsSubject"] = builtin_property(
-        16,
+        21,
         default=None,
         is_managed=True,
         is_eq=False,
@@ -62,7 +63,6 @@ class Event[N: Node = Node](IsSpatial, Node):
 @builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
 class CustomEventDefinition(
     IsSpatial,
-    HasName,
     IsSourceable,
     IsCustomizable,
     Entity,
@@ -78,10 +78,16 @@ class CustomEventDefinition(
         description="A custom Event's prototype is the default template new CustomEvent instances are based on.",
     )
 
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+
 
 @builtin_node(NodeType.CUSTOM_EVENT, pretend_frozen=True, is_abstract=True)
 class CustomEvent(Event, IsExtensible):
-    """A CustomEvent is an instance of a CustomEventDefinition."""
+    """
+    A generic CustomEvent of a CustomEventDefinition.
+    More specific base Event types will be instanced of that base type instead.
+    """
 
     definition: "CustomEventDefinition" = builtin_property(
         6,
@@ -98,16 +104,16 @@ class EditEvent(Event):
     """A Event of an Edit. Only EditEvents of Entities are allowed."""
 
     # key
-    type: "EditType" = builtin_property(30, is_repr=True)
-    operation: "EditOperation | None" = builtin_property(31, is_repr=True)
-    node: "Node" = builtin_property(35, is_repr=True)
-    prop_ptr: "PropertyReference | None" = builtin_property(36, is_repr=True)
-    key: "Value | None" = builtin_property(38, is_repr=True)  # for map operations
+    type: "EditType" = builtin_property(100, is_repr=True)
+    operation: "EditOperation | None" = builtin_property(101, is_repr=True)
+    node: "Node" = builtin_property(102, is_repr=True)
+    prop_ptr: "PropertyReference | None" = builtin_property(103, is_repr=True)
+    key: "Value | None" = builtin_property(104, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET
 
     # value
-    value: "Value | None" = builtin_property(40)
+    value: "Value | None" = builtin_property(110)
 
 
 @builtin_node(NodeType.MEASUREMENT_EVENT, is_abstract=True)

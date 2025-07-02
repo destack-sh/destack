@@ -171,7 +171,7 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
         return Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.NODE_REFERENCE,
-            node_type=value_or_type.node_type,
+            node_type=value_or_type.type,
         )
     elif isinstance(value_or_type, Node):
         return Type(

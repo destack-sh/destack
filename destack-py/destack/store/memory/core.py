@@ -85,12 +85,12 @@ class MemoryContext:
 
     def get(self, definition: NodeDefinitionReference | NodeReference) -> "MemoryTable":
         """Get the (single) Table for a node / definition. Doesn't work for multi-definitions."""
-        assert definition.node_type is not None, f"no node_type for {definition!r}"
+        assert definition.type is not None, f"no node_type for {definition!r}"
         if isinstance(definition, NodeReference):
-            if definition.node_type != NodeType.CUSTOM_ENTITY:
-                table_key = (definition.node_type, None)
+            if definition.type != NodeType.CUSTOM_ENTITY:
+                table_key = (definition.type, None)
             else:
-                table_key = (definition.node_type, definition.definition_id)
+                table_key = (definition.type, definition.definition_id)
         else:
             if definition.node_type != NodeType.CUSTOM_ENTITY:
                 table_key = (definition.node_type, None)
@@ -101,7 +101,7 @@ class MemoryContext:
                 )
         if table_key not in self.database.tables:
             self.database.tables[table_key] = MemoryTable(
-                database=self.database, metatype=definition.node_type, definition=None
+                database=self.database, metatype=definition.type, definition=None
             )
         return self.database.tables[table_key]
 

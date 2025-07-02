@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     ClientType,
     Entity,
-    HasName,
     IsDeletable,
     IsGlobal,
     IsSubject,
@@ -25,7 +24,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CLIENT)
 class Client(
-    HasName,
     IsGlobal,
     IsDeletable,
     Entity,
@@ -34,24 +32,26 @@ class Client(
 
     # meta
     parent: Optional[IsSubject] = builtin_property_parent(node_is_extensible=False)
-    type: ClientType = builtin_property(30)
-    machine: Optional["Machine"] = builtin_property(36)
-    user: Optional["User"] = builtin_property(37)
+    type: ClientType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+
+    machine: Optional["Machine"] = builtin_property(110)
+    user: Optional["User"] = builtin_property(111)
     if TYPE_CHECKING:
         machine_ptr: Optional[NodeReference] = None
         user_ptr: Optional[NodeReference] = None
 
     # status
-    access_token: Optional[str] = builtin_property(50, is_unique=True)
-    seen_at: Optional[datetime] = builtin_property(51)
-    logged_in_at: Optional[datetime] = builtin_property(52)
-    cursor: Optional["Cursor"] = builtin_property(55)
+    access_token: Optional[str] = builtin_property(120, is_unique=True)
+    seen_at: Optional[datetime] = builtin_property(121)
+    logged_in_at: Optional[datetime] = builtin_property(122)
+    cursor: Optional["Cursor"] = builtin_property(123)
 
     # details
-    device_type: Optional[str] = builtin_property(40)
-    device_name: Optional[str] = builtin_property(41)
-    operating_system: Optional[str] = builtin_property(42)
-    browser_name: Optional[str] = builtin_property(43)
+    device_type: Optional[str] = builtin_property(130)
+    device_name: Optional[str] = builtin_property(131)
+    operating_system: Optional[str] = builtin_property(132)
+    browser_name: Optional[str] = builtin_property(133)
     browser_version: Optional[str] = builtin_property(44)
 
     def to_origin(self, *, nonce: UUID | None) -> "Origin":

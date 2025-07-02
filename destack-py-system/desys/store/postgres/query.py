@@ -43,12 +43,14 @@ tracer = trace.get_tracer(__name__)
 
 MAX_RECURSION_DEPTH = 1_000
 
+NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
+
 
 def _compile_value(context: PostgresContext, arguments_out: list[Any], value: Value) -> str:
     """Compile a Value into a SQL expression."""
     if value.type.scalar_type == ScalarType.NODE_REFERENCE:
         # unravel reference column into id
-        value_id = uuid.UUID(value.value["32"])
+        value_id = uuid.UUID(value.value[NODE_REFERENCE_ID_KEY])
         arguments_out.append(value_id)
         return f"${len(arguments_out)}"
     else:
@@ -322,7 +324,7 @@ FROM tree;
             result_nodes_ptr: list[NodeReference] = []
             for row in result_rows:
                 node_type = NodeType(int(row["node_type"]))
-                node_ptr = NodeReference(node_type=node_type, id=UUID(str(row["id"])))
+                node_ptr = NodeReference(type=node_type, id=UUID(str(row["id"])))
                 result_nodes_ptr.append(node_ptr)
             return result_nodes_ptr
         else:
@@ -352,7 +354,7 @@ FROM    tree;
             result_rows = await conn.fetch(stmt, *arguments)
             result_nodes_ptr: list[NodeReference] = []
             for row in result_rows:
-                node_ptr = NodeReference(node_type=table.node_type, id=UUID(str(row["id"])))
+                node_ptr = NodeReference(type=table.node_type, id=UUID(str(row["id"])))
                 result_nodes_ptr.append(node_ptr)
             return result_nodes_ptr
 
@@ -407,7 +409,7 @@ FROM tree;
         result_nodes_ptr: list[NodeReference] = []
         for row in result_rows:
             node_type = NodeType(int(row["node_type"]))
-            node_ptr = NodeReference(node_type=node_type, id=UUID(str(row["id"])))
+            node_ptr = NodeReference(type=node_type, id=UUID(str(row["id"])))
             result_nodes_ptr.append(node_ptr)
         return result_nodes_ptr
 
@@ -819,7 +821,7 @@ async def _execute_subquery(
         parents_ptr: dict[UUID, NodeReference] = {}
         for node_value in result.nodes:
             if (parent_ptr_value := node_value.value.get("3")) is not None:
-                parent_id = UUID(parent_ptr_value["32"])
+                parent_id = UUID(parent_ptr_value[NODE_REFERENCE_ID_KEY])
                 if parent_id in parents_ptr:
                     continue
                 parent_ptr = NodeReference.from_value(parent_ptr_value)

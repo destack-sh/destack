@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from destack.language import (
         CustomEntityDefinition,
         CustomEventDefinition,
-        Icon,
         Node,
         NodeDefinition,
         NodeDefinitionReference,
@@ -159,16 +158,19 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
     __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
     __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
-    # 15-29: node tracking
-    # IsTracked.created_at/created_by/updated_at/updated_by: 15-18
-    # IsArchivable.archived_at: 19
-    # IsDeletable.deleted_at: 20
-    # IsCustomizable.value: 21
-    # IsOrdered.order_key: 24
-    # IsOwnable.owned_by: 25
+    # 20-40: node tracking
+    # IsTracked.created_at/created_by/updated_at/updated_by: 20-23
+    # IsArchivable.archived_at: 24
+    # IsDeletable.deleted_at: 25
+    # IsCustomizable.custom_values: 26
+    # IsOrdered.order_key: 27
+    # IsOwnable.owned_by: 28
     # ...managed_by/controlled_by?
 
-    # 30+ for general properties
+    # 40-100: internal properties
+    # ...
+
+    # 100+ for general properties
     # ...
 
 
@@ -177,8 +179,10 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     """A Node trait."""
 
     metatype: ClassVar[TraitType]
+    __is_node__: ClassVar[bool] = True
+    __is_trait__: ClassVar[bool] = True
 
-    # 1-9: node identity
+    # 1-20: node identity
     #  (repeat common Node properties here so Trait NodeDefinitionReferences can reference them,
     #   since Trait doesn't actually inherit from Node for circularity reasons;
     #   but it is still useful to pretend so for typing since Python doesn't support `Trait & Node`)
@@ -187,49 +191,14 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 
-    __is_node__: ClassVar[bool] = True
-    __is_trait__: ClassVar[bool] = True
     __is_extensible__: ClassVar[bool] = False
-    __traits__: ClassVar[tuple[TraitType, ...]] = ()
-    __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
-
-
-#
-# Has* Traits (has specific properties)
-#
-
-
-@builtin_trait(TraitType.HAS_NAME)
-class HasName(Trait):
-    """A Node with a plain name."""
-
-    name: str = builtin_property(31, is_repr=True)
-
-
-@builtin_trait(TraitType.HAS_SLUG)
-class HasSlug(Trait):
-    """A Node with a slug."""
-
-    slug: str | None = builtin_property(33, is_repr=True)
-
-
-@builtin_trait(TraitType.HAS_ICON)
-class HasIcon(Trait):
-    """A Node with an icon."""
-
-    icon: Optional["Icon"] = builtin_property(34)
-
-
-#
-# Is* Traits (ascribes some behavior)
-#
 
 
 @builtin_trait(TraitType.ARCHIVABLE, is_extensible=True)
 class IsArchivable(Trait):
     """A Node that can be archived."""
 
-    archived_at: Optional[datetime] = builtin_property(19, is_managed=True, is_eq=False)
+    archived_at: Optional[datetime] = builtin_property(24, is_managed=True, is_eq=False)
 
     @property
     def is_archived(self) -> bool:
@@ -250,7 +219,7 @@ class IsArchivable(Trait):
 class IsDeletable(Trait):
     """A Node that can be deleted."""
 
-    deleted_at: Optional[datetime] = builtin_property(20, is_managed=True, is_eq=False)
+    deleted_at: Optional[datetime] = builtin_property(25, is_managed=True, is_eq=False)
 
     def delete(self):
         """Delete this Node."""
@@ -268,7 +237,7 @@ class IsCustomizable(Trait):
     """A Node that can be customized with custom Properties."""
 
     custom_values: dict[UUID, "Value"] = builtin_property(
-        21,
+        26,
         description="The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.",
     )
 
@@ -283,11 +252,8 @@ class IsExtensible(IsCustomizable):
         is_readonly=True,
         description="The definitionthis CustomEntity is an instance of.",
     )
-    if TYPE_CHECKING:
-        definition_ptr: Optional[NodeReference] = None
-
     base_type: "NodeDefinitionReference | None" = builtin_property(
-        40,
+        7,
         is_readonly=True,
         is_managed=True,
         description="Inlined base type of this extensible Node (if extended).",
@@ -295,6 +261,8 @@ class IsExtensible(IsCustomizable):
     # base_node_type?
     # inherits?
     # base_traits/base_trait_types?
+    if TYPE_CHECKING:
+        definition_ptr: Optional[NodeReference] = None
 
 
 @builtin_trait(TraitType.ORDERED, is_extensible=True)
@@ -302,7 +270,7 @@ class IsOrdered(Trait):
     """A Node that can be ordered."""
 
     order_key: str = builtin_property(
-        24,
+        27,
         is_eq=False,
         is_managed=True,
         default=INTEGER_ZERO,
@@ -359,7 +327,7 @@ class IsRunnable(Trait):
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsOwner"] = builtin_property(25, is_repr=True)
+    owned_by: Optional["IsOwner"] = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: Optional[NodeReference] = None
 

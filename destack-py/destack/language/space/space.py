@@ -4,9 +4,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    HasIcon,
-    HasName,
-    HasSlug,
     IsFollowable,
     IsGlobal,
     IsJoinable,
@@ -40,9 +37,6 @@ class SpaceStatus(Enum):
 @builtin_node(NodeType.SPACE, root_type=None)
 class Space(
     IsGlobal,
-    HasName,
-    HasSlug,
-    HasIcon,
     IsFollowable,
     IsJoinable,
     IsOwnable,
@@ -54,18 +48,18 @@ class Space(
     A Space is the home of your personal software studio.
     """
 
-    # meta
-    name: str = builtin_property(31, is_repr=True)
-    slug: str = builtin_property(33, is_repr=True)
-    status: SpaceStatus = builtin_property(40, is_repr=True, can_write=RoleType.SYSTEM)
+    name: str = builtin_property(101, is_repr=True)
+    slug: str = builtin_property(102, is_repr=True)
+
+    status: SpaceStatus = builtin_property(110, is_repr=True, can_write=RoleType.SYSTEM)
     handle: Optional["Handle"] = builtin_property(
-        41, node_space_from="self", can_write=RoleType.SYSTEM
+        111, node_space_from="self", can_write=RoleType.SYSTEM
     )
     system_folder: Optional["Folder"] = builtin_property(
-        42, node_space_from="self", can_write=RoleType.SYSTEM, description="The system Folder."
+        112, node_space_from="self", can_write=RoleType.SYSTEM, description="The system Folder."
     )
     home_folder: Optional["Folder"] = builtin_property(
-        43, node_space_from="self", can_write=RoleType.SYSTEM, description="The home Folder."
+        113, node_space_from="self", can_write=RoleType.SYSTEM, description="The home Folder."
     )
     if TYPE_CHECKING:
         handle_ptr: Optional[NodeReference] = None
@@ -73,10 +67,10 @@ class Space(
         home_folder_ptr: Optional[NodeReference] = None
 
     # infra
-    region: Region = builtin_property(50, can_write=RoleType.SYSTEM)
-    galaxy_name: str | None = builtin_property(51, can_write=RoleType.SYSTEM)  # -> Galaxy?
+    region: Region = builtin_property(120, can_write=RoleType.SYSTEM)
+    galaxy_name: str | None = builtin_property(121, can_write=RoleType.SYSTEM)  # -> Galaxy?
     database: Optional["Database"] = builtin_property(
-        55, node_space_from="self", can_write=RoleType.SYSTEM
+        122, node_space_from="self", can_write=RoleType.SYSTEM
     )
     # search, analytics, vault, cache, ...
     if TYPE_CHECKING:

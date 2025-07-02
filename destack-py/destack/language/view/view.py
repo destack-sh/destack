@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     Entity,
-    HasName,
     IsDeletable,
     IsExtensible,
     IsOrdered,
@@ -34,7 +33,6 @@ if TYPE_CHECKING:
 class View(
     IsSpatial,
     Entity,
-    HasName,
     IsOrdered,
     IsTaggable,
     IsScriptable,
@@ -46,6 +44,7 @@ class View(
     parent: Union["Window", "Scene", "Layer", "ContainerView", "Folder", None] = (
         builtin_property_parent(node_is_extensible=True)
     )
+    name: str = builtin_property(101, is_repr=True)
 
     # sizing
     position: Optional["Position"] = builtin_property(40)

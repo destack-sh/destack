@@ -91,7 +91,7 @@ class Aliasing:
 
         # make new unique alias if needed
         if alias is None:
-            alias = obj.metatype.camel_name if isinstance(obj, Node) else obj.node_type.camel_name
+            alias = obj.metatype.camel_name if isinstance(obj, Node) else obj.type.camel_name
             if alias in self._node_by_alias:
                 # bump digit at end to make alias unique
                 count = regex.search(r"\d+$", alias)

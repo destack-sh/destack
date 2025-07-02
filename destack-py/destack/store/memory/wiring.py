@@ -16,18 +16,20 @@ NODE_ID_KEY = str(Node.property("id").id)
 NODE_SPACE_PTR_ID = str(IsSpatial.property("space").id)
 NODE_DEFINITION_PTR_ID = str(IsExtensible.property("definition").id)
 
+NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
+
 
 def pack_node_row(table: MemoryTable, value: Value) -> MemoryRow:
     """Pack a Value into a MemoryRow."""
     value_packed = value.value
     id = UUID(value_packed[NODE_ID_KEY])
     ptr = NodeReference(
-        node_type=table.node_type,
+        type=table.node_type,
         id=UUID(value_packed[NODE_ID_KEY]),
-        space_id=UUID(value_packed[NODE_SPACE_PTR_ID]["32"])
+        space_id=UUID(value_packed[NODE_SPACE_PTR_ID][NODE_REFERENCE_ID_KEY])
         if NODE_SPACE_PTR_ID in value_packed
         else None,
-        definition_id=UUID(value_packed[NODE_DEFINITION_PTR_ID]["32"])
+        definition_id=UUID(value_packed[NODE_DEFINITION_PTR_ID][NODE_REFERENCE_ID_KEY])
         if NODE_DEFINITION_PTR_ID in value_packed
         else None,
     )

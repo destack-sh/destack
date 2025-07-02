@@ -489,7 +489,7 @@ def __to_ref__(self) -> "NodeReference":
         space_id=self.id,
     )
 """
-    elif NodeType.CUSTOM_EVENT in cls.__inherits__ or NodeType.CUSTOM_ENTITY in cls.__inherits__:
+    elif TraitType.EXTENSIBLE in cls.__traits__:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(

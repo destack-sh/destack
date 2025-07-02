@@ -4,9 +4,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    HasIcon,
-    HasName,
-    HasSlug,
     IndexIn,
     IsDeletable,
     IsFollowable,
@@ -24,7 +21,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Scene, Space
+    from destack.language import Icon, Scene, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -45,9 +42,6 @@ class FolderType(Enum):
 )
 class Folder(
     IsSpatial,
-    HasIcon,
-    HasSlug,
-    HasName,
     IsTaggable,
     IsOwnable,
     IsJoinable,
@@ -60,6 +54,9 @@ class Folder(
     """A Folder is a sub-space of a Space."""
 
     parent: Union["Space", "Folder", None] = builtin_property_parent(node_is_extensible=False)
-    type: FolderType = builtin_property(30, is_repr=True, default=FolderType.GENERAL)
+    type: FolderType = builtin_property(100, is_repr=True, default=FolderType.GENERAL)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    slug: str | None = builtin_property(103, is_repr=True)
 
-    main_scene: Optional["Scene"] = builtin_property(41)
+    main_scene: Optional["Scene"] = builtin_property(110)

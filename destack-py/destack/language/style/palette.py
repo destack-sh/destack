@@ -2,18 +2,17 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    HasIcon,
-    HasName,
     IsDeletable,
     IsOrdered,
     IsSpatial,
     IsTaggable,
     NodeType,
     builtin_node,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Icon
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -21,8 +20,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.PALETTE)
 class Palette(
     IsSpatial,
-    HasName,
-    HasIcon,
     IsOrdered,
     IsTaggable,
     IsDeletable,
@@ -30,4 +27,5 @@ class Palette(
 ):
     """A Palette of Colors."""
 
-    pass
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)

@@ -2,8 +2,6 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
-    HasIcon,
-    HasName,
     IsDeletable,
     IsOrdered,
     IsSpatial,
@@ -15,7 +13,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Folder
+    from destack.language import Folder, Icon
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -23,8 +21,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.TAG)
 class Tag(
     IsSpatial,
-    HasName,
-    HasIcon,
     IsOrdered,
     IsDeletable,
     Entity,
@@ -32,6 +28,8 @@ class Tag(
     """A Tag to tag something."""
 
     parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
 
 
 @builtin_node(NodeType.TAGGING)
@@ -45,4 +43,4 @@ class Tagging(
     """A Tagging of a Node by a Tag."""
 
     parent: Optional["IsTaggable"] = builtin_property_parent(node_is_extensible=False)
-    tag: Optional["Tag"] = builtin_property(40)
+    tag: Optional["Tag"] = builtin_property(110)

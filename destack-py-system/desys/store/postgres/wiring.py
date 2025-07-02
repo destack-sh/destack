@@ -35,6 +35,12 @@ from destack.utils.uuid import UUID
 
 from .core import PostgresTable
 
+NODE_REFERENCE_TYPE_KEY = str(NodeReference.property("type").id)
+NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
+NODE_REFERENCE_SPACE_ID_KEY = str(NodeReference.property("space_id").id)
+NODE_REFERENCE_DEFINITION_ID_KEY = str(NodeReference.property("definition_id").id)
+
+
 #
 # Builtin Node values
 #
@@ -325,7 +331,7 @@ def unpack_node_row(table: PostgresTable, row: asyncpg.Record) -> tuple[Value, N
         cardinality=TypeCardinality.SCALAR, scalar_type=ScalarType.NODE_VALUE, node_type=node_type
     )
     value = Value(type=type, value=node_value)
-    node_ptr = NodeReference(node_type=node_type, id=UUID(node_value["2"]))
+    node_ptr = NodeReference(type=node_type, id=UUID(node_value["2"]))
     return value, node_ptr
 
 
@@ -384,19 +390,27 @@ def pack_column_wide(
     if type.cardinality == TypeCardinality.SCALAR:
         if type.scalar_type == ScalarType.NODE_REFERENCE:
             # node references fan out to multiple columns
-            column_out[f"{column_name}_id"] = uuid.UUID(value["32"]) if value is not None else None
+            column_out[f"{column_name}_id"] = (
+                uuid.UUID(value[NODE_REFERENCE_ID_KEY]) if value is not None else None
+            )
             column_type = f"{column_name}_type"
             if column_type in table._columns_by_name:
-                column_out[f"{column_name}_type"] = int(value["31"]) if value is not None else None
+                column_out[f"{column_name}_type"] = (
+                    int(value[NODE_REFERENCE_TYPE_KEY]) if value is not None else None
+                )
             column_space_id = f"{column_name}_space_id"
             if column_space_id in table._columns_by_name:
                 column_out[column_space_id] = (
-                    uuid.UUID(value["34"]) if value is not None and value.get("34") else None
+                    uuid.UUID(value[NODE_REFERENCE_SPACE_ID_KEY])
+                    if value is not None and value.get(NODE_REFERENCE_SPACE_ID_KEY)
+                    else None
                 )
             column_definition_id = f"{column_name}_definition_id"
             if column_definition_id in table._columns_by_name:
                 column_out[column_definition_id] = (
-                    uuid.UUID(value["35"]) if value is not None and value.get("35") else None
+                    uuid.UUID(value[NODE_REFERENCE_DEFINITION_ID_KEY])
+                    if value is not None and value.get(NODE_REFERENCE_DEFINITION_ID_KEY)
+                    else None
                 )
         else:
             value_packed = _pack_column_scalar(type, value) if value is not None else None

@@ -248,7 +248,7 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
         space_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     else:
         space_id = None
-    return NodeReference(node_type=node_type, id=node_id, space_id=space_id)
+    return NodeReference(type=node_type, id=node_id, space_id=space_id)
 
 
 @cacheable

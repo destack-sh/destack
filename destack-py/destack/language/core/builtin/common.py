@@ -401,19 +401,15 @@ class TraitType(Enum):
         "fas fa-paint-roller",
     )
     EXTENSIBLE = 111, "Extensible", "Can be extended by custom Nodes", "fas fa-expand"
-    # attribute
-    HAS_NAME = 200, "Name", "Has a name", "fas fa-font-case"
-    HAS_SLUG = 201, "Slug", "Has a slug", "fas fa-hashtag"
-    HAS_ICON = 202, "Icon", "Has an icon", "fas fa-icons"
 
     # space [10_000-20_000]
     # ...
 
     # access [20_000-30_000]
     OWNABLE = 20_000, "Ownable", "Is ownable", "fas fa-user"
+    OWNER = 20_001, "Owner", "Is an Owner", "fas fa-user"
     JOINABLE = 20_002, "Joinable", "Is joinable", "fas fa-users"
-    SUBJECT = 20_005, "Subject", "Is a Subject", "fas fa-user"
-    OWNER = 20_006, "Owner", "Is an Owner", "fas fa-user"
+    SUBJECT = 20_003, "Subject", "Is a Subject", "fas fa-user"
 
     # folder [30_000-40_000]
     TAGGABLE = 30_000, "Taggable", "Can be tagged", "fas fa-tag"

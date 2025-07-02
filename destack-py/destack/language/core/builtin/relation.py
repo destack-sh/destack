@@ -49,15 +49,15 @@ class NodeDefinitionType(Enum):
 class NodeDefinitionReference(StructFrozen):
     """Reference to a Node definition (builtin, custom or by trait)."""
 
-    type: NodeDefinitionType = builtin_property(30, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(40, is_repr=True)
-    trait_type: Optional[TraitType] = builtin_property(41, is_repr=True)
+    type: NodeDefinitionType = builtin_property(100, is_repr=True)
+    node_type: Optional[NodeType] = builtin_property(101, is_repr=True)
+    trait_type: Optional[TraitType] = builtin_property(102, is_repr=True)
     definition: Union[
         "CustomEntityDefinition",
         "CustomEventDefinition",
         "CustomTraitDefinition",
         None,
-    ] = builtin_property(45, is_repr=True)
+    ] = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 
@@ -128,11 +128,7 @@ class NodeDefinitionReference(StructFrozen):
             else:
                 raise ValueError(f"invalid definition reference type: {base!r}")
         elif isinstance(base, Node):
-            return NodeDefinitionReference(
-                type=NodeDefinitionType.CUSTOM_NODE,
-                node_type=NodeType.CUSTOM_ENTITY,
-                definition=base,
-            )
+            raise NotImplementedError(f"unexpected node definition reference: {base!r}")
         else:
             assert_never(base)
 
@@ -152,17 +148,17 @@ class ObjectDefinitionType(Enum):
 class ObjectDefinitionReference(StructFrozen):
     """Reference to an object "type" (builtin, custom or trait)."""
 
-    type: ObjectDefinitionType = builtin_property(30, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(31, is_repr=True)
-    trait_type: Optional[TraitType] = builtin_property(32, is_repr=True)
-    struct_type: Optional[StructType] = builtin_property(33, is_repr=True)
+    type: ObjectDefinitionType = builtin_property(100, is_repr=True)
+    node_type: Optional[NodeType] = builtin_property(101, is_repr=True)
+    trait_type: Optional[TraitType] = builtin_property(102, is_repr=True)
+    struct_type: Optional[StructType] = builtin_property(103, is_repr=True)
     definition: Union[
         "CustomEntityDefinition",
         "CustomEventDefinition",
         "CustomTraitDefinition",
         "CustomStructDefinition",
         None,
-    ] = builtin_property(40, is_repr=True)
+    ] = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 
@@ -257,9 +253,9 @@ class StructDefinitionType(Enum):
 class StructDefinitionReference(StructFrozen):
     """Reference to a Struct definition (builtin, custom or by trait)."""
 
-    type: StructDefinitionType = builtin_property(30, is_repr=True)
-    struct_type: Optional[StructType] = builtin_property(40, is_repr=True)
-    definition: "CustomStructDefinition" = builtin_property(45, is_repr=True)
+    type: StructDefinitionType = builtin_property(100, is_repr=True)
+    struct_type: Optional[StructType] = builtin_property(101, is_repr=True)
+    definition: "CustomStructDefinition" = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 
@@ -278,18 +274,18 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
     A reference to a builtin object's Property.
     """
 
-    type: PropertyReferenceType = builtin_property(30, is_repr=True)
-    node_type: NodeType | None = builtin_property(31, is_repr=True)
-    trait_type: TraitType | None = builtin_property(32, is_repr=True)
-    struct_type: StructType | None = builtin_property(33, is_repr=True)
+    type: PropertyReferenceType = builtin_property(100, is_repr=True)
+    node_type: NodeType | None = builtin_property(101, is_repr=True)
+    trait_type: TraitType | None = builtin_property(102, is_repr=True)
+    struct_type: StructType | None = builtin_property(103, is_repr=True)
     id: int | None = builtin_property(
-        35,
+        105,
         is_repr=True,
         primitive_type=PrimitiveType.INT32,
         description="id of the builtin Property",
     )
     custom_property: "CustomProperty | None" = builtin_property(
-        36,
+        106,
         is_repr=True,
         description="custom Property of a custom Node or Struct",
     )
@@ -348,8 +344,8 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
     A reference to a Node (builtin or custom).
     """
 
-    node_type: NodeType = builtin_property(31, is_repr=True)
-    id: UUID = builtin_property(32, is_repr=True)
-    space_id: Optional[UUID] = builtin_property(34, is_repr=True)
-    definition_id: Optional[UUID] = builtin_property(35, is_repr=True)
+    type: NodeType = builtin_property(101, is_repr=True)
+    id: UUID = builtin_property(102, is_repr=True)
+    space_id: Optional[UUID] = builtin_property(103, is_repr=True)
+    definition_id: Optional[UUID] = builtin_property(104, is_repr=True)
     # area? external_id?

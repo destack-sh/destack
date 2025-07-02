@@ -85,19 +85,20 @@ class Edit(StructFrozen):
     """
 
     id: UUID = builtin_property(2, is_managed=True, is_repr=True, default_factory=ValueFactory.UUID)
-    type: EditType = builtin_property(30, is_repr=True)
-    operation: EditOperation | None = builtin_property(31, is_repr=True)
-    node: Node = builtin_property(32, is_repr=True)
-    prop_ptr: PropertyReference | None = builtin_property(33, is_repr=True)
-    field: "CustomProperty | None" = builtin_property(34, is_repr=True)  # for IsExtensible.value
-    key: "Value | None" = builtin_property(35, is_repr=True)  # for map operations
+    type: EditType = builtin_property(100, is_repr=True)
+    operation: EditOperation | None = builtin_property(101, is_repr=True)
+    node: Node = builtin_property(102, is_repr=True)
+    prop_ptr: PropertyReference | None = builtin_property(103, is_repr=True)
+    field: "CustomProperty | None" = builtin_property(104, is_repr=True)  # for IsExtensible.value
+    key: "Value | None" = builtin_property(105, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET
         field_ptr: NodeReference | None = None
 
-    value: "Value | None" = builtin_property(40)
+    value: "Value | None" = builtin_property(110)
+
     undo: "Edit | None" = builtin_property(
-        50,
+        120,
         description="The inverse Edit (if it cannot be derived from the Edit itself).",
     )
 
@@ -106,10 +107,10 @@ class Edit(StructFrozen):
 class Origin(StructFrozen[OriginProto]):
     """Origin of something."""
 
-    type: "ClientType" = builtin_property(30)
-    id: Optional[UUID] = builtin_property(31)
-    ck: Optional[UUID] = builtin_property(32)
-    nonce: Optional[UUID] = builtin_property(33)
+    type: "ClientType" = builtin_property(100)
+    id: Optional[UUID] = builtin_property(101)
+    ck: Optional[UUID] = builtin_property(102)
+    nonce: Optional[UUID] = builtin_property(103)
 
 
 @builtin_enum(EnumType.CHANGE_STATUS)
@@ -135,15 +136,15 @@ class Change(StructFrozen):
 
     # meta
     id: UUID = builtin_property(2, is_managed=True, is_repr=True, default_factory=ValueFactory.UUID)
-    name: str | None = builtin_property(31, is_repr=True)
+    name: str | None = builtin_property(101, is_repr=True)
     created_at: datetime = builtin_property(
-        32, is_managed=True, is_repr=True, default_factory=ValueFactory.NOW
+        102, is_managed=True, is_repr=True, default_factory=ValueFactory.NOW
     )
-    created_by: "IsSubject | None" = builtin_property(33, is_managed=True, is_repr=True)
-    origin: "Origin | None" = builtin_property(34, is_managed=True, is_repr=True)
-    debounce: "ChangeDebounce | None" = builtin_property(35, is_managed=True, is_repr=True)
+    created_by: "IsSubject | None" = builtin_property(103, is_managed=True, is_repr=True)
+    origin: "Origin | None" = builtin_property(104, is_managed=True, is_repr=True)
+    debounce: "ChangeDebounce | None" = builtin_property(105, is_managed=True, is_repr=True)
 
-    edits: list[Edit] = builtin_property(40)
+    edits: list[Edit] = builtin_property(110)
 
 
 @builtin_struct(StructType.CHANGE_RESULT, frozen=True)
@@ -158,15 +159,16 @@ class ChangeResult(StructFrozen):
         description="The id of the Change.",
     )
     created_at: datetime = builtin_property(
-        10,
+        20,
         is_managed=True,
         is_repr=True,
         description="The time the ChangeResult was created.",
         default_factory=ValueFactory.NOW,
     )
-    debounce: "ChangeDebounce | None" = builtin_property(35, is_managed=True, is_repr=True)
-    status: ChangeStatus = builtin_property(40, is_repr=True)
-    edits: list[Edit] = builtin_property(41, description="The applied Edits (may differ).")
+    debounce: "ChangeDebounce | None" = builtin_property(105, is_managed=True, is_repr=True)
+    status: ChangeStatus = builtin_property(100, is_repr=True)
+
+    edits: list[Edit] = builtin_property(110, description="The applied Edits (may differ).")
     cascaded_edits: list[Edit] = builtin_property(
-        42, description="The Edits cascaded from the applied Edits."
+        111, description="The Edits cascaded from the applied Edits."
     )

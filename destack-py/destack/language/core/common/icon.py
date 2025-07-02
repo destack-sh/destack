@@ -34,15 +34,15 @@ class IconType(Enum):
 class Icon(StructFrozen):
     """An icon to be displayed in some view."""
 
-    type: IconType = builtin_property(30)
+    type: IconType = builtin_property(100)
     # content
-    emoji: str | None = builtin_property(31)
-    fa_name: str | None = builtin_property(33)
-    vsc_name: str | None = builtin_property(34)
-    file: Optional["File"] = builtin_property(35)
-    file_url: str | None = builtin_property(36)
+    emoji: str | None = builtin_property(101)
+    fa_name: str | None = builtin_property(102)
+    vsc_name: str | None = builtin_property(103)
+    file: Optional["File"] = builtin_property(104)
+    file_url: str | None = builtin_property(105)
     # style
-    color: Optional["Color"] = builtin_property(40)
+    color: Optional["Color"] = builtin_property(110)
 
 
 IconIn = Union[Icon, "File", str]
