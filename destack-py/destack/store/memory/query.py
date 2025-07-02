@@ -16,7 +16,6 @@ from destack.language import (
     FunctionType,
     JoinType,
     NodeDefinitionReference,
-    NodeDefinitionType,
     NodeReference,
     PrimitiveType,
     PropertyReference,
@@ -472,7 +471,7 @@ def _query_scalar(
 ) -> Value:
     """Execute a scalar Query."""
     # handle multi-definitions
-    if definition.type == NodeDefinitionType.BUILTIN_TRAIT:
+    if definition.is_multi:
         definitions = context.resolve(definition)
         filtered_rows: list[MemoryRow] = []
         for rel in definitions:
@@ -512,8 +511,8 @@ def _query_grouped_node(
     offset: int | None,
 ) -> list[tuple[Value, list[Value], list[NodeReference]]]:
     """Execute a grouped node Query."""
-    if definition.type == NodeDefinitionType.BUILTIN_TRAIT:
-        raise NotImplementedError("grouped node queries not supported for trait definitions")
+    if definition.is_multi:
+        raise NotImplementedError("grouped node queries not supported for multi definitions")
 
     table = context.get(definition)
 
@@ -587,8 +586,8 @@ def _query_grouped_scalar(
     group_by: Sequence[Expression],
 ) -> list[tuple[Value, Value]]:
     """Execute a grouped scalar Query."""
-    if definition.type == NodeDefinitionType.BUILTIN_TRAIT:
-        raise NotImplementedError("grouped scalar queries not supported for trait definitions")
+    if definition.is_multi:
+        raise NotImplementedError("grouped scalar queries not supported for multi definitions")
 
     table = context.get(definition)
 

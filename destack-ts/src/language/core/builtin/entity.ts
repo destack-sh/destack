@@ -224,14 +224,14 @@ export class CustomEntityDefinition
   /**
    * A custom Entity's prototype is the default template new CustomEntity instances are based on.
    */
-  get prototype(): Node | null {
+  get prototype(): Entity | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set prototype(node: Node | null) {
+  set prototype(node: Entity | null) {
     if (node === null) {
       this.prototypePtr = null;
     } else {
@@ -296,7 +296,7 @@ export class CustomEntityDefinition
     baseType: NodeDefinitionReference;
     baseTraits?: Array<NodeDefinitionReference>;
     isAbstract?: boolean;
-    prototype?: Node | NodeReference | null;
+    prototype?: Entity | NodeReference | null;
     source?: Script | NodeReference | null;
     script?: Script | NodeReference | null;
     name: string;
@@ -1000,135 +1000,6 @@ registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
 
 /* ==== DESTACK_GENERATED_START:NODE:101 ==== */
 /**
- * A generic CustomEntity instance of a CustomEntityDefinition.
- * The Archivable, Deletable, and Ownable traits are always present for plain CustomEntities
- *  (but must be explicitly added to the CustomEntityDefinition to use them).
- * More specific base Entity types will be instanced of that base type instead.
- */
-export abstract class CustomEntity
-  extends Entity
-  implements IsSpatial, IsExtensible, IsArchivable, IsDeletable, IsOwnable
-{
-  static metatype: NodeType = NodeType.CUSTOM_ENTITY;
-
-  /**
-   * Trait.parent
-   */
-  get parent(): Node | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  declare readonly spacePtr: NodeReference | null;
-
-  /**
-   * The CustomEntityDefinition this CustomEntity is an instance of.
-   */
-  get definition(): CustomEntityDefinition | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
-    }
-    return null;
-  }
-  declare readonly definitionPtr: NodeReference;
-
-  /**
-   * Inlined base type of this extensible Node (if extended).
-   */
-  declare readonly baseType: NodeDefinitionReference | null;
-
-  /**
-   * Entity.createdAt
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Entity.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * Entity.updatedAt
-   */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  declare readonly updatedByPtr: NodeReference | null;
-
-  /**
-   * IsArchivable.archivedAt
-   */
-  declare readonly archivedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * IsDeletable.deletedAt
-   */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  declare customValues: Map<string, Value>;
-
-  /**
-   * IsOwnable.ownedBy
-   */
-  get ownedBy(): (Node & IsOwner) | null {
-    const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
-    }
-    return null;
-  }
-  set ownedBy(node: (Node & IsOwner) | null) {
-    if (node === null) {
-      this.ownedByPtr = null;
-    } else {
-      this.ownedByPtr = node.toRef();
-    }
-  }
-  declare ownedByPtr: NodeReference | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.CUSTOM_ENTITY, CustomEntity);
-/* ==== DESTACK_GENERATED_END:NODE:101 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:110 ==== */
-/**
  * A CustomTraitDefinition defines a kind of CustomTrait.
  */
 export class CustomTraitDefinition
@@ -1549,7 +1420,7 @@ export class CustomTraitDefinition
 
   static __packValue__(object: CustomTraitDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 110;
+    objectValue["1"] = 101;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1726,7 +1597,7 @@ export class CustomTraitDefinition
   }
 
   static __packProto__(object: CustomTraitDefinition): CustomTraitDefinitionProto {
-    const objectProto: Partial<CustomTraitDefinitionProto> = { metatype: 110 };
+    const objectProto: Partial<CustomTraitDefinitionProto> = { metatype: 101 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1924,12 +1795,141 @@ export class CustomTraitDefinition
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_TRAIT_DEFINITION, CustomTraitDefinition);
-/* ==== DESTACK_GENERATED_END:NODE:110 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:10 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:200 ==== */
+/**
+ * A generic Record instance of a CustomEntityDefinition like a relational Table.
+ * The Archivable, Deletable, and Ownable traits are always present for plain Records
+ *  (but must be explicitly added to the CustomEntityDefinition to use them).
+ * More specific base Entity types will be instanced of that base type instead.
+ */
+export abstract class Record
+  extends Entity
+  implements IsSpatial, IsExtensible, IsArchivable, IsDeletable, IsOwnable
+{
+  static metatype: NodeType = NodeType.RECORD;
+
+  /**
+   * Trait.parent
+   */
+  get parent(): Node | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
+  }
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * The CustomEntityDefinition this Record is an instance of.
+   */
+  get definition(): CustomEntityDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
+    }
+    return null;
+  }
+  declare readonly definitionPtr: NodeReference;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  declare readonly baseType: NodeDefinitionReference | null;
+
+  /**
+   * Entity.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Entity.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * Entity.updatedAt
+   */
+  declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * Entity.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  declare readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsArchivable.archivedAt
+   */
+  declare readonly archivedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
+  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  declare customValues: Map<string, Value>;
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Node & IsOwner) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  declare ownedByPtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.RECORD, Record);
+/* ==== DESTACK_GENERATED_END:NODE:200 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:201 ==== */
 /**
  * A Resource represents an external asset outside of Destack.
- * The lifecycle of a Resource may be managed by some Provisioner.
+ * The lifecycle of a Resource may be managed by some Provisioner (Service).
  */
 export abstract class Resource extends Entity implements IsDeletable, IsExtensible {
   static metatype: NodeType = NodeType.RESOURCE;
@@ -2020,9 +2020,9 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RESOURCE, Resource);
-/* ==== DESTACK_GENERATED_END:NODE:10 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:20 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:202 ==== */
 /**
  * An Entity that represents a Metric.
  */
@@ -2119,4 +2119,4 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.METRIC, Metric);
-/* ==== DESTACK_GENERATED_END:NODE:20 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:202 ==== */

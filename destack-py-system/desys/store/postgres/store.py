@@ -27,14 +27,13 @@ from destack.language import (
 from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_REFERENCE_BY_CLASS,
-    NODE_TYPES_BY_TRAIT_TYPE,
 )
 from destack.utils.uuid import UUID
 
 from .client import pg_connection
 from .core import PostgresContext, PostgresTable
 from .edit import execute_change
-from .map import DESTACK_BUILTIN_TABLE_PREFIX, DESTACK_CUSTOM_TABLE_PREFIX, get_builtin_schema
+from .map import DESTACK_BUILTIN_TABLE_PREFIX, DESTACK_CUSTOM_RECORD_PREFIX, get_builtin_schema
 from .query import execute_query
 
 tracer = trace.get_tracer(__name__)
@@ -167,7 +166,7 @@ class PostgresStoreContext(PostgresContext):
 
     @override
     def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
-        if definition.type == NodeDefinitionType.BUILTIN_NODE:
+        if definition.type == NodeDefinitionType.BUILTIN:
             assert definition.node_type is not None, f"no node_type for {definition!r}"
             node_cls = NODE_CLASS_BY_TYPE[definition.node_type]
             if not node_cls.__inherited_by__:
@@ -180,17 +179,7 @@ class PostgresStoreContext(PostgresContext):
                 if not subnode_cls.__is_abstract__:
                     subdefinitions.append(NODE_DEFINITION_REFERENCE_BY_CLASS[subnode_cls])
             return tuple(subdefinitions)
-        elif definition.type == NodeDefinitionType.CUSTOM_NODE:
-            raise NotImplementedError(f"cannot resolve {definition!r}")
-        elif definition.type == NodeDefinitionType.BUILTIN_TRAIT:
-            assert definition.trait_type is not None, f"no trait_type for {definition!r}"
-            node_types = NODE_TYPES_BY_TRAIT_TYPE.get(definition.trait_type, ())
-            return tuple(
-                NODE_DEFINITION_REFERENCE_BY_CLASS[node_cls]
-                for node_type in node_types
-                if not (node_cls := NODE_CLASS_BY_TYPE[node_type]).__is_abstract__
-            )
-        elif definition.type == NodeDefinitionType.CUSTOM_TRAIT:
+        elif definition.type == NodeDefinitionType.CUSTOM:
             raise NotImplementedError(f"cannot resolve {definition!r}")
         else:
             assert_never(definition.type)
@@ -199,27 +188,20 @@ class PostgresStoreContext(PostgresContext):
     def get(self, definition: NodeDefinitionReference | NodeReference) -> PostgresTable:
         # map definitions to table names
         if isinstance(definition, NodeReference):
-            if definition.type != NodeType.CUSTOM_ENTITY:
-                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.type.name.lower()}"
-            else:
+            if definition.type == NodeType.RECORD:
                 assert definition.definition_id is not None, f"no definition_id for {definition!r}"
-                table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{definition.definition_id}"
+                table_name = f"{DESTACK_CUSTOM_RECORD_PREFIX}{definition.definition_id}"
+            else:
+                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.type.name.lower()}"
         elif isinstance(definition, NodeDefinitionReference):
-            if definition.type == NodeDefinitionType.BUILTIN_NODE:
-                assert definition.node_type is not None, f"no node_type for {definition!r}"
-                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.node_type.name.lower()}"
-            elif definition.type == NodeDefinitionType.CUSTOM_NODE:
+            if definition.node_type == NodeType.RECORD:
                 assert definition.definition_ptr is not None, (
                     f"no definition_ptr for {definition!r}"
                 )
-                table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{definition.definition_ptr.id}"
-            elif (
-                definition.type == NodeDefinitionType.BUILTIN_TRAIT
-                or definition.type == NodeDefinitionType.CUSTOM_TRAIT
-            ):
-                raise RuntimeError(f"cannot get {definition!r}")
+                table_name = f"{DESTACK_CUSTOM_RECORD_PREFIX}{definition.definition_ptr.id}"
             else:
-                assert_never(definition.type)
+                assert definition.node_type is not None, f"no node_type for {definition!r}"
+                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.node_type.name.lower()}"
         else:
             assert_never(definition)
 

@@ -1,11 +1,11 @@
 import { NodeType, TraitType } from "@destack/language/core/builtin";
 
 export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
-  [TraitType.ARCHIVABLE]: [NodeType.CUSTOM_ENTITY, NodeType.CUSTOM_PROPERTY],
+  [TraitType.ARCHIVABLE]: [NodeType.RECORD, NodeType.CUSTOM_PROPERTY],
   [TraitType.DELETABLE]: [
     NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.CUSTOM_ENTITY,
     NodeType.CUSTOM_TRAIT_DEFINITION,
+    NodeType.RECORD,
     NodeType.RESOURCE,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.CUSTOM_OPTION,
@@ -72,11 +72,11 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
   ],
   [TraitType.CUSTOMIZABLE]: [
     NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.CUSTOM_ENTITY,
     NodeType.CUSTOM_TRAIT_DEFINITION,
+    NodeType.RECORD,
     NodeType.RESOURCE,
     NodeType.CUSTOM_EVENT_DEFINITION,
-    NodeType.CUSTOM_EVENT,
+    NodeType.SIGNAL,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.CUSTOM_STRUCT_DEFINITION,
     NodeType.VIEW,
@@ -107,9 +107,9 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.USER,
   ],
   [TraitType.EXTENSIBLE]: [
-    NodeType.CUSTOM_ENTITY,
+    NodeType.RECORD,
     NodeType.RESOURCE,
-    NodeType.CUSTOM_EVENT,
+    NodeType.SIGNAL,
     NodeType.VIEW,
     NodeType.CONTAINER_VIEW,
     NodeType.FRAME_VIEW,
@@ -229,7 +229,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
   [TraitType.RUNNABLE]: [NodeType.ACTION, NodeType.SCRIPT, NodeType.SERVICE],
   [TraitType.OWNABLE]: [
     NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.CUSTOM_ENTITY,
+    NodeType.RECORD,
     NodeType.SNAPSHOT,
     NodeType.BRANCH,
     NodeType.INVITE,
@@ -332,12 +332,12 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
   ],
   [TraitType.SPATIAL]: [
     NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.CUSTOM_ENTITY,
     NodeType.CUSTOM_TRAIT_DEFINITION,
+    NodeType.RECORD,
     NodeType.METRIC,
     NodeType.EVENT,
     NodeType.CUSTOM_EVENT_DEFINITION,
-    NodeType.CUSTOM_EVENT,
+    NodeType.SIGNAL,
     NodeType.EDIT_EVENT,
     NodeType.MEASUREMENT_EVENT,
     NodeType.CUSTOM_ENUM_DEFINITION,

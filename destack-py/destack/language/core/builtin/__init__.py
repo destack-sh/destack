@@ -56,15 +56,15 @@ from .const import (
 )
 from .constant import CONSTANT_DECLARATIONS, ConstantDeclaration, register_constant
 from .entity import (
-    CustomEntity,
     CustomEntityDefinition,
     CustomTraitDefinition,
     Entity,
     Metric,
+    Record,
     Resource,
 )
 from .enum import Enum, builtin_enum
-from .event import CustomEvent, CustomEventDefinition, EditEvent, Event, MeasurementEvent
+from .event import CustomEventDefinition, EditEvent, Event, MeasurementEvent, Signal
 from .node import IndexIn, Node, builtin_node
 from .object import (
     BuiltinObjectBase,
@@ -151,9 +151,7 @@ __all__ = [
     "ClientType",
     "Cloud",
     "ConstantDeclaration",
-    "CustomEntity",
     "CustomEntityDefinition",
-    "CustomEvent",
     "CustomEventDefinition",
     "CustomTraitDefinition",
     "DestackError",
@@ -203,6 +201,7 @@ __all__ = [
     "PropertyDeclaration",
     "PropertyReference",
     "PropertyReferenceType",
+    "Record",
     "Region",
     "RegionArea",
     "RegionContinent",
@@ -211,6 +210,7 @@ __all__ = [
     "RoleType",
     "RuntimeLanguage",
     "ScalarType",
+    "Signal",
     "StoreImplementation",
     "StoreType",
     "StructBase",

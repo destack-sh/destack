@@ -201,7 +201,6 @@ def finalize():
         NODE_DEFINITION_REFERENCE_BY_CLASS[cls] = NodeDefinitionReference.of(cls)
         OBJECT_DEFINITION_REFERENCE_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
     for cls in TRAIT_CLASS_BY_TYPE.values():
-        NODE_DEFINITION_REFERENCE_BY_CLASS[cls] = NodeDefinitionReference.of(cls)
         OBJECT_DEFINITION_REFERENCE_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
     for cls in STRUCT_CLASS_BY_TYPE.values():
         OBJECT_DEFINITION_REFERENCE_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)

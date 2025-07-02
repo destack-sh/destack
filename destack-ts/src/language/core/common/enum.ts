@@ -26,7 +26,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:310 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:104 ==== */
 /**
  * A CustomEnumDefinition describes a custom Enum with Options.
  */
@@ -358,7 +358,7 @@ export class CustomEnumDefinition
 
   static __packValue__(object: CustomEnumDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 310;
+    objectValue["1"] = 104;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -490,7 +490,7 @@ export class CustomEnumDefinition
   }
 
   static __packProto__(object: CustomEnumDefinition): CustomEnumDefinitionProto {
-    const objectProto: Partial<CustomEnumDefinitionProto> = { metatype: 310 };
+    const objectProto: Partial<CustomEnumDefinitionProto> = { metatype: 104 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -641,9 +641,9 @@ export class CustomEnumDefinition
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_ENUM_DEFINITION, CustomEnumDefinition);
-/* ==== DESTACK_GENERATED_END:NODE:310 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:104 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:330 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:106 ==== */
 /**
  * CustomOption
  */
@@ -947,7 +947,7 @@ export class CustomOption
 
   static __packValue__(object: CustomOption): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 330;
+    objectValue["1"] = 106;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1055,7 +1055,7 @@ export class CustomOption
   }
 
   static __packProto__(object: CustomOption): CustomOptionProto {
-    const objectProto: Partial<CustomOptionProto> = { metatype: 330 };
+    const objectProto: Partial<CustomOptionProto> = { metatype: 106 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1183,4 +1183,4 @@ export class CustomOption
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_OPTION, CustomOption);
-/* ==== DESTACK_GENERATED_END:NODE:330 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:106 ==== */

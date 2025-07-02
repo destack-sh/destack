@@ -35,7 +35,7 @@ import { hashInt, hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:150 ==== */
 /**
- * Reference to a Node definition (builtin, custom or by trait).
+ * Reference to a Node definition.
  */
 export class NodeDefinitionReference extends StructFrozen {
   static metatype: StructType = StructType.NODE_DEFINITION_REFERENCE;
@@ -49,17 +49,12 @@ export class NodeDefinitionReference extends StructFrozen {
   /**
    * NodeDefinitionReference.nodeType
    */
-  readonly nodeType: NodeType | null;
-
-  /**
-   * NodeDefinitionReference.traitType
-   */
-  readonly traitType: TraitType | null;
+  readonly nodeType: NodeType;
 
   /**
    * definition
    */
-  get definition(): CustomEntityDefinition | CustomEventDefinition | CustomTraitDefinition | null {
+  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -68,7 +63,6 @@ export class NodeDefinitionReference extends StructFrozen {
       return this._supergraph.get(nodePtr.id) as
         | CustomEntityDefinition
         | CustomEventDefinition
-        | CustomTraitDefinition
         | null;
     }
     return null;
@@ -77,14 +71,8 @@ export class NodeDefinitionReference extends StructFrozen {
 
   constructor(options: {
     type: NodeDefinitionType;
-    nodeType?: NodeType | null;
-    traitType?: TraitType | null;
-    definition?:
-      | CustomEntityDefinition
-      | CustomEventDefinition
-      | CustomTraitDefinition
-      | NodeReference
-      | null;
+    nodeType: NodeType;
+    definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -105,10 +93,11 @@ export class NodeDefinitionReference extends StructFrozen {
       throw new Error(`NodeDefinitionReference.type is required`);
     }
     this.type = _type;
-    let _nodeType = options.nodeType ?? null;
+    let _nodeType = options.nodeType;
+    if (_nodeType === null) {
+      throw new Error(`NodeDefinitionReference.nodeType is required`);
+    }
     this.nodeType = _nodeType;
-    let _traitType = options.traitType ?? null;
-    this.traitType = _traitType;
     let _definition = options.definition ?? null;
     if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
       _definition = (_definition as Node).toRef();
@@ -136,9 +125,6 @@ export class NodeDefinitionReference extends StructFrozen {
     if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (!(this.traitType === other.traitType)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -149,12 +135,7 @@ export class NodeDefinitionReference extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${NodeDefinitionType[this.type]}`);
-      if (this.nodeType !== null) {
-        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
-      }
-      if (this.traitType !== null) {
-        propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
-      }
+      propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
       if (this.definition !== null) {
         propertyReprs.push(`definition=${this.definition?.repr()}`);
       }
@@ -172,12 +153,7 @@ export class NodeDefinitionReference extends StructFrozen {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.nodeType !== null) {
-      h = (h * 31 + this.nodeType) & 0xffffffff;
-    }
-    if (this.traitType !== null) {
-      h = (h * 31 + this.traitType) & 0xffffffff;
-    }
+    h = (h * 31 + this.nodeType) & 0xffffffff;
     if (this.definitionPtr !== null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -203,12 +179,7 @@ export class NodeDefinitionReference extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 150;
     objectValue["100"] = object.type;
-    if (object.nodeType != null) {
-      objectValue["101"] = object.nodeType;
-    }
-    if (object.traitType != null) {
-      objectValue["102"] = object.traitType;
-    }
+    objectValue["101"] = object.nodeType;
     if (object.definitionPtr != null) {
       objectValue["105"] = object.definitionPtr.toValue();
     }
@@ -223,10 +194,6 @@ export class NodeDefinitionReference extends StructFrozen {
     _connection?: any | null,
   ): NodeDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodeTypeValue = objectValue["101"];
-    const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const traitTypeValue = objectValue["102"];
-    const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
     const definitionPtrValue = objectValue["105"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
@@ -234,8 +201,7 @@ export class NodeDefinitionReference extends StructFrozen {
         : null;
     return new NodeDefinitionReference({
       type: Number(objectValue["100"]),
-      nodeType: unpackedNodeType,
-      traitType: unpackedTraitType,
+      nodeType: Number(objectValue["101"]),
       definition: unpackedDefinitionPtr,
       _value: objectValue,
       _supergraph,
@@ -269,12 +235,7 @@ export class NodeDefinitionReference extends StructFrozen {
   static __packProto__(object: NodeDefinitionReference): NodeDefinitionReferenceProto {
     const objectProto: Partial<NodeDefinitionReferenceProto> = { metatype: 150 };
     objectProto.type = Number(object.type) as NodeDefinitionTypeProto;
-    if (object.nodeType != null) {
-      objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
-    }
-    if (object.traitType != null) {
-      objectProto.traitType = Number(object.traitType) as TraitTypeProto;
-    }
+    objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
@@ -291,10 +252,7 @@ export class NodeDefinitionReference extends StructFrozen {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new NodeDefinitionReference({
       type: Number(objectProto.type) as NodeDefinitionType,
-      nodeType:
-        objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
-      traitType:
-        objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
+      nodeType: Number(objectProto.nodeType) as NodeType,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -336,18 +294,19 @@ export class NodeDefinitionReference extends StructFrozen {
 
   static of(base: NodeType | NodeClass | CustomEventDefinition | CustomEntityDefinition) {
     if (typeof base == "number") {
-      return new NodeDefinitionReference({ type: NodeDefinitionType.BUILTIN_NODE, nodeType: base });
+      return new NodeDefinitionReference({ type: NodeDefinitionType.BUILTIN, nodeType: base });
     } else if (
       isNode(base, NodeType.CUSTOM_EVENT_DEFINITION) ||
       isNode(base, NodeType.CUSTOM_ENTITY_DEFINITION)
     ) {
       return new NodeDefinitionReference({
-        type: NodeDefinitionType.CUSTOM_NODE,
+        type: NodeDefinitionType.CUSTOM,
+        nodeType: base.metatype,
         definition: base,
       });
     } else {
       return new NodeDefinitionReference({
-        type: NodeDefinitionType.BUILTIN_NODE,
+        type: NodeDefinitionType.BUILTIN,
         nodeType: base.metatype,
       });
     }
@@ -1078,9 +1037,12 @@ export class PropertyReference extends StructFrozen {
     if (isStruct(attribute, StructType.PROPERTY_REFERENCE)) {
       return attribute;
     } else if (isNode(attribute, NodeType.CUSTOM_PROPERTY)) {
+      if (attribute.parentPtr == null) {
+        throw new Error(`${attribute.repr()} has no parent`);
+      }
       return new PropertyReference({
         type: PropertyReferenceType.CUSTOM,
-        nodeType: NodeType.CUSTOM_ENTITY,
+        nodeType: attribute.parentPtr.type,
         customProperty: attribute,
       });
     } else {
@@ -1098,10 +1060,8 @@ registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);
  * NodeDefinitionType
  */
 export enum NodeDefinitionType {
-  BUILTIN_NODE = 1,
-  CUSTOM_NODE = 2,
-  BUILTIN_TRAIT = 3,
-  CUSTOM_TRAIT = 4,
+  BUILTIN = 1,
+  CUSTOM = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

@@ -38,7 +38,7 @@ ENTITY_SESSIONS = (lf("memory_session"), lf("postgres_session"))
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_roundtrip_create_node(node: Node, session: Session):
     assert session.store is not None, f"no store in session: {session!r}"
-    if node.metatype == NodeType.CUSTOM_ENTITY or node.metatype not in session.store.node_types:
+    if node.metatype not in session.store.node_types:
         return  # ignore custom/excluded nodes
 
     session.upsert(node)

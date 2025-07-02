@@ -29,7 +29,7 @@ from destack.utils.env import get_from_env
 from desys.sharding import get_global_database_from_env
 from desys.store.postgres import (
     DESTACK_BUILTIN_TABLE_PREFIX,
-    DESTACK_CUSTOM_TABLE_PREFIX,
+    DESTACK_CUSTOM_RECORD_PREFIX,
     PostgresSchema,
     PostgresStore,
     apply_migration_ops,
@@ -73,7 +73,7 @@ async def create_test_db(database: DatabaseInfo, schema: PostgresSchema):
         old_schema = await introspect_schema(
             conn,
             include_table_prefixes=(DESTACK_BUILTIN_TABLE_PREFIX,),
-            exclude_table_prefixes=(DESTACK_CUSTOM_TABLE_PREFIX,),
+            exclude_table_prefixes=(DESTACK_CUSTOM_RECORD_PREFIX,),
         )
         migration_ops = generate_migration_ops(old_schema=old_schema, new_schema=schema)
         await apply_migration_ops(conn, migration_ops)

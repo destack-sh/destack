@@ -67,7 +67,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:320 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105 ==== */
 /**
  * A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
  */
@@ -791,7 +791,7 @@ export class CustomProperty
 
   static __packValue__(object: CustomProperty): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 320;
+    objectValue["1"] = 105;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1082,7 +1082,7 @@ export class CustomProperty
   }
 
   static __packProto__(object: CustomProperty): CustomPropertyProto {
-    const objectProto: Partial<CustomPropertyProto> = { metatype: 320 };
+    const objectProto: Partial<CustomPropertyProto> = { metatype: 105 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1443,7 +1443,7 @@ export class CustomProperty
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_PROPERTY, CustomProperty);
-/* ==== DESTACK_GENERATED_END:NODE:320 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:506 ==== */
 /**

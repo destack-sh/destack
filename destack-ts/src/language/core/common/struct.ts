@@ -267,7 +267,7 @@ export class CustomStruct extends Struct {
 registerStructClass(StructType.CUSTOM_STRUCT, CustomStruct);
 /* ==== DESTACK_GENERATED_END:STRUCT:153 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:103 ==== */
 /**
  * A CustomStructDefinition describes a custom Struct with custom Properties.
  */
@@ -651,7 +651,7 @@ export class CustomStructDefinition
 
   static __packValue__(object: CustomStructDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 300;
+    objectValue["1"] = 103;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -813,7 +813,7 @@ export class CustomStructDefinition
   }
 
   static __packProto__(object: CustomStructDefinition): CustomStructDefinitionProto {
-    const objectProto: Partial<CustomStructDefinitionProto> = { metatype: 300 };
+    const objectProto: Partial<CustomStructDefinitionProto> = { metatype: 103 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -996,4 +996,4 @@ export class CustomStructDefinition
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_STRUCT_DEFINITION, CustomStructDefinition);
-/* ==== DESTACK_GENERATED_END:NODE:300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:103 ==== */

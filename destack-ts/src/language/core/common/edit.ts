@@ -4,7 +4,6 @@ import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import type { IsSubject } from "@destack/language/core/builtin/trait";
-import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Value } from "@destack/language/core/common/value";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
@@ -105,22 +104,22 @@ export class Edit extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
-   * Edit.id
+   * The id of the Edit.
    */
   readonly id: string;
 
   /**
-   * Edit.type
+   * The type of Edit.
    */
   readonly type: EditType;
 
   /**
-   * Edit.operation
+   * The specific update operation.
    */
   readonly operation: EditOperation | null;
 
   /**
-   * node
+   * The Node being edited.
    */
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -135,24 +134,9 @@ export class Edit extends StructFrozen {
   readonly nodePtr: NodeReference;
 
   /**
-   * Edit.propPtr
+   * The Property of the Edit.
    */
   readonly propPtr: PropertyReference | null;
-
-  /**
-   * field
-   */
-  get field(): CustomProperty | null {
-    const nodePtr: NodeReference | null = this.fieldPtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as CustomProperty | null;
-    }
-    return null;
-  }
-  readonly fieldPtr: NodeReference | null;
 
   /**
    * Edit.key
@@ -165,7 +149,7 @@ export class Edit extends StructFrozen {
   readonly value: Value | null;
 
   /**
-   * The inverse Edit (if it cannot be derived from the Edit itself).
+   * The inverse Edit *if* it cannot be derived from the Edit itself).
    */
   readonly undo: Edit | null;
 
@@ -175,7 +159,6 @@ export class Edit extends StructFrozen {
     operation?: EditOperation | null;
     node: Node | NodeReference;
     propPtr?: PropertyReference | null;
-    field?: CustomProperty | NodeReference | null;
     key?: Value | null;
     value?: Value | null;
     undo?: Edit | null;
@@ -219,11 +202,6 @@ export class Edit extends StructFrozen {
     this.nodePtr = _node;
     let _propPtr = options.propPtr ?? null;
     this.propPtr = _propPtr;
-    let _field = options.field ?? null;
-    if (_field != null && _field.metatype != StructType.NODE_REFERENCE) {
-      _field = (_field as Node).toRef();
-    }
-    this.fieldPtr = _field;
     let _key = options.key ?? null;
     this.key = _key;
     let _value = options.value ?? null;
@@ -264,9 +242,6 @@ export class Edit extends StructFrozen {
     ) {
       return false;
     }
-    if (!(this.fieldPtr?.id === other.fieldPtr?.id)) {
-      return false;
-    }
     if (
       (this.key == null) !== (other.key == null) ||
       (this.key != null && !this.key.equals(other.key))
@@ -300,9 +275,6 @@ export class Edit extends StructFrozen {
       if (this.propPtr !== null) {
         propertyReprs.push(`propPtr=${this.propPtr.repr()}`);
       }
-      if (this.field !== null) {
-        propertyReprs.push(`field=${this.field?.repr()}`);
-      }
       if (this.key !== null) {
         propertyReprs.push(`key=${this.key.repr()}`);
       }
@@ -327,9 +299,6 @@ export class Edit extends StructFrozen {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.propPtr !== null) {
       h = (h * 31 + this.propPtr.hash()) & 0xffffffff;
-    }
-    if (this.fieldPtr !== null) {
-      h = (h * 31 + hashString(this.fieldPtr.id)) & 0xffffffff;
     }
     if (this.key !== null) {
       h = (h * 31 + this.key.hash()) & 0xffffffff;
@@ -370,9 +339,6 @@ export class Edit extends StructFrozen {
     if (object.propPtr != null) {
       objectValue["103"] = object.propPtr.toValue();
     }
-    if (object.fieldPtr != null) {
-      objectValue["104"] = object.fieldPtr.toValue();
-    }
     if (object.key != null) {
       objectValue["105"] = object.key.toValue();
     }
@@ -405,11 +371,6 @@ export class Edit extends StructFrozen {
       propPtrValue != undefined
         ? _PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const fieldPtrValue = objectValue["104"];
-    const unpackedFieldPtr =
-      fieldPtrValue != undefined
-        ? _NodeReference.fromValue(fieldPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const keyValue = objectValue["105"];
     const unpackedKey =
       keyValue != undefined
@@ -437,7 +398,6 @@ export class Edit extends StructFrozen {
         _connection,
       ),
       propPtr: unpackedPropPtr,
-      field: unpackedFieldPtr,
       key: unpackedKey,
       value: unpackedValue,
       undo: unpackedUndo,
@@ -474,9 +434,6 @@ export class Edit extends StructFrozen {
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.propPtr != null) {
       objectProto.propPtr = object.propPtr.toProto();
-    }
-    if (object.fieldPtr != null) {
-      objectProto.fieldPtr = object.fieldPtr.toProto();
     }
     if (object.key != null) {
       objectProto.key = object.key.toProto();
@@ -521,16 +478,6 @@ export class Edit extends StructFrozen {
         objectProto.propPtr != undefined
           ? _PropertyReference.fromProto(
               objectProto.propPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      field:
-        objectProto.fieldPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.fieldPtr!,
               _session,
               _supergraph,
               _graph,

@@ -812,10 +812,8 @@ class MouseButtonProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class NodeDefinitionTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     NODE_DEFINITION_TYPE_UNSPECIFIED: _ClassVar[NodeDefinitionTypeProto]
-    NODE_DEFINITION_TYPE_BUILTIN_NODE: _ClassVar[NodeDefinitionTypeProto]
-    NODE_DEFINITION_TYPE_CUSTOM_NODE: _ClassVar[NodeDefinitionTypeProto]
-    NODE_DEFINITION_TYPE_BUILTIN_TRAIT: _ClassVar[NodeDefinitionTypeProto]
-    NODE_DEFINITION_TYPE_CUSTOM_TRAIT: _ClassVar[NodeDefinitionTypeProto]
+    NODE_DEFINITION_TYPE_BUILTIN: _ClassVar[NodeDefinitionTypeProto]
+    NODE_DEFINITION_TYPE_CUSTOM: _ClassVar[NodeDefinitionTypeProto]
 
 class NodePermissionProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -831,18 +829,19 @@ class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_NODE: _ClassVar[NodeTypeProto]
     NODE_TYPE_ENTITY: _ClassVar[NodeTypeProto]
     NODE_TYPE_EVENT: _ClassVar[NodeTypeProto]
-    NODE_TYPE_RESOURCE: _ClassVar[NodeTypeProto]
-    NODE_TYPE_METRIC: _ClassVar[NodeTypeProto]
-    NODE_TYPE_MEASUREMENT_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_CUSTOM_ENTITY_DEFINITION: _ClassVar[NodeTypeProto]
-    NODE_TYPE_CUSTOM_ENTITY: _ClassVar[NodeTypeProto]
     NODE_TYPE_CUSTOM_TRAIT_DEFINITION: _ClassVar[NodeTypeProto]
     NODE_TYPE_CUSTOM_EVENT_DEFINITION: _ClassVar[NodeTypeProto]
-    NODE_TYPE_CUSTOM_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_CUSTOM_STRUCT_DEFINITION: _ClassVar[NodeTypeProto]
     NODE_TYPE_CUSTOM_ENUM_DEFINITION: _ClassVar[NodeTypeProto]
     NODE_TYPE_CUSTOM_PROPERTY: _ClassVar[NodeTypeProto]
     NODE_TYPE_CUSTOM_OPTION: _ClassVar[NodeTypeProto]
+    NODE_TYPE_RECORD: _ClassVar[NodeTypeProto]
+    NODE_TYPE_RESOURCE: _ClassVar[NodeTypeProto]
+    NODE_TYPE_METRIC: _ClassVar[NodeTypeProto]
+    NODE_TYPE_SIGNAL: _ClassVar[NodeTypeProto]
+    NODE_TYPE_EDIT_EVENT: _ClassVar[NodeTypeProto]
+    NODE_TYPE_MEASUREMENT_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_SPACE: _ClassVar[NodeTypeProto]
     NODE_TYPE_HANDLE: _ClassVar[NodeTypeProto]
     NODE_TYPE_USER: _ClassVar[NodeTypeProto]
@@ -924,7 +923,6 @@ class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_COUNTER_MEASUREMENT_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_HISTOGRAM_METRIC: _ClassVar[NodeTypeProto]
     NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT: _ClassVar[NodeTypeProto]
-    NODE_TYPE_EDIT_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_ENVIRONMENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_THREAD: _ClassVar[NodeTypeProto]
     NODE_TYPE_MESSAGE: _ClassVar[NodeTypeProto]
@@ -2130,10 +2128,8 @@ MOUSE_BUTTON_LEFT: MouseButtonProto
 MOUSE_BUTTON_RIGHT: MouseButtonProto
 MOUSE_BUTTON_MIDDLE: MouseButtonProto
 NODE_DEFINITION_TYPE_UNSPECIFIED: NodeDefinitionTypeProto
-NODE_DEFINITION_TYPE_BUILTIN_NODE: NodeDefinitionTypeProto
-NODE_DEFINITION_TYPE_CUSTOM_NODE: NodeDefinitionTypeProto
-NODE_DEFINITION_TYPE_BUILTIN_TRAIT: NodeDefinitionTypeProto
-NODE_DEFINITION_TYPE_CUSTOM_TRAIT: NodeDefinitionTypeProto
+NODE_DEFINITION_TYPE_BUILTIN: NodeDefinitionTypeProto
+NODE_DEFINITION_TYPE_CUSTOM: NodeDefinitionTypeProto
 NODE_PERMISSION_UNSPECIFIED: NodePermissionProto
 NODE_PERMISSION_READ: NodePermissionProto
 NODE_PERMISSION_ADD: NodePermissionProto
@@ -2143,18 +2139,19 @@ NODE_TYPE_UNSPECIFIED: NodeTypeProto
 NODE_TYPE_NODE: NodeTypeProto
 NODE_TYPE_ENTITY: NodeTypeProto
 NODE_TYPE_EVENT: NodeTypeProto
-NODE_TYPE_RESOURCE: NodeTypeProto
-NODE_TYPE_METRIC: NodeTypeProto
-NODE_TYPE_MEASUREMENT_EVENT: NodeTypeProto
 NODE_TYPE_CUSTOM_ENTITY_DEFINITION: NodeTypeProto
-NODE_TYPE_CUSTOM_ENTITY: NodeTypeProto
 NODE_TYPE_CUSTOM_TRAIT_DEFINITION: NodeTypeProto
 NODE_TYPE_CUSTOM_EVENT_DEFINITION: NodeTypeProto
-NODE_TYPE_CUSTOM_EVENT: NodeTypeProto
 NODE_TYPE_CUSTOM_STRUCT_DEFINITION: NodeTypeProto
 NODE_TYPE_CUSTOM_ENUM_DEFINITION: NodeTypeProto
 NODE_TYPE_CUSTOM_PROPERTY: NodeTypeProto
 NODE_TYPE_CUSTOM_OPTION: NodeTypeProto
+NODE_TYPE_RECORD: NodeTypeProto
+NODE_TYPE_RESOURCE: NodeTypeProto
+NODE_TYPE_METRIC: NodeTypeProto
+NODE_TYPE_SIGNAL: NodeTypeProto
+NODE_TYPE_EDIT_EVENT: NodeTypeProto
+NODE_TYPE_MEASUREMENT_EVENT: NodeTypeProto
 NODE_TYPE_SPACE: NodeTypeProto
 NODE_TYPE_HANDLE: NodeTypeProto
 NODE_TYPE_USER: NodeTypeProto
@@ -2236,7 +2233,6 @@ NODE_TYPE_COUNTER_METRIC: NodeTypeProto
 NODE_TYPE_COUNTER_MEASUREMENT_EVENT: NodeTypeProto
 NODE_TYPE_HISTOGRAM_METRIC: NodeTypeProto
 NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT: NodeTypeProto
-NODE_TYPE_EDIT_EVENT: NodeTypeProto
 NODE_TYPE_ENVIRONMENT: NodeTypeProto
 NODE_TYPE_THREAD: NodeTypeProto
 NODE_TYPE_MESSAGE: NodeTypeProto
@@ -3679,45 +3675,6 @@ class CursorProto(_message.Message):
     active_at: _timestamp_pb2.Timestamp
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., status: _Optional[_Union[CursorStatusProto, str]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
-class CustomEntityProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "definition_ptr", "base_type", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "custom_values", "owned_by_ptr")
-    class CustomValuesEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: ValueProto
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
-    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
-    BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CUSTOM_VALUES_FIELD_NUMBER: _ClassVar[int]
-    OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    metatype: NodeTypeProto
-    id: str
-    parent_ptr: NodeReferenceProto
-    space_ptr: NodeReferenceProto
-    definition_ptr: NodeReferenceProto
-    base_type: NodeDefinitionReferenceProto
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceProto
-    updated_at: _timestamp_pb2.Timestamp
-    updated_by_ptr: NodeReferenceProto
-    archived_at: _timestamp_pb2.Timestamp
-    deleted_at: _timestamp_pb2.Timestamp
-    custom_values: _containers.MessageMap[str, ValueProto]
-    owned_by_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., base_type: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
-
 class CustomEntityDefinitionProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "custom_values", "order_key", "owned_by_ptr", "base_type", "base_traits", "is_abstract", "prototype_ptr", "source_ptr", "script_ptr", "name", "icon")
     class CustomValuesEntry(_message.Message):
@@ -3808,39 +3765,8 @@ class CustomEnumDefinitionProto(_message.Message):
     icon: IconProto
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
 
-class CustomEventProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "definition_ptr", "base_type", "created_at", "created_by_ptr", "custom_values", "node_ptr")
-    class CustomValuesEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: ValueProto
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
-    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
-    BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    CUSTOM_VALUES_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    metatype: NodeTypeProto
-    id: str
-    parent_ptr: NodeReferenceProto
-    space_ptr: NodeReferenceProto
-    definition_ptr: NodeReferenceProto
-    base_type: NodeDefinitionReferenceProto
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceProto
-    custom_values: _containers.MessageMap[str, ValueProto]
-    node_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., base_type: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
-
 class CustomEventDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "custom_values", "order_key", "base_type", "base_traits", "is_abstract", "prototype_ptr", "source_ptr", "name", "icon")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "custom_values", "order_key", "base_type", "base_traits", "is_abstract", "source_ptr", "name", "icon")
     class CustomValuesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -3861,7 +3787,6 @@ class CustomEventDefinitionProto(_message.Message):
     BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
     BASE_TRAITS_FIELD_NUMBER: _ClassVar[int]
     IS_ABSTRACT_FIELD_NUMBER: _ClassVar[int]
-    PROTOTYPE_PTR_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
@@ -3878,11 +3803,10 @@ class CustomEventDefinitionProto(_message.Message):
     base_type: NodeDefinitionReferenceProto
     base_traits: _containers.RepeatedCompositeFieldContainer[NodeDefinitionReferenceProto]
     is_abstract: bool
-    prototype_ptr: NodeReferenceProto
     source_ptr: NodeReferenceProto
     name: str
     icon: IconProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., base_type: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., base_traits: _Optional[_Iterable[_Union[NodeDefinitionReferenceProto, _Mapping]]] = ..., is_abstract: bool = ..., prototype_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., base_type: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., base_traits: _Optional[_Iterable[_Union[NodeDefinitionReferenceProto, _Mapping]]] = ..., is_abstract: bool = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
 
 class CustomOptionProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "order_key", "source_ptr", "name", "icon")
@@ -4379,14 +4303,13 @@ class DropEventProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., position: _Optional[_Union[Vector2Proto, _Mapping]] = ...) -> None: ...
 
 class EditProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "operation", "node_ptr", "prop_ptr", "field_ptr", "key", "value", "undo")
+    __slots__ = ("metatype", "id", "type", "operation", "node_ptr", "prop_ptr", "key", "value", "undo")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     PROP_PTR_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     UNDO_FIELD_NUMBER: _ClassVar[int]
@@ -4396,11 +4319,10 @@ class EditProto(_message.Message):
     operation: EditOperationProto
     node_ptr: NodeReferenceProto
     prop_ptr: PropertyReferenceProto
-    field_ptr: NodeReferenceProto
     key: ValueProto
     value: ValueProto
     undo: EditProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., prop_ptr: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., undo: _Optional[_Union[EditProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., prop_ptr: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., undo: _Optional[_Union[EditProto, _Mapping]] = ...) -> None: ...
 
 class EditEventProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "type", "node_ptr", "operation", "prop_ptr", "key", "value")
@@ -6844,18 +6766,16 @@ class NodeDefinitionProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., is_global: bool = ..., is_spatial: bool = ..., is_abstract: bool = ..., is_extensible: bool = ..., is_frozen: bool = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., base_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., root_type: _Optional[_Union[NodeTypeProto, str]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ...) -> None: ...
 
 class NodeDefinitionReferenceProto(_message.Message):
-    __slots__ = ("metatype", "type", "node_type", "trait_type", "definition_ptr")
+    __slots__ = ("metatype", "type", "node_type", "definition_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    TRAIT_TYPE_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     type: NodeDefinitionTypeProto
     node_type: NodeTypeProto
-    trait_type: TraitTypeProto
     definition_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeDefinitionTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., trait_type: _Optional[_Union[TraitTypeProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeDefinitionTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class NodeReferenceProto(_message.Message):
     __slots__ = ("metatype", "type", "id", "space_id", "definition_id")
@@ -7695,6 +7615,45 @@ class ReactionProto(_message.Message):
     owned_by_ptr: NodeReferenceProto
     content: str
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., content: _Optional[str] = ...) -> None: ...
+
+class RecordProto(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "definition_ptr", "base_type", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "custom_values", "owned_by_ptr")
+    class CustomValuesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: ValueProto
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
+    BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_VALUES_FIELD_NUMBER: _ClassVar[int]
+    OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeTypeProto
+    id: str
+    parent_ptr: NodeReferenceProto
+    space_ptr: NodeReferenceProto
+    definition_ptr: NodeReferenceProto
+    base_type: NodeDefinitionReferenceProto
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceProto
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceProto
+    archived_at: _timestamp_pb2.Timestamp
+    deleted_at: _timestamp_pb2.Timestamp
+    custom_values: _containers.MessageMap[str, ValueProto]
+    owned_by_ptr: NodeReferenceProto
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., base_type: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class ResourceProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "definition_ptr", "base_type", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "custom_values", "status")
@@ -8711,6 +8670,37 @@ class ShapeProto(_message.Message):
     radius: CornersProto
     stroke: StrokeProto
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., base_type: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., position: _Optional[_Union[PositionProto, _Mapping]] = ..., width: _Optional[_Union[DimensionProto, _Mapping]] = ..., height: _Optional[_Union[DimensionProto, _Mapping]] = ..., min_width: _Optional[_Union[DimensionProto, _Mapping]] = ..., min_height: _Optional[_Union[DimensionProto, _Mapping]] = ..., max_width: _Optional[_Union[DimensionProto, _Mapping]] = ..., max_height: _Optional[_Union[DimensionProto, _Mapping]] = ..., layout: _Optional[_Union[LayoutProto, str]] = ..., direction: _Optional[_Union[DirectionProto, str]] = ..., distribute: _Optional[_Union[DistributeProto, str]] = ..., align: _Optional[_Union[AlignProto, str]] = ..., gap: _Optional[_Union[Axis2Proto, _Mapping]] = ..., padding: _Optional[_Union[InsetsProto, _Mapping]] = ..., grid: _Optional[_Union[GridProto, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanProto, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., is_wrap: bool = ..., is_visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillProto, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Proto, _Mapping]] = ..., skew: _Optional[_Union[Vector2Proto, _Mapping]] = ..., scale: _Optional[float] = ..., shadow: _Optional[_Union[ShadowProto, _Mapping]] = ..., border: _Optional[_Union[BorderProto, _Mapping]] = ..., radius: _Optional[_Union[CornersProto, _Mapping]] = ..., stroke: _Optional[_Union[StrokeProto, _Mapping]] = ...) -> None: ...
+
+class SignalProto(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "definition_ptr", "base_type", "created_at", "created_by_ptr", "custom_values", "node_ptr")
+    class CustomValuesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: ValueProto
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
+    BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_VALUES_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeTypeProto
+    id: str
+    parent_ptr: NodeReferenceProto
+    space_ptr: NodeReferenceProto
+    definition_ptr: NodeReferenceProto
+    base_type: NodeDefinitionReferenceProto
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceProto
+    custom_values: _containers.MessageMap[str, ValueProto]
+    node_ptr: NodeReferenceProto
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., base_type: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class SliderInputViewProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "definition_ptr", "base_type", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "custom_values", "order_key", "script_ptr", "name", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "is_visible", "opacity", "value", "min_value", "max_value", "step")
