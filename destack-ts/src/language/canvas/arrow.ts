@@ -53,22 +53,6 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:250400 ==== */
-/**
- * ArrowHeadType
- */
-export enum ArrowHeadType {
-  ARROW = 1,
-  TRIANGLE = 2,
-  DOT = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
-/* ==== DESTACK_GENERATED_END:ENUM:250400 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:250300 ==== */
 /**
  * An Arrow is a shape that represents an arrow.
@@ -1745,3 +1729,19 @@ export class ArrowShape extends Shape {
 }
 registerNodeClass(NodeType.ARROW_SHAPE, ArrowShape);
 /* ==== DESTACK_GENERATED_END:NODE:250300 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:250300 ==== */
+/**
+ * ArrowHeadType
+ */
+export enum ArrowHeadType {
+  ARROW = 1,
+  TRIANGLE = 2,
+  DOT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
+/* ==== DESTACK_GENERATED_END:ENUM:250300 ==== */
