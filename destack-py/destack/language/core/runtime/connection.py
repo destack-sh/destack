@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING, Any, Optional
 from destack.utils.uuid import UUID
 
 from ..builtin import Node, Trait
-from ..common import Query, QueryResult, QueryResultBase, QueryType
+from ..common import Query, QueryResult, QueryResultGroup, QueryType
 from .session import Session
 
 if TYPE_CHECKING:
     from destack.language import Store, Value
 
 
-class QueryContainer[NodeT: "Trait | Node" = Node]:
+class QueryResultContainer[NodeT: "Trait | Node" = Node]:
     """
     A container for some (part of a) QueryResult.
     """
@@ -24,16 +24,16 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
         connection: "QueryConnection",
         type: QueryType,
         query: Query,
-        result: QueryResultBase | None,
+        result: QueryResult | QueryResultGroup | None,
         discriminator: "Value | None" = None,
     ):
         self.connection: QueryConnection = connection
         self.type: QueryType = type
         self.query: Query = query
-        self.result: QueryResultBase | None = result
+        self.result: QueryResult | QueryResultGroup | None = result
         self.nodes: list[NodeT] = []  # type: ignore (no idea why pyright freaks out sometimes)
         self.discriminator: Any | None = discriminator
-        self.subcontainers: list[QueryContainer] = []
+        self.subcontainers: list[QueryResultContainer] = []
 
     def __str__(self) -> str:
         content_parts: list[str] = [f"query={self.query!r}"]
@@ -42,9 +42,9 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
         return ", ".join(content_parts)
 
     def __repr__(self) -> str:
-        return f"<QueryContainer {self!s}>"
+        return f"<QueryResultContainer {self!s}>"
 
-    def _add_result(self, result: QueryResultBase, query: Query) -> None:
+    def _add_result(self, result: QueryResult | QueryResultGroup, query: Query) -> None:
         """Add a QueryResult to the connection (recursively)."""
         from ..common import unpack_value
 
@@ -74,7 +74,7 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
                     subtype = QueryType.SCALAR
                 else:
                     raise ValueError(f"unexpected query type: {query.type!r}")
-                subcontainer = QueryContainer(
+                subcontainer = QueryResultContainer(
                     self.connection, subtype, query, group, group.discriminator
                 )
                 self.subcontainers.append(subcontainer)
@@ -82,7 +82,9 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
             # subqueries
             for i, subresult in enumerate(result.subresults):
                 subquery = query.subqueries[i]
-                subcontainer = QueryContainer(self.connection, subquery.type, subquery, subresult)
+                subcontainer = QueryResultContainer(
+                    self.connection, subquery.type, subquery, subresult
+                )
                 self.subcontainers.append(subcontainer)
                 subcontainer._add_result(subresult, subquery)
 
@@ -155,7 +157,7 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
             list_by_group[discriminator] = subcontainer.to_list()
         return list_by_group
 
-    def get(self, key: str | UUID) -> "QueryContainer":
+    def get(self, key: str | UUID) -> "QueryResultContainer":
         """Get a subresult by name or id."""
         for subcontainer in self.subcontainers:
             if subcontainer.query.name == key or subcontainer.query.id == key:
@@ -163,7 +165,7 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
         raise KeyError(f"no subresult for {key!r} in {self!r}")
 
 
-class QueryConnection[NodeT: "Trait | Node"](QueryContainer[NodeT]):  # type: ignore (pyright??)
+class QueryConnection[NodeT: "Trait | Node"](QueryResultContainer[NodeT]):  # type: ignore (pyright??)
     """
     A connection to a Query and its result.
     """
@@ -179,7 +181,7 @@ class QueryConnection[NodeT: "Trait | Node"](QueryContainer[NodeT]):  # type: ig
     )
 
     def __init__(self, query: Query, store: "Store", session: "Session"):
-        super().__init__(self, query.type, query, None)
+        super().__init__(connection=self, type=query.type, query=query, result=None)
 
         from .graph import Graph, PolyGraph
 
@@ -189,7 +191,7 @@ class QueryConnection[NodeT: "Trait | Node"](QueryContainer[NodeT]):  # type: ig
         self.graph: Graph = PolyGraph(session.supergraph)
 
     def __repr__(self) -> str:
-        return f"<QueryConnection {self!s}>"
+        return f"<QueryConnection query={self.query!r}>"
 
     async def execute(self) -> None:
         """Execute the Query."""

@@ -30,180 +30,6 @@ import {
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/**
- * Convert an arbitrary (legal) value to a Value.
- * If Type isn't provided, it will be inferred from the value.
- */
-export function toValue(
-  valueUnpacked: any,
-  type: Type | null = null,
-  nodeAsValue: boolean = false,
-): Value {
-  // infer type
-  if (type === null) {
-    if (valueUnpacked === null) {
-      throw new Error("cannot infer type for null");
-    }
-    type = toType(valueUnpacked, nodeAsValue);
-  }
-  // coerce nodes into node references
-  if (type.scalarType == ScalarType.NODE_REFERENCE) {
-    if (type.cardinality == TypeCardinality.SCALAR && isNode(valueUnpacked)) {
-      valueUnpacked = valueUnpacked.toRef();
-    } else if (type.cardinality == TypeCardinality.LIST) {
-      valueUnpacked = valueUnpacked.map((item: any) => (isNode(item) ? item.toRef() : item));
-    }
-  }
-  // pack value
-  const valuePacked = packValue(valueUnpacked, type);
-  const value = new Value({ type, value: valuePacked });
-  return value;
-}
-
-/**
- * Pack a generic typed value to a JSON object.
- */
-export function packValue(value: any, type: Type): any {
-  if (type.cardinality == TypeCardinality.SCALAR) {
-    return _packScalarValue(value, type);
-  } else if (type.cardinality == TypeCardinality.LIST) {
-    if (!value) {
-      return [];
-    }
-    const packedList: any[] = [];
-    for (const item of value) {
-      packedList.push(_packScalarValue(item, type));
-    }
-    return packedList;
-  } else if (type.cardinality == TypeCardinality.MAP) {
-    if (!value) {
-      return {};
-    }
-    if (type.keyType === null) {
-      throw new Error(`no key type for ${type.repr()}`);
-    }
-    const packedMap: { [key: string]: any } = {};
-    for (const [key, val] of Object.entries(value)) {
-      const packedKey = _packScalarValue(key, type.keyType);
-      const packedVal = _packScalarValue(val, type);
-      packedMap[String(packedKey)] = packedVal;
-    }
-    return packedMap;
-  } else {
-    assertNever(type.cardinality);
-  }
-}
-
-/**
- * Unpack a JSON object to a generic typed value.
- */
-export function unpackValue(
-  value: any,
-  type: Type,
-  _session?: Session | null,
-  _graph?: any | null,
-  _supergraph?: Supergraph | null,
-  _connection?: any | null,
-): any {
-  if (type.cardinality == TypeCardinality.SCALAR) {
-    return _unpackScalarValue(value, type, _session, _supergraph, _graph, _connection);
-  } else if (type.cardinality == TypeCardinality.LIST) {
-    if (value === null) {
-      return [];
-    }
-    const unpackedList = [];
-    for (const item of value) {
-      unpackedList.push(_unpackScalarValue(item, type, _session, _supergraph, _graph, _connection));
-    }
-    return unpackedList;
-  } else if (type.cardinality == TypeCardinality.MAP) {
-    if (value === null) {
-      return {};
-    }
-    const unpackedMap: { [key: string]: any } = {};
-    for (const [key, val] of Object.entries(value)) {
-      const unpackedKey = type.keyType ? _unpackScalarValue(key, type.keyType) : key;
-      const unpackedVal = _unpackScalarValue(val, type, _session, _supergraph, _graph, _connection);
-      unpackedMap[unpackedKey] = unpackedVal;
-    }
-    return unpackedMap;
-  } else {
-    assertNever(type.cardinality);
-  }
-}
-
-/** Pack a scalar value to a JSON object. */
-function _packScalarValue(value: any, type: Type): any {
-  if (type.scalarType == ScalarType.PRIMITIVE) {
-    if (type.primitiveType == PrimitiveType.BYTES) {
-      return base64Encode(value as Uint8Array);
-    } else if (type.primitiveType == PrimitiveType.DATETIME) {
-      return (value as Temporal.ZonedDateTime).toString();
-    } else if (type.primitiveType == PrimitiveType.DATE) {
-      return (value as Temporal.PlainDate).toString();
-    } else if (type.primitiveType == PrimitiveType.TIME) {
-      return (value as Temporal.PlainTime).toString();
-    } else if (type.primitiveType == PrimitiveType.DURATION) {
-      return timedeltaToISOFormat(value as Temporal.Duration);
-    } else {
-      return value;
-    }
-  } else if (type.scalarType == ScalarType.ENUM) {
-    return value;
-  } else if (
-    type.scalarType == ScalarType.NODE_REFERENCE ||
-    type.scalarType == ScalarType.NODE_VALUE ||
-    type.scalarType == ScalarType.STRUCT
-  ) {
-    return (value as BuiltinObject).toValue();
-  } else {
-    assertNever(type.scalarType);
-  }
-}
-
-/** Unpack a JSON object to a scalar value. */
-function _unpackScalarValue(
-  value: any,
-  type: Type,
-  _session?: Session | null,
-  _supergraph?: Supergraph | null,
-  _graph?: any | null,
-  _connection?: any | null,
-): any {
-  if (type.scalarType == ScalarType.PRIMITIVE) {
-    if (type.primitiveType == PrimitiveType.BYTES) {
-      return base64Decode(value);
-    } else if (type.primitiveType == PrimitiveType.DATETIME) {
-      return Temporal.Instant.from(value).toZonedDateTimeISO("UTC");
-    } else if (type.primitiveType == PrimitiveType.DATE) {
-      return Temporal.PlainDate.from(value);
-    } else if (type.primitiveType == PrimitiveType.TIME) {
-      return Temporal.PlainTime.from(value);
-    } else if (type.primitiveType == PrimitiveType.DURATION) {
-      return timedeltaFromISOFormat(value);
-    } else {
-      return value;
-    }
-  } else if (type.scalarType == ScalarType.ENUM) {
-    return value;
-  } else if (type.scalarType == ScalarType.NODE_REFERENCE) {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return _NodeReference.fromValue(value, _session, _supergraph, _graph, _connection);
-  } else if (type.scalarType == ScalarType.NODE_VALUE) {
-    const nodeType = Number(value["1"]) as NodeType;
-    const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
-    return nodeClass.__unpackValue__(value, _session, _supergraph, _graph, _connection);
-  } else if (type.scalarType == ScalarType.STRUCT) {
-    if (type.structType === null) {
-      throw new Error(`missing struct type for ${type.repr()}`);
-    }
-    const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
-    return structClass.__unpackValue__(value, _session, _supergraph, _graph, _connection);
-  } else {
-    assertNever(type.scalarType);
-  }
-}
-
 /* ==== DESTACK_GENERATED_START:STRUCT:400 ==== */
 /**
  * A generic Value of any Type.
@@ -394,8 +220,214 @@ export class Value extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  _unpacked: any | null = null;
+
+  /** Get the unpacked value of this generic Value. */
+  unpack(): any {
+    if (this._unpacked === null) {
+      this._unpacked = unpackValue(this.value, this.type);
+    }
+    return this._unpacked;
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VALUE, Value);
 /* ==== DESTACK_GENERATED_END:STRUCT:400 ==== */
+
+/**
+ * Convert an arbitrary (legal) value to a Value.
+ * If Type isn't provided, it will be inferred from the value.
+ */
+export function toValue(
+  valueUnpacked: any,
+  type: Type | null = null,
+  nodeAsValue: boolean = false,
+): Value {
+  // infer type
+  if (type === null) {
+    if (valueUnpacked === null) {
+      throw new Error("cannot infer type for null");
+    }
+    type = toType(valueUnpacked, nodeAsValue);
+  }
+  // coerce nodes into node references
+  if (type.scalarType == ScalarType.NODE_REFERENCE) {
+    if (type.cardinality == TypeCardinality.SCALAR && isNode(valueUnpacked)) {
+      valueUnpacked = valueUnpacked.toRef();
+    } else if (type.cardinality == TypeCardinality.LIST) {
+      valueUnpacked = valueUnpacked.map((item: any) => (isNode(item) ? item.toRef() : item));
+    }
+  }
+  // pack value
+  const valuePacked = packValue(valueUnpacked, type);
+  const value = new Value({ type, value: valuePacked });
+  return value;
+}
+
+/**
+ * Pack a generic typed value to a JSON object.
+ */
+export function packValue(value: any, type: Type): any {
+  if (type.cardinality == TypeCardinality.SCALAR) {
+    return _packScalarValue(value, type);
+  } else if (type.cardinality == TypeCardinality.LIST) {
+    if (!value) {
+      return [];
+    }
+    const packedList: any[] = [];
+    for (const item of value) {
+      packedList.push(_packScalarValue(item, type));
+    }
+    return packedList;
+  } else if (type.cardinality == TypeCardinality.MAP) {
+    if (!value) {
+      return {};
+    }
+    if (type.keyType === null) {
+      throw new Error(`no key type for ${type.repr()}`);
+    }
+    const packedMap: { [key: string]: any } = {};
+    for (const [key, val] of Object.entries(value)) {
+      const packedKey = _packScalarValue(key, type.keyType);
+      const packedVal = _packScalarValue(val, type);
+      packedMap[String(packedKey)] = packedVal;
+    }
+    return packedMap;
+  } else {
+    assertNever(type.cardinality);
+  }
+}
+
+/**
+ * Unpack a JSON object to a generic typed value.
+ */
+export function unpackValue(
+  value: any,
+  type: Type,
+  options?: {
+    _session?: Session | null;
+    _graph?: any | null;
+    _supergraph?: Supergraph | null;
+    _connection?: any | null;
+  },
+): any {
+  if (type.cardinality == TypeCardinality.SCALAR) {
+    return _unpackScalarValue(value, type, options);
+  } else if (type.cardinality == TypeCardinality.LIST) {
+    if (value === null) {
+      return [];
+    }
+    const unpackedList = [];
+    for (const item of value) {
+      unpackedList.push(_unpackScalarValue(item, type, options));
+    }
+    return unpackedList;
+  } else if (type.cardinality == TypeCardinality.MAP) {
+    if (value === null) {
+      return {};
+    }
+    const unpackedMap: { [key: string]: any } = {};
+    for (const [key, val] of Object.entries(value)) {
+      const unpackedKey = type.keyType ? _unpackScalarValue(key, type.keyType) : key;
+      const unpackedVal = _unpackScalarValue(val, type, options);
+      unpackedMap[unpackedKey] = unpackedVal;
+    }
+    return unpackedMap;
+  } else {
+    assertNever(type.cardinality);
+  }
+}
+
+/** Pack a scalar value to a JSON object. */
+function _packScalarValue(value: any, type: Type): any {
+  if (type.scalarType == ScalarType.PRIMITIVE) {
+    if (type.primitiveType == PrimitiveType.BYTES) {
+      return base64Encode(value as Uint8Array);
+    } else if (type.primitiveType == PrimitiveType.DATETIME) {
+      return (value as Temporal.ZonedDateTime).toString();
+    } else if (type.primitiveType == PrimitiveType.DATE) {
+      return (value as Temporal.PlainDate).toString();
+    } else if (type.primitiveType == PrimitiveType.TIME) {
+      return (value as Temporal.PlainTime).toString();
+    } else if (type.primitiveType == PrimitiveType.DURATION) {
+      return timedeltaToISOFormat(value as Temporal.Duration);
+    } else {
+      return value;
+    }
+  } else if (type.scalarType == ScalarType.ENUM) {
+    return value;
+  } else if (
+    type.scalarType == ScalarType.NODE_REFERENCE ||
+    type.scalarType == ScalarType.NODE_VALUE ||
+    type.scalarType == ScalarType.STRUCT
+  ) {
+    return (value as BuiltinObject).toValue();
+  } else {
+    assertNever(type.scalarType);
+  }
+}
+
+/** Unpack a JSON object to a scalar value. */
+function _unpackScalarValue(
+  value: any,
+  type: Type,
+  options?: {
+    _session?: Session | null;
+    _graph?: any | null;
+    _supergraph?: Supergraph | null;
+    _connection?: any | null;
+  },
+): any {
+  if (type.scalarType == ScalarType.PRIMITIVE) {
+    if (type.primitiveType == PrimitiveType.BYTES) {
+      return base64Decode(value);
+    } else if (type.primitiveType == PrimitiveType.DATETIME) {
+      return Temporal.Instant.from(value).toZonedDateTimeISO("UTC");
+    } else if (type.primitiveType == PrimitiveType.DATE) {
+      return Temporal.PlainDate.from(value);
+    } else if (type.primitiveType == PrimitiveType.TIME) {
+      return Temporal.PlainTime.from(value);
+    } else if (type.primitiveType == PrimitiveType.DURATION) {
+      return timedeltaFromISOFormat(value);
+    } else {
+      return value;
+    }
+  } else if (type.scalarType == ScalarType.ENUM) {
+    return value;
+  } else if (type.scalarType == ScalarType.NODE_REFERENCE) {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return _NodeReference.fromValue(
+      value,
+      options?._session,
+      options?._supergraph,
+      options?._graph,
+      options?._connection,
+    );
+  } else if (type.scalarType == ScalarType.NODE_VALUE) {
+    const nodeType = Number(value["1"]) as NodeType;
+    const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
+    return nodeClass.__unpackValue__(
+      value,
+      options?._session,
+      options?._supergraph,
+      options?._graph,
+      options?._connection,
+    );
+  } else if (type.scalarType == ScalarType.STRUCT) {
+    if (type.structType === null) {
+      throw new Error(`missing struct type for ${type.repr()}`);
+    }
+    const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
+    return structClass.__unpackValue__(
+      value,
+      options?._session,
+      options?._supergraph,
+      options?._graph,
+      options?._connection,
+    );
+  } else {
+    assertNever(type.scalarType);
+  }
+}

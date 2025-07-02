@@ -1,6 +1,7 @@
+import { activeSession } from "@destack/language/core/builtin";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
-import type { NodeClass } from "@destack/language/core/builtin/node";
+import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import { isNode } from "@destack/language/core/builtin/node";
 import type {
   NodeDefinitionReference,
@@ -11,6 +12,7 @@ import type { PropertyDefinition } from "@destack/language/core/common/meta";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";
+import { QueryConnection } from "@destack/language/core/runtime";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
@@ -2866,7 +2868,73 @@ export class Query extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+  /** Execute the Query. */
+  async execute(): Promise<QueryConnection> {
+    const session = activeSession();
+    const store = session.store;
+    if (store == null) {
+      throw new Error(`no store in ${session.repr()}`);
+    }
+    const connection = new QueryConnection({ query: this, store, session });
+    session.connections.push(connection);
+    await connection.execute();
+    return connection;
+  }
+
+  /** Execute the Query and return the root (if any). */
+  async executeOneOrNone(): Promise<Node | null> {
+    if (!(this.type === QueryType.NODE || this.type === QueryType.GROUPED_NODE)) {
+      throw new Error(`cannot get node of ${this.repr()}`);
+    }
+    const connection = await this.execute();
+    return connection.toOneOrNone();
+  }
+
+  /** Execute the Query and return the root (error if none). */
+  async executeOne(): Promise<Node> {
+    if (!(this.type === QueryType.NODE || this.type === QueryType.GROUPED_NODE)) {
+      throw new Error(`cannot get node of ${this.repr()}`);
+    }
+    const connection = await this.execute();
+    return connection.toOne();
+  }
+
+  /** Execute the Query and return the list of roots. */
+  async executeList(): Promise<Array<Node>> {
+    if (!(this.type === QueryType.NODE || this.type === QueryType.GROUPED_NODE)) {
+      throw new Error(`cannot get nodes of ${this.repr()}`);
+    }
+    const connection = await this.execute();
+    return connection.toList();
+  }
+
+  /** Execute the Query and return whether any results exist. */
+  async executeExists(): Promise<boolean> {
+    if (this.type !== QueryType.SCALAR) {
+      throw new Error(`cannot get exists of ${this.repr()}`);
+    }
+    const connection = await this.execute();
+    return connection.toExists();
+  }
+
+  /** Execute the Query and return the count. */
+  async executeCount(): Promise<number> {
+    if (!(this.type === QueryType.SCALAR || this.type === QueryType.GROUPED_SCALAR)) {
+      throw new Error(`cannot get count of ${this.repr()}`);
+    }
+    const connection = await this.execute();
+    return connection.toCount();
+  }
+
+  /** Execute the Query and return the scalar value. */
+  async executeScalar(): Promise<any> {
+    if (!(this.type === QueryType.SCALAR || this.type === QueryType.GROUPED_SCALAR)) {
+      throw new Error(`cannot get scalar of ${this.repr()}`);
+    }
+    const connection = await this.execute();
+    return connection.toScalar();
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY, Query);
