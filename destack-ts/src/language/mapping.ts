@@ -42,7 +42,6 @@ import type { AnnotationShape } from "@destack/language/canvas/annotation";
 import type { Arrow, ArrowHeadType, ArrowShape } from "@destack/language/canvas/arrow";
 import type { Canvas, CanvasType } from "@destack/language/canvas/canvas";
 import type { Line, LineShape } from "@destack/language/canvas/line";
-import type { Polygon, PolygonShape, PolygonShapeType } from "@destack/language/canvas/polygon";
 import type { Shape } from "@destack/language/canvas/shape";
 import type { Node } from "@destack/language/core";
 import type {
@@ -505,7 +504,6 @@ export type NodeTypeMapping = {
   [NodeType.ARROW_SHAPE]: ArrowShape;
   [NodeType.CANVAS]: Canvas;
   [NodeType.LINE_SHAPE]: LineShape;
-  [NodeType.POLYGON_SHAPE]: PolygonShape;
   [NodeType.FILE]: File;
   [NodeType.LINK]: Link;
   [NodeType.ENVIRONMENT]: Environment;
@@ -705,7 +703,6 @@ export type StructTypeMapping = {
   [StructType.GRID_SPAN]: GridSpan;
   [StructType.ARROW]: Arrow;
   [StructType.LINE]: Line;
-  [StructType.POLYGON]: Polygon;
   [StructType.DATABASE_INFO]: DatabaseInfo;
   [StructType.GALAXY_INFO]: GalaxyInfo;
   [StructType.SCHEDULE]: Schedule;
@@ -792,7 +789,6 @@ export type EnumTypeMapping = {
   [EnumType.SANCTION_TYPE]: SanctionType;
   [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
   [EnumType.CANVAS_TYPE]: CanvasType;
-  [EnumType.POLYGON_SHAPE_TYPE]: PolygonShapeType;
   [EnumType.FILE_SOURCE]: FileSource;
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
   [EnumType.FILE_TYPE]: FileType;

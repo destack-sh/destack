@@ -415,8 +415,7 @@ enum EnumTypeProto {
   ENUM_TYPE_TOOL_TYPE = 200001;
   ENUM_TYPE_MOUSE_BUTTON = 200010;
   ENUM_TYPE_CANVAS_TYPE = 250000;
-  ENUM_TYPE_POLYGON_SHAPE_TYPE = 250300;
-  ENUM_TYPE_ARROW_HEAD_TYPE = 250400;
+  ENUM_TYPE_ARROW_HEAD_TYPE = 250300;
   ENUM_TYPE_COLOR_TYPE = 270000;
   ENUM_TYPE_COLOR_SHADE = 270001;
   ENUM_TYPE_COLOR_HUE = 270002;
@@ -1023,7 +1022,6 @@ enum NodeTypeProto {
   NODE_TYPE_LINE_SHAPE = 250200;
   NODE_TYPE_ARROW_SHAPE = 250300;
   NODE_TYPE_ANNOTATION_SHAPE = 250400;
-  NODE_TYPE_POLYGON_SHAPE = 250500;
   NODE_TYPE_THEME = 270000;
   NODE_TYPE_PALETTE = 270100;
   NODE_TYPE_STYLE = 270200;
@@ -1107,15 +1105,6 @@ enum PlatformTypeProto {
   PLATFORM_TYPE_SYSTEM = 1;
   PLATFORM_TYPE_RUNTIME = 2;
   PLATFORM_TYPE_WEB = 10;
-}
-
-enum PolygonShapeTypeProto {
-  POLYGON_SHAPE_TYPE_UNSPECIFIED = 0;
-  POLYGON_SHAPE_TYPE_RECTANGLE = 1;
-  POLYGON_SHAPE_TYPE_TRIANGLE = 2;
-  POLYGON_SHAPE_TYPE_CIRCLE = 3;
-  POLYGON_SHAPE_TYPE_ELLIPSE = 4;
-  POLYGON_SHAPE_TYPE_POLYGON = 5;
 }
 
 // The position type of a View.
@@ -1436,7 +1425,6 @@ enum StructTypeProto {
   STRUCT_TYPE_GALAXY_INFO = 160101;
   STRUCT_TYPE_LINE = 250200;
   STRUCT_TYPE_ARROW = 250300;
-  STRUCT_TYPE_POLYGON = 250500;
   STRUCT_TYPE_LENGTH = 270018;
   STRUCT_TYPE_POSITION = 270020;
   STRUCT_TYPE_DIMENSION = 270022;
@@ -4158,57 +4146,6 @@ message PointerUpEventProto {
   bool accel_key = 84;
 }
 
-message PolygonProto {
-  StructTypeProto metatype = 1;
-  PolygonShapeTypeProto type = 30;
-  repeated Vector2Proto points = 100;
-}
-
-// A PolygonShape is a shape that represents a polygon.
-message PolygonShapeProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  google.protobuf.Timestamp created_at = 15;
-  optional NodeReferenceProto created_by_ptr = 16;
-  google.protobuf.Timestamp updated_at = 17;
-  optional NodeReferenceProto updated_by_ptr = 18;
-  optional google.protobuf.Timestamp deleted_at = 20;
-  string order_key = 22;
-  PolygonShapeTypeProto type = 30;
-  string name = 31;
-  optional PositionProto position = 40;
-  optional DimensionProto width = 41;
-  optional DimensionProto height = 42;
-  optional DimensionProto min_width = 43;
-  optional DimensionProto min_height = 44;
-  optional DimensionProto max_width = 45;
-  optional DimensionProto max_height = 46;
-  optional LayoutProto layout = 50;
-  optional DirectionProto direction = 51;
-  optional DistributeProto distribute = 52;
-  optional AlignProto align = 53;
-  optional Axis2Proto gap = 54;
-  optional InsetsProto padding = 55;
-  optional GridProto grid = 56;
-  optional GridSpanProto grid_span = 57;
-  optional double aspect_ratio = 58;
-  optional bool is_wrap = 59;
-  optional bool is_visible = 60;
-  optional double opacity = 61;
-  optional FillProto fill = 62;
-  optional Axis3Proto rotation = 63;
-  optional Vector2Proto skew = 64;
-  optional double scale = 65;
-  optional ShadowProto shadow = 66;
-  optional BorderProto border = 67;
-  optional CornersProto radius = 68;
-  optional StrokeProto stroke = 80;
-  repeated Vector2Proto points = 100;
-  optional NodeReferenceProto script_ptr = 200;
-}
-
 message PositionProto {
   StructTypeProto metatype = 1;
   PositionTypeProto type = 30;
@@ -5624,7 +5561,6 @@ message SomeNodeProto {
     ArrowShapeProto arrow_shape = 250300;
     CanvasProto canvas = 250000;
     LineShapeProto line_shape = 250200;
-    PolygonShapeProto polygon_shape = 250500;
     FileProto file = 60000;
     LinkProto link = 60100;
     EnvironmentProto environment = 100000;
@@ -5758,7 +5694,6 @@ message SomeEntityProto {
     ArrowShapeProto arrow_shape = 250300;
     CanvasProto canvas = 250000;
     LineShapeProto line_shape = 250200;
-    PolygonShapeProto polygon_shape = 250500;
     FileProto file = 60000;
     LinkProto link = 60100;
     EnvironmentProto environment = 100000;

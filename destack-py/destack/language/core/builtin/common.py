@@ -178,8 +178,7 @@ class EnumType(Enum):
 
     # canvas [250_000-260_000]
     CANVAS_TYPE = 250_000
-    POLYGON_SHAPE_TYPE = 250_300
-    ARROW_HEAD_TYPE = 250_400
+    ARROW_HEAD_TYPE = 250_300
 
     # animation [260_000-270_000]
     # ...
@@ -352,7 +351,6 @@ class StructType(Enum):
     # canvas [250_000-260_000]
     LINE = 250_200, "Line", None, "fas fa-line"
     ARROW = 250_300, "Arrow", None, "fas fa-arrow-right"
-    POLYGON = 250_500, "Polygon", None, "fas fa-polygon"
 
     # animation [260_000-270_000]
     # ...
@@ -813,7 +811,6 @@ class NodeType(Enum):
     LINE_SHAPE = 250_200, "Line Shape", None, "fas fa-line"
     ARROW_SHAPE = 250_300, "Arrow Shape", None, "fas fa-arrow-right"
     ANNOTATION_SHAPE = 250_400, "Annotation Shape", None, "fas fa-comment"
-    POLYGON_SHAPE = 250_500, "Polygon Shape", None, "fas fa-shapes"
     # VECTOR/POINT, VECTOR_NETWORK, ...
     # BITMAP, ...
 
