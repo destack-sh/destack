@@ -48,7 +48,6 @@ import type {
   CascadeAction,
   ClientType,
   Cloud,
-  DefaultFactory,
   EdgeDirection,
   EdgeType,
   EnumType,
@@ -65,7 +64,7 @@ import type {
   RegionContinent,
   ResourceStatus,
   RoleType,
-  RuntimeType,
+  RuntimeLanguage,
   ScalarType,
   StoreImplementation,
   StoreType,
@@ -75,6 +74,7 @@ import type {
   ToolType,
   TraitType,
   TypeCardinality,
+  ValueFactory,
 } from "@destack/language/core/builtin/common";
 import type {
   CustomEntity,
@@ -729,7 +729,7 @@ export type EnumTypeMapping = {
   [EnumType.STORE_ZONE]: StoreZone;
   [EnumType.STORE_TYPE]: StoreType;
   [EnumType.STORE_IMPLEMENTATION]: StoreImplementation;
-  [EnumType.RUNTIME_TYPE]: RuntimeType;
+  [EnumType.RUNTIME_LANGUAGE]: RuntimeLanguage;
   [EnumType.PLATFORM_TYPE]: PlatformType;
   [EnumType.OPERATING_SYSTEM]: OperatingSystem;
   [EnumType.ENVIRONMENT_TYPE]: EnvironmentType;
@@ -747,7 +747,7 @@ export type EnumTypeMapping = {
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType;
   [EnumType.TYPE_CARDINALITY]: TypeCardinality;
   [EnumType.SCALAR_TYPE]: ScalarType;
-  [EnumType.DEFAULT_FACTORY]: DefaultFactory;
+  [EnumType.VALUE_FACTORY]: ValueFactory;
   [EnumType.ROLE_TYPE]: RoleType;
   [EnumType.RESOURCE_STATUS]: ResourceStatus;
   [EnumType.CLIENT_TYPE]: ClientType;

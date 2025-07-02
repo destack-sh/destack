@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   CascadeAction,
-  DefaultFactory,
   EdgeType,
   EnumType,
   NodeType,
@@ -9,9 +8,14 @@ import {
   ScalarType,
   StructType,
   TypeCardinality,
+  ValueFactory,
 } from "@destack/language/core/builtin/common";
-import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
+import type {
+  CustomEntityDefinition,
+  CustomTraitDefinition,
+} from "@destack/language/core/builtin/entity";
 import { Entity } from "@destack/language/core/builtin/entity";
+import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
@@ -24,8 +28,10 @@ import type {
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
+import type { CustomEnumDefinition } from "@destack/language/core/common/enum";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
+import type { CustomStructDefinition } from "@destack/language/core/common/struct";
 import type {
   CollectionConstraint,
   NodeConstraint,
@@ -48,7 +54,6 @@ import {
   CascadeActionProto,
   CustomPropertyProto,
   CustomPropertyTypeProto,
-  DefaultFactoryProto,
   EdgeTypeProto,
   EnumTypeProto,
   NodeTypeProto,
@@ -56,6 +61,7 @@ import {
   ScalarTypeProto,
   StructTypeProto,
   TypeCardinalityProto,
+  ValueFactoryProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
@@ -180,47 +186,48 @@ export class CustomProperty
   nodeType: NodeType | null;
 
   /**
-   * CustomProperty.nodeDefinition
-   */
-  get nodeDefinition(): CustomEntityDefinition | null {
-    const nodePtr: NodeReference | null = this.nodeDefinitionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
-    }
-    return null;
-  }
-  set nodeDefinition(node: CustomEntityDefinition | null) {
-    if (node === null) {
-      this.nodeDefinitionPtr = null;
-    } else {
-      this.nodeDefinitionPtr = node.toRef();
-    }
-  }
-  nodeDefinitionPtr: NodeReference | null;
-
-  /**
    * CustomProperty.structType
    */
   structType: StructType | null;
 
   /**
-   * CustomProperty.baseType
+   * CustomProperty.definition
    */
-  get baseType(): Node | null {
-    const nodePtr: NodeReference | null = this.baseTypePtr;
+  get definition():
+    | CustomEntityDefinition
+    | CustomEventDefinition
+    | CustomEnumDefinition
+    | CustomStructDefinition
+    | CustomTraitDefinition
+    | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as
+        | CustomEntityDefinition
+        | CustomEventDefinition
+        | CustomEnumDefinition
+        | CustomStructDefinition
+        | CustomTraitDefinition
+        | null;
     }
     return null;
   }
-  set baseType(node: Node | null) {
+  set definition(
+    node:
+      | CustomEntityDefinition
+      | CustomEventDefinition
+      | CustomEnumDefinition
+      | CustomStructDefinition
+      | CustomTraitDefinition
+      | null,
+  ) {
     if (node === null) {
-      this.baseTypePtr = null;
+      this.definitionPtr = null;
     } else {
-      this.baseTypePtr = node.toRef();
+      this.definitionPtr = node.toRef();
     }
   }
-  baseTypePtr: NodeReference | null;
+  definitionPtr: NodeReference | null;
 
   /**
    * CustomProperty.keyType
@@ -228,24 +235,14 @@ export class CustomProperty
   keyType: Type | null;
 
   /**
-   * CustomProperty.isRequired
+   * CustomProperty.value
    */
-  isRequired: boolean | null;
+  value: Value | null;
 
   /**
-   * CustomProperty.isUnique
+   * CustomProperty.valueFactory
    */
-  isUnique: boolean | null;
-
-  /**
-   * CustomProperty.defaultValue
-   */
-  defaultValue: Value | null;
-
-  /**
-   * CustomProperty.defaultFactory
-   */
-  defaultFactory: DefaultFactory | null;
+  valueFactory: ValueFactory | null;
 
   /**
    * CustomProperty.collectionConstraint
@@ -276,6 +273,21 @@ export class CustomProperty
    * CustomProperty.cascade
    */
   cascade: CascadeAction | null;
+
+  /**
+   * CustomProperty.isRequired
+   */
+  isRequired: boolean | null;
+
+  /**
+   * CustomProperty.isUnique
+   */
+  isUnique: boolean | null;
+
+  /**
+   * CustomProperty.isComputed
+   */
+  isComputed: boolean | null;
 
   /**
    * CustomProperty.isReadonly
@@ -317,20 +329,27 @@ export class CustomProperty
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
     nodeType?: NodeType | null;
-    nodeDefinition?: CustomEntityDefinition | NodeReference | null;
     structType?: StructType | null;
-    baseType?: Node | NodeReference | null;
+    definition?:
+      | CustomEntityDefinition
+      | CustomEventDefinition
+      | CustomEnumDefinition
+      | CustomStructDefinition
+      | CustomTraitDefinition
+      | NodeReference
+      | null;
     keyType?: Type | null;
-    isRequired?: boolean | null;
-    isUnique?: boolean | null;
-    defaultValue?: Value | null;
-    defaultFactory?: DefaultFactory | null;
+    value?: Value | null;
+    valueFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
     nodeConstraint?: NodeConstraint | null;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
+    isRequired?: boolean | null;
+    isUnique?: boolean | null;
+    isComputed?: boolean | null;
     isReadonly?: boolean | null;
     isStatic?: boolean | null;
     source?: Script | NodeReference | null;
@@ -417,28 +436,19 @@ export class CustomProperty
     this.enumType = _enumType;
     let _nodeType = options.nodeType ?? null;
     this.nodeType = _nodeType;
-    let _nodeDefinition = options.nodeDefinition ?? null;
-    if (_nodeDefinition != null && _nodeDefinition.metatype != StructType.NODE_REFERENCE) {
-      _nodeDefinition = (_nodeDefinition as Node).toRef();
-    }
-    this.nodeDefinitionPtr = _nodeDefinition;
     let _structType = options.structType ?? null;
     this.structType = _structType;
-    let _baseType = options.baseType ?? null;
-    if (_baseType != null && _baseType.metatype != StructType.NODE_REFERENCE) {
-      _baseType = (_baseType as Node).toRef();
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
     }
-    this.baseTypePtr = _baseType;
+    this.definitionPtr = _definition;
     let _keyType = options.keyType ?? null;
     this.keyType = _keyType;
-    let _isRequired = options.isRequired ?? null;
-    this.isRequired = _isRequired;
-    let _isUnique = options.isUnique ?? null;
-    this.isUnique = _isUnique;
-    let _defaultValue = options.defaultValue ?? null;
-    this.defaultValue = _defaultValue;
-    let _defaultFactory = options.defaultFactory ?? null;
-    this.defaultFactory = _defaultFactory;
+    let _value = options.value ?? null;
+    this.value = _value;
+    let _valueFactory = options.valueFactory ?? null;
+    this.valueFactory = _valueFactory;
     let _collectionConstraint = options.collectionConstraint ?? null;
     this.collectionConstraint = _collectionConstraint;
     let _stringConstraint = options.stringConstraint ?? null;
@@ -451,6 +461,12 @@ export class CustomProperty
     this.edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
     this.cascade = _cascade;
+    let _isRequired = options.isRequired ?? null;
+    this.isRequired = _isRequired;
+    let _isUnique = options.isUnique ?? null;
+    this.isUnique = _isUnique;
+    let _isComputed = options.isComputed ?? null;
+    this.isComputed = _isComputed;
     let _isReadonly = options.isReadonly ?? null;
     this.isReadonly = _isReadonly;
     let _isStatic = options.isStatic ?? null;
@@ -513,13 +529,10 @@ export class CustomProperty
     if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (!(this.nodeDefinitionPtr?.id === other.nodeDefinitionPtr?.id)) {
-      return false;
-    }
     if (!(this.structType === other.structType)) {
       return false;
     }
-    if (!(this.baseTypePtr?.id === other.baseTypePtr?.id)) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
     if (
@@ -528,19 +541,13 @@ export class CustomProperty
     ) {
       return false;
     }
-    if (!(this.isRequired === other.isRequired)) {
-      return false;
-    }
-    if (!(this.isUnique === other.isUnique)) {
-      return false;
-    }
     if (
-      (this.defaultValue == null) !== (other.defaultValue == null) ||
-      (this.defaultValue != null && !this.defaultValue.equals(other.defaultValue))
+      (this.value == null) !== (other.value == null) ||
+      (this.value != null && !this.value.equals(other.value))
     ) {
       return false;
     }
-    if (!(this.defaultFactory === other.defaultFactory)) {
+    if (!(this.valueFactory === other.valueFactory)) {
       return false;
     }
     if (
@@ -572,6 +579,15 @@ export class CustomProperty
       return false;
     }
     if (!(this.cascade === other.cascade)) {
+      return false;
+    }
+    if (!(this.isRequired === other.isRequired)) {
+      return false;
+    }
+    if (!(this.isUnique === other.isUnique)) {
+      return false;
+    }
+    if (!(this.isComputed === other.isComputed)) {
       return false;
     }
     if (!(this.isReadonly === other.isReadonly)) {
@@ -616,29 +632,20 @@ export class CustomProperty
     if (this.nodeType !== null) {
       h = (h * 31 + this.nodeType) & 0xffffffff;
     }
-    if (this.nodeDefinitionPtr !== null) {
-      h = (h * 31 + hashString(this.nodeDefinitionPtr.id)) & 0xffffffff;
-    }
     if (this.structType !== null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    if (this.baseTypePtr !== null) {
-      h = (h * 31 + hashString(this.baseTypePtr.id)) & 0xffffffff;
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     if (this.keyType !== null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
     }
-    if (this.isRequired !== null) {
-      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    if (this.value !== null) {
+      h = (h * 31 + this.value.hash()) & 0xffffffff;
     }
-    if (this.isUnique !== null) {
-      h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
-    }
-    if (this.defaultValue !== null) {
-      h = (h * 31 + this.defaultValue.hash()) & 0xffffffff;
-    }
-    if (this.defaultFactory !== null) {
-      h = (h * 31 + this.defaultFactory) & 0xffffffff;
+    if (this.valueFactory !== null) {
+      h = (h * 31 + this.valueFactory) & 0xffffffff;
     }
     if (this.collectionConstraint !== null) {
       h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
@@ -657,6 +664,15 @@ export class CustomProperty
     }
     if (this.cascade !== null) {
       h = (h * 31 + this.cascade) & 0xffffffff;
+    }
+    if (this.isRequired !== null) {
+      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    }
+    if (this.isUnique !== null) {
+      h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
+    }
+    if (this.isComputed !== null) {
+      h = (h * 31 + hashBool(this.isComputed)) & 0xffffffff;
     }
     if (this.isReadonly !== null) {
       h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
@@ -736,14 +752,11 @@ export class CustomProperty
     if (this.nodeType !== null) {
       propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
     }
-    if (this.nodeDefinition !== null) {
-      propertyReprs.push(`nodeDefinition=${this.nodeDefinition?.repr()}`);
-    }
     if (this.structType !== null) {
       propertyReprs.push(`structType=${StructType[this.structType]}`);
     }
-    if (this.baseType !== null) {
-      propertyReprs.push(`baseType=${this.baseType?.repr()}`);
+    if (this.definition !== null) {
+      propertyReprs.push(`definition=${this.definition?.repr()}`);
     }
     if (this.keyType !== null) {
       propertyReprs.push(`keyType=${this.keyType.repr()}`);
@@ -794,29 +807,20 @@ export class CustomProperty
     if (object.nodeType != null) {
       objectValue["44"] = object.nodeType;
     }
-    if (object.nodeDefinitionPtr != null) {
-      objectValue["45"] = object.nodeDefinitionPtr.toValue();
-    }
     if (object.structType != null) {
-      objectValue["46"] = object.structType;
+      objectValue["45"] = object.structType;
     }
-    if (object.baseTypePtr != null) {
-      objectValue["47"] = object.baseTypePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["46"] = object.definitionPtr.toValue();
     }
     if (object.keyType != null) {
       objectValue["48"] = object.keyType.toValue();
     }
-    if (object.isRequired != null) {
-      objectValue["50"] = object.isRequired;
+    if (object.value != null) {
+      objectValue["50"] = object.value.toValue();
     }
-    if (object.isUnique != null) {
-      objectValue["51"] = object.isUnique;
-    }
-    if (object.defaultValue != null) {
-      objectValue["55"] = object.defaultValue.toValue();
-    }
-    if (object.defaultFactory != null) {
-      objectValue["56"] = object.defaultFactory;
+    if (object.valueFactory != null) {
+      objectValue["51"] = object.valueFactory;
     }
     if (object.collectionConstraint != null) {
       objectValue["60"] = object.collectionConstraint.toValue();
@@ -836,11 +840,20 @@ export class CustomProperty
     if (object.cascade != null) {
       objectValue["71"] = object.cascade;
     }
+    if (object.isRequired != null) {
+      objectValue["80"] = object.isRequired;
+    }
+    if (object.isUnique != null) {
+      objectValue["81"] = object.isUnique;
+    }
+    if (object.isComputed != null) {
+      objectValue["82"] = object.isComputed;
+    }
     if (object.isReadonly != null) {
-      objectValue["80"] = object.isReadonly;
+      objectValue["83"] = object.isReadonly;
     }
     if (object.isStatic != null) {
-      objectValue["81"] = object.isStatic;
+      objectValue["84"] = object.isStatic;
     }
     if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
@@ -883,41 +896,25 @@ export class CustomProperty
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
     const nodeTypeValue = objectValue["44"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const nodeDefinitionPtrValue = objectValue["45"];
-    const unpackedNodeDefinitionPtr =
-      nodeDefinitionPtrValue != undefined
-        ? _NodeReference.fromValue(
-            nodeDefinitionPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
-        : null;
-    const structTypeValue = objectValue["46"];
+    const structTypeValue = objectValue["45"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const baseTypePtrValue = objectValue["47"];
-    const unpackedBaseTypePtr =
-      baseTypePtrValue != undefined
-        ? _NodeReference.fromValue(baseTypePtrValue, _session, _supergraph, _graph, _connection)
+    const definitionPtrValue = objectValue["46"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
       keyTypeValue != undefined
         ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const isRequiredValue = objectValue["50"];
-    const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
-    const isUniqueValue = objectValue["51"];
-    const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : null;
-    const defaultValueValue = objectValue["55"];
-    const unpackedDefaultValue =
-      defaultValueValue != undefined
-        ? _Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
+    const valueValue = objectValue["50"];
+    const unpackedValue =
+      valueValue != undefined
+        ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const defaultFactoryValue = objectValue["56"];
-    const unpackedDefaultFactory =
-      defaultFactoryValue != undefined ? Number(defaultFactoryValue) : null;
+    const valueFactoryValue = objectValue["51"];
+    const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
     const collectionConstraintValue = objectValue["60"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
@@ -960,9 +957,15 @@ export class CustomProperty
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
     const cascadeValue = objectValue["71"];
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
-    const isReadonlyValue = objectValue["80"];
+    const isRequiredValue = objectValue["80"];
+    const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
+    const isUniqueValue = objectValue["81"];
+    const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : null;
+    const isComputedValue = objectValue["82"];
+    const unpackedIsComputed = isComputedValue != undefined ? isComputedValue : null;
+    const isReadonlyValue = objectValue["83"];
     const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : null;
-    const isStaticValue = objectValue["81"];
+    const isStaticValue = objectValue["84"];
     const unpackedIsStatic = isStaticValue != undefined ? isStaticValue : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
@@ -1002,20 +1005,20 @@ export class CustomProperty
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
-      nodeDefinition: unpackedNodeDefinitionPtr,
       structType: unpackedStructType,
-      baseType: unpackedBaseTypePtr,
+      definition: unpackedDefinitionPtr,
       keyType: unpackedKeyType,
-      isRequired: unpackedIsRequired,
-      isUnique: unpackedIsUnique,
-      defaultValue: unpackedDefaultValue,
-      defaultFactory: unpackedDefaultFactory,
+      value: unpackedValue,
+      valueFactory: unpackedValueFactory,
       collectionConstraint: unpackedCollectionConstraint,
       stringConstraint: unpackedStringConstraint,
       numberConstraint: unpackedNumberConstraint,
       nodeConstraint: unpackedNodeConstraint,
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
+      isRequired: unpackedIsRequired,
+      isUnique: unpackedIsUnique,
+      isComputed: unpackedIsComputed,
       isReadonly: unpackedIsReadonly,
       isStatic: unpackedIsStatic,
       space: unpackedSpacePtr,
@@ -1086,29 +1089,20 @@ export class CustomProperty
     if (object.nodeType != null) {
       objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
     }
-    if (object.nodeDefinitionPtr != null) {
-      objectProto.nodeDefinitionPtr = object.nodeDefinitionPtr.toProto();
-    }
     if (object.structType != null) {
       objectProto.structType = Number(object.structType) as StructTypeProto;
     }
-    if (object.baseTypePtr != null) {
-      objectProto.baseTypePtr = object.baseTypePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
     }
     if (object.keyType != null) {
       objectProto.keyType = object.keyType.toProto();
     }
-    if (object.isRequired != null) {
-      objectProto.isRequired = object.isRequired;
+    if (object.value != null) {
+      objectProto.value = object.value.toProto();
     }
-    if (object.isUnique != null) {
-      objectProto.isUnique = object.isUnique;
-    }
-    if (object.defaultValue != null) {
-      objectProto.defaultValue = object.defaultValue.toProto();
-    }
-    if (object.defaultFactory != null) {
-      objectProto.defaultFactory = Number(object.defaultFactory) as DefaultFactoryProto;
+    if (object.valueFactory != null) {
+      objectProto.valueFactory = Number(object.valueFactory) as ValueFactoryProto;
     }
     if (object.collectionConstraint != null) {
       objectProto.collectionConstraint = object.collectionConstraint.toProto();
@@ -1127,6 +1121,15 @@ export class CustomProperty
     }
     if (object.cascade != null) {
       objectProto.cascade = Number(object.cascade) as CascadeActionProto;
+    }
+    if (object.isRequired != null) {
+      objectProto.isRequired = object.isRequired;
+    }
+    if (object.isUnique != null) {
+      objectProto.isUnique = object.isUnique;
+    }
+    if (object.isComputed != null) {
+      objectProto.isComputed = object.isComputed;
     }
     if (object.isReadonly != null) {
       objectProto.isReadonly = object.isReadonly;
@@ -1185,22 +1188,12 @@ export class CustomProperty
         objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
       nodeType:
         objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
-      nodeDefinition:
-        objectProto.nodeDefinitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodeDefinitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       structType:
         objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
-      baseType:
-        objectProto.baseTypePtr != undefined
+      definition:
+        objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.baseTypePtr!,
+              objectProto.definitionPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1211,15 +1204,13 @@ export class CustomProperty
         objectProto.keyType != undefined
           ? _Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
           : null,
-      isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
-      isUnique: objectProto.isUnique != undefined ? objectProto.isUnique : null,
-      defaultValue:
-        objectProto.defaultValue != undefined
-          ? _Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
+      value:
+        objectProto.value != undefined
+          ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
           : null,
-      defaultFactory:
-        objectProto.defaultFactory != undefined
-          ? (Number(objectProto.defaultFactory) as DefaultFactory)
+      valueFactory:
+        objectProto.valueFactory != undefined
+          ? (Number(objectProto.valueFactory) as ValueFactory)
           : null,
       collectionConstraint:
         objectProto.collectionConstraint != undefined
@@ -1265,6 +1256,9 @@ export class CustomProperty
         objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
       cascade:
         objectProto.cascade != undefined ? (Number(objectProto.cascade) as CascadeAction) : null,
+      isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
+      isUnique: objectProto.isUnique != undefined ? objectProto.isUnique : null,
+      isComputed: objectProto.isComputed != undefined ? objectProto.isComputed : null,
       isReadonly: objectProto.isReadonly != undefined ? objectProto.isReadonly : null,
       isStatic: objectProto.isStatic != undefined ? objectProto.isStatic : null,
       space:

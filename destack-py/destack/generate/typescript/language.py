@@ -11,7 +11,6 @@ from destack.language import (
     UNSET,
     BuiltinObjectBase,
     ConstantDefinition,
-    DefaultFactory,
     Entity,
     EnumDefinition,
     Event,
@@ -32,6 +31,7 @@ from destack.language import (
     Type,
     TypeCardinality,
     TypeDeclaration,
+    ValueFactory,
     expand_node_types,
 )
 from destack.language.registry import (
@@ -413,12 +413,12 @@ if (_{ts_name_in} === null) {{
 
         # init default factory
         if prop.default_factory is not None:
-            if prop.default_factory == DefaultFactory.UUID:
+            if prop.default_factory == ValueFactory.UUID:
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = uuid4();
 }}""")
-            elif prop.default_factory == DefaultFactory.NOW:
+            elif prop.default_factory == ValueFactory.NOW:
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = Temporal.Now.zonedDateTimeISO("UTC");
@@ -474,7 +474,7 @@ if (options.id == null) {
 }
 """
         else:
-            raise NotImplementedError(f"unexpected node {cls.__name__} extends {cls.__extends__}")
+            raise NotImplementedError(f"unexpected node {cls.__name__} extends {cls.__inherits__}")
     else:
         if issubclass(cls, StructFrozen):
             identity_str = """\
@@ -936,7 +936,7 @@ __toRef__(): NodeReference {{
   }});
 }}
 """
-    elif NodeType.CUSTOM_ENTITY in cls.__extends__ or NodeType.CUSTOM_EVENT in cls.__extends__:
+    elif NodeType.CUSTOM_ENTITY in cls.__inherits__ or NodeType.CUSTOM_EVENT in cls.__inherits__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
   const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;

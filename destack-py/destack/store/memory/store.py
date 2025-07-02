@@ -25,7 +25,7 @@ logger = structlog.get_logger(__name__)
 
 
 class MemoryStore(Store):
-    """A simple in-memory Store."""
+    """An in-memory Store."""
 
     implementation: ClassVar[StoreImplementation | None] = StoreImplementation.MEMORY
 

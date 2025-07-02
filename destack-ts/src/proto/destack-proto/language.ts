@@ -1860,6 +1860,14 @@ export interface CustomEntityProto {
     value: {
         [key: string]: ValueProto;
     };
+    /**
+     * @generated from protobuf field: symbol.destack.NodeDefinitionReferenceProto base_type = 41
+     */
+    baseType?: NodeDefinitionReferenceProto;
+    /**
+     * @generated from protobuf field: repeated symbol.destack.NodeDefinitionReferenceProto base_traits = 42
+     */
+    baseTraits: NodeDefinitionReferenceProto[];
 }
 /**
  * A definition for a custom Entity type (instantiated in CustomEntities).
@@ -1927,7 +1935,7 @@ export interface CustomEntityDefinitionProto {
      */
     prototypePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeDefinitionReferenceProto base_type = 41
+     * @generated from protobuf field: symbol.destack.NodeDefinitionReferenceProto base_type = 41
      */
     baseType?: NodeDefinitionReferenceProto;
     /**
@@ -2258,37 +2266,25 @@ export interface CustomPropertyProto {
      */
     nodeType?: NodeTypeProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto node_definition_ptr = 45
-     */
-    nodeDefinitionPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.StructTypeProto struct_type = 46
+     * @generated from protobuf field: optional symbol.destack.StructTypeProto struct_type = 45
      */
     structType?: StructTypeProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto base_type_ptr = 47
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 46
      */
-    baseTypePtr?: NodeReferenceProto;
+    definitionPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: optional symbol.destack.TypeProto key_type = 48
      */
     keyType?: TypeProto;
     /**
-     * @generated from protobuf field: optional bool is_required = 50
+     * @generated from protobuf field: optional symbol.destack.ValueProto value = 50
      */
-    isRequired?: boolean;
+    value?: ValueProto;
     /**
-     * @generated from protobuf field: optional bool is_unique = 51
+     * @generated from protobuf field: optional symbol.destack.ValueFactoryProto value_factory = 51
      */
-    isUnique?: boolean;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ValueProto default_value = 55
-     */
-    defaultValue?: ValueProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DefaultFactoryProto default_factory = 56
-     */
-    defaultFactory?: DefaultFactoryProto;
+    valueFactory?: ValueFactoryProto;
     /**
      * @generated from protobuf field: optional symbol.destack.CollectionConstraintProto collection_constraint = 60
      */
@@ -2314,11 +2310,23 @@ export interface CustomPropertyProto {
      */
     cascade?: CascadeActionProto;
     /**
-     * @generated from protobuf field: optional bool is_readonly = 80
+     * @generated from protobuf field: optional bool is_required = 80
+     */
+    isRequired?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_unique = 81
+     */
+    isUnique?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_computed = 82
+     */
+    isComputed?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_readonly = 83
      */
     isReadonly?: boolean;
     /**
-     * @generated from protobuf field: optional bool is_static = 81
+     * @generated from protobuf field: optional bool is_static = 84
      */
     isStatic?: boolean;
     /**
@@ -7650,13 +7658,13 @@ export interface NodeDefinitionProto {
      */
     baseType?: NodeTypeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto extends = 51
-     */
-    extends: NodeTypeProto[];
-    /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto extended_by = 52
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto extended_by = 51
      */
     extendedBy: NodeTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto inherits = 52
+     */
+    inherits: NodeTypeProto[];
     /**
      * @generated from protobuf field: repeated symbol.destack.NodeTypeProto inherited_by = 53
      */
@@ -8988,21 +8996,13 @@ export interface PropertyDefinitionProto {
      */
     keyType?: TypeProto;
     /**
-     * @generated from protobuf field: optional bool is_required = 50
+     * @generated from protobuf field: optional symbol.destack.ValueProto value = 50
      */
-    isRequired?: boolean;
+    value?: ValueProto;
     /**
-     * @generated from protobuf field: optional bool is_unique = 51
+     * @generated from protobuf field: optional symbol.destack.ValueFactoryProto value_factory = 51
      */
-    isUnique?: boolean;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ValueProto default_value = 55
-     */
-    defaultValue?: ValueProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DefaultFactoryProto default_factory = 56
-     */
-    defaultFactory?: DefaultFactoryProto;
+    valueFactory?: ValueFactoryProto;
     /**
      * @generated from protobuf field: optional symbol.destack.CollectionConstraintProto collection_constraint = 60
      */
@@ -9044,41 +9044,49 @@ export interface PropertyDefinitionProto {
      */
     cascade?: CascadeActionProto;
     /**
-     * @generated from protobuf field: bool is_wired = 80
+     * @generated from protobuf field: bool is_required = 80
      */
-    isWired: boolean;
+    isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_stored = 81
+     * @generated from protobuf field: bool is_unique = 81
      */
-    isStored: boolean;
+    isUnique: boolean;
     /**
-     * @generated from protobuf field: bool is_repr = 82
-     */
-    isRepr: boolean;
-    /**
-     * @generated from protobuf field: bool is_hash = 83
-     */
-    isHash: boolean;
-    /**
-     * @generated from protobuf field: bool is_eq = 84
-     */
-    isEq: boolean;
-    /**
-     * @generated from protobuf field: bool is_managed = 85
-     */
-    isManaged: boolean;
-    /**
-     * @generated from protobuf field: bool is_computed = 86
+     * @generated from protobuf field: bool is_computed = 82
      */
     isComputed: boolean;
     /**
-     * @generated from protobuf field: bool is_readonly = 87
+     * @generated from protobuf field: bool is_readonly = 83
      */
     isReadonly: boolean;
     /**
-     * @generated from protobuf field: bool is_static = 88
+     * @generated from protobuf field: bool is_static = 84
      */
     isStatic: boolean;
+    /**
+     * @generated from protobuf field: bool is_wired = 90
+     */
+    isWired: boolean;
+    /**
+     * @generated from protobuf field: bool is_stored = 91
+     */
+    isStored: boolean;
+    /**
+     * @generated from protobuf field: bool is_repr = 92
+     */
+    isRepr: boolean;
+    /**
+     * @generated from protobuf field: bool is_hash = 93
+     */
+    isHash: boolean;
+    /**
+     * @generated from protobuf field: bool is_eq = 94
+     */
+    isEq: boolean;
+    /**
+     * @generated from protobuf field: bool is_managed = 95
+     */
+    isManaged: boolean;
 }
 /**
  * @generated from protobuf message symbol.destack.PropertyReferenceProto
@@ -9321,8 +9329,8 @@ export interface ReactionProto {
     content: string;
 }
 /**
- * A Resource represents an external asset.
- * The lifecycle of a Resource may be managed by some provisioner.
+ * A Resource represents an external asset outside of Destack.
+ * The lifecycle of a Resource may be managed by some Provisioner.
  *
  * @generated from protobuf message symbol.destack.ResourceProto
  */
@@ -13043,21 +13051,17 @@ export interface TypeProto {
      */
     keyType?: TypeProto;
     /**
-     * @generated from protobuf field: optional bool is_required = 50
+     * @generated from protobuf field: optional bool is_required = 49
      */
     isRequired?: boolean;
     /**
-     * @generated from protobuf field: optional bool is_variable = 51
+     * @generated from protobuf field: optional symbol.destack.ValueProto value = 50
      */
-    isVariable?: boolean;
+    value?: ValueProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.ValueProto default_value = 55
+     * @generated from protobuf field: optional symbol.destack.ValueFactoryProto value_factory = 51
      */
-    defaultValue?: ValueProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DefaultFactoryProto default_factory = 56
-     */
-    defaultFactory?: DefaultFactoryProto;
+    valueFactory?: ValueFactoryProto;
     /**
      * @generated from protobuf field: optional symbol.destack.CollectionConstraintProto collection_constraint = 60
      */
@@ -16063,29 +16067,6 @@ export enum DayOfWeekProto {
     DAY_OF_WEEK_SUNDAY = 7
 }
 /**
- * The factory to use for default values.
- *
- * @generated from protobuf enum symbol.destack.DefaultFactoryProto
- */
-export enum DefaultFactoryProto {
-    /**
-     * @generated from protobuf enum value: DEFAULT_FACTORY_UNSPECIFIED = 0;
-     */
-    DEFAULT_FACTORY_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: DEFAULT_FACTORY_UUID = 1;
-     */
-    DEFAULT_FACTORY_UUID = 1,
-    /**
-     * @generated from protobuf enum value: DEFAULT_FACTORY_NOW = 2;
-     */
-    DEFAULT_FACTORY_NOW = 2,
-    /**
-     * @generated from protobuf enum value: DEFAULT_FACTORY_REGION = 3;
-     */
-    DEFAULT_FACTORY_REGION = 3
-}
-/**
  * @generated from protobuf enum symbol.destack.DimensionTypeProto
  */
 export enum DimensionTypeProto {
@@ -16474,9 +16455,9 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_PLATFORM_TYPE = 30,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUNTIME_TYPE = 31;
+     * @generated from protobuf enum value: ENUM_TYPE_RUNTIME_LANGUAGE = 31;
      */
-    ENUM_TYPE_RUNTIME_TYPE = 31,
+    ENUM_TYPE_RUNTIME_LANGUAGE = 31,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_OPERATING_SYSTEM = 40;
      */
@@ -16518,9 +16499,9 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_SCALAR_TYPE = 502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DEFAULT_FACTORY = 503;
+     * @generated from protobuf enum value: ENUM_TYPE_VALUE_FACTORY = 503;
      */
-    ENUM_TYPE_DEFAULT_FACTORY = 503,
+    ENUM_TYPE_VALUE_FACTORY = 503,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_STRING_FORMAT = 504;
      */
@@ -19649,21 +19630,21 @@ export enum RunStatusProto {
     RUN_STATUS_COMPLETED = 54
 }
 /**
- * @generated from protobuf enum symbol.destack.RuntimeTypeProto
+ * @generated from protobuf enum symbol.destack.RuntimeLanguageProto
  */
-export enum RuntimeTypeProto {
+export enum RuntimeLanguageProto {
     /**
-     * @generated from protobuf enum value: RUNTIME_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: RUNTIME_LANGUAGE_UNSPECIFIED = 0;
      */
-    RUNTIME_TYPE_UNSPECIFIED = 0,
+    RUNTIME_LANGUAGE_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUNTIME_TYPE_PYTHON = 1;
+     * @generated from protobuf enum value: RUNTIME_LANGUAGE_PYTHON = 1;
      */
-    RUNTIME_TYPE_PYTHON = 1,
+    RUNTIME_LANGUAGE_PYTHON = 1,
     /**
-     * @generated from protobuf enum value: RUNTIME_TYPE_JAVASCRIPT = 2;
+     * @generated from protobuf enum value: RUNTIME_LANGUAGE_JAVASCRIPT = 2;
      */
-    RUNTIME_TYPE_JAVASCRIPT = 2
+    RUNTIME_LANGUAGE_JAVASCRIPT = 2
 }
 /**
  * A Type of Sanction.
@@ -19904,17 +19885,17 @@ export enum StoreTypeProto {
      */
     STORE_TYPE_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STORE_TYPE_GLOBAL_ENTITY = 100;
+     * @generated from protobuf enum value: STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000;
      */
-    STORE_TYPE_GLOBAL_ENTITY = 100,
+    STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000,
     /**
-     * @generated from protobuf enum value: STORE_TYPE_SPATIAL_ENTITY = 200;
+     * @generated from protobuf enum value: STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100;
      */
-    STORE_TYPE_SPATIAL_ENTITY = 200,
+    STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100,
     /**
-     * @generated from protobuf enum value: STORE_TYPE_LOCAL_MEMORY = 300;
+     * @generated from protobuf enum value: STORE_TYPE_GLOBAL_EVENT_PRIMARY = 2000;
      */
-    STORE_TYPE_LOCAL_MEMORY = 300
+    STORE_TYPE_GLOBAL_EVENT_PRIMARY = 2000
 }
 /**
  * @generated from protobuf enum symbol.destack.StoreZoneProto
@@ -20696,6 +20677,29 @@ export enum UserStatusProto {
      * @generated from protobuf enum value: USER_STATUS_ACTIVE = 10;
      */
     USER_STATUS_ACTIVE = 10
+}
+/**
+ * The factory to use for default values.
+ *
+ * @generated from protobuf enum symbol.destack.ValueFactoryProto
+ */
+export enum ValueFactoryProto {
+    /**
+     * @generated from protobuf enum value: VALUE_FACTORY_UNSPECIFIED = 0;
+     */
+    VALUE_FACTORY_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: VALUE_FACTORY_UUID = 1;
+     */
+    VALUE_FACTORY_UUID = 1,
+    /**
+     * @generated from protobuf enum value: VALUE_FACTORY_NOW = 2;
+     */
+    VALUE_FACTORY_NOW = 2,
+    /**
+     * @generated from protobuf enum value: VALUE_FACTORY_REGION = 3;
+     */
+    VALUE_FACTORY_REGION = 3
 }
 /**
  * @generated from protobuf enum symbol.destack.VariantStateTypeProto
@@ -24840,7 +24844,9 @@ class CustomEntityProto$Type extends MessageType<CustomEntityProto> {
             { no: 17, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } }
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
+            { no: 41, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
+            { no: 42, name: "base_traits", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => NodeDefinitionReferenceProto }
         ]);
     }
     create(value?: PartialMessage<CustomEntityProto>): CustomEntityProto {
@@ -24848,6 +24854,7 @@ class CustomEntityProto$Type extends MessageType<CustomEntityProto> {
         message.metatype = 0;
         message.id = "";
         message.value = {};
+        message.baseTraits = [];
         if (value !== undefined)
             reflectionMergePartial<CustomEntityProto>(this, message, value);
         return message;
@@ -24889,6 +24896,12 @@ class CustomEntityProto$Type extends MessageType<CustomEntityProto> {
                     break;
                 case /* map<string, symbol.destack.ValueProto> value */ 21:
                     this.binaryReadMap21(message.value, reader, options);
+                    break;
+                case /* symbol.destack.NodeDefinitionReferenceProto base_type */ 41:
+                    message.baseType = NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseType);
+                    break;
+                case /* repeated symbol.destack.NodeDefinitionReferenceProto base_traits */ 42:
+                    message.baseTraits.push(NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -24955,6 +24968,12 @@ class CustomEntityProto$Type extends MessageType<CustomEntityProto> {
             ValueProto.internalBinaryWrite(message.value[k], writer, options);
             writer.join().join();
         }
+        /* symbol.destack.NodeDefinitionReferenceProto base_type = 41; */
+        if (message.baseType)
+            NodeDefinitionReferenceProto.internalBinaryWrite(message.baseType, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.NodeDefinitionReferenceProto base_traits = 42; */
+        for (let i = 0; i < message.baseTraits.length; i++)
+            NodeDefinitionReferenceProto.internalBinaryWrite(message.baseTraits[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25050,7 +25069,7 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
                 case /* optional symbol.destack.NodeReferenceProto prototype_ptr */ 40:
                     message.prototypePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.prototypePtr);
                     break;
-                case /* optional symbol.destack.NodeDefinitionReferenceProto base_type */ 41:
+                case /* symbol.destack.NodeDefinitionReferenceProto base_type */ 41:
                     message.baseType = NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseType);
                     break;
                 case /* repeated symbol.destack.NodeDefinitionReferenceProto base_traits */ 42:
@@ -25139,7 +25158,7 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
         /* optional symbol.destack.NodeReferenceProto prototype_ptr = 40; */
         if (message.prototypePtr)
             NodeReferenceProto.internalBinaryWrite(message.prototypePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeDefinitionReferenceProto base_type = 41; */
+        /* symbol.destack.NodeDefinitionReferenceProto base_type = 41; */
         if (message.baseType)
             NodeDefinitionReferenceProto.internalBinaryWrite(message.baseType, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.destack.NodeDefinitionReferenceProto base_traits = 42; */
@@ -25769,22 +25788,22 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
             { no: 42, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.destack.PrimitiveTypeProto", PrimitiveTypeProto] },
             { no: 43, name: "enum_type", kind: "enum", opt: true, T: () => ["symbol.destack.EnumTypeProto", EnumTypeProto] },
             { no: 44, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 45, name: "node_definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 46, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 47, name: "base_type_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 45, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 46, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 48, name: "key_type", kind: "message", T: () => TypeProto },
-            { no: 50, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 51, name: "is_unique", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "default_value", kind: "message", T: () => ValueProto },
-            { no: 56, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.destack.DefaultFactoryProto", DefaultFactoryProto] },
+            { no: 50, name: "value", kind: "message", T: () => ValueProto },
+            { no: 51, name: "value_factory", kind: "enum", opt: true, T: () => ["symbol.destack.ValueFactoryProto", ValueFactoryProto] },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintProto },
             { no: 61, name: "string_constraint", kind: "message", T: () => StringConstraintProto },
             { no: 62, name: "number_constraint", kind: "message", T: () => NumberConstraintProto },
             { no: 63, name: "node_constraint", kind: "message", T: () => NodeConstraintProto },
             { no: 70, name: "edge_type", kind: "enum", opt: true, T: () => ["symbol.destack.EdgeTypeProto", EdgeTypeProto] },
             { no: 71, name: "cascade", kind: "enum", opt: true, T: () => ["symbol.destack.CascadeActionProto", CascadeActionProto] },
-            { no: 80, name: "is_readonly", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 81, name: "is_static", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 80, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 81, name: "is_unique", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 82, name: "is_computed", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 83, name: "is_readonly", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 84, name: "is_static", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 210, name: "source_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
@@ -25860,29 +25879,20 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
                 case /* optional symbol.destack.NodeTypeProto node_type */ 44:
                     message.nodeType = reader.int32();
                     break;
-                case /* optional symbol.destack.NodeReferenceProto node_definition_ptr */ 45:
-                    message.nodeDefinitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodeDefinitionPtr);
-                    break;
-                case /* optional symbol.destack.StructTypeProto struct_type */ 46:
+                case /* optional symbol.destack.StructTypeProto struct_type */ 45:
                     message.structType = reader.int32();
                     break;
-                case /* optional symbol.destack.NodeReferenceProto base_type_ptr */ 47:
-                    message.baseTypePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 46:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
                 case /* optional symbol.destack.TypeProto key_type */ 48:
                     message.keyType = TypeProto.internalBinaryRead(reader, reader.uint32(), options, message.keyType);
                     break;
-                case /* optional bool is_required */ 50:
-                    message.isRequired = reader.bool();
+                case /* optional symbol.destack.ValueProto value */ 50:
+                    message.value = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.value);
                     break;
-                case /* optional bool is_unique */ 51:
-                    message.isUnique = reader.bool();
-                    break;
-                case /* optional symbol.destack.ValueProto default_value */ 55:
-                    message.defaultValue = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.defaultValue);
-                    break;
-                case /* optional symbol.destack.DefaultFactoryProto default_factory */ 56:
-                    message.defaultFactory = reader.int32();
+                case /* optional symbol.destack.ValueFactoryProto value_factory */ 51:
+                    message.valueFactory = reader.int32();
                     break;
                 case /* optional symbol.destack.CollectionConstraintProto collection_constraint */ 60:
                     message.collectionConstraint = CollectionConstraintProto.internalBinaryRead(reader, reader.uint32(), options, message.collectionConstraint);
@@ -25902,10 +25912,19 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
                 case /* optional symbol.destack.CascadeActionProto cascade */ 71:
                     message.cascade = reader.int32();
                     break;
-                case /* optional bool is_readonly */ 80:
+                case /* optional bool is_required */ 80:
+                    message.isRequired = reader.bool();
+                    break;
+                case /* optional bool is_unique */ 81:
+                    message.isUnique = reader.bool();
+                    break;
+                case /* optional bool is_computed */ 82:
+                    message.isComputed = reader.bool();
+                    break;
+                case /* optional bool is_readonly */ 83:
                     message.isReadonly = reader.bool();
                     break;
-                case /* optional bool is_static */ 81:
+                case /* optional bool is_static */ 84:
                     message.isStatic = reader.bool();
                     break;
                 case /* optional symbol.destack.NodeReferenceProto source_ptr */ 210:
@@ -25977,30 +25996,21 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
         /* optional symbol.destack.NodeTypeProto node_type = 44; */
         if (message.nodeType !== undefined)
             writer.tag(44, WireType.Varint).int32(message.nodeType);
-        /* optional symbol.destack.NodeReferenceProto node_definition_ptr = 45; */
-        if (message.nodeDefinitionPtr)
-            NodeReferenceProto.internalBinaryWrite(message.nodeDefinitionPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.StructTypeProto struct_type = 46; */
+        /* optional symbol.destack.StructTypeProto struct_type = 45; */
         if (message.structType !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.structType);
-        /* optional symbol.destack.NodeReferenceProto base_type_ptr = 47; */
-        if (message.baseTypePtr)
-            NodeReferenceProto.internalBinaryWrite(message.baseTypePtr, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+            writer.tag(45, WireType.Varint).int32(message.structType);
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 46; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.TypeProto key_type = 48; */
         if (message.keyType)
             TypeProto.internalBinaryWrite(message.keyType, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_required = 50; */
-        if (message.isRequired !== undefined)
-            writer.tag(50, WireType.Varint).bool(message.isRequired);
-        /* optional bool is_unique = 51; */
-        if (message.isUnique !== undefined)
-            writer.tag(51, WireType.Varint).bool(message.isUnique);
-        /* optional symbol.destack.ValueProto default_value = 55; */
-        if (message.defaultValue)
-            ValueProto.internalBinaryWrite(message.defaultValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DefaultFactoryProto default_factory = 56; */
-        if (message.defaultFactory !== undefined)
-            writer.tag(56, WireType.Varint).int32(message.defaultFactory);
+        /* optional symbol.destack.ValueProto value = 50; */
+        if (message.value)
+            ValueProto.internalBinaryWrite(message.value, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.ValueFactoryProto value_factory = 51; */
+        if (message.valueFactory !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.valueFactory);
         /* optional symbol.destack.CollectionConstraintProto collection_constraint = 60; */
         if (message.collectionConstraint)
             CollectionConstraintProto.internalBinaryWrite(message.collectionConstraint, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -26019,12 +26029,21 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
         /* optional symbol.destack.CascadeActionProto cascade = 71; */
         if (message.cascade !== undefined)
             writer.tag(71, WireType.Varint).int32(message.cascade);
-        /* optional bool is_readonly = 80; */
+        /* optional bool is_required = 80; */
+        if (message.isRequired !== undefined)
+            writer.tag(80, WireType.Varint).bool(message.isRequired);
+        /* optional bool is_unique = 81; */
+        if (message.isUnique !== undefined)
+            writer.tag(81, WireType.Varint).bool(message.isUnique);
+        /* optional bool is_computed = 82; */
+        if (message.isComputed !== undefined)
+            writer.tag(82, WireType.Varint).bool(message.isComputed);
+        /* optional bool is_readonly = 83; */
         if (message.isReadonly !== undefined)
-            writer.tag(80, WireType.Varint).bool(message.isReadonly);
-        /* optional bool is_static = 81; */
+            writer.tag(83, WireType.Varint).bool(message.isReadonly);
+        /* optional bool is_static = 84; */
         if (message.isStatic !== undefined)
-            writer.tag(81, WireType.Varint).bool(message.isStatic);
+            writer.tag(84, WireType.Varint).bool(message.isStatic);
         /* optional symbol.destack.NodeReferenceProto source_ptr = 210; */
         if (message.sourcePtr)
             NodeReferenceProto.internalBinaryWrite(message.sourcePtr, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
@@ -38500,8 +38519,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 39, name: "is_spatial", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 40, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
             { no: 50, name: "base_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 51, name: "extends", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 52, name: "extended_by", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 51, name: "extended_by", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 52, name: "inherits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 53, name: "inherited_by", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 55, name: "base_traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
             { no: 56, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
@@ -38522,8 +38541,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.isGlobal = false;
         message.isSpatial = false;
         message.properties = [];
-        message.extends = [];
         message.extendedBy = [];
+        message.inherits = [];
         message.inheritedBy = [];
         message.baseTraits = [];
         message.traits = [];
@@ -38573,19 +38592,19 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 case /* optional symbol.destack.NodeTypeProto base_type */ 50:
                     message.baseType = reader.int32();
                     break;
-                case /* repeated symbol.destack.NodeTypeProto extends */ 51:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.extends.push(reader.int32());
-                    else
-                        message.extends.push(reader.int32());
-                    break;
-                case /* repeated symbol.destack.NodeTypeProto extended_by */ 52:
+                case /* repeated symbol.destack.NodeTypeProto extended_by */ 51:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.extendedBy.push(reader.int32());
                     else
                         message.extendedBy.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.NodeTypeProto inherits */ 52:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.inherits.push(reader.int32());
+                    else
+                        message.inherits.push(reader.int32());
                     break;
                 case /* repeated symbol.destack.NodeTypeProto inherited_by */ 53:
                     if (wireType === WireType.LengthDelimited)
@@ -38684,18 +38703,18 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         /* optional symbol.destack.NodeTypeProto base_type = 50; */
         if (message.baseType !== undefined)
             writer.tag(50, WireType.Varint).int32(message.baseType);
-        /* repeated symbol.destack.NodeTypeProto extends = 51; */
-        if (message.extends.length) {
-            writer.tag(51, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.extends.length; i++)
-                writer.int32(message.extends[i]);
-            writer.join();
-        }
-        /* repeated symbol.destack.NodeTypeProto extended_by = 52; */
+        /* repeated symbol.destack.NodeTypeProto extended_by = 51; */
         if (message.extendedBy.length) {
-            writer.tag(52, WireType.LengthDelimited).fork();
+            writer.tag(51, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.extendedBy.length; i++)
                 writer.int32(message.extendedBy[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.NodeTypeProto inherits = 52; */
+        if (message.inherits.length) {
+            writer.tag(52, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.inherits.length; i++)
+                writer.int32(message.inherits[i]);
             writer.join();
         }
         /* repeated symbol.destack.NodeTypeProto inherited_by = 53; */
@@ -41805,10 +41824,8 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
             { no: 44, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 46, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 48, name: "key_type", kind: "message", T: () => TypeProto },
-            { no: 50, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 51, name: "is_unique", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "default_value", kind: "message", T: () => ValueProto },
-            { no: 56, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.destack.DefaultFactoryProto", DefaultFactoryProto] },
+            { no: 50, name: "value", kind: "message", T: () => ValueProto },
+            { no: 51, name: "value_factory", kind: "enum", opt: true, T: () => ["symbol.destack.ValueFactoryProto", ValueFactoryProto] },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintProto },
             { no: 61, name: "string_constraint", kind: "message", T: () => StringConstraintProto },
             { no: 62, name: "number_constraint", kind: "message", T: () => NumberConstraintProto },
@@ -41819,15 +41836,17 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
             { no: 76, name: "node_has_definition", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 77, name: "edge_type", kind: "enum", opt: true, T: () => ["symbol.destack.EdgeTypeProto", EdgeTypeProto] },
             { no: 78, name: "cascade", kind: "enum", opt: true, T: () => ["symbol.destack.CascadeActionProto", CascadeActionProto] },
-            { no: 80, name: "is_wired", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 81, name: "is_stored", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 82, name: "is_repr", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 83, name: "is_hash", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 84, name: "is_eq", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 85, name: "is_managed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 86, name: "is_computed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 87, name: "is_readonly", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 88, name: "is_static", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 80, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 81, name: "is_unique", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 82, name: "is_computed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 83, name: "is_readonly", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 84, name: "is_static", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 90, name: "is_wired", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 91, name: "is_stored", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 92, name: "is_repr", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 93, name: "is_hash", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 94, name: "is_eq", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 95, name: "is_managed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PropertyDefinitionProto>): PropertyDefinitionProto {
@@ -41841,15 +41860,17 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         message.nodeHasType = false;
         message.nodeHasSpace = false;
         message.nodeHasDefinition = false;
+        message.isRequired = false;
+        message.isUnique = false;
+        message.isComputed = false;
+        message.isReadonly = false;
+        message.isStatic = false;
         message.isWired = false;
         message.isStored = false;
         message.isRepr = false;
         message.isHash = false;
         message.isEq = false;
         message.isManaged = false;
-        message.isComputed = false;
-        message.isReadonly = false;
-        message.isStatic = false;
         if (value !== undefined)
             reflectionMergePartial<PropertyDefinitionProto>(this, message, value);
         return message;
@@ -41901,17 +41922,11 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* optional symbol.destack.TypeProto key_type */ 48:
                     message.keyType = TypeProto.internalBinaryRead(reader, reader.uint32(), options, message.keyType);
                     break;
-                case /* optional bool is_required */ 50:
-                    message.isRequired = reader.bool();
+                case /* optional symbol.destack.ValueProto value */ 50:
+                    message.value = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.value);
                     break;
-                case /* optional bool is_unique */ 51:
-                    message.isUnique = reader.bool();
-                    break;
-                case /* optional symbol.destack.ValueProto default_value */ 55:
-                    message.defaultValue = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.defaultValue);
-                    break;
-                case /* optional symbol.destack.DefaultFactoryProto default_factory */ 56:
-                    message.defaultFactory = reader.int32();
+                case /* optional symbol.destack.ValueFactoryProto value_factory */ 51:
+                    message.valueFactory = reader.int32();
                     break;
                 case /* optional symbol.destack.CollectionConstraintProto collection_constraint */ 60:
                     message.collectionConstraint = CollectionConstraintProto.internalBinaryRead(reader, reader.uint32(), options, message.collectionConstraint);
@@ -41943,32 +41958,38 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* optional symbol.destack.CascadeActionProto cascade */ 78:
                     message.cascade = reader.int32();
                     break;
-                case /* bool is_wired */ 80:
-                    message.isWired = reader.bool();
+                case /* bool is_required */ 80:
+                    message.isRequired = reader.bool();
                     break;
-                case /* bool is_stored */ 81:
-                    message.isStored = reader.bool();
+                case /* bool is_unique */ 81:
+                    message.isUnique = reader.bool();
                     break;
-                case /* bool is_repr */ 82:
-                    message.isRepr = reader.bool();
-                    break;
-                case /* bool is_hash */ 83:
-                    message.isHash = reader.bool();
-                    break;
-                case /* bool is_eq */ 84:
-                    message.isEq = reader.bool();
-                    break;
-                case /* bool is_managed */ 85:
-                    message.isManaged = reader.bool();
-                    break;
-                case /* bool is_computed */ 86:
+                case /* bool is_computed */ 82:
                     message.isComputed = reader.bool();
                     break;
-                case /* bool is_readonly */ 87:
+                case /* bool is_readonly */ 83:
                     message.isReadonly = reader.bool();
                     break;
-                case /* bool is_static */ 88:
+                case /* bool is_static */ 84:
                     message.isStatic = reader.bool();
+                    break;
+                case /* bool is_wired */ 90:
+                    message.isWired = reader.bool();
+                    break;
+                case /* bool is_stored */ 91:
+                    message.isStored = reader.bool();
+                    break;
+                case /* bool is_repr */ 92:
+                    message.isRepr = reader.bool();
+                    break;
+                case /* bool is_hash */ 93:
+                    message.isHash = reader.bool();
+                    break;
+                case /* bool is_eq */ 94:
+                    message.isEq = reader.bool();
+                    break;
+                case /* bool is_managed */ 95:
+                    message.isManaged = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -42024,18 +42045,12 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* optional symbol.destack.TypeProto key_type = 48; */
         if (message.keyType)
             TypeProto.internalBinaryWrite(message.keyType, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_required = 50; */
-        if (message.isRequired !== undefined)
-            writer.tag(50, WireType.Varint).bool(message.isRequired);
-        /* optional bool is_unique = 51; */
-        if (message.isUnique !== undefined)
-            writer.tag(51, WireType.Varint).bool(message.isUnique);
-        /* optional symbol.destack.ValueProto default_value = 55; */
-        if (message.defaultValue)
-            ValueProto.internalBinaryWrite(message.defaultValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DefaultFactoryProto default_factory = 56; */
-        if (message.defaultFactory !== undefined)
-            writer.tag(56, WireType.Varint).int32(message.defaultFactory);
+        /* optional symbol.destack.ValueProto value = 50; */
+        if (message.value)
+            ValueProto.internalBinaryWrite(message.value, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.ValueFactoryProto value_factory = 51; */
+        if (message.valueFactory !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.valueFactory);
         /* optional symbol.destack.CollectionConstraintProto collection_constraint = 60; */
         if (message.collectionConstraint)
             CollectionConstraintProto.internalBinaryWrite(message.collectionConstraint, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -42066,33 +42081,39 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* optional symbol.destack.CascadeActionProto cascade = 78; */
         if (message.cascade !== undefined)
             writer.tag(78, WireType.Varint).int32(message.cascade);
-        /* bool is_wired = 80; */
-        if (message.isWired !== false)
-            writer.tag(80, WireType.Varint).bool(message.isWired);
-        /* bool is_stored = 81; */
-        if (message.isStored !== false)
-            writer.tag(81, WireType.Varint).bool(message.isStored);
-        /* bool is_repr = 82; */
-        if (message.isRepr !== false)
-            writer.tag(82, WireType.Varint).bool(message.isRepr);
-        /* bool is_hash = 83; */
-        if (message.isHash !== false)
-            writer.tag(83, WireType.Varint).bool(message.isHash);
-        /* bool is_eq = 84; */
-        if (message.isEq !== false)
-            writer.tag(84, WireType.Varint).bool(message.isEq);
-        /* bool is_managed = 85; */
-        if (message.isManaged !== false)
-            writer.tag(85, WireType.Varint).bool(message.isManaged);
-        /* bool is_computed = 86; */
+        /* bool is_required = 80; */
+        if (message.isRequired !== false)
+            writer.tag(80, WireType.Varint).bool(message.isRequired);
+        /* bool is_unique = 81; */
+        if (message.isUnique !== false)
+            writer.tag(81, WireType.Varint).bool(message.isUnique);
+        /* bool is_computed = 82; */
         if (message.isComputed !== false)
-            writer.tag(86, WireType.Varint).bool(message.isComputed);
-        /* bool is_readonly = 87; */
+            writer.tag(82, WireType.Varint).bool(message.isComputed);
+        /* bool is_readonly = 83; */
         if (message.isReadonly !== false)
-            writer.tag(87, WireType.Varint).bool(message.isReadonly);
-        /* bool is_static = 88; */
+            writer.tag(83, WireType.Varint).bool(message.isReadonly);
+        /* bool is_static = 84; */
         if (message.isStatic !== false)
-            writer.tag(88, WireType.Varint).bool(message.isStatic);
+            writer.tag(84, WireType.Varint).bool(message.isStatic);
+        /* bool is_wired = 90; */
+        if (message.isWired !== false)
+            writer.tag(90, WireType.Varint).bool(message.isWired);
+        /* bool is_stored = 91; */
+        if (message.isStored !== false)
+            writer.tag(91, WireType.Varint).bool(message.isStored);
+        /* bool is_repr = 92; */
+        if (message.isRepr !== false)
+            writer.tag(92, WireType.Varint).bool(message.isRepr);
+        /* bool is_hash = 93; */
+        if (message.isHash !== false)
+            writer.tag(93, WireType.Varint).bool(message.isHash);
+        /* bool is_eq = 94; */
+        if (message.isEq !== false)
+            writer.tag(94, WireType.Varint).bool(message.isEq);
+        /* bool is_managed = 95; */
+        if (message.isManaged !== false)
+            writer.tag(95, WireType.Varint).bool(message.isManaged);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -51568,10 +51589,9 @@ class TypeProto$Type extends MessageType<TypeProto> {
             { no: 45, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 46, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 48, name: "key_type", kind: "message", T: () => TypeProto },
-            { no: 50, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 51, name: "is_variable", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "default_value", kind: "message", T: () => ValueProto },
-            { no: 56, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.destack.DefaultFactoryProto", DefaultFactoryProto] },
+            { no: 49, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 50, name: "value", kind: "message", T: () => ValueProto },
+            { no: 51, name: "value_factory", kind: "enum", opt: true, T: () => ["symbol.destack.ValueFactoryProto", ValueFactoryProto] },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintProto },
             { no: 61, name: "string_constraint", kind: "message", T: () => StringConstraintProto },
             { no: 62, name: "number_constraint", kind: "message", T: () => NumberConstraintProto },
@@ -51619,17 +51639,14 @@ class TypeProto$Type extends MessageType<TypeProto> {
                 case /* optional symbol.destack.TypeProto key_type */ 48:
                     message.keyType = TypeProto.internalBinaryRead(reader, reader.uint32(), options, message.keyType);
                     break;
-                case /* optional bool is_required */ 50:
+                case /* optional bool is_required */ 49:
                     message.isRequired = reader.bool();
                     break;
-                case /* optional bool is_variable */ 51:
-                    message.isVariable = reader.bool();
+                case /* optional symbol.destack.ValueProto value */ 50:
+                    message.value = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.value);
                     break;
-                case /* optional symbol.destack.ValueProto default_value */ 55:
-                    message.defaultValue = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.defaultValue);
-                    break;
-                case /* optional symbol.destack.DefaultFactoryProto default_factory */ 56:
-                    message.defaultFactory = reader.int32();
+                case /* optional symbol.destack.ValueFactoryProto value_factory */ 51:
+                    message.valueFactory = reader.int32();
                     break;
                 case /* optional symbol.destack.CollectionConstraintProto collection_constraint */ 60:
                     message.collectionConstraint = CollectionConstraintProto.internalBinaryRead(reader, reader.uint32(), options, message.collectionConstraint);
@@ -51682,18 +51699,15 @@ class TypeProto$Type extends MessageType<TypeProto> {
         /* optional symbol.destack.TypeProto key_type = 48; */
         if (message.keyType)
             TypeProto.internalBinaryWrite(message.keyType, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_required = 50; */
+        /* optional bool is_required = 49; */
         if (message.isRequired !== undefined)
-            writer.tag(50, WireType.Varint).bool(message.isRequired);
-        /* optional bool is_variable = 51; */
-        if (message.isVariable !== undefined)
-            writer.tag(51, WireType.Varint).bool(message.isVariable);
-        /* optional symbol.destack.ValueProto default_value = 55; */
-        if (message.defaultValue)
-            ValueProto.internalBinaryWrite(message.defaultValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DefaultFactoryProto default_factory = 56; */
-        if (message.defaultFactory !== undefined)
-            writer.tag(56, WireType.Varint).int32(message.defaultFactory);
+            writer.tag(49, WireType.Varint).bool(message.isRequired);
+        /* optional symbol.destack.ValueProto value = 50; */
+        if (message.value)
+            ValueProto.internalBinaryWrite(message.value, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.ValueFactoryProto value_factory = 51; */
+        if (message.valueFactory !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.valueFactory);
         /* optional symbol.destack.CollectionConstraintProto collection_constraint = 60; */
         if (message.collectionConstraint)
             CollectionConstraintProto.internalBinaryWrite(message.collectionConstraint, writer.tag(60, WireType.LengthDelimited).fork(), options).join();

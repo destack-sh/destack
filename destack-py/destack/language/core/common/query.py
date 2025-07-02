@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast
 from destack.utils.uuid import UUID
 
 from ..builtin import (
-    DefaultFactory,
     Enum,
     EnumType,
     Node,
@@ -12,6 +11,7 @@ from ..builtin import (
     StructMutable,
     StructType,
     Trait,
+    ValueFactory,
     active_session,
     builtin_enum,
     builtin_property,
@@ -332,7 +332,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     """A GraphQL-inspired Query node (with subqueries)."""
 
     # meta
-    id: UUID = builtin_property(2, default_factory=DefaultFactory.UUID)
+    id: UUID = builtin_property(2, default_factory=ValueFactory.UUID)
     type: QueryType = builtin_property(30, is_repr=True)
     name: str = builtin_property(
         31,

@@ -6,13 +6,13 @@ import posthog from "posthog-js";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import Destack from "./Destack";
-import { ENV, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "./utils/globals";
+import { ENV, IS_DEV, UNIVERSE_URL, TELEMETRY, VERSION } from "./utils/globals";
 
 async function init() {
   // telemetry
   if (TELEMETRY) {
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
-      api_host: "https://e.destack.app",
+      api_host: "https://e.destack.dev",
       ui_host: "https://eu.posthog.com",
       enable_recording_console_log: true,
       autocapture: true,
@@ -36,7 +36,7 @@ async function init() {
   console.group(`%csystem`, "color:yellow");
   console.info(`%cENV: ${ENV ?? "<unknown>"} (${IS_DEV ? "DEV MODE" : "PROD MODE"})`, "color:yellow");
   console.info(`%cVERSION: ${VERSION}`, "color:yellow");
-  console.info(`%cSUPERVISOR_URL: ${SUPERVISOR_URL}`, "color:yellow");
+  console.info(`%cUNIVERSE_URL: ${UNIVERSE_URL}`, "color:yellow");
   console.groupEnd();
 
   // prevent opening files that are dragged over the window

@@ -30,7 +30,7 @@ class EnumType(Enum):
     STORE_TYPE = 21
     STORE_IMPLEMENTATION = 22
     PLATFORM_TYPE = 30
-    RUNTIME_TYPE = 31
+    RUNTIME_LANGUAGE = 31
     OPERATING_SYSTEM = 40
     EDIT_TYPE = 50
     EDIT_OPERATION = 51
@@ -41,7 +41,7 @@ class EnumType(Enum):
     PRIMITIVE_TYPE = 500
     TYPE_CARDINALITY = 501
     SCALAR_TYPE = 502
-    DEFAULT_FACTORY = 503
+    VALUE_FACTORY = 503
     STRING_FORMAT = 504
     NUMBER_FORMAT = 505
     CUSTOM_PROPERTY_TYPE = 506
@@ -850,12 +850,12 @@ class StoreZone(Enum):
 
 @builtin_enum(EnumType.STORE_TYPE)
 class StoreType(Enum):
-    GLOBAL_ENTITY = 100
+    GLOBAL_ENTITY_PRIMARY = 1000
+    SPATIAL_ENTITY_PRIMARY = 1100
     # GLOBAL_SEARCH?
-    SPATIAL_ENTITY = 200
+    GLOBAL_EVENT_PRIMARY = 2000
     # SPATIAL_PARTICLE, SPATIAL_ANALYTIC, ...
     # SPATIAL_SEARCH, SPATIAL_CACHE, ...
-    LOCAL_MEMORY = 300
 
     @property
     def zone(self) -> StoreZone:
@@ -869,8 +869,8 @@ class StoreImplementation(Enum):
     # CASSANDRA, ELASTICSEARCH, REDIS, ...
 
 
-@builtin_enum(EnumType.RUNTIME_TYPE)
-class RuntimeType(Enum):
+@builtin_enum(EnumType.RUNTIME_LANGUAGE)
+class RuntimeLanguage(Enum):
     PYTHON = 1
     JAVASCRIPT = 2
     # RUST, JAVA, SWIFT, ...
@@ -1230,8 +1230,8 @@ class ScalarType(Enum):
     # CUSTOM_ENUM, CUSTOM_STRUCT, ...? (or are they just NodeReferences/Structs?)
 
 
-@builtin_enum(EnumType.DEFAULT_FACTORY)
-class DefaultFactory(Enum):
+@builtin_enum(EnumType.VALUE_FACTORY)
+class ValueFactory(Enum):
     """The factory to use for default values."""
 
     UUID = 1

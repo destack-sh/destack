@@ -19,7 +19,7 @@ export enum EnumType {
   STORE_TYPE = 21,
   STORE_IMPLEMENTATION = 22,
   PLATFORM_TYPE = 30,
-  RUNTIME_TYPE = 31,
+  RUNTIME_LANGUAGE = 31,
   OPERATING_SYSTEM = 40,
   EDIT_TYPE = 50,
   EDIT_OPERATION = 51,
@@ -30,7 +30,7 @@ export enum EnumType {
   PRIMITIVE_TYPE = 500,
   TYPE_CARDINALITY = 501,
   SCALAR_TYPE = 502,
-  DEFAULT_FACTORY = 503,
+  VALUE_FACTORY = 503,
   STRING_FORMAT = 504,
   NUMBER_FORMAT = 505,
   CUSTOM_PROPERTY_TYPE = 506,
@@ -474,9 +474,9 @@ registerEnumClass(EnumType.STORE_ZONE, StoreZone);
  * StoreType
  */
 export enum StoreType {
-  GLOBAL_ENTITY = 100,
-  SPATIAL_ENTITY = 200,
-  LOCAL_MEMORY = 300,
+  GLOBAL_ENTITY_PRIMARY = 1000,
+  SPATIAL_ENTITY_PRIMARY = 1100,
+  GLOBAL_EVENT_PRIMARY = 2000,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -502,9 +502,9 @@ registerEnumClass(EnumType.STORE_IMPLEMENTATION, StoreImplementation);
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
 /**
- * RuntimeType
+ * RuntimeLanguage
  */
-export enum RuntimeType {
+export enum RuntimeLanguage {
   PYTHON = 1,
   JAVASCRIPT = 2,
 
@@ -512,7 +512,7 @@ export enum RuntimeType {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.RUNTIME_TYPE, RuntimeType);
+registerEnumClass(EnumType.RUNTIME_LANGUAGE, RuntimeLanguage);
 /* ==== DESTACK_GENERATED_END:ENUM:31 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:30 ==== */
@@ -816,9 +816,9 @@ registerEnumClass(EnumType.SCALAR_TYPE, ScalarType);
 
 /* ==== DESTACK_GENERATED_START:ENUM:503 ==== */
 /**
- * DefaultFactory
+ * ValueFactory
  */
-export enum DefaultFactory {
+export enum ValueFactory {
   UUID = 1,
   NOW = 2,
   REGION = 3,
@@ -827,7 +827,7 @@ export enum DefaultFactory {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.DEFAULT_FACTORY, DefaultFactory);
+registerEnumClass(EnumType.VALUE_FACTORY, ValueFactory);
 /* ==== DESTACK_GENERATED_END:ENUM:503 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:20200 ==== */

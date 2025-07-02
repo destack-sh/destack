@@ -72,8 +72,8 @@ class Migration:
         return f"<Migration {self}>"
 
     def has_store_type(self, store_type: StoreType) -> bool:
-        return (store_type == StoreType.GLOBAL_ENTITY and self.has_global) or (
-            store_type == StoreType.SPATIAL_ENTITY and self.has_spatial
+        return (store_type == StoreType.GLOBAL_ENTITY_PRIMARY and self.has_global) or (
+            store_type == StoreType.SPATIAL_ENTITY_PRIMARY and self.has_spatial
         )
 
 

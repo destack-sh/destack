@@ -10,7 +10,6 @@ from destack.language.registry import (
 
 from ..builtin.common import (
     CascadeAction,
-    DefaultFactory,
     EdgeType,
     Enum,
     EnumType,
@@ -20,6 +19,7 @@ from ..builtin.common import (
     StructType,
     TraitType,
     TypeCardinality,
+    ValueFactory,
 )
 from ..builtin.constant import ConstantDeclaration, register_constant
 from ..builtin.property import PropertyDeclaration, builtin_property, builtin_property_runtime
@@ -77,13 +77,12 @@ class PropertyDefinition(StructFrozen):
     enum_type: Optional[EnumType] = builtin_property(43, is_repr=True)
     node_type: Optional[NodeType] = builtin_property(44, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(46, is_repr=True)
+    # definition.. not needed?
     key_type: Optional["Type"] = builtin_property(48, is_repr=True)  # for maps
 
-    # meta
-    is_required: bool | None = builtin_property(50, is_repr=True)
-    is_unique: bool | None = builtin_property(51, is_repr=True)
-    default_value: Optional["Value"] = builtin_property(55, is_repr=True)
-    default_factory: Optional["DefaultFactory"] = builtin_property(56, is_repr=True)
+    # value
+    value: Optional["Value"] = builtin_property(50, is_repr=True)
+    value_factory: Optional["ValueFactory"] = builtin_property(51, is_repr=True)
 
     # constraints
     collection_constraint: Optional["CollectionConstraint"] = builtin_property(60)
@@ -100,15 +99,17 @@ class PropertyDefinition(StructFrozen):
     cascade: CascadeAction | None = builtin_property(78)
 
     # flags
-    is_wired: bool = builtin_property(80)
-    is_stored: bool = builtin_property(81)
-    is_repr: bool = builtin_property(82)
-    is_hash: bool = builtin_property(83)
-    is_eq: bool = builtin_property(84)
-    is_managed: bool = builtin_property(85)
-    is_computed: bool = builtin_property(86)
-    is_readonly: bool = builtin_property(87)
-    is_static: bool = builtin_property(88)
+    is_required: bool = builtin_property(80, is_repr=True)
+    is_unique: bool = builtin_property(81, is_repr=True)
+    is_computed: bool = builtin_property(82)
+    is_readonly: bool = builtin_property(83)
+    is_static: bool = builtin_property(84)
+    is_wired: bool = builtin_property(90)
+    is_stored: bool = builtin_property(91)
+    is_repr: bool = builtin_property(92)
+    is_hash: bool = builtin_property(93)
+    is_eq: bool = builtin_property(94)
+    is_managed: bool = builtin_property(95)
 
     @classmethod
     def from_property(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
@@ -134,10 +135,8 @@ class PropertyDefinition(StructFrozen):
             node_type=type.node_type,
             struct_type=type.struct_type,
             key_type=type.key_type,
-            is_required=type.is_required,
-            is_unique=prop.is_unique,
-            default_value=type.default_value,
-            default_factory=type.default_factory,
+            value=type.value,
+            value_factory=type.value_factory,
             collection_constraint=type.collection_constraint,
             string_constraint=type.string_constraint,
             number_constraint=type.number_constraint,
@@ -150,6 +149,8 @@ class PropertyDefinition(StructFrozen):
             edge_type=prop.edge_type,
             cascade=prop.cascade,
             # flags
+            is_required=prop.is_required,
+            is_unique=prop.is_unique,
             is_wired=prop.is_wired,
             is_stored=prop.is_stored,
             is_repr=prop.is_repr,
@@ -331,11 +332,11 @@ class NodeDefinition(StructFrozen):
     base_type: NodeType | None = builtin_property(
         50, description="The base type this Node extends (directly)."
     )
-    extends: list[NodeType] = builtin_property(
-        51, description="Nodes that this Node extends (directly and indirectly)."
-    )
     extended_by: list[NodeType] = builtin_property(
-        52, description="Nodes that extend this Node type (directly)."
+        51, description="Nodes that extend this Node type (directly)."
+    )
+    inherits: list[NodeType] = builtin_property(
+        52, description="Nodes that this Node inherits (directly and indirectly)."
     )
     inherited_by: list[NodeType] = builtin_property(
         53, description="Nodes that inherit this Node type (directly and indirectly)."
@@ -373,6 +374,7 @@ class NodeDefinition(StructFrozen):
             ],
             base_type=node_cls.__base_type__,
             extended_by=list(node_cls.__extended_by__),
+            inherits=list(node_cls.__inherits__),
             inherited_by=list(node_cls.__inherited_by__),
             traits=list(node_cls.__traits__),
             base_traits=list(node_cls.__base_traits__),

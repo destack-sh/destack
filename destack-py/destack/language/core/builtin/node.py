@@ -75,22 +75,22 @@ def builtin_node(
         cls.__is_trait__ = False  # override Trait.__is_trait__
         traits: list[TraitType] = []
         base_traits: list[TraitType] = []
-        extends: list[NodeType] = []
+        inherits: list[NodeType] = []
         for superclass in get_superclasses(cls):
             if trait := _resolve_trait_type(superclass.__name__):
                 if trait not in traits:
                     traits.append(trait)
             elif isinstance(base_type := getattr(superclass, "metatype", None), NodeType):
-                if base_type not in extends:
-                    extends.append(base_type)
+                if base_type not in inherits:
+                    inherits.append(base_type)
         for base in cls.__bases__:
             if trait := _resolve_trait_type(base.__name__):
                 if trait not in base_traits:
                     base_traits.append(trait)
         cls.__traits__ = tuple(reversed(traits))
         cls.__base_traits__ = tuple(reversed(base_traits))
-        cls.__extends__ = tuple(reversed(extends))
-        cls.__base_type__ = cls.__extends__[-1] if cls.__extends__ else None
+        cls.__inherits__ = tuple(reversed(inherits))
+        cls.__base_type__ = cls.__inherits__[-1] if cls.__inherits__ else None
         cls.__is_abstract__ = is_abstract
 
         # abstract nodes cannot extend non-abstract nodes
@@ -108,7 +108,7 @@ def builtin_node(
             is_frozen=pretend_frozen,
             is_abstract=is_abstract,
             traits=cls.__traits__,
-            extends=cls.__extends__,
+            inherits=cls.__inherits__,
         )
         cls.__indexes__ = index
 
