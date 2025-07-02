@@ -44,7 +44,7 @@ export type NodeFilter = {
 /** A Node is a collection of properties with an identity. */
 export abstract class Node extends BuiltinObject {
   static readonly __isNode__: boolean = true;
-  static readonly metatype: NodeType;
+  static readonly metatype: NodeType = NodeType.NODE;
   static readonly __definition__: NodeDefinition;
 
   readonly id: string;
