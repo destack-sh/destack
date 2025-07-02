@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     Enum,
     EnumType,
-    HasIcon,
     IsOwnable,
     NodeType,
     builtin_enum,
@@ -15,7 +14,7 @@ from destack.language.core import (
 from ..view import ContainerView
 
 if TYPE_CHECKING:
-    from destack.language import Canvas, Scene
+    from destack.language import Canvas, Icon, Scene
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -30,8 +29,10 @@ class LayerType(Enum):
 
 
 @builtin_node(NodeType.LAYER)
-class Layer(HasIcon, IsOwnable, ContainerView):
+class Layer(IsOwnable, ContainerView):
     """A Layer is a named container for Views."""
 
     parent: Union["Scene", "Canvas", None] = builtin_property_parent(node_is_extensible=True)
-    type: LayerType = builtin_property(30, default=LayerType.GENERAL)
+    type: LayerType = builtin_property(100, default=LayerType.GENERAL)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)

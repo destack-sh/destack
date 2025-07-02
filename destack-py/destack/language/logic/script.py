@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Entity,
-    HasName,
     IsCustomizable,
     IsDeletable,
     IsOrdered,
@@ -24,7 +23,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SCRIPT)
 class Script(
     IsSpatial,
-    HasName,
     IsOrdered,
     IsDeletable,
     IsRunnable,
@@ -36,6 +34,7 @@ class Script(
     parent: Union["Folder", IsScriptable, "Script", None] = builtin_property_parent(
         node_is_extensible=True
     )
-    # type, language, code, ...
+    name: str = builtin_property(101, is_repr=True)
 
-    code: str | None = builtin_property(100)
+    code: str | None = builtin_property(110)
+    # type, language, code, ...

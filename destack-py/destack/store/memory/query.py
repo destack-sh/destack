@@ -43,13 +43,22 @@ logger = structlog.get_logger(__name__)
 
 MAX_RECURSION_DEPTH = 100
 
+NODE_REFERENCE_TYPE_KEY = str(NodeReference.property("type").id)
+NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
+NODE_REFERENCE_SPACE_ID_KEY = str(NodeReference.property("space_id").id)
+NODE_REFERENCE_DEFINITION_ID_KEY = str(NodeReference.property("definition_id").id)
+
 
 def _evaluate_expression(context: MemoryContext, expression: Expression, row: MemoryRow) -> Any:
     """Evaluate an Expression against in-memory row data."""
     if expression.type == ExpressionType.LITERAL:
         assert expression.literal is not None, f"no literal for {expression!r}"
         if expression.literal.type.scalar_type == ScalarType.NODE_REFERENCE:
-            return expression.literal.value["32"] if expression.literal.value is not None else None
+            return (
+                expression.literal.value[NODE_REFERENCE_ID_KEY]
+                if expression.literal.value is not None
+                else None
+            )
         else:
             return expression.literal.value
     elif expression.type == ExpressionType.ATTRIBUTE:
@@ -59,7 +68,9 @@ def _evaluate_expression(context: MemoryContext, expression: Expression, row: Me
             prop = attr.resolve_or_error()
             if prop.scalar_type == ScalarType.NODE_REFERENCE:
                 node_ptr_packed = row.value.get(str(prop.id))
-                return node_ptr_packed["32"] if node_ptr_packed is not None else None
+                return (
+                    node_ptr_packed[NODE_REFERENCE_ID_KEY] if node_ptr_packed is not None else None
+                )
             else:
                 return row.value.get(str(prop.id))
         else:
@@ -741,7 +752,7 @@ def _execute_subquery(
         parents_ptr: dict[UUID, NodeReference] = {}
         for node_value in result.nodes:
             if (parent_ptr_value := node_value.value.get("3")) is not None:
-                parent_id = UUID(parent_ptr_value["32"])
+                parent_id = UUID(parent_ptr_value[NODE_REFERENCE_ID_KEY])
                 if parent_id in parents_ptr:
                     continue
                 parent_ptr = NodeReference.from_value(parent_ptr_value)

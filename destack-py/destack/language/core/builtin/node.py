@@ -144,16 +144,17 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
 
     metatype: ClassVar[NodeType]
 
-    # 1-14: node identity
+    # 1-20: node identity
     # Node.metatype: 1
     id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     parent: Optional["Node"] = builtin_property_parent(node_is_extensible=True)
     # Node.store: 4
     # Spatial.space: 5
-    # IsCustomNode.definition: 6
-    # Entity.materialization: 7
-    # Entity.snapshot/template: 8-11
-    # Entity.set_properties: 12
+    # IsExtensible.definition: 6
+    # IsExtensible.base_type: 7
+    # Entity.materialization: 10
+    # Entity.snapshot/template: 11-14
+    # Entity.set_properties: 15
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 

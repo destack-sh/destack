@@ -56,7 +56,7 @@ async def test_create_user_with_clients(_session: Session):
         status=UserStatus.ACTIVE,
         name="Floof",
         slug="floof",
-        space_ptr=NodeReference(node_type=NodeType.SPACE, id=uuid4()),
+        space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
     )
     _session.create(user)
     await _session.commit()
@@ -218,7 +218,7 @@ async def test_create_star(session: Session):
         User(
             name=f"User{i}",
             slug=f"user{i}",
-            space_ptr=NodeReference(node_type=NodeType.SPACE, id=uuid4()),
+            space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
         )
         for i in range(20)
     ]
@@ -246,7 +246,7 @@ async def test_create_reaction_groups(session: Session):
         User(
             name=f"User{i}",
             slug=f"user{i}",
-            space_ptr=NodeReference(node_type=NodeType.SPACE, id=uuid4()),
+            space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
         )
         for i in range(10)
     ]
@@ -301,9 +301,7 @@ async def test_create_reaction_groups(session: Session):
 async def test_benchmark_create_reactions(session: Session, async_benchmark: AsyncBenchmarkFixture):
     """Benchmark creating reactions without parent."""
 
-    user = User(
-        name="User", slug="user", space_ptr=NodeReference(node_type=NodeType.SPACE, id=uuid4())
-    )
+    user = User(name="User", slug="user", space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()))
     session.create(user)
     await session.commit()
 

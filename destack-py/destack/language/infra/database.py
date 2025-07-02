@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
-    HasName,
     IsSpatial,
     NodeType,
     Region,
@@ -20,7 +19,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Space
+    from destack.language import Icon, Space
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -61,10 +60,13 @@ class DatabaseInfo(StructFrozen):
 
 
 @builtin_node(NodeType.DATABASE)
-class Database(IsSpatial, HasName, Resource):
+class Database(IsSpatial, Resource):
     """A primary storage Database of some flavor."""
 
     parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
+
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
 
     type: DatabaseType = builtin_property(30, can_write=RoleType.SYSTEM, is_repr=True)
     region: Region = builtin_property(50, can_write=RoleType.SYSTEM, is_repr=True)

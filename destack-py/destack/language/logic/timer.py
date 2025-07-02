@@ -5,7 +5,6 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    HasName,
     IsSpatial,
     NodeType,
     builtin_enum,
@@ -56,8 +55,9 @@ class TimerType(Enum):
 
 
 @builtin_node(NodeType.TIMER)
-class Timer(IsSpatial, HasName, Entity):
+class Timer(IsSpatial, Entity):
     """A Timer."""
 
-    type: TimerType = builtin_property(30)
-    schedule: "Schedule | None" = builtin_property(40)
+    type: TimerType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    schedule: "Schedule | None" = builtin_property(110)

@@ -20,7 +20,6 @@ from PIL import Image
 from destack.language.core import (
     Enum,
     EnumType,
-    HasName,
     IsGlobal,
     IsSpatial,
     NodeType,
@@ -39,6 +38,7 @@ if TYPE_CHECKING:
         CustomEntityDefinition,
         File,
         Folder,
+        Icon,
         Run,
         Session,
         Thread,
@@ -454,12 +454,14 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 
 
 @builtin_node(NodeType.FILE)
-class File(IsSpatial, IsGlobal, HasName, Resource):
+class File(IsSpatial, IsGlobal, Resource):
     """
     A File stored somewhere.
     """
 
     type: FileType = builtin_property(30, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: Icon | None = builtin_property(102)
 
     # meta
     source: FileSource = builtin_property(60, is_repr=True)

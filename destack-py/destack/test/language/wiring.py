@@ -24,7 +24,7 @@ from destack.utils.uuid import uuid4
 def test_roundtrip_node_reference():
     """Pack and unpack a NodeReference as proto and value."""
     node_ref = NodeReference(
-        node_type=NodeType.FOLDER, id=uuid4(), space_id=uuid4(), definition_id=uuid4()
+        type=NodeType.FOLDER, id=uuid4(), space_id=uuid4(), definition_id=uuid4()
     )
 
     # proto
@@ -88,7 +88,7 @@ def test_roundtrip_user_proto(session: Session):
         status=UserStatus.ACTIVE,
         name="Florian",
         slug="florian",
-        space_ptr=NodeReference(id=uuid4(), node_type=NodeType.SPACE),
+        space_ptr=NodeReference(id=uuid4(), type=NodeType.SPACE),
     )
 
     # proto

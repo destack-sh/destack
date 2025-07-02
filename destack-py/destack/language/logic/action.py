@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    HasName,
     IsCustomizable,
     IsDeletable,
     IsRunnable,
@@ -20,7 +19,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Text
+    from destack.language import Icon, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -38,7 +37,6 @@ class ActionCardinality(Enum):
 @builtin_node(NodeType.ACTION)
 class Action(
     IsSpatial,
-    HasName,
     IsTaggable,
     IsSourceable,
     IsCustomizable,
@@ -53,5 +51,8 @@ class Action(
 
     parent: Union["IsScriptable", None] = builtin_property_parent(node_is_extensible=True)
 
-    cardinality: ActionCardinality = builtin_property(40, default=ActionCardinality.UNARY)
-    text: Optional["Text"] = builtin_property(41)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    text: Optional["Text"] = builtin_property(104)
+
+    cardinality: ActionCardinality = builtin_property(110, default=ActionCardinality.UNARY)

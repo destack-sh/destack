@@ -936,7 +936,7 @@ __toRef__(): NodeReference {{
   }});
 }}
 """
-    elif NodeType.CUSTOM_ENTITY in cls.__inherits__ or NodeType.CUSTOM_EVENT in cls.__inherits__:
+    elif TraitType.EXTENSIBLE in cls.__traits__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
   const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;

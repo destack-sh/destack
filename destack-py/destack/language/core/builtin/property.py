@@ -478,8 +478,8 @@ class PropertyDeclaration(TypeDeclaration):
         if self.name == "parent" and is_root_node:
             self.node_types = ()
         # 'type' must be 30
-        if (self.name == "type") != (self.id == 30):
-            raise ValueError(f"'type' must be 30: {self!r}")
+        if (self.name == "type") != (self.id == 100):
+            raise ValueError(f"'type' must be 100: {self!r}")
 
         # default to None if not required and no default
         if not self.is_required and self.default is UNSET:

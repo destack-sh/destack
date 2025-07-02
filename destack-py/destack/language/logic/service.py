@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    HasName,
     IsCustomizable,
     IsDeletable,
     IsExtensible,
@@ -14,10 +13,11 @@ from destack.language.core import (
     IsTaggable,
     NodeType,
     builtin_node,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Icon
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SERVICE)
 class Service(
     IsSpatial,
-    HasName,
     IsDeletable,
     IsOwnable,
     IsTaggable,
@@ -40,3 +39,6 @@ class Service(
     """
     A set of Actions for a Node.
     """
+
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)

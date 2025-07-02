@@ -4,9 +4,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    HasIcon,
-    HasName,
-    HasSlug,
     IsDeletable,
     IsOwnable,
     IsSpatial,
@@ -19,7 +16,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Layer, Scene
+    from destack.language import Icon, Layer, Scene
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -43,9 +40,6 @@ class VariantStateType(Enum):
 @builtin_node(NodeType.VARIANT)
 class Variant(
     IsSpatial,
-    HasName,
-    HasSlug,
-    HasIcon,
     IsOwnable,
     IsDeletable,
     Entity,
@@ -53,9 +47,11 @@ class Variant(
     """A Variant is an alternative presentation of a visual."""
 
     parent: Union["Scene", "Layer", None] = builtin_property_parent(node_is_extensible=True)
-    type: VariantType = builtin_property(30)
+    type: VariantType = builtin_property(100)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
 
-    max_width: Optional[Length] = builtin_property(50)
-    max_height: Optional[Length] = builtin_property(51)
-    min_width: Optional[Length] = builtin_property(52)
-    min_height: Optional[Length] = builtin_property(53)
+    max_width: Optional[Length] = builtin_property(110)
+    max_height: Optional[Length] = builtin_property(111)
+    min_width: Optional[Length] = builtin_property(112)
+    min_height: Optional[Length] = builtin_property(113)

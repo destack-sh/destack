@@ -2,8 +2,6 @@ from typing import TYPE_CHECKING, Union
 
 from ..builtin import (
     Entity,
-    HasIcon,
-    HasName,
     IsCustomizable,
     IsDeletable,
     IsSourceable,
@@ -11,20 +9,18 @@ from ..builtin import (
     IsTaggable,
     NodeType,
     builtin_node,
+    builtin_property,
     builtin_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack.language import CustomProperty, CustomStructDefinition
-
+    from destack.language import CustomProperty, CustomStructDefinition, Icon
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
 class CustomEnumDefinition(
     IsSpatial,
-    HasName,
-    HasIcon,
     IsTaggable,
     IsDeletable,
     IsSourceable,
@@ -33,14 +29,13 @@ class CustomEnumDefinition(
 ):
     """A CustomEnumDefinition describes a custom Enum with Options."""
 
-    pass
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
 
 
 @builtin_node(NodeType.CUSTOM_OPTION)
 class CustomOption(
     IsSpatial,
-    HasName,
-    HasIcon,
     IsTaggable,
     IsDeletable,
     IsSourceable,
@@ -49,3 +44,6 @@ class CustomOption(
     parent: Union["CustomStructDefinition", "CustomProperty", None] = builtin_property_parent(
         node_is_extensible=True
     )
+
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)

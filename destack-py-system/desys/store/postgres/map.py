@@ -30,8 +30,8 @@ DESTACK_CUSTOM_PROPERTY_PREFIX = "custom_property_"
 
 
 def get_table_name(node_ptr: NodeReference) -> str:
-    if node_ptr.node_type != NodeType.CUSTOM_ENTITY:
-        return f"{DESTACK_BUILTIN_TABLE_PREFIX}{node_ptr.node_type.name.lower()}"
+    if node_ptr.type != NodeType.CUSTOM_ENTITY:
+        return f"{DESTACK_BUILTIN_TABLE_PREFIX}{node_ptr.type.name.lower()}"
     else:
         assert node_ptr.definition_id is not None, f"no definition_id for {node_ptr!r}"
         return f"{DESTACK_CUSTOM_TABLE_PREFIX}{node_ptr.definition_id}"

@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Entity,
-    HasName,
     IsDeletable,
     IsOrdered,
     IsSpatial,
     IsTaggable,
     NodeType,
     builtin_node,
+    builtin_property,
     builtin_property_parent,
 )
 
@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 class Style(
     IsSpatial,
     Entity,
-    HasName,
     IsOrdered,
     IsTaggable,
     IsDeletable,
@@ -32,3 +31,4 @@ class Style(
     parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent(
         node_is_extensible=True
     )
+    name: str = builtin_property(101, is_repr=True)

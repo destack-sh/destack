@@ -5,7 +5,6 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    HasName,
     IsRunnable,
     IsSpatial,
     NodeDefinitionReference,
@@ -18,7 +17,7 @@ from destack.language.core import (
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
-    from destack.language import Condition
+    from destack.language import Condition, Icon
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,14 +35,17 @@ class TriggerType(Enum):
 
 
 @builtin_node(NodeType.TRIGGER)
-class Trigger(IsSpatial, HasName, Entity):
+class Trigger(IsSpatial, Entity):
     """A Trigger is a dynamic event to run something."""
 
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+
     # when
-    event: Optional[NodeDefinitionReference] = builtin_property(40)
-    where: Optional["Condition"] = builtin_property(41)
+    event: Optional[NodeDefinitionReference] = builtin_property(110)
+    where: Optional["Condition"] = builtin_property(111)
     # sampling?
 
     # what
-    target: IsRunnable = builtin_property(50)
-    arguments: dict[UUID, Value] = builtin_property(51)
+    target: IsRunnable = builtin_property(120)
+    arguments: dict[UUID, Value] = builtin_property(121)

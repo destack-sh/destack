@@ -1,11 +1,8 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
     Event,
-    HasIcon,
-    HasName,
-    HasSlug,
     IsDeletable,
     IsGlobal,
     IsJoinable,
@@ -19,6 +16,9 @@ from destack.language.core import (
     builtin_property,
     builtin_property_parent,
 )
+
+if TYPE_CHECKING:
+    from destack.language import Icon
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -48,9 +48,6 @@ class RoleUnassignedEvent(RoleEvent):
 class Role(
     IsGlobal,
     IsSpatial,
-    HasSlug,
-    HasIcon,
-    HasName,
     IsOwner,
     IsOrdered,
     IsDeletable,
@@ -59,4 +56,6 @@ class Role(
     """A Role for Subjects to take."""
 
     parent: Optional["IsJoinable"] = builtin_property_parent(node_is_extensible=False)
-    type: RoleType = builtin_property(30, is_repr=True)
+    type: RoleType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)

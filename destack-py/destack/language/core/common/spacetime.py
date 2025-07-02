@@ -2,8 +2,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from ..builtin import (
     Entity,
-    HasName,
-    HasSlug,
     IsDeletable,
     IsOwnable,
     IsSpatial,
@@ -14,7 +12,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Space
+    from destack.language import Icon, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -22,8 +20,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SNAPSHOT)
 class Snapshot(
     IsSpatial,
-    HasName,
-    HasSlug,
     IsOwnable,
     IsDeletable,
     Entity,
@@ -32,12 +28,13 @@ class Snapshot(
 
     parent: Union["Space", "Branch", None] = builtin_property_parent(node_is_extensible=False)
 
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+
 
 @builtin_node(NodeType.BRANCH)
 class Branch(
     IsSpatial,
-    HasName,
-    HasSlug,
     IsOwnable,
     IsDeletable,
     Entity,
@@ -46,4 +43,7 @@ class Branch(
 
     parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
 
-    head: Optional["Snapshot"] = builtin_property(40)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+
+    head: Optional["Snapshot"] = builtin_property(110)

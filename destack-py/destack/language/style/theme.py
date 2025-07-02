@@ -2,14 +2,13 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    HasIcon,
-    HasName,
     IsDeletable,
     IsOrdered,
     IsSpatial,
     IsTaggable,
     NodeType,
     builtin_node,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -21,11 +20,11 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.THEME)
 class Theme(
     IsSpatial,
-    HasName,
-    HasIcon,
     IsOrdered,
     IsTaggable,
     IsDeletable,
     Entity,
 ):
     """A Theme with common Styles."""
+
+    name: str = builtin_property(101, is_repr=True)

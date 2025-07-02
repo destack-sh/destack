@@ -58,58 +58,58 @@ class PropertyDefinition(StructFrozen):
     """Definition of a builtin Property."""
 
     id: int = builtin_property(2, is_repr=True)
-    name: str = builtin_property(31, is_repr=True)
-    icon: "Icon | None" = builtin_property(34)
-    description: str | None = builtin_property(36, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    description: str | None = builtin_property(103, is_repr=True)
     object: "ObjectDefinitionReference" = builtin_property(
-        37, description="The object that this property is defined on."
+        104, description="The object that this property is defined on."
     )
     original_object: "ObjectDefinitionReference" = builtin_property(
-        38, description="The original object that this property was defined on."
+        105, description="The original object that this property was defined on."
     )
 
     # scalar
     cardinality: TypeCardinality = builtin_property(
-        40, default=TypeCardinality.SCALAR, is_repr=True
+        110, default=TypeCardinality.SCALAR, is_repr=True
     )
-    scalar_type: ScalarType = builtin_property(41, is_repr=True)
-    primitive_type: Optional[PrimitiveType] = builtin_property(42, is_repr=True)
-    enum_type: Optional[EnumType] = builtin_property(43, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(44, is_repr=True)
-    struct_type: Optional[StructType] = builtin_property(46, is_repr=True)
+    scalar_type: ScalarType = builtin_property(111, is_repr=True)
+    primitive_type: Optional[PrimitiveType] = builtin_property(112, is_repr=True)
+    enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
+    node_type: Optional[NodeType] = builtin_property(114, is_repr=True)
+    struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
     # definition.. not needed?
-    key_type: Optional["Type"] = builtin_property(48, is_repr=True)  # for maps
+    key_type: Optional["Type"] = builtin_property(116, is_repr=True)  # for maps
 
     # value
-    value: Optional["Value"] = builtin_property(50, is_repr=True)
-    value_factory: Optional["ValueFactory"] = builtin_property(51, is_repr=True)
+    value: Optional["Value"] = builtin_property(120, is_repr=True)
+    value_factory: Optional["ValueFactory"] = builtin_property(121, is_repr=True)
 
     # constraints
-    collection_constraint: Optional["CollectionConstraint"] = builtin_property(60)
-    string_constraint: Optional["StringConstraint"] = builtin_property(61)
-    number_constraint: Optional["NumberConstraint"] = builtin_property(62)
-    node_constraint: Optional["NodeConstraint"] = builtin_property(63)
+    collection_constraint: Optional["CollectionConstraint"] = builtin_property(130)
+    string_constraint: Optional["StringConstraint"] = builtin_property(131)
+    number_constraint: Optional["NumberConstraint"] = builtin_property(132)
+    node_constraint: Optional["NodeConstraint"] = builtin_property(133)
 
     # relationship
-    node_is_extensible: bool = builtin_property(73)
-    node_has_type: bool = builtin_property(74)
-    node_has_space: bool = builtin_property(75)
-    node_has_definition: bool = builtin_property(76)
-    edge_type: EdgeType | None = builtin_property(77)
-    cascade: CascadeAction | None = builtin_property(78)
+    node_is_extensible: bool = builtin_property(140)
+    node_has_type: bool = builtin_property(141)
+    node_has_space: bool = builtin_property(142)
+    node_has_definition: bool = builtin_property(143)
+    edge_type: EdgeType | None = builtin_property(144)
+    cascade: CascadeAction | None = builtin_property(145)
 
     # flags
-    is_required: bool = builtin_property(80, is_repr=True)
-    is_unique: bool = builtin_property(81, is_repr=True)
-    is_computed: bool = builtin_property(82)
-    is_readonly: bool = builtin_property(83)
-    is_static: bool = builtin_property(84)
-    is_wired: bool = builtin_property(90)
-    is_stored: bool = builtin_property(91)
-    is_repr: bool = builtin_property(92)
-    is_hash: bool = builtin_property(93)
-    is_eq: bool = builtin_property(94)
-    is_managed: bool = builtin_property(95)
+    is_required: bool = builtin_property(150, is_repr=True)
+    is_unique: bool = builtin_property(151, is_repr=True)
+    is_computed: bool = builtin_property(152)
+    is_readonly: bool = builtin_property(153)
+    is_static: bool = builtin_property(154)
+    is_wired: bool = builtin_property(155)
+    is_stored: bool = builtin_property(156)
+    is_repr: bool = builtin_property(157)
+    is_hash: bool = builtin_property(158)
+    is_eq: bool = builtin_property(159)
+    is_managed: bool = builtin_property(160)
 
     @classmethod
     def from_property(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
@@ -280,20 +280,24 @@ class TraitDefinition(StructFrozen):
     """Definition of a builtin Trait."""
 
     id: int = builtin_property(2, is_repr=True)
-    type: TraitType = builtin_property(30, is_repr=True)
-    name: str = builtin_property(31, is_repr=True)
-    alias: str = builtin_property(32, is_repr=True)
-    icon: "Icon | None" = builtin_property(34)
-    description: str | None = builtin_property(36, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(37)
+    type: TraitType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    alias: str = builtin_property(102, is_repr=True)
+    icon: "Icon | None" = builtin_property(103)
+    description: str | None = builtin_property(104, is_repr=True)
+    properties: list["PropertyDefinition"] = builtin_property(105)
 
-    is_extensible: bool = builtin_property(43, is_repr=True)
+    is_extensible: bool = builtin_property(
+        110,
+        is_repr=True,
+        description="Whether this Trait can be extended by custom Nodes and custom Traits.",
+    )
 
     traits: list[TraitType] = builtin_property(
-        51, description="Traits directly and indirectly inherited by this trait."
+        120, description="Traits directly and indirectly inherited by this trait."
     )
     base_traits: list[TraitType] = builtin_property(
-        52, description="Traits directly inherited by this trait."
+        121, description="Traits directly inherited by this trait."
     )
 
     @classmethod
@@ -322,57 +326,71 @@ class NodeDefinition(StructFrozen):
     """Definition of a builtin Node."""
 
     id: int = builtin_property(2, is_repr=True)
-    type: NodeType = builtin_property(30, is_repr=True)
-    name: str = builtin_property(31, is_repr=True)
-    icon: "Icon | None" = builtin_property(34)
-    description: str | None = builtin_property(36, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(37)
+    type: NodeType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    description: str | None = builtin_property(103, is_repr=True)
+    properties: list["PropertyDefinition"] = builtin_property(104)
 
-    is_global: bool = builtin_property(40, is_repr=True, description="Whether this Node is global.")
+    is_global: bool = builtin_property(
+        110,
+        is_repr=True,
+        description="Whether this Node is global.",
+    )
     is_spatial: bool = builtin_property(
-        41, is_repr=True, description="Whether this Node is per Space."
+        111, is_repr=True, description="Whether this Node is per Space."
     )
     is_abstract: bool = builtin_property(
-        42,
+        112,
         is_repr=True,
-        description="Whether this Node is abstract (cannot be instantiated directly).",
+        description="Whether this Node cannot be instantiated directly.",
     )
     is_extensible: bool = builtin_property(
-        43,
+        113,
         is_repr=True,
-        description="Whether this Node is extensible (can be extended by custom Nodes).",
+        description="Whether this Node can be extended by custom Nodes.",
     )
     is_frozen: bool = builtin_property(
-        44,
+        114,
         is_repr=True,
-        description="Whether this Node is read-only (cannot be modified).",
+        description="Whether this Node cannot be modified.",
     )
 
     base_type: NodeType | None = builtin_property(
-        50, description="The base type this Node extends (directly)."
+        120, description="The base type this Node extends (directly)."
     )
     extended_by: list[NodeType] = builtin_property(
-        51, description="Nodes that extend this Node type (directly)."
+        121, description="Nodes that extend this Node type (directly)."
     )
     inherits: list[NodeType] = builtin_property(
-        52, description="Nodes that this Node inherits (directly and indirectly)."
+        122, description="Nodes that this Node inherits (directly and indirectly)."
     )
     inherited_by: list[NodeType] = builtin_property(
-        53, description="Nodes that inherit this Node type (directly and indirectly)."
+        123, description="Nodes that inherit this Node type (directly and indirectly)."
     )
     base_traits: list[TraitType] = builtin_property(
-        55, description="Traits directly inherited by this Node (directly)."
+        124, description="Traits directly inherited by this Node (directly)."
     )
     traits: list[TraitType] = builtin_property(
-        56,
+        125,
         description="Traits directly and indirectly inherited by this Node (directly and indirectly).",
     )
 
-    root_type: NodeType | None = builtin_property(60)
-    parent_types: list[NodeType] = builtin_property(61)
-    child_types: list[NodeType] = builtin_property(62)
-    ancestor_types: list[NodeType] = builtin_property(63)
-    descendant_types: list[NodeType] = builtin_property(64)
+    root_type: NodeType | None = builtin_property(
+        130, description="The root ancestor type of this Node type (if any)."
+    )
+    parent_types: list[NodeType] = builtin_property(
+        131, description="The parent types of this Node type (directly)."
+    )
+    child_types: list[NodeType] = builtin_property(
+        132, description="The child types of this Node type (directly)."
+    )
+    ancestor_types: list[NodeType] = builtin_property(
+        133, description="The ancestor types of this Node type (directly and indirectly)."
+    )
+    descendant_types: list[NodeType] = builtin_property(
+        134, description="The descendant types of this Node type (directly and indirectly)."
+    )
 
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
@@ -412,13 +430,13 @@ class StructDefinition(StructFrozen):
     """Definition of a builtin Struct."""
 
     id: int = builtin_property(2, is_repr=True)
-    type: StructType = builtin_property(30, is_repr=True)
-    name: str = builtin_property(31, is_repr=True)
-    icon: "Icon | None" = builtin_property(34)
-    description: str | None = builtin_property(36, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(37)
+    type: StructType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    description: str | None = builtin_property(103, is_repr=True)
+    properties: list["PropertyDefinition"] = builtin_property(104)
 
-    is_frozen: bool = builtin_property(44)
+    is_frozen: bool = builtin_property(110)
 
     @classmethod
     def from_struct(cls, struct_cls: _type[StructBase]) -> "StructDefinition":
@@ -443,11 +461,11 @@ class EnumDefinition(StructFrozen):
     """Definition of a builtin Enum."""
 
     id: int = builtin_property(2, is_repr=True)
-    type: EnumType = builtin_property(30, is_repr=True)
-    name: str = builtin_property(31, is_repr=True)
-    icon: "Icon | None" = builtin_property(34)
-    description: str | None = builtin_property(36, is_repr=True)
-    options: list["OptionDefinition"] = builtin_property(50)
+    type: EnumType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    description: str | None = builtin_property(103, is_repr=True)
+    options: list["OptionDefinition"] = builtin_property(104)
 
     @classmethod
     def from_enum(cls, enum_type: EnumType, enum_cls: _type[Enum]) -> "EnumDefinition":
@@ -472,10 +490,10 @@ class OptionDefinition(StructFrozen):
     """Definition of a builtin Enum Option."""
 
     id: int = builtin_property(2, is_repr=True)
-    type: EnumType = builtin_property(30, is_repr=True)
-    name: str = builtin_property(31, is_repr=True)
-    icon: "Icon | None" = builtin_property(34)
-    description: str | None = builtin_property(36, is_repr=True)
+    type: EnumType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    description: str | None = builtin_property(103, is_repr=True)
 
     @classmethod
     def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
@@ -496,20 +514,20 @@ class PermissionDefinition(StructFrozen):
     """Definition of a builtin Permission for a builtin Node."""
 
     id: int = builtin_property(2, is_repr=True)
-    type: EnumType = builtin_property(30, is_repr=True)
-    name: str = builtin_property(31, is_repr=True)
-    node_type: NodeType = builtin_property(32, is_repr=True)
-    icon: "Icon | None" = builtin_property(34)
+    type: EnumType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    node_type: NodeType = builtin_property(102, is_repr=True)
+    icon: "Icon | None" = builtin_property(103)
 
 
 @builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)
 class ConstantDefinition(StructFrozen):
     """Definition of a builtin Constant."""
 
-    name: str = builtin_property(31, is_repr=True)
-    description: str | None = builtin_property(36, is_repr=True)
-    value: "Value" = builtin_property(40)
-    is_deferred: bool = builtin_property(50)
+    name: str = builtin_property(101, is_repr=True)
+    description: str | None = builtin_property(103, is_repr=True)
+    value: "Value" = builtin_property(120)
+    is_deferred: bool = builtin_property(130)
 
     _declaration: "ConstantDeclaration | None" = builtin_property_runtime()
 

@@ -33,5 +33,5 @@ from .view import *  # noqa: F403
 finalize()
 
 # builtin destackes (pointers) :Builtins
-DESTACK_PTR = NodeReference(node_type=NodeType.SPACE, id=DESTACK_ID, space_id=DESTACK_ID)
+DESTACK_PTR = NodeReference(type=NodeType.SPACE, id=DESTACK_ID, space_id=DESTACK_ID)
 DESTACK_ICON = icon("https://destack.com/favicon.ico")

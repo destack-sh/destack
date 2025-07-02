@@ -4,9 +4,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    HasIcon,
-    HasName,
-    HasSlug,
     IsDeletable,
     IsJoinable,
     IsSpatial,
@@ -18,7 +15,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Folder
+    from destack.language import Folder, Icon
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -33,13 +30,12 @@ class PermissionType(Enum):
 @builtin_node(NodeType.PERMISSION)
 class Permission(
     IsSpatial,
-    HasName,
-    HasSlug,
-    HasIcon,
     IsDeletable,
     Entity,
 ):
     """A Permission for something."""
 
     parent: Union["IsJoinable", "Folder", None] = builtin_property_parent(node_is_extensible=False)
-    type: PermissionType = builtin_property(30)
+    type: PermissionType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)

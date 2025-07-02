@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     Event,
-    HasIcon,
     IsOwnable,
     NodeType,
     builtin_node,
@@ -13,7 +12,7 @@ from destack.language.core import (
 from ..view import ContainerView
 
 if TYPE_CHECKING:
-    from destack.language import Folder, Window
+    from destack.language import Folder, Icon, Window
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,12 +39,14 @@ class SceneExitedEvent(SceneEvent):
 
 
 @builtin_node(NodeType.SCENE)
-class Scene(HasIcon, IsOwnable, ContainerView):
+class Scene(IsOwnable, ContainerView):
     """A Scene is a container for a specific interaction point."""
 
     parent: Union["Folder", "Scene", "Window", None] = builtin_property_parent(
         node_is_extensible=True
     )
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
     root_view: Optional["ContainerView"] = builtin_property(
-        100, description="The root view of the Scene."
+        110, description="The root view of the Scene."
     )

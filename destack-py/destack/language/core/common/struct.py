@@ -4,8 +4,6 @@ from destack.utils.uuid import UUID
 
 from ..builtin import (
     Entity,
-    HasIcon,
-    HasName,
     IsCustomizable,
     IsDeletable,
     IsSourceable,
@@ -20,7 +18,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import StructDefinitionReference, Value
+    from destack.language import Icon, StructDefinitionReference, Value
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,8 +26,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.CUSTOM_STRUCT_DEFINITION)
 class CustomStructDefinition(
     IsSpatial,
-    HasName,
-    HasIcon,
     IsTaggable,
     IsDeletable,
     IsSourceable,
@@ -44,6 +40,9 @@ class CustomStructDefinition(
     )
     base_type: Optional["StructDefinitionReference"] = builtin_property(41)
     is_frozen: bool = builtin_property(60, default=False)
+
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
 
 
 @builtin_struct(StructType.CUSTOM_STRUCT)

@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
-    HasName,
     IsDeletable,
     IsOrdered,
     IsOwnable,
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.ROUTE)
 class Route(
     IsSpatial,
-    HasName,
     IsDeletable,
     IsOrdered,
     IsOwnable,
@@ -33,7 +31,10 @@ class Route(
     """A Route is a path to a Scene."""
 
     parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
+
+    name: str = builtin_property(100, description="The name of the Route.")
+
     scene: Optional["Scene"] = builtin_property(
-        40,
+        110,
         description="The Scene to route to.",
     )

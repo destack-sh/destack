@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    HasName,
     IsDeletable,
     IsJoinable,
     IsOwnable,
@@ -32,7 +31,6 @@ class ThreadStatus(Enum):
 @builtin_node(NodeType.THREAD)
 class Thread(
     IsSpatial,
-    HasName,
     IsTaggable,
     IsDeletable,
     IsJoinable,
@@ -47,4 +45,4 @@ class Thread(
 
     # meta
     parent: Union["Folder", "Thread", None] = builtin_property_parent(node_is_extensible=True)
-    name: str = builtin_property(31, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
