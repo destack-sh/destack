@@ -319,19 +319,20 @@ export abstract class Node extends BuiltinObject {
   }
 
   /** Make a get Query for this Node/Trait type. */
-  static get(
-    options: WithSubqueries<{
+  static get<T extends Node = Node>(
+    this: NodeClass<T>,
+    options?: WithSubqueries<{
       where?: Condition;
       name?: string;
       join?: Join;
     }>,
-  ): Query {
+  ): Query<T> {
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
-    const { where, name, join, ...subqueries } = options;
-    const query = new _Query({
+    const { where, name, join, ...subqueries } = options ?? {};
+    const query = new _Query<T>({
       type: QueryType.NODE,
       definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
@@ -343,8 +344,9 @@ export abstract class Node extends BuiltinObject {
   }
 
   /** Make a search Query for this Node/Trait type. */
-  static search(
-    options: WithSubqueries<{
+  static search<T extends Node = Node>(
+    this: NodeClass<T>,
+    options?: WithSubqueries<{
       where?: Condition;
       name?: string;
       join?: Join;
@@ -354,14 +356,15 @@ export abstract class Node extends BuiltinObject {
       limit?: number;
       offset?: number;
     }>,
-  ): Query {
-    const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } = options;
+  ): Query<T> {
+    const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } =
+      options ?? {};
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    const query = new _Query({
+    const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_NODE : QueryType.NODE,
       definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
@@ -378,20 +381,21 @@ export abstract class Node extends BuiltinObject {
   }
 
   /** Make an exists Query for this Node/Trait type. */
-  static exists(
-    options: WithSubqueries<{
+  static exists<T extends Node = Node>(
+    this: NodeClass<T>,
+    options?: WithSubqueries<{
       where?: Condition;
       name?: string;
       join?: Join;
     }>,
-  ): Query {
-    const { where, name, join, ...subqueries } = options;
+  ): Query<T> {
+    const { where, name, join, ...subqueries } = options ?? {};
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
-    const query = new _Query({
+    const query = new _Query<T>({
       type: QueryType.SCALAR,
       definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
@@ -404,8 +408,9 @@ export abstract class Node extends BuiltinObject {
   }
 
   /** Make a count Query for this Node/Trait type. */
-  static count(
-    options: WithSubqueries<{
+  static count<T extends Node = Node>(
+    this: NodeClass<T>,
+    options?: WithSubqueries<{
       where?: Condition;
       name?: string;
       join?: Join;
@@ -413,15 +418,15 @@ export abstract class Node extends BuiltinObject {
       having?: Condition;
       sort?: Sort[];
     }>,
-  ): Query {
-    const { where, name, join, groupBy, having, sort, ...subqueries } = options;
+  ): Query<T> {
+    const { where, name, join, groupBy, having, sort, ...subqueries } = options ?? {};
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
-    const query = new _Query({
+    const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
       definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
@@ -437,7 +442,8 @@ export abstract class Node extends BuiltinObject {
   }
 
   /** Make a min Query for this Node/Trait type. */
-  static min(
+  static min<T extends Node = Node>(
+    this: NodeClass<T>,
     options: WithSubqueries<{
       expression: ExpressionIn;
       where?: Condition;
@@ -447,7 +453,7 @@ export abstract class Node extends BuiltinObject {
       having?: Condition;
       sort?: Sort[];
     }>,
-  ): Query {
+  ): Query<T> {
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
@@ -455,7 +461,7 @@ export abstract class Node extends BuiltinObject {
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new _Query({
+    const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
       definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
@@ -471,7 +477,8 @@ export abstract class Node extends BuiltinObject {
   }
 
   /** Make a max Query for this Node/Trait type. */
-  static max(
+  static max<T extends Node = Node>(
+    this: NodeClass<T>,
     options: WithSubqueries<{
       expression: ExpressionIn;
       where?: Condition;
@@ -481,7 +488,7 @@ export abstract class Node extends BuiltinObject {
       having?: Condition;
       sort?: Sort[];
     }>,
-  ): Query {
+  ): Query<T> {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
@@ -489,7 +496,7 @@ export abstract class Node extends BuiltinObject {
     ] as typeof NodeDefinitionReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
-    const query = new _Query({
+    const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
       definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
@@ -505,7 +512,8 @@ export abstract class Node extends BuiltinObject {
   }
 
   /** Make a sum Query for this Node/Trait type. */
-  static sum(
+  static sum<T extends Node = Node>(
+    this: NodeClass<T>,
     options: WithSubqueries<{
       expression: ExpressionIn;
       where?: Condition;
@@ -515,7 +523,7 @@ export abstract class Node extends BuiltinObject {
       having?: Condition;
       sort?: Sort[];
     }>,
-  ): Query {
+  ): Query<T> {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
@@ -523,7 +531,7 @@ export abstract class Node extends BuiltinObject {
     ] as typeof NodeDefinitionReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
-    const query = new _Query({
+    const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
       definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),

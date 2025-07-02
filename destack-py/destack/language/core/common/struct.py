@@ -43,6 +43,7 @@ class CustomStructDefinition(
         description="A custom Struct's prototype is the default template new CustomStruct instances are based on.",
     )
     base_type: Optional["StructDefinitionReference"] = builtin_property(41)
+    is_frozen: bool = builtin_property(60, default=False)
 
 
 @builtin_struct(StructType.CUSTOM_STRUCT)

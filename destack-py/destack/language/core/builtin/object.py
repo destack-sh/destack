@@ -26,6 +26,7 @@ from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
 from destack.utils.hash import hash_bool, hash_bytes, hash_float, hash_int, hash_string
+from destack.utils.string import Casing, to_casing
 from destack.utils.uuid import UUID, uuid4
 
 from .common import (
@@ -1160,9 +1161,20 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
     def property(cls, name: str) -> PropertyDeclaration:
         """Get a Property by name."""
         prop = cls.__properties__.get(name)
-        if prop is None:
-            raise ValueError(f"no property '{name}' in {cls.__name__}")
-        return prop
+        if prop is not None:
+            return prop
+        if name.endswith("Ptr"):
+            name = name[:-3]
+        elif name.endswith("_ptr"):
+            name = name[:-4]
+        prop = cls.__properties__.get(name)
+        if prop is not None:
+            return prop
+        camel_name = to_casing(name, Casing.CAMEL)
+        prop = cls.__properties__.get(camel_name)
+        if prop is not None:
+            return prop
+        raise ValueError(f"no property '{name}' in {cls.__name__}")
 
     def equals(
         self,

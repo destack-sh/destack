@@ -3953,7 +3953,7 @@ class CustomStructProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., value: _Optional[_Mapping[str, ValueProto]] = ...) -> None: ...
 
 class CustomStructDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "value", "order_key", "name", "icon", "prototype", "base_type", "source_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "value", "order_key", "name", "icon", "prototype", "base_type", "is_frozen", "source_ptr")
     class ValueEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -3976,6 +3976,7 @@ class CustomStructDefinitionProto(_message.Message):
     ICON_FIELD_NUMBER: _ClassVar[int]
     PROTOTYPE_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    IS_FROZEN_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
@@ -3992,8 +3993,9 @@ class CustomStructDefinitionProto(_message.Message):
     icon: IconProto
     prototype: CustomStructProto
     base_type: StructDefinitionReferenceProto
+    is_frozen: bool
     source_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., value: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., prototype: _Optional[_Union[CustomStructProto, _Mapping]] = ..., base_type: _Optional[_Union[StructDefinitionReferenceProto, _Mapping]] = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., value: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., prototype: _Optional[_Union[CustomStructProto, _Mapping]] = ..., base_type: _Optional[_Union[StructDefinitionReferenceProto, _Mapping]] = ..., is_frozen: bool = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class CustomTraitDefinitionProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "value", "order_key", "name", "base_type", "base_traits", "is_abstract", "script_ptr", "source_ptr")

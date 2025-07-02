@@ -1,8 +1,8 @@
-import { activeSession } from "@destack/language/core/builtin";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { activeSession } from "@destack/language/core/builtin/const";
 import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
-import type { Node, NodeClass } from "@destack/language/core/builtin/node";
-import { isNode } from "@destack/language/core/builtin/node";
+import type { NodeClass } from "@destack/language/core/builtin/node";
+import { Node, isNode } from "@destack/language/core/builtin/node";
 import type {
   NodeDefinitionReference,
   PropertyReference,
@@ -12,7 +12,7 @@ import type { PropertyDefinition } from "@destack/language/core/common/meta";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";
-import { QueryConnection } from "@destack/language/core/runtime";
+import { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
@@ -2198,7 +2198,7 @@ registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
 /**
  * A GraphQL-inspired Query node (with subqueries).
  */
-export class Query extends StructFrozen {
+export class Query<T extends Node = Node> extends StructFrozen {
   static metatype: StructType = StructType.QUERY;
   static __isFrozen__: boolean = true;
 
@@ -2868,21 +2868,22 @@ export class Query extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
+
   /** Execute the Query. */
-  async execute(): Promise<QueryConnection> {
+  async execute(): Promise<QueryConnection<T>> {
     const session = activeSession();
     const store = session.store;
     if (store == null) {
       throw new Error(`no store in ${session.repr()}`);
     }
-    const connection = new QueryConnection({ query: this, store, session });
+    const connection = new QueryConnection<T>({ query: this, store, session });
     session.connections.push(connection);
     await connection.execute();
     return connection;
   }
 
   /** Execute the Query and return the root (if any). */
-  async executeOneOrNone(): Promise<Node | null> {
+  async executeOneOrNone(): Promise<T | null> {
     if (!(this.type === QueryType.NODE || this.type === QueryType.GROUPED_NODE)) {
       throw new Error(`cannot get node of ${this.repr()}`);
     }
@@ -2891,7 +2892,7 @@ export class Query extends StructFrozen {
   }
 
   /** Execute the Query and return the root (error if none). */
-  async executeOne(): Promise<Node> {
+  async executeOne(): Promise<T> {
     if (!(this.type === QueryType.NODE || this.type === QueryType.GROUPED_NODE)) {
       throw new Error(`cannot get node of ${this.repr()}`);
     }
@@ -2900,7 +2901,7 @@ export class Query extends StructFrozen {
   }
 
   /** Execute the Query and return the list of roots. */
-  async executeList(): Promise<Array<Node>> {
+  async executeList(): Promise<Array<T>> {
     if (!(this.type === QueryType.NODE || this.type === QueryType.GROUPED_NODE)) {
       throw new Error(`cannot get nodes of ${this.repr()}`);
     }
@@ -2957,7 +2958,7 @@ export class QueryResult extends Struct {
   id: string;
 
   /**
-   * QueryResultBase.type
+   * QueryResult.type
    */
   type: QueryType;
 
@@ -2972,22 +2973,22 @@ export class QueryResult extends Struct {
   subresults: Array<QueryResult>;
 
   /**
-   * QueryResultBase.nodes
+   * QueryResult.nodes
    */
   nodes: Array<Value>;
 
   /**
-   * QueryResultBase.count
+   * QueryResult.count
    */
   count: number | null;
 
   /**
-   * QueryResultBase.exists
+   * QueryResult.exists
    */
   exists: boolean | null;
 
   /**
-   * QueryResultBase.scalar
+   * QueryResult.scalar
    */
   scalar: Value | null;
 
@@ -3054,6 +3055,9 @@ export class QueryResult extends Struct {
     if (!(this.id === other.id)) {
       return false;
     }
+    if (!(this.type === other.type)) {
+      return false;
+    }
     if (this.groups.length !== other.groups.length) {
       return false;
     }
@@ -3069,9 +3073,6 @@ export class QueryResult extends Struct {
       if (!this.subresults[i].equals(other.subresults[i])) {
         return false;
       }
-    }
-    if (!(this.type === other.type)) {
-      return false;
     }
     if (this.nodes.length !== other.nodes.length) {
       return false;
@@ -3099,13 +3100,13 @@ export class QueryResult extends Struct {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`id=${this.id}`);
+    propertyReprs.push(`type=${QueryType[this.type]}`);
     if (this.groups.length > 0) {
       propertyReprs.push(`groups=${this.groups.map((_item) => _item.repr()).join(", ")}`);
     }
     if (this.subresults.length > 0) {
       propertyReprs.push(`subresults=${this.subresults.map((_item) => _item.repr()).join(", ")}`);
     }
-    propertyReprs.push(`type=${QueryType[this.type]}`);
     if (this.count !== null) {
       propertyReprs.push(`count=${this.count}`);
     }
@@ -3122,6 +3123,7 @@ export class QueryResult extends Struct {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     if (this.groups && this.groups.length > 0) {
       for (const _item of this.groups) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -3132,7 +3134,6 @@ export class QueryResult extends Struct {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.nodes && this.nodes.length > 0) {
       for (const _item of this.nodes) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -3242,9 +3243,9 @@ export class QueryResult extends Struct {
         : null;
     return new QueryResult({
       id: String(objectValue["2"]),
+      type: Number(objectValue["30"]),
       groups: unpackedGroups,
       subresults: unpackedSubresults,
-      type: Number(objectValue["30"]),
       nodes: unpackedNodes,
       count: unpackedCount,
       exists: unpackedExists,
@@ -3340,9 +3341,9 @@ export class QueryResult extends Struct {
     }
     return new QueryResult({
       id: String(objectProto.id),
+      type: Number(objectProto.type) as QueryType,
       groups: unpackedGroups,
       subresults: unpackedSubresults,
-      type: Number(objectProto.type) as QueryType,
       nodes: unpackedNodes,
       count: objectProto.count != undefined ? Number(objectProto.count) : null,
       exists: objectProto.exists != undefined ? objectProto.exists : null,
@@ -3386,7 +3387,7 @@ export class QueryResultGroup extends Struct {
   static __isFrozen__: boolean = false;
 
   /**
-   * QueryResultBase.type
+   * QueryResultGroup.type
    */
   type: QueryType;
 
@@ -3396,22 +3397,22 @@ export class QueryResultGroup extends Struct {
   discriminator: Value;
 
   /**
-   * QueryResultBase.nodes
+   * QueryResultGroup.nodes
    */
   nodes: Array<Value>;
 
   /**
-   * QueryResultBase.count
+   * QueryResultGroup.count
    */
   count: number | null;
 
   /**
-   * QueryResultBase.exists
+   * QueryResultGroup.exists
    */
   exists: boolean | null;
 
   /**
-   * QueryResultBase.scalar
+   * QueryResultGroup.scalar
    */
   scalar: Value | null;
 
@@ -3463,10 +3464,10 @@ export class QueryResultGroup extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!this.discriminator.equals(other.discriminator)) {
+    if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!this.discriminator.equals(other.discriminator)) {
       return false;
     }
     if (this.nodes.length !== other.nodes.length) {
@@ -3494,8 +3495,8 @@ export class QueryResultGroup extends Struct {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`discriminator=${this.discriminator.repr()}`);
     propertyReprs.push(`type=${QueryType[this.type]}`);
+    propertyReprs.push(`discriminator=${this.discriminator.repr()}`);
     if (this.count !== null) {
       propertyReprs.push(`count=${this.count}`);
     }
@@ -3511,8 +3512,8 @@ export class QueryResultGroup extends Struct {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.discriminator.hash()) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.discriminator.hash()) & 0xffffffff;
     if (this.nodes && this.nodes.length > 0) {
       for (const _item of this.nodes) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -3587,6 +3588,7 @@ export class QueryResultGroup extends Struct {
         ? _Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection)
         : null;
     return new QueryResultGroup({
+      type: Number(objectValue["30"]),
       discriminator: _Value.fromValue(
         objectValue["31"],
         _session,
@@ -3594,7 +3596,6 @@ export class QueryResultGroup extends Struct {
         _graph,
         _connection,
       ),
-      type: Number(objectValue["30"]),
       nodes: unpackedNodes,
       count: unpackedCount,
       exists: unpackedExists,
@@ -3661,6 +3662,7 @@ export class QueryResultGroup extends Struct {
       }
     }
     return new QueryResultGroup({
+      type: Number(objectProto.type) as QueryType,
       discriminator: _Value.fromProto(
         objectProto.discriminator!,
         _session,
@@ -3668,7 +3670,6 @@ export class QueryResultGroup extends Struct {
         _graph,
         _connection,
       ),
-      type: Number(objectProto.type) as QueryType,
       nodes: unpackedNodes,
       count: objectProto.count != undefined ? Number(objectProto.count) : null,
       exists: objectProto.exists != undefined ? objectProto.exists : null,

@@ -2260,6 +2260,7 @@ message CustomStructDefinitionProto {
   optional IconProto icon = 34;
   optional CustomStructProto prototype = 40;
   optional StructDefinitionReferenceProto base_type = 41;
+  bool is_frozen = 60;
   optional NodeReferenceProto source_ptr = 210;
 }
 
