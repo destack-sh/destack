@@ -15,8 +15,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -51,7 +51,7 @@ class Action(
     May defer to a builtin or some other service in a separate system.
     """
 
-    parent: Union["IsScriptable", None] = property_parent_(node_is_extensible=True)
+    parent: Union["IsScriptable", None] = builtin_property_parent(node_is_extensible=True)
 
-    cardinality: ActionCardinality = property_(40, default=ActionCardinality.UNARY)
-    text: Optional["Text"] = property_(41)
+    cardinality: ActionCardinality = builtin_property(40, default=ActionCardinality.UNARY)
+    text: Optional["Text"] = builtin_property(41)

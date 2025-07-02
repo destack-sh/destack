@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from destack.language.core import NodeType, builtin_node, property_
+from destack.language.core import NodeType, builtin_node, builtin_property
 
 from ..view import View
 
@@ -15,8 +15,8 @@ class ContentView(View):
     """A content View."""
 
     # layout
-    align: Optional["Align"] = property_(53)
+    align: Optional["Align"] = builtin_property(53)
 
     # appearance
-    is_visible: Optional[bool] = property_(60)
-    opacity: Optional[float] = property_(61)
+    is_visible: Optional[bool] = builtin_property(60)
+    opacity: Optional[float] = builtin_property(61)

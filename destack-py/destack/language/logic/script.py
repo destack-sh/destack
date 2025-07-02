@@ -11,8 +11,8 @@ from destack.language.core import (
     IsSpatial,
     NodeType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -33,9 +33,9 @@ class Script(
 ):
     """A Script."""
 
-    parent: Union["Folder", IsScriptable, "Script", None] = property_parent_(
+    parent: Union["Folder", IsScriptable, "Script", None] = builtin_property_parent(
         node_is_extensible=True
     )
     # type, language, code, ...
 
-    code: str | None = property_(100)
+    code: str | None = builtin_property(100)

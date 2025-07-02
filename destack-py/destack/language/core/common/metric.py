@@ -3,7 +3,7 @@ from ..builtin import (
     Metric,
     NodeType,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -20,7 +20,7 @@ class GaugeMetric(Metric):
 class GaugeMeasurementEvent(MeasurementEvent):
     """A Gauge Measurement."""
 
-    definition: "GaugeMetric" = property_(6)
+    definition: "GaugeMetric" = builtin_property(6)
 
 
 @builtin_node(NodeType.COUNTER_METRIC)
@@ -34,7 +34,7 @@ class CounterMetric(Metric):
 class CounterMeasurementEvent(MeasurementEvent):
     """A Counter Measurement."""
 
-    definition: "CounterMetric" = property_(6)
+    definition: "CounterMetric" = builtin_property(6)
 
 
 @builtin_node(NodeType.HISTOGRAM_METRIC)
@@ -48,4 +48,4 @@ class HistogramMetric(Metric):
 class HistogramMeasurementEvent(MeasurementEvent):
     """A Histogram Measurement."""
 
-    definition: "HistogramMetric" = property_(6)
+    definition: "HistogramMetric" = builtin_property(6)

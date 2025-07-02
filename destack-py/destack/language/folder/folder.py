@@ -19,8 +19,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -59,7 +59,7 @@ class Folder(
 ):
     """A Folder is a sub-space of a Space."""
 
-    parent: Union["Space", "Folder", None] = property_parent_(node_is_extensible=False)
-    type: FolderType = property_(30, is_repr=True, default=FolderType.GENERAL)
+    parent: Union["Space", "Folder", None] = builtin_property_parent(node_is_extensible=False)
+    type: FolderType = builtin_property(30, is_repr=True, default=FolderType.GENERAL)
 
-    main_scene: Optional["Scene"] = property_(41)
+    main_scene: Optional["Scene"] = builtin_property(41)

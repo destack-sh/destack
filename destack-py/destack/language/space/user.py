@@ -18,7 +18,7 @@ from destack.language.core import (
     StringFormat,
     builtin_enum,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -48,37 +48,41 @@ class User(
     """A User is a human using Destack."""
 
     # meta
-    name: str = property_(31, is_repr=True)
-    slug: str = property_(33, is_repr=True)
-    status: UserStatus = property_(
+    name: str = builtin_property(31, is_repr=True)
+    slug: str = builtin_property(33, is_repr=True)
+    status: UserStatus = builtin_property(
         40, can_write=RoleType.SYSTEM, is_repr=True, default=UserStatus.CREATING
     )
-    last_logged_in_at: Optional[datetime] = property_(41, can_write=RoleType.SYSTEM)
+    last_logged_in_at: Optional[datetime] = builtin_property(41, can_write=RoleType.SYSTEM)
     # last_active_at, seen_at, ...
-    is_staff: bool = property_(45, default=False, can_write=RoleType.SYSTEM)
+    is_staff: bool = builtin_property(45, default=False, can_write=RoleType.SYSTEM)
 
-    space: "Space" = property_(50, can_write=RoleType.SYSTEM, node_space_from="self")
-    handle: Optional["Handle"] = property_(51, can_write=RoleType.SYSTEM, node_space_from="self")
-    cursor: Optional["Cursor"] = property_(52, can_write=RoleType.SYSTEM, node_space_from="self")
+    space: "Space" = builtin_property(50, can_write=RoleType.SYSTEM, node_space_from="self")
+    handle: Optional["Handle"] = builtin_property(
+        51, can_write=RoleType.SYSTEM, node_space_from="self"
+    )
+    cursor: Optional["Cursor"] = builtin_property(
+        52, can_write=RoleType.SYSTEM, node_space_from="self"
+    )
     if TYPE_CHECKING:
-        space_ptr: NodeReference = property_()
+        space_ptr: NodeReference = builtin_property()
         handle_ptr: Optional[NodeReference] = None
         cursor_ptr: Optional[NodeReference] = None
 
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client
     #  (multiple auth methods, multiple connected accounts, etc.)
-    email: str | None = property_(
+    email: str | None = builtin_property(
         60,
         format=StringFormat.EMAIL,
         can_read=RoleType.OWNER,
         can_write=RoleType.SYSTEM,
         is_unique=True,
     )
-    password_salt: Optional[bytes] = property_(
+    password_salt: Optional[bytes] = builtin_property(
         61, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
     )
-    password_hash: Optional[bytes] = property_(
+    password_hash: Optional[bytes] = builtin_property(
         62, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
     )
     # challenges?

@@ -9,8 +9,8 @@ from destack.language.core import (
     Vector2,
     builtin_enum,
     builtin_node,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 from destack.proto import PolygonProto
 
@@ -35,13 +35,13 @@ class PolygonShapeType(Enum):
 class Polygon(StructFrozen[PolygonProto]):
     """A Polygon is a list of points."""
 
-    type: PolygonShapeType = property_(30, is_repr=True)
-    points: list[Vector2] = property_(100)
+    type: PolygonShapeType = builtin_property(30, is_repr=True)
+    points: list[Vector2] = builtin_property(100)
 
 
 @builtin_node(NodeType.POLYGON_SHAPE, pretend_frozen=True)
 class PolygonShape(Shape):
     """A PolygonShape is a shape that represents a polygon."""
 
-    type: PolygonShapeType = property_(30, is_repr=True)
-    points: list[Vector2] = property_(100)
+    type: PolygonShapeType = builtin_property(30, is_repr=True)
+    points: list[Vector2] = builtin_property(100)

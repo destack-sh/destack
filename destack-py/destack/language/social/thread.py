@@ -13,8 +13,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -46,5 +46,5 @@ class Thread(
     """
 
     # meta
-    parent: Union["Folder", "Thread", None] = property_parent_(node_is_extensible=True)
-    name: str = property_(31, is_repr=True)
+    parent: Union["Folder", "Thread", None] = builtin_property_parent(node_is_extensible=True)
+    name: str = builtin_property(31, is_repr=True)

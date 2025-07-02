@@ -6,8 +6,8 @@ from ..builtin import (
     StructFrozen,
     StructType,
     builtin_enum,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 if TYPE_CHECKING:
@@ -34,15 +34,15 @@ class IconType(Enum):
 class Icon(StructFrozen):
     """An icon to be displayed in some view."""
 
-    type: IconType = property_(30)
+    type: IconType = builtin_property(30)
     # content
-    emoji: str | None = property_(31)
-    fa_name: str | None = property_(33)
-    vsc_name: str | None = property_(34)
-    file: Optional["File"] = property_(35)
-    file_url: str | None = property_(36)
+    emoji: str | None = builtin_property(31)
+    fa_name: str | None = builtin_property(33)
+    vsc_name: str | None = builtin_property(34)
+    file: Optional["File"] = builtin_property(35)
+    file_url: str | None = builtin_property(36)
     # style
-    color: Optional["Color"] = property_(40)
+    color: Optional["Color"] = builtin_property(40)
 
 
 IconIn = Union[Icon, "File", str]

@@ -6,7 +6,7 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 from ..view import ContainerView
@@ -29,4 +29,4 @@ class CanvasType(Enum):
 class Canvas(ContainerView):
     """A Canvas is a container for only Shapes (other than that it's just a ContainerView)."""
 
-    type: CanvasType = property_(30, default=CanvasType.SHAPE)
+    type: CanvasType = builtin_property(30, default=CanvasType.SHAPE)

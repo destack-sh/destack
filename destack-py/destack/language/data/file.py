@@ -28,8 +28,8 @@ from destack.language.core import (
     Resource,
     builtin_enum,
     builtin_node,
-    property_,
-    property_runtime_,
+    builtin_property,
+    builtin_property_runtime,
 )
 from destack.utils.env import get_from_env
 from destack.utils.func import group_by
@@ -459,35 +459,35 @@ class File(IsSpatial, IsGlobal, HasName, Resource):
     A File stored somewhere.
     """
 
-    type: FileType = property_(30, is_repr=True)
+    type: FileType = builtin_property(30, is_repr=True)
 
     # meta
-    source: FileSource = property_(60, is_repr=True)
-    mime_type: str | None = property_(61, is_repr=True)
-    format: FileFormat | None = property_(62, is_repr=True)
-    size: int | None = property_(63, primitive_type=PrimitiveType.INT64, is_repr=True)
-    sha256: str | None = property_(64)
-    width: int | None = property_(65)
-    height: int | None = property_(66)
-    aspect_ratio: float | None = property_(67)
-    codec: str | None = property_(68)
-    duration: Optional[timedelta] = property_(69)
+    source: FileSource = builtin_property(60, is_repr=True)
+    mime_type: str | None = builtin_property(61, is_repr=True)
+    format: FileFormat | None = builtin_property(62, is_repr=True)
+    size: int | None = builtin_property(63, primitive_type=PrimitiveType.INT64, is_repr=True)
+    sha256: str | None = builtin_property(64)
+    width: int | None = builtin_property(65)
+    height: int | None = builtin_property(66)
+    aspect_ratio: float | None = builtin_property(67)
+    codec: str | None = builtin_property(68)
+    duration: Optional[timedelta] = builtin_property(69)
 
     # content
-    url: str | None = property_(70, is_repr=True)  # if external
-    content_url: str | None = property_(71)  # if external
-    thumbnail_url: str | None = property_(72)  # if external
-    favicon_url: str | None = property_(73)
-    thumbnail_width: int | None = property_(74)
-    thumbnail_height: int | None = property_(75)
-    content: bytes | None = property_(76)
+    url: str | None = builtin_property(70, is_repr=True)  # if external
+    content_url: str | None = builtin_property(71)  # if external
+    thumbnail_url: str | None = builtin_property(72)  # if external
+    favicon_url: str | None = builtin_property(73)
+    thumbnail_width: int | None = builtin_property(74)
+    thumbnail_height: int | None = builtin_property(75)
+    content: bytes | None = builtin_property(76)
 
     # cached content
-    _original: Optional["File"] = property_runtime_(default=None)  # if converted
-    _cached_get_url: Optional[str] = property_runtime_(default=None)
-    _cached_tmp_path: Optional[str] = property_runtime_(default=None)
-    _cached_content: Optional[bytes] = property_runtime_(default=None)
-    _cached_image: Optional[Image.Image] = property_runtime_(default=None)
+    _original: Optional["File"] = builtin_property_runtime(default=None)  # if converted
+    _cached_get_url: Optional[str] = builtin_property_runtime(default=None)
+    _cached_tmp_path: Optional[str] = builtin_property_runtime(default=None)
+    _cached_content: Optional[bytes] = builtin_property_runtime(default=None)
+    _cached_image: Optional[Image.Image] = builtin_property_runtime(default=None)
 
     def get_original(self) -> "File | None":
         """The original file (if converted or self)."""

@@ -16,8 +16,8 @@ from destack.language.core import (
     NodeType,
     RoleType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -27,7 +27,7 @@ from destack.language.core import (
 class RoleEvent(Event["Role"]):
     """A Event regarding a Role."""
 
-    subject: "IsSubject" = property_(40)
+    subject: "IsSubject" = builtin_property(40)
 
 
 @builtin_node(NodeType.ROLE_ASSIGNED_EVENT)
@@ -58,5 +58,5 @@ class Role(
 ):
     """A Role for Subjects to take."""
 
-    parent: Optional["IsJoinable"] = property_parent_(node_is_extensible=False)
-    type: RoleType = property_(30, is_repr=True)
+    parent: Optional["IsJoinable"] = builtin_property_parent(node_is_extensible=False)
+    type: RoleType = builtin_property(30, is_repr=True)

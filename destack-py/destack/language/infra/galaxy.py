@@ -3,8 +3,8 @@ from destack.language.core import (
     RoleType,
     StructFrozen,
     StructType,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -12,9 +12,9 @@ from destack.language.core import (
 
 @builtin_struct(StructType.GALAXY_INFO, frozen=True)
 class GalaxyInfo(StructFrozen):
-    region: Region = property_(50, can_write=RoleType.SYSTEM, is_repr=True)
-    name: str = property_(51, can_write=RoleType.SYSTEM, is_repr=True)
-    host: str = property_(52, can_write=RoleType.SYSTEM, is_repr=True)
+    region: Region = builtin_property(50, can_write=RoleType.SYSTEM, is_repr=True)
+    name: str = builtin_property(51, can_write=RoleType.SYSTEM, is_repr=True)
+    host: str = builtin_property(52, can_write=RoleType.SYSTEM, is_repr=True)
 
 
 # TODO :Infra: map Galaxys into actual Galaxy Nodes?

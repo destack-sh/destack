@@ -8,7 +8,7 @@ from destack.language.core import (
     Vector2,
     builtin_enum,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -33,14 +33,14 @@ class InputEvent[NodeT: View = View](Event[NodeT]):
 class PointerEvent(InputEvent):
     """A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer."""
 
-    position: Vector2 = property_(50)
-    pressure: float = property_(51)
+    position: Vector2 = builtin_property(50)
+    pressure: float = builtin_property(51)
 
-    shift_key: bool = property_(80)
-    alt_key: bool = property_(81)
-    ctrl_key: bool = property_(82)
-    meta_key: bool = property_(83)
-    accel_key: bool = property_(84)
+    shift_key: bool = builtin_property(80)
+    alt_key: bool = builtin_property(81)
+    ctrl_key: bool = builtin_property(82)
+    meta_key: bool = builtin_property(83)
+    accel_key: bool = builtin_property(84)
 
 
 @builtin_node(NodeType.POINTER_DOWN_EVENT)
@@ -110,7 +110,7 @@ class MouseButton(Enum):
 class MouseEvent(PointerEvent):
     """A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse."""
 
-    button: MouseButton = property_(60)
+    button: MouseButton = builtin_property(60)
 
 
 @builtin_node(NodeType.CLICK_EVENT, is_abstract=True)
@@ -152,7 +152,7 @@ class DoubleClickEvent(ClickEvent):
 class WheelEvent(MouseEvent):
     """A WheelEvent is a MouseEvent when a wheel is scrolled."""
 
-    delta: Vector2 = property_(70)
+    delta: Vector2 = builtin_property(70)
 
 
 #
@@ -164,14 +164,14 @@ class WheelEvent(MouseEvent):
 class KeyboardEvent(InputEvent):
     """A KeyboardEvent is an InputEvent that corresponds to some direct user input with a keyboard."""
 
-    key: str = property_(50)
-    code: str = property_(51)
-    repeat: bool = property_(52)
+    key: str = builtin_property(50)
+    code: str = builtin_property(51)
+    repeat: bool = builtin_property(52)
 
-    shift_key: bool = property_(80)
-    alt_key: bool = property_(81)
-    ctrl_key: bool = property_(82)
-    meta_key: bool = property_(83)
+    shift_key: bool = builtin_property(80)
+    alt_key: bool = builtin_property(81)
+    ctrl_key: bool = builtin_property(82)
+    meta_key: bool = builtin_property(83)
 
 
 @builtin_node(NodeType.KEY_DOWN_EVENT)
@@ -204,7 +204,7 @@ class KeyPressEvent(KeyboardEvent):
 class DragEvent(InputEvent):
     """A DragEvent is an InputEvent that corresponds to some direct user input with a drag."""
 
-    position: Vector2 = property_(50)
+    position: Vector2 = builtin_property(50)
 
 
 @builtin_node(NodeType.DRAG_START_EVENT)

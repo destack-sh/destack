@@ -620,7 +620,7 @@ class PropertyDeclaration(TypeDeclaration):
         return Sort.of(self, SortType.DESCENDING)
 
 
-def property_(
+def builtin_property(
     id: int | None = None,
     *,
     description: str | None = None,
@@ -669,7 +669,7 @@ def property_(
     )
 
 
-def property_parent_(*, node_is_extensible: bool) -> Any:
+def builtin_property_parent(*, node_is_extensible: bool) -> Any:
     """The parent of a node, must be of one of the given types."""
     return PropertyDeclaration(
         id=3,  # NOTE: never change this id!
@@ -686,7 +686,7 @@ def property_parent_(*, node_is_extensible: bool) -> Any:
     )
 
 
-def property_runtime_(*, default: Any = UNSET) -> Any:
+def builtin_property_runtime(*, default: Any = UNSET) -> Any:
     """A property that is only used at runtime."""
     return PropertyDeclaration(
         id=None,
@@ -700,4 +700,8 @@ def property_runtime_(*, default: Any = UNSET) -> Any:
     )
 
 
-_PROPERTY_SPECIFIERS: tuple[Callable, ...] = (property_, property_parent_, property_runtime_)
+_PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
+    builtin_property,
+    builtin_property_parent,
+    builtin_property_runtime,
+)

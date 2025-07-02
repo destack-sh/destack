@@ -11,8 +11,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -55,22 +55,22 @@ class Interruption(IsSpatial, Entity):
     """An Interruption in run of something."""
 
     # meta
-    parent: Optional["Run"] = property_parent_(node_is_extensible=False)
-    type: InterruptionType = property_(30)
-    runnable: Optional["IsRunnable"] = property_(32)
-    span: Optional["SpanEvent"] = property_(37)
+    parent: Optional["Run"] = builtin_property_parent(node_is_extensible=False)
+    type: InterruptionType = builtin_property(30)
+    runnable: Optional["IsRunnable"] = builtin_property(32)
+    span: Optional["SpanEvent"] = builtin_property(37)
     if TYPE_CHECKING:
         runnable_ptr: Optional[NodeReference] = None
         span_ptr: Optional[NodeReference] = None
 
     # status
-    status: InterruptionStatus = property_(40, default=InterruptionStatus.OPEN)
-    duration: Optional[timedelta] = property_(41)
-    closed_at: Optional[datetime] = property_(42)
+    status: InterruptionStatus = builtin_property(40, default=InterruptionStatus.OPEN)
+    duration: Optional[timedelta] = builtin_property(41)
+    closed_at: Optional[datetime] = builtin_property(42)
 
     # content
-    response: Optional[InterruptionResponse] = property_(54)
-    message: Optional["Message"] = property_(
+    response: Optional[InterruptionResponse] = builtin_property(54)
+    message: Optional["Message"] = builtin_property(
         55,
         description="The Message that was created for this Interruption.",
         node_space_from="self",

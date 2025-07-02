@@ -10,7 +10,7 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ class NotificationStatus(Enum):
 class NotificationEvent(Event["Notification"]):
     """A Event regarding a Notification."""
 
-    node: "Notification" = property_(35)
+    node: "Notification" = builtin_property(35)
 
 
 @builtin_node(NodeType.NOTIFICATION_SENT_EVENT)
@@ -76,6 +76,6 @@ class NotificationExpiredEvent(NotificationEvent):
 class Notification(IsSpatial, IsOwnable, Entity):
     """A Notification is a message about something."""
 
-    status: NotificationStatus = property_(40)
-    title: str = property_(50)
-    text: "Text | None" = property_(51)
+    status: NotificationStatus = builtin_property(40)
+    title: str = builtin_property(50)
+    text: "Text | None" = builtin_property(51)

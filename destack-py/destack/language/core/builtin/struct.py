@@ -15,7 +15,7 @@ from destack.proto import AnyStructProto
 
 from .common import StructType
 from .object import BuiltinObjectBase, BuiltinObjectFrozen, BuiltinObjectMutable, object_
-from .property import _PROPERTY_SPECIFIERS, property_runtime_
+from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
 
 if TYPE_CHECKING:
     from destack.language import Json, StructDefinition
@@ -83,10 +83,10 @@ class StructFrozen[StructProtoT: AnyStructProto](
     """An immutable Struct."""
 
     # cached for frozen Structs
-    _hash: "int | None" = property_runtime_()
-    _repr: "str | None" = property_runtime_()
-    _proto: "StructProtoT | None" = property_runtime_()
-    _value: "Json | None" = property_runtime_()
+    _hash: "int | None" = builtin_property_runtime()
+    _repr: "str | None" = builtin_property_runtime()
+    _proto: "StructProtoT | None" = builtin_property_runtime()
+    _value: "Json | None" = builtin_property_runtime()
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that

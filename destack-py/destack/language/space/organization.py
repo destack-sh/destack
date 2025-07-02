@@ -15,7 +15,7 @@ from destack.language.core import (
     RoleType,
     builtin_enum,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -36,12 +36,12 @@ class Organization(IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable, Ent
     An Organization with Users and Teams.
     """
 
-    slug: str = property_(33, is_repr=True)
-    status: OrganizationStatus = property_(
+    slug: str = builtin_property(33, is_repr=True)
+    status: OrganizationStatus = builtin_property(
         40, can_write=RoleType.SYSTEM, is_repr=True, default=OrganizationStatus.CREATING
     )
-    space: "Space" = property_(50, can_write=RoleType.SYSTEM)
-    handle: Optional["Handle"] = property_(51, can_write=RoleType.SYSTEM)
+    space: "Space" = builtin_property(50, can_write=RoleType.SYSTEM)
+    handle: Optional["Handle"] = builtin_property(51, can_write=RoleType.SYSTEM)
     if TYPE_CHECKING:
-        space_ptr: NodeReference = property_()
+        space_ptr: NodeReference = builtin_property()
         handle_ptr: Optional[NodeReference] = None

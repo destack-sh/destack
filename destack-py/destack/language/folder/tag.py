@@ -10,8 +10,8 @@ from destack.language.core import (
     IsTaggable,
     NodeType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ class Tag(
 ):
     """A Tag to tag something."""
 
-    parent: Optional["Folder"] = property_parent_(node_is_extensible=False)
+    parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
 
 
 @builtin_node(NodeType.TAGGING)
@@ -44,5 +44,5 @@ class Tagging(
 ):
     """A Tagging of a Node by a Tag."""
 
-    parent: Optional["IsTaggable"] = property_parent_(node_is_extensible=False)
-    tag: Optional["Tag"] = property_(40)
+    parent: Optional["IsTaggable"] = builtin_property_parent(node_is_extensible=False)
+    tag: Optional["Tag"] = builtin_property(40)

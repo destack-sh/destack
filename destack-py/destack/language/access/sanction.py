@@ -15,8 +15,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.SANCTION_EVENT, is_abstract=True)
 class SanctionEvent(Event["Sanction"]):
-    node: "Sanction" = property_(35)
-    target: "IsSubject" = property_(40)
+    node: "Sanction" = builtin_property(35)
+    target: "IsSubject" = builtin_property(40)
 
 
 @builtin_node(NodeType.SANCTION_REQUESTED_EVENT)
@@ -63,9 +63,11 @@ class SanctionType(Enum):
 class Sanction(IsSpatial, IsDeletable, Entity):
     """A Sanction on some Subject."""
 
-    parent: Union["IsSubject", "IsJoinable", None] = property_parent_(node_is_extensible=True)
-    type: SanctionType = property_(30)
-    expires_at: Optional[datetime] = property_(40)
-    target: IsSubject = property_(41)
+    parent: Union["IsSubject", "IsJoinable", None] = builtin_property_parent(
+        node_is_extensible=True
+    )
+    type: SanctionType = builtin_property(30)
+    expires_at: Optional[datetime] = builtin_property(40)
+    target: IsSubject = builtin_property(41)
     if TYPE_CHECKING:
         target_ptr: NodeReference = UNSET

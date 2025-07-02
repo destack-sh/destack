@@ -9,8 +9,8 @@ from ..builtin import (
     IsSpatial,
     NodeType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ class Snapshot(
 ):
     """A Snapshot is a point in Space time."""
 
-    parent: Union["Space", "Branch", None] = property_parent_(node_is_extensible=False)
+    parent: Union["Space", "Branch", None] = builtin_property_parent(node_is_extensible=False)
 
 
 @builtin_node(NodeType.BRANCH)
@@ -44,6 +44,6 @@ class Branch(
 ):
     """A Branch is a version of a Snapshot."""
 
-    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
+    parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
 
-    head: Optional["Snapshot"] = property_(40)
+    head: Optional["Snapshot"] = builtin_property(40)

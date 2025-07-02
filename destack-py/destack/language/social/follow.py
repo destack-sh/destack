@@ -10,8 +10,8 @@ from destack.language.core import (
     IsSubject,
     NodeType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -33,5 +33,5 @@ class Follow(
 ):
     """A Follow is a relationship between a Subject and an IsFollowable Node."""
 
-    parent: Union["IsFollowable", None] = property_parent_(node_is_extensible=True)
-    owned_by: "IsSubject" = property_(25)
+    parent: Union["IsFollowable", None] = builtin_property_parent(node_is_extensible=True)
+    owned_by: "IsSubject" = builtin_property(25)
