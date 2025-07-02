@@ -31,8 +31,8 @@ from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
     _resolve_trait_type,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -172,8 +172,8 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     #  (repeat common Node properties here so Trait NodeDefinitionReferences can reference them,
     #   since Trait doesn't actually inherit from Node for circularity reasons;
     #   but it is still useful to pretend so for typing since Python doesn't support `Trait & Node`)
-    id: UUID = property_(2, is_managed=True, is_eq=False, can_write=None)
-    parent: Optional["Node"] = property_parent_(node_is_extensible=True)
+    id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=None)
+    parent: Optional["Node"] = builtin_property_parent(node_is_extensible=True)
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 
@@ -192,21 +192,21 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
 class HasName(Trait):
     """A Node with a plain name."""
 
-    name: str = property_(31, is_repr=True)
+    name: str = builtin_property(31, is_repr=True)
 
 
 @builtin_trait(TraitType.HAS_SLUG)
 class HasSlug(Trait):
     """A Node with a slug."""
 
-    slug: str | None = property_(33, is_repr=True)
+    slug: str | None = builtin_property(33, is_repr=True)
 
 
 @builtin_trait(TraitType.HAS_ICON)
 class HasIcon(Trait):
     """A Node with an icon."""
 
-    icon: Optional["Icon"] = property_(34)
+    icon: Optional["Icon"] = builtin_property(34)
 
 
 #
@@ -218,7 +218,7 @@ class HasIcon(Trait):
 class IsArchivable(Trait):
     """A Node that can be archived."""
 
-    archived_at: Optional[datetime] = property_(19, is_managed=True, is_eq=False)
+    archived_at: Optional[datetime] = builtin_property(19, is_managed=True, is_eq=False)
 
     @property
     def is_archived(self) -> bool:
@@ -239,7 +239,7 @@ class IsArchivable(Trait):
 class IsDeletable(Trait):
     """A Node that can be deleted."""
 
-    deleted_at: Optional[datetime] = property_(20, is_managed=True, is_eq=False)
+    deleted_at: Optional[datetime] = builtin_property(20, is_managed=True, is_eq=False)
 
     def delete(self):
         """Delete this Node."""
@@ -263,14 +263,14 @@ class IsExtensible(Trait):
 class IsCustomizable(Trait):
     """A Node that can be customized with custom Properties."""
 
-    value: dict[UUID, "Value"] = property_(21)
+    value: dict[UUID, "Value"] = builtin_property(21)
 
 
 @builtin_trait(TraitType.ORDERED)
 class IsOrdered(Trait):
     """A Node that can be ordered."""
 
-    order_key: str = property_(22, is_eq=False, is_managed=True, default=INTEGER_ZERO)
+    order_key: str = builtin_property(22, is_eq=False, is_managed=True, default=INTEGER_ZERO)
 
 
 @builtin_trait(TraitType.REACTABLE)
@@ -298,7 +298,7 @@ class IsFollowable(Trait):
 class IsSourceable(IsOrdered):
     """A Node that can be sourced from / defined by a Script."""
 
-    source: Optional["Script"] = property_(210, is_managed=True)
+    source: Optional["Script"] = builtin_property(210, is_managed=True)
     # token_range, ...
 
 
@@ -306,7 +306,9 @@ class IsSourceable(IsOrdered):
 class IsScriptable(Trait):
     """A Node that can be scripted."""
 
-    script: Optional["Script"] = property_(200, description="The main / root Script of this Node.")
+    script: Optional["Script"] = builtin_property(
+        200, description="The main / root Script of this Node."
+    )
 
 
 @builtin_trait(TraitType.RUNNABLE)
@@ -320,7 +322,7 @@ class IsRunnable(Trait):
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsOwner"] = property_(25, is_repr=True)
+    owned_by: Optional["IsOwner"] = builtin_property(25, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: Optional[NodeReference] = None
 
@@ -379,7 +381,7 @@ class IsGlobal(Trait):
 class IsSpatial(Trait):
     """A Node in a Space."""
 
-    space: "Space | None" = property_(
+    space: "Space | None" = builtin_property(
         5,
         is_managed=True,
         description="The Space this Node is in.",

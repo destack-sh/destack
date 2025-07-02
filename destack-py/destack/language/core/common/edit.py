@@ -16,8 +16,8 @@ from ..builtin import (
     StructFrozen,
     StructType,
     builtin_enum,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 from ..builtin.relation import NodeReference, PropertyReference
 
@@ -84,19 +84,21 @@ class Edit(StructFrozen):
     An Edit to a Node.
     """
 
-    id: UUID = property_(2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID)
-    type: EditType = property_(30, is_repr=True)
-    operation: EditOperation | None = property_(31, is_repr=True)
-    node: Node = property_(32, is_repr=True)
-    prop_ptr: PropertyReference | None = property_(33, is_repr=True)
-    field: "CustomProperty | None" = property_(34, is_repr=True)  # for IsExtensible.value
-    key: "Value | None" = property_(35, is_repr=True)  # for map operations
+    id: UUID = builtin_property(
+        2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID
+    )
+    type: EditType = builtin_property(30, is_repr=True)
+    operation: EditOperation | None = builtin_property(31, is_repr=True)
+    node: Node = builtin_property(32, is_repr=True)
+    prop_ptr: PropertyReference | None = builtin_property(33, is_repr=True)
+    field: "CustomProperty | None" = builtin_property(34, is_repr=True)  # for IsExtensible.value
+    key: "Value | None" = builtin_property(35, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET
         field_ptr: NodeReference | None = None
 
-    value: "Value | None" = property_(40)
-    undo: "Edit | None" = property_(
+    value: "Value | None" = builtin_property(40)
+    undo: "Edit | None" = builtin_property(
         50,
         description="The inverse Edit (if it cannot be derived from the Edit itself).",
     )
@@ -106,10 +108,10 @@ class Edit(StructFrozen):
 class Origin(StructFrozen[OriginProto]):
     """Origin of something."""
 
-    type: "ClientType" = property_(30)
-    id: Optional[UUID] = property_(31)
-    ck: Optional[UUID] = property_(32)
-    nonce: Optional[UUID] = property_(33)
+    type: "ClientType" = builtin_property(30)
+    id: Optional[UUID] = builtin_property(31)
+    ck: Optional[UUID] = builtin_property(32)
+    nonce: Optional[UUID] = builtin_property(33)
 
 
 @builtin_enum(EnumType.CHANGE_STATUS)
@@ -134,39 +136,41 @@ class Change(StructFrozen):
     """A Change is an atomic sequence of Edits."""
 
     # meta
-    id: UUID = property_(2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID)
-    name: str | None = property_(31, is_repr=True)
-    created_at: datetime = property_(
+    id: UUID = builtin_property(
+        2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID
+    )
+    name: str | None = builtin_property(31, is_repr=True)
+    created_at: datetime = builtin_property(
         32, is_managed=True, is_repr=True, default_factory=DefaultFactory.NOW
     )
-    created_by: "IsSubject | None" = property_(33, is_managed=True, is_repr=True)
-    origin: "Origin | None" = property_(34, is_managed=True, is_repr=True)
-    debounce: "ChangeDebounce | None" = property_(35, is_managed=True, is_repr=True)
+    created_by: "IsSubject | None" = builtin_property(33, is_managed=True, is_repr=True)
+    origin: "Origin | None" = builtin_property(34, is_managed=True, is_repr=True)
+    debounce: "ChangeDebounce | None" = builtin_property(35, is_managed=True, is_repr=True)
 
-    edits: list[Edit] = property_(40)
+    edits: list[Edit] = builtin_property(40)
 
 
 @builtin_struct(StructType.CHANGE_RESULT, frozen=True)
 class ChangeResult(StructFrozen):
     """The result of a Change. If rejected, edits/cascaded_edits are empty."""
 
-    id: UUID = property_(
+    id: UUID = builtin_property(
         2,
         is_managed=True,
         is_repr=True,
         default_factory=DefaultFactory.UUID,
         description="The id of the Change.",
     )
-    created_at: datetime = property_(
+    created_at: datetime = builtin_property(
         10,
         is_managed=True,
         is_repr=True,
         description="The time the ChangeResult was created.",
         default_factory=DefaultFactory.NOW,
     )
-    debounce: "ChangeDebounce | None" = property_(35, is_managed=True, is_repr=True)
-    status: ChangeStatus = property_(40, is_repr=True)
-    edits: list[Edit] = property_(41, description="The applied Edits (may differ).")
-    cascaded_edits: list[Edit] = property_(
+    debounce: "ChangeDebounce | None" = builtin_property(35, is_managed=True, is_repr=True)
+    status: ChangeStatus = builtin_property(40, is_repr=True)
+    edits: list[Edit] = builtin_property(41, description="The applied Edits (may differ).")
+    cascaded_edits: list[Edit] = builtin_property(
         42, description="The Edits cascaded from the applied Edits."
     )

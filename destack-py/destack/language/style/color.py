@@ -8,9 +8,9 @@ from destack.language.core import (
     StructType,
     builtin_enum,
     builtin_node,
+    builtin_property,
+    builtin_property_parent,
     builtin_struct,
-    property_,
-    property_parent_,
 )
 
 from .style import Style
@@ -91,15 +91,15 @@ class ColorIntent(Enum):
 class Color(StructFrozen):
     """A color value."""
 
-    type: ColorType = property_(30, is_repr=True)
-    style: Optional["ColorStyle"] = property_(42, is_repr=True)
-    hue: Optional[ColorHue] = property_(50, is_repr=True)
-    shade: Optional[ColorShade] = property_(51, is_repr=True)
-    intent: Optional[ColorIntent] = property_(52, is_repr=True)
-    x: Optional[float] = property_(55, is_repr=True)
-    y: Optional[float] = property_(56, is_repr=True)
-    z: Optional[float] = property_(57, is_repr=True)
-    alpha: Optional[float] = property_(58, is_repr=True)
+    type: ColorType = builtin_property(30, is_repr=True)
+    style: Optional["ColorStyle"] = builtin_property(42, is_repr=True)
+    hue: Optional[ColorHue] = builtin_property(50, is_repr=True)
+    shade: Optional[ColorShade] = builtin_property(51, is_repr=True)
+    intent: Optional[ColorIntent] = builtin_property(52, is_repr=True)
+    x: Optional[float] = builtin_property(55, is_repr=True)
+    y: Optional[float] = builtin_property(56, is_repr=True)
+    z: Optional[float] = builtin_property(57, is_repr=True)
+    alpha: Optional[float] = builtin_property(58, is_repr=True)
 
     @staticmethod
     def from_hex(hex: str) -> "Color":
@@ -115,18 +115,18 @@ class Color(StructFrozen):
 class ColorStyle(Style):
     """A color style, with an optional dark variant."""
 
-    parent: Union["Scene", "View", "Theme", "Palette", None] = property_parent_(
+    parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent(
         node_is_extensible=True
     )
-    type: ColorType = property_(30, is_repr=True)
-    hue: Optional[ColorHue] = property_(50, is_repr=True)
-    shade: Optional[ColorShade] = property_(51, is_repr=True)
-    intent: Optional[ColorIntent] = property_(52, is_repr=True)
-    x: Optional[float] = property_(55, is_repr=True)
-    y: Optional[float] = property_(56, is_repr=True)
-    z: Optional[float] = property_(57, is_repr=True)
-    alpha: Optional[float] = property_(58, is_repr=True)
-    dark: Color | None = property_(60)
+    type: ColorType = builtin_property(30, is_repr=True)
+    hue: Optional[ColorHue] = builtin_property(50, is_repr=True)
+    shade: Optional[ColorShade] = builtin_property(51, is_repr=True)
+    intent: Optional[ColorIntent] = builtin_property(52, is_repr=True)
+    x: Optional[float] = builtin_property(55, is_repr=True)
+    y: Optional[float] = builtin_property(56, is_repr=True)
+    z: Optional[float] = builtin_property(57, is_repr=True)
+    alpha: Optional[float] = builtin_property(58, is_repr=True)
+    dark: Color | None = builtin_property(60)
 
     @staticmethod
     def from_color(name: str, color: Color, dark: Color | None = None) -> "ColorStyle":

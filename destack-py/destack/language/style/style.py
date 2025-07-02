@@ -9,7 +9,7 @@ from destack.language.core import (
     IsTaggable,
     NodeType,
     builtin_node,
-    property_parent_,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -29,6 +29,6 @@ class Style(
 ):
     """A Style is a style definition."""
 
-    parent: Union["Scene", "View", "Theme", "Palette", None] = property_parent_(
+    parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent(
         node_is_extensible=True
     )

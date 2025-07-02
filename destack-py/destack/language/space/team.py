@@ -10,7 +10,7 @@ from destack.language.core import (
     IsOwner,
     NodeType,
     builtin_node,
-    property_parent_,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -25,4 +25,4 @@ class Team(IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable, Entity):
     An Team with Users and Teams.
     """
 
-    parent: Optional["Organization"] = property_parent_(node_is_extensible=False)
+    parent: Optional["Organization"] = builtin_property_parent(node_is_extensible=False)

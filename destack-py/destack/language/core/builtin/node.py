@@ -24,9 +24,9 @@ from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     _resolve_trait_type,
-    property_,
-    property_parent_,
-    property_runtime_,
+    builtin_property,
+    builtin_property_parent,
+    builtin_property_runtime,
 )
 from .trait import (
     INTER_ORDER_TYPES,
@@ -143,8 +143,8 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
 
     # 1-14: node identity
     # Node.metatype: 1
-    id: UUID = property_(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    parent: Optional["Node"] = property_parent_(node_is_extensible=True)
+    id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
+    parent: Optional["Node"] = builtin_property_parent(node_is_extensible=True)
     # Node.store: 4
     # Spatial.space: 5
     # IsCustomNode.definition: 6
@@ -154,14 +154,14 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 
-    _session: "Session" = property_runtime_()
-    _supergraph: "Supergraph" = property_runtime_()
-    _graph: "Graph" = property_runtime_(default=None)
-    _connection: "QueryConnection | None" = property_runtime_(default=None)
-    _ref: "Optional[NodeReference]" = property_runtime_(default=None)
-    _is_new: bool = property_runtime_(default=False)
-    _is_attached: bool = property_runtime_(default=False)
-    _dirty: dict[str, Any] | None = property_runtime_(default=None)
+    _session: "Session" = builtin_property_runtime()
+    _supergraph: "Supergraph" = builtin_property_runtime()
+    _graph: "Graph" = builtin_property_runtime(default=None)
+    _connection: "QueryConnection | None" = builtin_property_runtime(default=None)
+    _ref: "Optional[NodeReference]" = builtin_property_runtime(default=None)
+    _is_new: bool = builtin_property_runtime(default=False)
+    _is_attached: bool = builtin_property_runtime(default=False)
+    _dirty: dict[str, Any] | None = builtin_property_runtime(default=None)
 
     def __eq__(self, other: Any):
         """Equals the Node's identity."""

@@ -8,8 +8,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ class LogLevel(Enum):
 class LogEvent(Event):
     """A Log message."""
 
-    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
-    content: str = property_(40)
-    attributes: dict[str, Json] = property_(41)
-    level: LogLevel = property_(42)
+    parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
+    content: str = builtin_property(40)
+    attributes: dict[str, Json] = builtin_property(41)
+    level: LogLevel = builtin_property(42)

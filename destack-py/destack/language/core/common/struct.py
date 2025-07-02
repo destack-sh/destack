@@ -15,8 +15,8 @@ from ..builtin import (
     StructMutable,
     StructType,
     builtin_node,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 if TYPE_CHECKING:
@@ -38,16 +38,16 @@ class CustomStructDefinition(
 ):
     """A CustomStructDefinition describes a custom Struct with custom Properties."""
 
-    prototype: Optional["CustomStruct"] = property_(
+    prototype: Optional["CustomStruct"] = builtin_property(
         40,
         description="A custom Struct's prototype is the default template new CustomStruct instances are based on.",
     )
-    base_type: Optional["StructDefinitionReference"] = property_(41)
+    base_type: Optional["StructDefinitionReference"] = builtin_property(41)
 
 
 @builtin_struct(StructType.CUSTOM_STRUCT)
 class CustomStruct(StructMutable):
     """A CustomStruct is an instance of a CustomStructDefinition."""
 
-    definition: "CustomStructDefinition" = property_(6)
-    value: dict[UUID, "Value"] = property_(21)
+    definition: "CustomStructDefinition" = builtin_property(6)
+    value: dict[UUID, "Value"] = builtin_property(21)

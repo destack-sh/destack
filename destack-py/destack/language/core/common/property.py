@@ -16,8 +16,8 @@ from ..builtin import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 from .query import Condition, ConditionalType, Sort, SortType
 from .type import (
@@ -65,43 +65,45 @@ class CustomProperty(
     A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.
     """
 
-    parent: Union["IsExtensible", "CustomProperty", None] = property_parent_(
+    parent: Union["IsExtensible", "CustomProperty", None] = builtin_property_parent(
         node_is_extensible=True
     )
-    type: CustomPropertyType = property_(30, default=CustomPropertyType.MEMBER)
+    type: CustomPropertyType = builtin_property(30, default=CustomPropertyType.MEMBER)
 
     # scalar
-    cardinality: TypeCardinality = property_(40, default=TypeCardinality.SCALAR, is_repr=True)
-    scalar_type: ScalarType = property_(41, is_repr=True)
-    primitive_type: Optional[PrimitiveType] = property_(42, is_repr=True)
-    enum_type: Optional[EnumType] = property_(43, is_repr=True)
-    node_type: Optional[NodeType] = property_(44, is_repr=True)
-    node_definition: Optional["CustomEntityDefinition"] = property_(45, is_repr=True)
-    struct_type: Optional[StructType] = property_(46, is_repr=True)
-    base_type: Optional["Node"] = property_(47, is_repr=True)
-    key_type: Optional["Type"] = property_(48, is_repr=True)  # for maps
+    cardinality: TypeCardinality = builtin_property(
+        40, default=TypeCardinality.SCALAR, is_repr=True
+    )
+    scalar_type: ScalarType = builtin_property(41, is_repr=True)
+    primitive_type: Optional[PrimitiveType] = builtin_property(42, is_repr=True)
+    enum_type: Optional[EnumType] = builtin_property(43, is_repr=True)
+    node_type: Optional[NodeType] = builtin_property(44, is_repr=True)
+    node_definition: Optional["CustomEntityDefinition"] = builtin_property(45, is_repr=True)
+    struct_type: Optional[StructType] = builtin_property(46, is_repr=True)
+    base_type: Optional["Node"] = builtin_property(47, is_repr=True)
+    key_type: Optional["Type"] = builtin_property(48, is_repr=True)  # for maps
     if TYPE_CHECKING:
         pass
 
     # meta
-    is_required: bool | None = property_(50)
-    is_unique: bool | None = property_(51)
-    default_value: Optional["Value"] = property_(55)
-    default_factory: Optional[DefaultFactory] = property_(56)
+    is_required: bool | None = builtin_property(50)
+    is_unique: bool | None = builtin_property(51)
+    default_value: Optional["Value"] = builtin_property(55)
+    default_factory: Optional[DefaultFactory] = builtin_property(56)
 
     # constraints
-    collection_constraint: Optional["CollectionConstraint"] = property_(60)
-    string_constraint: Optional["StringConstraint"] = property_(61)
-    number_constraint: Optional["NumberConstraint"] = property_(62)
-    node_constraint: Optional["NodeConstraint"] = property_(63)
+    collection_constraint: Optional["CollectionConstraint"] = builtin_property(60)
+    string_constraint: Optional["StringConstraint"] = builtin_property(61)
+    number_constraint: Optional["NumberConstraint"] = builtin_property(62)
+    node_constraint: Optional["NodeConstraint"] = builtin_property(63)
 
     # relationship
-    edge_type: Optional[EdgeType] = property_(70)
-    cascade: Optional[CascadeAction] = property_(71)
+    edge_type: Optional[EdgeType] = builtin_property(70)
+    cascade: Optional[CascadeAction] = builtin_property(71)
 
     # flags
-    is_readonly: bool | None = property_(80)
-    is_static: bool | None = property_(81)
+    is_readonly: bool | None = builtin_property(80)
+    is_static: bool | None = builtin_property(81)
 
     def eq(self, value: Any) -> Condition:
         if value is None:

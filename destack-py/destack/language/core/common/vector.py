@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 from ..builtin import (
     StructFrozen,
     StructType,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 if TYPE_CHECKING:
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 class Vector2(StructFrozen):
     """A 2D float vector."""
 
-    x: float = property_(50, is_repr=True)
-    y: float = property_(51, is_repr=True)
+    x: float = builtin_property(50, is_repr=True)
+    y: float = builtin_property(51, is_repr=True)
 
     def __add__(self, other: "Vector2 | float") -> "Vector2":
         if isinstance(other, Vector2):
@@ -133,9 +133,9 @@ class Vector2(StructFrozen):
 class Vector3(StructFrozen):
     """A 3D float vector."""
 
-    x: float = property_(50, is_repr=True)
-    y: float = property_(51, is_repr=True)
-    z: float = property_(52, is_repr=True)
+    x: float = builtin_property(50, is_repr=True)
+    y: float = builtin_property(51, is_repr=True)
+    z: float = builtin_property(52, is_repr=True)
 
     def __add__(self, other: "Vector3 | float") -> "Vector3":
         if isinstance(other, Vector3):
@@ -256,10 +256,10 @@ class Vector3(StructFrozen):
 class Vector4(StructFrozen):
     """A 4D float vector."""
 
-    x: float = property_(50, is_repr=True)
-    y: float = property_(51, is_repr=True)
-    z: float = property_(52, is_repr=True)
-    w: float = property_(53, is_repr=True)
+    x: float = builtin_property(50, is_repr=True)
+    y: float = builtin_property(51, is_repr=True)
+    z: float = builtin_property(52, is_repr=True)
+    w: float = builtin_property(53, is_repr=True)
 
     def __add__(self, other: "Vector4 | float") -> "Vector4":
         if isinstance(other, Vector4):
@@ -384,8 +384,8 @@ class Vector4(StructFrozen):
 class Vector2i(StructFrozen):
     """A 2D integer vector."""
 
-    x: int = property_(50, is_repr=True)
-    y: int = property_(51, is_repr=True)
+    x: int = builtin_property(50, is_repr=True)
+    y: int = builtin_property(51, is_repr=True)
 
     def __add__(self, other: "Vector2i | int") -> "Vector2i":
         if isinstance(other, Vector2i):
@@ -497,9 +497,9 @@ class Vector2i(StructFrozen):
 class Vector3i(StructFrozen):
     """A 3D integer vector."""
 
-    x: int = property_(50, is_repr=True)
-    y: int = property_(51, is_repr=True)
-    z: int = property_(52, is_repr=True)
+    x: int = builtin_property(50, is_repr=True)
+    y: int = builtin_property(51, is_repr=True)
+    z: int = builtin_property(52, is_repr=True)
 
     def __add__(self, other: "Vector3i | int") -> "Vector3i":
         if isinstance(other, Vector3i):
@@ -620,10 +620,10 @@ class Vector3i(StructFrozen):
 class Vector4i(StructFrozen):
     """A 4D integer vector."""
 
-    x: int = property_(50, is_repr=True)
-    y: int = property_(51, is_repr=True)
-    z: int = property_(52, is_repr=True)
-    w: int = property_(53, is_repr=True)
+    x: int = builtin_property(50, is_repr=True)
+    y: int = builtin_property(51, is_repr=True)
+    z: int = builtin_property(52, is_repr=True)
+    w: int = builtin_property(53, is_repr=True)
 
     def __add__(self, other: "Vector4i | int") -> "Vector4i":
         if isinstance(other, Vector4i):

@@ -9,7 +9,7 @@ from destack.language.core import (
     NodeType,
     RoleType,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -22,15 +22,15 @@ if TYPE_CHECKING:
 class Friendship(IsGlobal, Entity):
     """A Friendship between two Users."""
 
-    user_a: "User" = property_(40, can_write=RoleType.SYSTEM, is_repr=True)
-    user_b: "User" = property_(41, can_write=RoleType.SYSTEM, is_repr=True)
+    user_a: "User" = builtin_property(40, can_write=RoleType.SYSTEM, is_repr=True)
+    user_b: "User" = builtin_property(41, can_write=RoleType.SYSTEM, is_repr=True)
 
 
 @builtin_node(NodeType.FRIENDSHIP_INVITE_EVENT, is_abstract=True)
 class FriendshipInviteEvent(Event["FriendshipInvite"]):
     """A Event regarding a Friendship Invite."""
 
-    node: "FriendshipInvite" = property_(35)
+    node: "FriendshipInvite" = builtin_property(35)
 
 
 @builtin_node(NodeType.FRIENDSHIP_INVITE_SENT_EVENT)
@@ -65,4 +65,4 @@ class FriendshipInviteRejectedEvent(FriendshipInviteEvent):
 class FriendshipInvite(IsGlobal, IsOwnable, Entity):
     """An invite to be friends with another User."""
 
-    owned_by: "IsSubject" = property_(25, is_repr=True)
+    owned_by: "IsSubject" = builtin_property(25, is_repr=True)

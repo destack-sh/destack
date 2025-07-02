@@ -11,8 +11,8 @@ from destack.language.core import (
     IsTaggable,
     NodeType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -43,15 +43,15 @@ class View(
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Window", "Scene", "Layer", "ContainerView", "Folder", None] = property_parent_(
-        node_is_extensible=True
+    parent: Union["Window", "Scene", "Layer", "ContainerView", "Folder", None] = (
+        builtin_property_parent(node_is_extensible=True)
     )
 
     # sizing
-    position: Optional["Position"] = property_(40)
-    width: Optional["Dimension"] = property_(41)
-    height: Optional["Dimension"] = property_(42)
-    min_width: Optional["Dimension"] = property_(43)
-    min_height: Optional["Dimension"] = property_(44)
-    max_width: Optional["Dimension"] = property_(45)
-    max_height: Optional["Dimension"] = property_(46)
+    position: Optional["Position"] = builtin_property(40)
+    width: Optional["Dimension"] = builtin_property(41)
+    height: Optional["Dimension"] = builtin_property(42)
+    min_width: Optional["Dimension"] = builtin_property(43)
+    min_height: Optional["Dimension"] = builtin_property(44)
+    max_width: Optional["Dimension"] = builtin_property(45)
+    max_height: Optional["Dimension"] = builtin_property(46)

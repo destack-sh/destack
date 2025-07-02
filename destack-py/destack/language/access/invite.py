@@ -11,8 +11,8 @@ from destack.language.core import (
     IsSubject,
     NodeType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -25,17 +25,17 @@ if TYPE_CHECKING:
 class InviteEvent(Event["Invite"]):
     """A Event regarding an Invite."""
 
-    node: "Invite" = property_(35)
-    joinable: "IsJoinable" = property_(40)
-    member: "IsSubject" = property_(41)
+    node: "Invite" = builtin_property(35)
+    joinable: "IsJoinable" = builtin_property(40)
+    member: "IsSubject" = builtin_property(41)
 
 
 @builtin_node(NodeType.INVITE_SENT_EVENT)
 class InviteSentEvent(InviteEvent):
     """An Invite was sent."""
 
-    role: "Role" = property_(50)
-    role_type: "RoleType" = property_(51)
+    role: "Role" = builtin_property(50)
+    role_type: "RoleType" = builtin_property(51)
 
 
 @builtin_node(NodeType.INVITE_RESCINDED_EVENT)
@@ -49,8 +49,8 @@ class InviteRescindedEvent(InviteEvent):
 class InviteAcceptedEvent(InviteEvent):
     """An Invite was accepted."""
 
-    role: "Role" = property_(50)
-    role_type: "RoleType" = property_(51)
+    role: "Role" = builtin_property(50)
+    role_type: "RoleType" = builtin_property(51)
 
 
 @builtin_node(NodeType.INVITE_REJECTED_EVENT)
@@ -64,7 +64,7 @@ class InviteRejectedEvent(InviteEvent):
 class Invite(IsGlobal, IsSpatial, IsOwnable, IsDeletable, Entity):
     """An Invite to a Joinable."""
 
-    parent: Optional["IsJoinable"] = property_parent_(node_is_extensible=False)
-    member: "IsSubject" = property_(40)
-    role: Optional["Role"] = property_(41)
-    role_type: Optional["RoleType"] = property_(42)
+    parent: Optional["IsJoinable"] = builtin_property_parent(node_is_extensible=False)
+    member: "IsSubject" = builtin_property(40)
+    role: Optional["Role"] = builtin_property(41)
+    role_type: Optional["RoleType"] = builtin_property(42)

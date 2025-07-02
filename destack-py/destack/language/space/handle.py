@@ -6,8 +6,8 @@ from destack.language.core import (
     IsGlobal,
     NodeType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -20,6 +20,6 @@ if TYPE_CHECKING:
 class Handle(IsGlobal, HasSlug, Entity):
     """A Destack @handle."""
 
-    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
+    parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
 
-    slug: str = property_(33, is_repr=True)
+    slug: str = builtin_property(33, is_repr=True)

@@ -6,8 +6,8 @@ from destack.language.core import (
     IsOwnable,
     NodeType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 from ..view import ContainerView
@@ -22,26 +22,30 @@ if TYPE_CHECKING:
 class SceneEvent(Event["Scene"]):
     """A Event regarding a Scene."""
 
-    node: "Scene" = property_(35)
+    node: "Scene" = builtin_property(35)
 
 
 @builtin_node(NodeType.SCENE_ENTERED_EVENT)
 class SceneEnteredEvent(SceneEvent):
     """A Scene was entered."""
 
-    node: "Scene" = property_(35)
+    node: "Scene" = builtin_property(35)
 
 
 @builtin_node(NodeType.SCENE_EXITED_EVENT)
 class SceneExitedEvent(SceneEvent):
     """A Scene was exited."""
 
-    node: "Scene" = property_(35)
+    node: "Scene" = builtin_property(35)
 
 
 @builtin_node(NodeType.SCENE)
 class Scene(HasIcon, IsOwnable, ContainerView):
     """A Scene is a container for a specific interaction point."""
 
-    parent: Union["Folder", "Scene", "Window", None] = property_parent_(node_is_extensible=True)
-    root_view: Optional["ContainerView"] = property_(100, description="The root view of the Scene.")
+    parent: Union["Folder", "Scene", "Window", None] = builtin_property_parent(
+        node_is_extensible=True
+    )
+    root_view: Optional["ContainerView"] = builtin_property(
+        100, description="The root view of the Scene."
+    )

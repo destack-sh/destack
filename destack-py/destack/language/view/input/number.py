@@ -1,6 +1,6 @@
 from typing import Optional
 
-from destack.language.core import NodeType, builtin_node, property_
+from destack.language.core import NodeType, builtin_node, builtin_property
 
 from .input import InputView
 
@@ -11,5 +11,5 @@ from .input import InputView
 class NumberInputView(InputView):
     """A general number input View."""
 
-    value: Optional[str] = property_(100)
-    placeholder: Optional[str] = property_(101)
+    value: Optional[str] = builtin_property(100)
+    placeholder: Optional[str] = builtin_property(101)

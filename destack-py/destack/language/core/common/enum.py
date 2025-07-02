@@ -11,7 +11,7 @@ from ..builtin import (
     IsTaggable,
     NodeType,
     builtin_node,
-    property_parent_,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -46,6 +46,6 @@ class CustomOption(
     IsSourceable,
     Entity,
 ):
-    parent: Union["CustomStructDefinition", "CustomProperty", None] = property_parent_(
+    parent: Union["CustomStructDefinition", "CustomProperty", None] = builtin_property_parent(
         node_is_extensible=True
     )

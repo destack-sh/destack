@@ -8,8 +8,8 @@ from destack.language.core import (
     StructType,
     builtin_enum,
     builtin_node,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 from .color import Color
@@ -54,13 +54,13 @@ class FillSize(Enum):
 class Fill(StructFrozen):
     """A fill value."""
 
-    type: FillType = property_(30, is_repr=True)
-    style: Optional["FillStyle"] = property_(42, is_repr=True)
-    color: Color | None = property_(50, is_repr=True)
-    gradient: Optional[Gradient] = property_(51, is_repr=True)
-    image: "File | None" = property_(52, is_repr=True)
-    position: FillPosition | None = property_(53, is_repr=True)
-    size: FillSize | None = property_(54, is_repr=True)
+    type: FillType = builtin_property(30, is_repr=True)
+    style: Optional["FillStyle"] = builtin_property(42, is_repr=True)
+    color: Color | None = builtin_property(50, is_repr=True)
+    gradient: Optional[Gradient] = builtin_property(51, is_repr=True)
+    image: "File | None" = builtin_property(52, is_repr=True)
+    position: FillPosition | None = builtin_property(53, is_repr=True)
+    size: FillSize | None = builtin_property(54, is_repr=True)
 
     @staticmethod
     def from_color(color: Color) -> "Fill":
@@ -75,12 +75,12 @@ class Fill(StructFrozen):
 class FillStyle(Style):
     """A fill style."""
 
-    type: FillType = property_(30, is_repr=True)
-    color: Color | None = property_(50, is_repr=True)
-    gradient: Optional[Gradient] = property_(51, is_repr=True)
-    image: "File | None" = property_(52, is_repr=True)
-    position: FillPosition | None = property_(53, is_repr=True)
-    size: FillSize | None = property_(54, is_repr=True)
+    type: FillType = builtin_property(30, is_repr=True)
+    color: Color | None = builtin_property(50, is_repr=True)
+    gradient: Optional[Gradient] = builtin_property(51, is_repr=True)
+    image: "File | None" = builtin_property(52, is_repr=True)
+    position: FillPosition | None = builtin_property(53, is_repr=True)
+    size: FillSize | None = builtin_property(54, is_repr=True)
 
     @staticmethod
     def from_fill(fill: Fill) -> "FillStyle":

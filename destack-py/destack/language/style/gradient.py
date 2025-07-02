@@ -10,8 +10,8 @@ from destack.language.core import (
     StructType,
     builtin_enum,
     builtin_node,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 from .color import Color
@@ -33,27 +33,27 @@ class GradientType(Enum):
 class GradientStop(StructFrozen):
     """A gradient stop with color and position."""
 
-    color: Optional["Color"] = property_(50, is_repr=True)
-    position: float = property_(51, format=NumberFormat.PERCENTAGE, is_repr=True)
+    color: Optional["Color"] = builtin_property(50, is_repr=True)
+    position: float = builtin_property(51, format=NumberFormat.PERCENTAGE, is_repr=True)
 
 
 @builtin_struct(StructType.GRADIENT, frozen=True)
 class Gradient(StructFrozen):
     """A gradient value."""
 
-    type: GradientType = property_(30, default=GradientType.LINEAR, is_repr=True)
-    style: Optional["GradientStyle"] = property_(40, is_repr=True)
-    angle: Optional[float] = property_(50, format=NumberFormat.ANGLE, is_repr=True)
-    stops: list[GradientStop] = property_(51, is_repr=True)
-    center_anchor: Optional[Axis2] = property_(52, is_repr=True)
+    type: GradientType = builtin_property(30, default=GradientType.LINEAR, is_repr=True)
+    style: Optional["GradientStyle"] = builtin_property(40, is_repr=True)
+    angle: Optional[float] = builtin_property(50, format=NumberFormat.ANGLE, is_repr=True)
+    stops: list[GradientStop] = builtin_property(51, is_repr=True)
+    center_anchor: Optional[Axis2] = builtin_property(52, is_repr=True)
 
 
 @builtin_node(NodeType.GRADIENT_STYLE)
 class GradientStyle(Style):
     """A gradient style."""
 
-    type: GradientType = property_(30, default=GradientType.LINEAR, is_repr=True)
-    angle: Optional[float] = property_(50, format=NumberFormat.ANGLE, is_repr=True)
-    stops: list[GradientStop] = property_(51, is_repr=True)
-    center_anchor: Optional[Axis2] = property_(52, is_repr=True)
-    dark: Gradient | None = property_(60)
+    type: GradientType = builtin_property(30, default=GradientType.LINEAR, is_repr=True)
+    angle: Optional[float] = builtin_property(50, format=NumberFormat.ANGLE, is_repr=True)
+    stops: list[GradientStop] = builtin_property(51, is_repr=True)
+    center_anchor: Optional[Axis2] = builtin_property(52, is_repr=True)
+    dark: Gradient | None = builtin_property(60)

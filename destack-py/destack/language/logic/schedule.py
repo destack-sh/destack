@@ -9,8 +9,8 @@ from destack.language.core import (
     StructMutable,
     StructType,
     builtin_enum,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 if TYPE_CHECKING:
@@ -60,22 +60,22 @@ class ScheduleFrequency(Enum):
 class Schedule(StructMutable):
     """The time-based schedule of something (compatible with rrule)."""
 
-    frequency: ScheduleFrequency = property_(31)
-    interval: int = property_(32, default=1)
-    start: datetime | None = property_(33)
-    end: datetime | None = property_(34)
-    count: int | None = property_(35)
-    week_start: DayOfWeek | None = property_(36)
-    by_set_pos: list[int] = property_(37)
-    by_month: list[Month] = property_(38)
-    by_month_day: list[int] = property_(39)
-    by_year_day: list[int] = property_(40)
-    by_easter: list[int] = property_(41)
-    by_week_no: list[int] = property_(42)
-    by_week_day: list[DayOfWeek] = property_(43)
-    by_hour: list[int] = property_(44)
-    by_minute: list[int] = property_(45)
-    by_second: list[int] = property_(46)
+    frequency: ScheduleFrequency = builtin_property(31)
+    interval: int = builtin_property(32, default=1)
+    start: datetime | None = builtin_property(33)
+    end: datetime | None = builtin_property(34)
+    count: int | None = builtin_property(35)
+    week_start: DayOfWeek | None = builtin_property(36)
+    by_set_pos: list[int] = builtin_property(37)
+    by_month: list[Month] = builtin_property(38)
+    by_month_day: list[int] = builtin_property(39)
+    by_year_day: list[int] = builtin_property(40)
+    by_easter: list[int] = builtin_property(41)
+    by_week_no: list[int] = builtin_property(42)
+    by_week_day: list[DayOfWeek] = builtin_property(43)
+    by_hour: list[int] = builtin_property(44)
+    by_minute: list[int] = builtin_property(45)
+    by_second: list[int] = builtin_property(46)
 
     @staticmethod
     def from_rrule(rrule: rrule) -> "Schedule":

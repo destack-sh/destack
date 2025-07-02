@@ -1,4 +1,4 @@
-from destack.language.core import NodeType, Text, builtin_node, property_
+from destack.language.core import NodeType, Text, builtin_node, builtin_property
 
 from .shape import Shape
 
@@ -9,4 +9,4 @@ from .shape import Shape
 class AnnotationShape(Shape):
     """An AnnotationShape is a shape that represents an annotation."""
 
-    text: Text | None = property_(100)
+    text: Text | None = builtin_property(100)

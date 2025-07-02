@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from destack.language.core import NodeType, builtin_node, property_
+from destack.language.core import NodeType, builtin_node, builtin_property
 
 from ..view import ContainerView
 
@@ -12,4 +12,4 @@ if TYPE_CHECKING:
 class Shape(ContainerView):
     """A Shape is a View representing a Shape."""
 
-    stroke: Optional["Stroke"] = property_(80, is_repr=True)
+    stroke: Optional["Stroke"] = builtin_property(80, is_repr=True)

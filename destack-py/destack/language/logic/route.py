@@ -10,8 +10,8 @@ from destack.language.core import (
     IsTaggable,
     NodeType,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -32,8 +32,8 @@ class Route(
 ):
     """A Route is a path to a Scene."""
 
-    parent: Optional["Folder"] = property_parent_(node_is_extensible=False)
-    scene: Optional["Scene"] = property_(
+    parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
+    scene: Optional["Scene"] = builtin_property(
         40,
         description="The Scene to route to.",
     )

@@ -77,10 +77,10 @@ from .object import (
 from .property import (
     PropertyDeclaration,
     TypeDeclaration,
+    builtin_property,
+    builtin_property_parent,
+    builtin_property_runtime,
     parse_type_annotation,
-    property_,
-    property_parent_,
-    property_runtime_,
 )
 from .relation import (
     NodeDefinitionReference,
@@ -237,13 +237,13 @@ __all__ = [
     "active_session",
     "builtin_enum",
     "builtin_node",
+    "builtin_property",
+    "builtin_property_parent",
+    "builtin_property_runtime",
     "builtin_struct",
     "builtin_trait",
     "get_active_session",
     "object_",
     "parse_type_annotation",
-    "property_",
-    "property_parent_",
-    "property_runtime_",
     "register_constant",
 ]

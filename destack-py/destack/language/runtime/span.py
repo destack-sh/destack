@@ -4,7 +4,7 @@ from destack.language.core import (
     Event,
     NodeType,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -21,4 +21,4 @@ class SpanEvent(Event):
     """
 
     # meta
-    run: "Run" = property_(40)
+    run: "Run" = builtin_property(40)

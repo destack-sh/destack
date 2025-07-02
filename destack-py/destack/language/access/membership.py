@@ -14,8 +14,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -28,17 +28,17 @@ if TYPE_CHECKING:
 class MembershipEvent(Event["Membership"]):
     """A Event regarding a Membership."""
 
-    node: "Membership" = property_(35)
-    joinable: "IsJoinable" = property_(40)
-    member: "IsSubject" = property_(41)
+    node: "Membership" = builtin_property(35)
+    joinable: "IsJoinable" = builtin_property(40)
+    member: "IsSubject" = builtin_property(41)
 
 
 @builtin_node(NodeType.MEMBERSHIP_JOINED_EVENT)
 class MembershipJoinedEvent(MembershipEvent):
     """A Event regarding a Membership Join."""
 
-    role: "Role" = property_(50)
-    role_type: "RoleType" = property_(51)
+    role: "Role" = builtin_property(50)
+    role_type: "RoleType" = builtin_property(51)
 
 
 @builtin_node(NodeType.MEMBERSHIP_LEFT_EVENT)
@@ -66,7 +66,7 @@ class Membership(
 ):
     """A Membership of a Subject in a Joinable."""
 
-    parent: Optional["IsJoinable"] = property_parent_(node_is_extensible=False)
-    member: "IsSubject" = property_(40)
-    role: Optional["Role"] = property_(41)
-    role_type: Optional["RoleType"] = property_(42)
+    parent: Optional["IsJoinable"] = builtin_property_parent(node_is_extensible=False)
+    member: "IsSubject" = builtin_property(40)
+    role: Optional["Role"] = builtin_property(41)
+    role_type: Optional["RoleType"] = builtin_property(42)

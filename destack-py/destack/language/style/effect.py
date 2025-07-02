@@ -11,8 +11,8 @@ from destack.language.core import (
     Vector2,
     builtin_enum,
     builtin_node,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 from .style import Style
@@ -66,40 +66,40 @@ class OffscreenBehavior(Enum):
 class Effect(StructFrozen):
     """An effect value."""
 
-    type: EffectType = property_(30, is_repr=True)
-    style: Optional["EffectStyle"] = property_(41, is_repr=True)
-    opacity: Optional[float] = property_(50, is_repr=True)
-    offset: Optional[Vector2] = property_(51, is_repr=True)
-    scale: Optional[float] = property_(52, is_repr=True)
-    rotate: Optional[Axis3] = property_(53, is_repr=True)
-    skew: Optional[Vector2] = property_(54, is_repr=True)
-    perspective: Optional[float] = property_(55, is_repr=True)
-    delay: Optional[timedelta] = property_(56, is_repr=True)
-    duration: Optional[float] = property_(57, is_repr=True)
-    threshold: Optional[float] = property_(58, is_repr=True)
-    once: Optional[bool] = property_(59, is_repr=True)
-    repeat: Optional[RepeatType] = property_(60, is_repr=True)
-    split: Optional[TextSplitType] = property_(61, is_repr=True)
-    offscreen: Optional[OffscreenBehavior] = property_(62, is_repr=True)
-    transition: Optional["Transition"] = property_(70, is_repr=True)
+    type: EffectType = builtin_property(30, is_repr=True)
+    style: Optional["EffectStyle"] = builtin_property(41, is_repr=True)
+    opacity: Optional[float] = builtin_property(50, is_repr=True)
+    offset: Optional[Vector2] = builtin_property(51, is_repr=True)
+    scale: Optional[float] = builtin_property(52, is_repr=True)
+    rotate: Optional[Axis3] = builtin_property(53, is_repr=True)
+    skew: Optional[Vector2] = builtin_property(54, is_repr=True)
+    perspective: Optional[float] = builtin_property(55, is_repr=True)
+    delay: Optional[timedelta] = builtin_property(56, is_repr=True)
+    duration: Optional[float] = builtin_property(57, is_repr=True)
+    threshold: Optional[float] = builtin_property(58, is_repr=True)
+    once: Optional[bool] = builtin_property(59, is_repr=True)
+    repeat: Optional[RepeatType] = builtin_property(60, is_repr=True)
+    split: Optional[TextSplitType] = builtin_property(61, is_repr=True)
+    offscreen: Optional[OffscreenBehavior] = builtin_property(62, is_repr=True)
+    transition: Optional["Transition"] = builtin_property(70, is_repr=True)
 
 
 @builtin_node(NodeType.EFFECT_STYLE)
 class EffectStyle(Style):
     """An effect style."""
 
-    type: EffectType = property_(30, is_repr=True)
-    opacity: Optional[float] = property_(50, is_repr=True)
-    offset: Optional[Vector2] = property_(51, is_repr=True)
-    scale: Optional[float] = property_(52, is_repr=True)
-    rotate: Optional[Axis3] = property_(53, is_repr=True)
-    skew: Optional[Vector2] = property_(54, is_repr=True)
-    perspective: Optional[float] = property_(55, is_repr=True)
-    delay: Optional[timedelta] = property_(56, is_repr=True)
-    duration: Optional[float] = property_(57, is_repr=True)
-    threshold: Optional[float] = property_(58, is_repr=True)
-    once: Optional[bool] = property_(59, is_repr=True)
-    repeat: Optional[RepeatType] = property_(60, is_repr=True)
-    split: Optional[TextSplitType] = property_(61, is_repr=True)
-    offscreen: Optional[OffscreenBehavior] = property_(62, is_repr=True)
-    transition: Optional["Transition"] = property_(70, is_repr=True)
+    type: EffectType = builtin_property(30, is_repr=True)
+    opacity: Optional[float] = builtin_property(50, is_repr=True)
+    offset: Optional[Vector2] = builtin_property(51, is_repr=True)
+    scale: Optional[float] = builtin_property(52, is_repr=True)
+    rotate: Optional[Axis3] = builtin_property(53, is_repr=True)
+    skew: Optional[Vector2] = builtin_property(54, is_repr=True)
+    perspective: Optional[float] = builtin_property(55, is_repr=True)
+    delay: Optional[timedelta] = builtin_property(56, is_repr=True)
+    duration: Optional[float] = builtin_property(57, is_repr=True)
+    threshold: Optional[float] = builtin_property(58, is_repr=True)
+    once: Optional[bool] = builtin_property(59, is_repr=True)
+    repeat: Optional[RepeatType] = builtin_property(60, is_repr=True)
+    split: Optional[TextSplitType] = builtin_property(61, is_repr=True)
+    offscreen: Optional[OffscreenBehavior] = builtin_property(62, is_repr=True)
+    transition: Optional["Transition"] = builtin_property(70, is_repr=True)

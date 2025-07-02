@@ -15,9 +15,9 @@ from ..builtin import (
     Trait,
     active_session,
     builtin_enum,
+    builtin_property,
     builtin_struct,
     object_,
-    property_,
 )
 from ..builtin.relation import NodeDefinitionReference, PropertyReference
 from .value import Value
@@ -46,9 +46,9 @@ class FunctionType(Enum):
 
 @builtin_struct(StructType.FUNCTION, frozen=True)
 class Function(StructFrozen):
-    type: FunctionType = property_(30, is_repr=True)
-    left: "Expression" = property_(31, is_repr=True)
-    right: Optional["Expression"] = property_(32, is_repr=True)
+    type: FunctionType = builtin_property(30, is_repr=True)
+    left: "Expression" = builtin_property(31, is_repr=True)
+    right: Optional["Expression"] = builtin_property(32, is_repr=True)
 
     @classmethod
     def of(
@@ -94,9 +94,9 @@ class ConditionalType(Enum):
 class Condition(StructFrozen):
     """Boolean predicate (AND, =, <, etc.)."""
 
-    type: ConditionalType = property_(30, is_repr=True)
-    left: "Expression" = property_(31, is_repr=True)
-    right: Optional["Expression"] = property_(32, is_repr=True)
+    type: ConditionalType = builtin_property(30, is_repr=True)
+    left: "Expression" = builtin_property(31, is_repr=True)
+    right: Optional["Expression"] = builtin_property(32, is_repr=True)
 
     def __or__(self, other: "Condition") -> "Condition":
         return Condition(
@@ -141,8 +141,8 @@ class AggregationType(Enum):
 class Aggregation(StructFrozen):
     """Aggregation."""
 
-    type: AggregationType = property_(30, is_repr=True)
-    expression: Optional["Expression"] = property_(31, is_repr=True)
+    type: AggregationType = builtin_property(30, is_repr=True)
+    expression: Optional["Expression"] = builtin_property(31, is_repr=True)
     # distinct, over, ...
 
     @classmethod
@@ -173,12 +173,12 @@ class ExpressionType(Enum):
 class Expression(StructFrozen):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
-    type: ExpressionType = property_(30, is_repr=True)
-    literal: Optional[Value] = property_(31, is_repr=True)
-    attribute: Optional[PropertyReference] = property_(32, is_repr=True)
-    condition: Optional[Condition] = property_(33, is_repr=True)
-    function: Optional[Function] = property_(34, is_repr=True)
-    aggregation: Optional[Aggregation] = property_(35, is_repr=True)
+    type: ExpressionType = builtin_property(30, is_repr=True)
+    literal: Optional[Value] = builtin_property(31, is_repr=True)
+    attribute: Optional[PropertyReference] = builtin_property(32, is_repr=True)
+    condition: Optional[Condition] = builtin_property(33, is_repr=True)
+    function: Optional[Function] = builtin_property(34, is_repr=True)
+    aggregation: Optional[Aggregation] = builtin_property(35, is_repr=True)
     # subquery?
 
     @classmethod
@@ -243,9 +243,9 @@ SortIn = Union["Sort", "Expression", "CustomProperty", "PropertyDeclaration", "P
 class Sort(StructFrozen):
     """ORDER BY specification."""
 
-    type: SortType = property_(30, is_repr=True)
-    by: Expression = property_(31, is_repr=True)
-    mode: Optional[SortMode] = property_(32, is_repr=True)
+    type: SortType = builtin_property(30, is_repr=True)
+    by: Expression = builtin_property(31, is_repr=True)
+    mode: Optional[SortMode] = builtin_property(32, is_repr=True)
 
     @classmethod
     def of(
@@ -268,7 +268,7 @@ class Sort(StructFrozen):
 class Select(StructFrozen):
     """Select specific Attributes."""
 
-    attributes: list[PropertyReference] = property_(31, is_repr=True)
+    attributes: list[PropertyReference] = builtin_property(31, is_repr=True)
 
     @classmethod
     def of(cls, *attributes: "PropertyDeclaration | CustomProperty") -> "Select":
@@ -292,12 +292,12 @@ class JoinType(Enum):
 class Join(StructFrozen):
     """Join a Query with another Query."""
 
-    type: JoinType = property_(30, is_repr=True)
-    definition: Optional[NodeDefinitionReference] = property_(31, is_repr=True)
+    type: JoinType = builtin_property(30, is_repr=True)
+    definition: Optional[NodeDefinitionReference] = builtin_property(31, is_repr=True)
     # query_name?
-    recursive: bool = property_(33, default=False, is_repr=True)  # for tree joins
-    depth: int | None = property_(34, default=None, is_repr=True)  # for tree joins
-    on: Optional[Condition] = property_(35, is_repr=True)
+    recursive: bool = builtin_property(33, default=False, is_repr=True)  # for tree joins
+    depth: int | None = builtin_property(34, default=None, is_repr=True)  # for tree joins
+    on: Optional[Condition] = builtin_property(35, is_repr=True)
 
     @classmethod
     def of(
@@ -334,29 +334,31 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     """A GraphQL-inspired Query node (with subqueries)."""
 
     # meta
-    id: UUID = property_(2, default_factory=DefaultFactory.UUID)
-    type: QueryType = property_(30, is_repr=True)
-    name: str = property_(
+    id: UUID = builtin_property(2, default_factory=DefaultFactory.UUID)
+    type: QueryType = builtin_property(30, is_repr=True)
+    name: str = builtin_property(
         31,
         description="Name for this subquery. Must be unique within the parent Query.",
         is_repr=True,
     )
-    definition: NodeDefinitionReference = property_(32, is_repr=True)
-    join: Optional[Join] = property_(33, description="Relative to parent Query.", is_repr=True)
-    select: Optional[Select] = property_(34, is_repr=True)
-    subqueries: list["Query"] = property_(35, is_repr=True)
+    definition: NodeDefinitionReference = builtin_property(32, is_repr=True)
+    join: Optional[Join] = builtin_property(
+        33, description="Relative to parent Query.", is_repr=True
+    )
+    select: Optional[Select] = builtin_property(34, is_repr=True)
+    subqueries: list["Query"] = builtin_property(35, is_repr=True)
     # is_live/refreshing/routing/area/...
 
     # content
-    where: Optional[Condition] = property_(40, is_repr=True)
-    having: Optional[Condition] = property_(41, is_repr=True)
-    group_by: list[Expression] = property_(42, is_repr=True)
-    aggregation: Optional[Aggregation] = property_(43, is_repr=True)
-    sort: list[Sort] = property_(44, is_repr=True)
+    where: Optional[Condition] = builtin_property(40, is_repr=True)
+    having: Optional[Condition] = builtin_property(41, is_repr=True)
+    group_by: list[Expression] = builtin_property(42, is_repr=True)
+    aggregation: Optional[Aggregation] = builtin_property(43, is_repr=True)
+    sort: list[Sort] = builtin_property(44, is_repr=True)
 
     # pagination
-    limit: Optional[int] = property_(50, is_repr=True)
-    offset: Optional[int] = property_(51, is_repr=True)
+    limit: Optional[int] = builtin_property(50, is_repr=True)
+    offset: Optional[int] = builtin_property(51, is_repr=True)
     # count?
 
     async def execute(self) -> "QueryConnection[RootT]":
@@ -422,20 +424,20 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
 class Histogram(StructFrozen):
     """A histogram."""
 
-    buckets: list[Value] = property_(40, is_repr=True)
-    counts: list[int] = property_(41, is_repr=True)
+    buckets: list[Value] = builtin_property(40, is_repr=True)
+    counts: list[int] = builtin_property(41, is_repr=True)
 
 
 @object_()
 class QueryResultBase(BuiltinObjectMutable):
     """Common base for QueryResult and QueryResultGroup."""
 
-    type: QueryType = property_(30, is_repr=True)
+    type: QueryType = builtin_property(30, is_repr=True)
 
-    nodes: list[Value] = property_(40)
-    count: Optional[int] = property_(41, is_repr=True)
-    exists: Optional[bool] = property_(42, is_repr=True)
-    scalar: Optional[Value] = property_(43, is_repr=True)
+    nodes: list[Value] = builtin_property(40)
+    count: Optional[int] = builtin_property(41, is_repr=True)
+    exists: Optional[bool] = builtin_property(42, is_repr=True)
+    scalar: Optional[Value] = builtin_property(43, is_repr=True)
 
 
 @builtin_struct(StructType.QUERY_RESULT)
@@ -447,16 +449,16 @@ class QueryResult(QueryResultBase, StructMutable):
     If subresults for a Query clause may be missing if the subquery was deemed empty.
     """
 
-    id: UUID = property_(2, is_repr=True)
-    groups: list["QueryResultGroup"] = property_(35, is_repr=True)
-    subresults: list["QueryResult"] = property_(36, is_repr=True)
+    id: UUID = builtin_property(2, is_repr=True)
+    groups: list["QueryResultGroup"] = builtin_property(35, is_repr=True)
+    subresults: list["QueryResult"] = builtin_property(36, is_repr=True)
 
 
 @builtin_struct(StructType.QUERY_RESULT_GROUP)
 class QueryResultGroup(QueryResultBase, StructMutable):
     """A group in a QueryResult."""
 
-    discriminator: Value = property_(31, is_repr=True)
+    discriminator: Value = builtin_property(31, is_repr=True)
 
 
 @builtin_enum(EnumType.QUERY_UPDATE_TYPE)
@@ -470,8 +472,8 @@ class QueryUpdateType(Enum):
 class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
-    type: QueryUpdateType = property_(30, is_repr=True)
-    result: Optional["QueryResult"] = property_(40, is_repr=True)
+    type: QueryUpdateType = builtin_property(30, is_repr=True)
+    result: Optional["QueryResult"] = builtin_property(40, is_repr=True)
 
 
 @builtin_struct(StructType.SELECTION, frozen=True)

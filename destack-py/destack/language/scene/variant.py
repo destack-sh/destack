@@ -14,8 +14,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -52,10 +52,10 @@ class Variant(
 ):
     """A Variant is an alternative presentation of a visual."""
 
-    parent: Union["Scene", "Layer", None] = property_parent_(node_is_extensible=True)
-    type: VariantType = property_(30)
+    parent: Union["Scene", "Layer", None] = builtin_property_parent(node_is_extensible=True)
+    type: VariantType = builtin_property(30)
 
-    max_width: Optional[Length] = property_(50)
-    max_height: Optional[Length] = property_(51)
-    min_width: Optional[Length] = property_(52)
-    min_height: Optional[Length] = property_(53)
+    max_width: Optional[Length] = builtin_property(50)
+    max_height: Optional[Length] = builtin_property(51)
+    min_width: Optional[Length] = builtin_property(52)
+    min_height: Optional[Length] = builtin_property(53)

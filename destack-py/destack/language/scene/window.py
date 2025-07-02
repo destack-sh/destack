@@ -12,7 +12,7 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -41,4 +41,4 @@ class Window(
     A Window for someone to interact with a Space via Scenes.
     """
 
-    type: WindowType = property_(30)
+    type: WindowType = builtin_property(30)

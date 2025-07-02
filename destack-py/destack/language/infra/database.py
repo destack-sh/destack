@@ -14,9 +14,9 @@ from destack.language.core import (
     Tenancy,
     builtin_enum,
     builtin_node,
+    builtin_property,
+    builtin_property_parent,
     builtin_struct,
-    property_,
-    property_parent_,
 )
 
 if TYPE_CHECKING:
@@ -34,17 +34,19 @@ class DatabaseType(Enum):
 
 @builtin_struct(StructType.DATABASE_INFO, frozen=True)
 class DatabaseInfo(StructFrozen):
-    type: DatabaseType = property_(30, can_write=RoleType.SYSTEM, is_repr=True)
-    region: Region = property_(50, can_write=RoleType.SYSTEM, is_repr=True)
-    galaxy_name: str | None = property_(51, can_write=RoleType.SYSTEM, is_repr=True)
-    external_name: str = property_(
+    type: DatabaseType = builtin_property(30, can_write=RoleType.SYSTEM, is_repr=True)
+    region: Region = builtin_property(50, can_write=RoleType.SYSTEM, is_repr=True)
+    galaxy_name: str | None = builtin_property(51, can_write=RoleType.SYSTEM, is_repr=True)
+    external_name: str = builtin_property(
         52, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
-    custom_schema_name: str | None = property_(
+    custom_schema_name: str | None = builtin_property(
         53, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
-    tenancy: Tenancy = property_(55, default=Tenancy.DEDICATED, is_repr=True)
-    connection_url: str | None = property_(58, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM)
+    tenancy: Tenancy = builtin_property(55, default=Tenancy.DEDICATED, is_repr=True)
+    connection_url: str | None = builtin_property(
+        58, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
+    )
 
     def to_info(self) -> "DatabaseInfo":
         return DatabaseInfo(
@@ -62,19 +64,21 @@ class DatabaseInfo(StructFrozen):
 class Database(IsSpatial, HasName, Resource):
     """A primary storage Database of some flavor."""
 
-    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
+    parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
 
-    type: DatabaseType = property_(30, can_write=RoleType.SYSTEM, is_repr=True)
-    region: Region = property_(50, can_write=RoleType.SYSTEM, is_repr=True)
-    galaxy_name: str | None = property_(51, can_write=RoleType.SYSTEM, is_repr=True)
-    external_name: str = property_(
+    type: DatabaseType = builtin_property(30, can_write=RoleType.SYSTEM, is_repr=True)
+    region: Region = builtin_property(50, can_write=RoleType.SYSTEM, is_repr=True)
+    galaxy_name: str | None = builtin_property(51, can_write=RoleType.SYSTEM, is_repr=True)
+    external_name: str = builtin_property(
         52, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
-    custom_schema_name: str | None = property_(
+    custom_schema_name: str | None = builtin_property(
         53, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
-    tenancy: Tenancy = property_(55, default=Tenancy.DEDICATED, is_repr=True)
-    connection_url: str | None = property_(58, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM)
+    tenancy: Tenancy = builtin_property(55, default=Tenancy.DEDICATED, is_repr=True)
+    connection_url: str | None = builtin_property(
+        58, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
+    )
 
     def to_info(self) -> "DatabaseInfo":
         return DatabaseInfo(

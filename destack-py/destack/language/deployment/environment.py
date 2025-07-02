@@ -8,7 +8,7 @@ from destack.language.core import (
     IsSpatial,
     NodeType,
     builtin_node,
-    property_parent_,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -21,4 +21,4 @@ if TYPE_CHECKING:
 class Environment(IsSpatial, HasName, HasIcon, IsDeletable, Entity):
     """An Environment is a deployment of a Space."""
 
-    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
+    parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)

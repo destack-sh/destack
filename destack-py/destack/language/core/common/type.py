@@ -27,8 +27,8 @@ from ..builtin import (
     TraitType,
     TypeCardinality,
     builtin_enum,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 if TYPE_CHECKING:
@@ -75,10 +75,10 @@ class NumberFormat(Enum):
 class StringConstraint(StructFrozen):
     """The constraint of a string."""
 
-    format: Optional[StringFormat] = property_(40)
-    regex: Optional[str] = property_(41)
-    starts_with: Optional[str] = property_(42)
-    ends_with: Optional[str] = property_(43)
+    format: Optional[StringFormat] = builtin_property(40)
+    regex: Optional[str] = builtin_property(41)
+    starts_with: Optional[str] = builtin_property(42)
+    ends_with: Optional[str] = builtin_property(43)
 
 
 SLUG_REGEX_CHAR = r"a-z0-9-"
@@ -92,28 +92,28 @@ PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]
 class NumberConstraint(StructFrozen):
     """The constraint of a number."""
 
-    format: Optional[NumberFormat] = property_(40)
-    min_value: Optional[float] = property_(41)
-    max_value: Optional[float] = property_(42)
-    step_value: Optional[float] = property_(43)
-    precision: Optional[int] = property_(44)  # for decimals
-    scale: Optional[int] = property_(45)  # for decimals
+    format: Optional[NumberFormat] = builtin_property(40)
+    min_value: Optional[float] = builtin_property(41)
+    max_value: Optional[float] = builtin_property(42)
+    step_value: Optional[float] = builtin_property(43)
+    precision: Optional[int] = builtin_property(44)  # for decimals
+    scale: Optional[int] = builtin_property(45)  # for decimals
 
 
 @builtin_struct(StructType.COLLECTION_CONSTRAINT, frozen=True)
 class CollectionConstraint(StructFrozen):
     """The constraint of a collection."""
 
-    min_length: Optional[int] = property_(41)
-    max_length: Optional[int] = property_(42)
+    min_length: Optional[int] = builtin_property(41)
+    max_length: Optional[int] = builtin_property(42)
 
 
 @builtin_struct(StructType.NODE_CONSTRAINT, frozen=True)
 class NodeConstraint(StructFrozen):
     """The constraint of a node."""
 
-    node_types: list["NodeType"] = property_(41)
-    node_traits: list["TraitType"] = property_(42)
+    node_types: list["NodeType"] = builtin_property(41)
+    node_traits: list["TraitType"] = builtin_property(42)
     # page/thread/base/destack, ...
 
 
@@ -127,12 +127,14 @@ class Type(StructFrozen):
     """A Type in the type system."""
 
     # scalar
-    cardinality: TypeCardinality = property_(40, default=TypeCardinality.SCALAR, is_repr=True)
-    scalar_type: ScalarType = property_(41, is_repr=True)
-    primitive_type: Optional[PrimitiveType] = property_(42, is_repr=True)
-    enum_type: Optional[EnumType] = property_(43, is_repr=True)
-    node_type: Optional[NodeType] = property_(44, is_repr=True)
-    struct_type: Optional[StructType] = property_(45, is_repr=True)
+    cardinality: TypeCardinality = builtin_property(
+        40, default=TypeCardinality.SCALAR, is_repr=True
+    )
+    scalar_type: ScalarType = builtin_property(41, is_repr=True)
+    primitive_type: Optional[PrimitiveType] = builtin_property(42, is_repr=True)
+    enum_type: Optional[EnumType] = builtin_property(43, is_repr=True)
+    node_type: Optional[NodeType] = builtin_property(44, is_repr=True)
+    struct_type: Optional[StructType] = builtin_property(45, is_repr=True)
     definition: Union[
         "CustomEntityDefinition",
         "CustomEventDefinition",
@@ -140,23 +142,23 @@ class Type(StructFrozen):
         "CustomStructDefinition",
         "CustomTraitDefinition",
         None,
-    ] = property_(46, is_repr=True)
-    key_type: Optional["Type"] = property_(48, is_repr=True)  # for maps
+    ] = builtin_property(46, is_repr=True)
+    key_type: Optional["Type"] = builtin_property(48, is_repr=True)  # for maps
     if TYPE_CHECKING:
         base_ptr: Optional["NodeReference"] = None
 
     # meta
-    is_required: bool | None = property_(50)
-    is_variable: bool | None = property_(51)
+    is_required: bool | None = builtin_property(50)
+    is_variable: bool | None = builtin_property(51)
     # is_external
-    default_value: Optional["Value"] = property_(55)
-    default_factory: Optional[DefaultFactory] = property_(56)
+    default_value: Optional["Value"] = builtin_property(55)
+    default_factory: Optional[DefaultFactory] = builtin_property(56)
 
     # constraints
-    collection_constraint: Optional["CollectionConstraint"] = property_(60)
-    string_constraint: Optional["StringConstraint"] = property_(61)
-    number_constraint: Optional["NumberConstraint"] = property_(62)
-    node_constraint: Optional["NodeConstraint"] = property_(63)
+    collection_constraint: Optional["CollectionConstraint"] = builtin_property(60)
+    string_constraint: Optional["StringConstraint"] = builtin_property(61)
+    number_constraint: Optional["NumberConstraint"] = builtin_property(62)
+    node_constraint: Optional["NodeConstraint"] = builtin_property(63)
 
 
 def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":

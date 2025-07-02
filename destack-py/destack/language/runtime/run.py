@@ -12,8 +12,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -67,8 +67,8 @@ class RunStatus(Enum):
 class RunEvent(Event["Run"]):
     """An Event regarding a Run."""
 
-    node: "Run" = property_(35)
-    target: Optional[IsRunnable] = property_(40)
+    node: "Run" = builtin_property(35)
+    target: Optional[IsRunnable] = builtin_property(40)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
 
@@ -137,29 +137,31 @@ class Run(IsSpatial, IsCustomizable, Entity):
     Run something somewhere, somehow.
     """
 
-    parent: Optional["Space"] = property_parent_(node_is_extensible=False)
-    target: Optional[IsRunnable] = property_(40)
+    parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
+    target: Optional[IsRunnable] = builtin_property(40)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
-    status: RunStatus = property_(41, is_repr=True)
-    duration: Optional[timedelta] = property_(
+    status: RunStatus = builtin_property(41, is_repr=True)
+    duration: Optional[timedelta] = builtin_property(
         42,
         default=None,
         description="Duration from first attempt start to last attempt termination.",
         is_repr=True,
     )
-    scheduled_at: Optional[datetime] = property_(
+    scheduled_at: Optional[datetime] = builtin_property(
         45, description="When the Run is scheduled to start."
     )
-    started_at: Optional[datetime] = property_(
+    started_at: Optional[datetime] = builtin_property(
         46, description="When the Run first started.", is_repr=True
     )
-    seen_at: Optional[datetime] = property_(47, description="When the Run was last active.")
-    interrupted_at: Optional[datetime] = property_(48, description="When the Run was interrupted.")
-    terminated_at: Optional[datetime] = property_(
+    seen_at: Optional[datetime] = builtin_property(47, description="When the Run was last active.")
+    interrupted_at: Optional[datetime] = builtin_property(
+        48, description="When the Run was interrupted."
+    )
+    terminated_at: Optional[datetime] = builtin_property(
         49, description="When the Run was last terminated."
     )
-    interruption: Optional["Interruption"] = property_(
+    interruption: Optional["Interruption"] = builtin_property(
         51,
         node_space_from="self",
         description="The latest Interruption.",

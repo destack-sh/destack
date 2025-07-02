@@ -8,8 +8,8 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 
 from ..view import ContainerView
@@ -33,5 +33,5 @@ class LayerType(Enum):
 class Layer(HasIcon, IsOwnable, ContainerView):
     """A Layer is a named container for Views."""
 
-    parent: Union["Scene", "Canvas", None] = property_parent_(node_is_extensible=True)
-    type: LayerType = property_(30, default=LayerType.GENERAL)
+    parent: Union["Scene", "Canvas", None] = builtin_property_parent(node_is_extensible=True)
+    type: LayerType = builtin_property(30, default=LayerType.GENERAL)

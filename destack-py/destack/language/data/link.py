@@ -15,7 +15,7 @@ from destack.language.core import (
     Resource,
     builtin_enum,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -39,19 +39,19 @@ class Link(IsSpatial, Resource):
     """
 
     # meta
-    type: LinkType = property_(30, is_repr=True)
+    type: LinkType = builtin_property(30, is_repr=True)
 
     # content
-    url: str | None = property_(50, is_repr=True)
-    domain: str | None = property_(51, is_repr=True)
-    content_url: str | None = property_(52)
-    thumbnail_url: str | None = property_(53)
-    favicon_url: str | None = property_(54)
-    thumbnail_width: int | None = property_(55)
-    thumbnail_height: int | None = property_(56)
-    content: str | None = property_(60)
-    attribution: str | None = property_(62)
-    attribution_tag: str | None = property_(63)
-    published_at: Optional[datetime] = property_(64)
-    expires_at: Optional[datetime] = property_(65)
-    image_urls: list[str] = property_(70)
+    url: str | None = builtin_property(50, is_repr=True)
+    domain: str | None = builtin_property(51, is_repr=True)
+    content_url: str | None = builtin_property(52)
+    thumbnail_url: str | None = builtin_property(53)
+    favicon_url: str | None = builtin_property(54)
+    thumbnail_width: int | None = builtin_property(55)
+    thumbnail_height: int | None = builtin_property(56)
+    content: str | None = builtin_property(60)
+    attribution: str | None = builtin_property(62)
+    attribution_tag: str | None = builtin_property(63)
+    published_at: Optional[datetime] = builtin_property(64)
+    expires_at: Optional[datetime] = builtin_property(65)
+    image_urls: list[str] = builtin_property(70)

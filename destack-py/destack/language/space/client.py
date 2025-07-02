@@ -12,8 +12,8 @@ from destack.language.core import (
     NodeType,
     Origin,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 from destack.utils.uuid import UUID
 
@@ -33,26 +33,26 @@ class Client(
     """A Client to connect with the system."""
 
     # meta
-    parent: Optional[IsSubject] = property_parent_(node_is_extensible=False)
-    type: ClientType = property_(30)
-    machine: Optional["Machine"] = property_(36)
-    user: Optional["User"] = property_(37)
+    parent: Optional[IsSubject] = builtin_property_parent(node_is_extensible=False)
+    type: ClientType = builtin_property(30)
+    machine: Optional["Machine"] = builtin_property(36)
+    user: Optional["User"] = builtin_property(37)
     if TYPE_CHECKING:
         machine_ptr: Optional[NodeReference] = None
         user_ptr: Optional[NodeReference] = None
 
     # status
-    access_token: Optional[str] = property_(50, is_unique=True)
-    seen_at: Optional[datetime] = property_(51)
-    logged_in_at: Optional[datetime] = property_(52)
-    cursor: Optional["Cursor"] = property_(55)
+    access_token: Optional[str] = builtin_property(50, is_unique=True)
+    seen_at: Optional[datetime] = builtin_property(51)
+    logged_in_at: Optional[datetime] = builtin_property(52)
+    cursor: Optional["Cursor"] = builtin_property(55)
 
     # details
-    device_type: Optional[str] = property_(40)
-    device_name: Optional[str] = property_(41)
-    operating_system: Optional[str] = property_(42)
-    browser_name: Optional[str] = property_(43)
-    browser_version: Optional[str] = property_(44)
+    device_type: Optional[str] = builtin_property(40)
+    device_name: Optional[str] = builtin_property(41)
+    operating_system: Optional[str] = builtin_property(42)
+    browser_name: Optional[str] = builtin_property(43)
+    browser_version: Optional[str] = builtin_property(44)
 
     def to_origin(self, *, nonce: UUID | None) -> "Origin":
         return Origin(type=self.type, id=self.id, nonce=nonce or self.id)

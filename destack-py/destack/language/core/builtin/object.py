@@ -40,7 +40,12 @@ from .common import (
     TypeCardinality,
 )
 from .const import ACTIVE_SESSION, EMPTY_DICT, REGION, UNSET
-from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, TypeDeclaration, property_runtime_
+from .property import (
+    _PROPERTY_SPECIFIERS,
+    PropertyDeclaration,
+    TypeDeclaration,
+    builtin_property_runtime,
+)
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -1252,11 +1257,11 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
 class BuiltinObjectMutable[ObjectProtoT: AnyObjectProto](BuiltinObjectBase[ObjectProtoT]):
     """A mutable BuiltinObject."""
 
-    _supergraph: "Supergraph | None" = property_runtime_()
+    _supergraph: "Supergraph | None" = builtin_property_runtime()
 
 
 @object_(frozen=True)
 class BuiltinObjectFrozen[ObjectProtoT: AnyObjectProto](BuiltinObjectBase[ObjectProtoT]):
     """A frozen BuiltinObject."""
 
-    _supergraph: "Supergraph | None" = property_runtime_()
+    _supergraph: "Supergraph | None" = builtin_property_runtime()

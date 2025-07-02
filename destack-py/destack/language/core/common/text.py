@@ -12,9 +12,9 @@ from ..builtin import (
     StructFrozen,
     StructType,
     builtin_enum,
+    builtin_property,
     builtin_struct,
     object_,
-    property_,
 )
 
 if TYPE_CHECKING:
@@ -23,11 +23,11 @@ if TYPE_CHECKING:
 
 @object_(frozen=True)
 class TextOptionsBase(BuiltinObjectFrozen):
-    is_bold: Optional[bool] = property_(60)
-    is_italic: Optional[bool] = property_(61)
-    is_strikethrough: Optional[bool] = property_(62)
-    is_underline: Optional[bool] = property_(63)
-    is_code: Optional[bool] = property_(64)
+    is_bold: Optional[bool] = builtin_property(60)
+    is_italic: Optional[bool] = builtin_property(61)
+    is_strikethrough: Optional[bool] = builtin_property(62)
+    is_underline: Optional[bool] = builtin_property(63)
+    is_code: Optional[bool] = builtin_property(64)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -52,12 +52,12 @@ class TextSpanType(Enum):
 class TextSpan(TextOptionsBase, StructFrozen):
     """A span of text with optional formatting"""
 
-    type: TextSpanType = property_(30, default=TextSpanType.TEXT)
-    content: Optional[str] = property_(33)
-    node: Optional[Node] = property_(34)
+    type: TextSpanType = builtin_property(30, default=TextSpanType.TEXT)
+    content: Optional[str] = builtin_property(33)
+    node: Optional[Node] = builtin_property(34)
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
-    url: Optional[str] = property_(35)
+    url: Optional[str] = builtin_property(35)
 
     @staticmethod
     def hard_break() -> "TextSpan":
@@ -70,7 +70,7 @@ class Text(TextOptionsBase, StructFrozen):
     Rich Text; a single paragraph composed of TextSpans with inline formatting.
     """
 
-    spans: list[TextSpan] = property_(33)
+    spans: list[TextSpan] = builtin_property(33)
 
     def __contains__(self, item: str | Node) -> bool:
         if isinstance(item, str):

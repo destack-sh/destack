@@ -24,9 +24,9 @@ from ..builtin import (
     StructFrozen,
     StructType,
     TypeDeclaration,
+    builtin_property,
+    builtin_property_runtime,
     builtin_struct,
-    property_,
-    property_runtime_,
 )
 from ..builtin.relation import NodeReference
 from .type import Json, ScalarType, Type, TypeCardinality, to_type
@@ -49,10 +49,10 @@ type_ = type
 class Value(StructFrozen[ValueProto]):
     """A generic Value of any Type."""
 
-    type: Type = property_(30, is_repr=True)
-    value: Json = property_(40)
+    type: Type = builtin_property(30, is_repr=True)
+    value: Json = builtin_property(40)
 
-    _unpacked: Any | None = property_runtime_()
+    _unpacked: Any | None = builtin_property_runtime()
 
     def unpack[T = Any](self, type: type_[T] | None = None) -> T:
         """Get the unpacked value of this generic Value."""

@@ -16,8 +16,8 @@ from destack.language.core import (
     Text,
     TextIn,
     builtin_node,
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
     to_text,
 )
 
@@ -43,25 +43,25 @@ class Message(
     """
 
     # meta
-    parent: Union["Thread", None] = property_parent_(node_is_extensible=True)
+    parent: Union["Thread", None] = builtin_property_parent(node_is_extensible=True)
     # platform? source?
-    thread: Optional["Thread"] = property_(35, node_space_from="self")
+    thread: Optional["Thread"] = builtin_property(35, node_space_from="self")
     if TYPE_CHECKING:
         thread_ptr: Optional[NodeReference] = None
 
     # status
-    edited_at: Optional[datetime] = property_(40)
+    edited_at: Optional[datetime] = builtin_property(40)
 
     # routing
-    reply_to: Optional["Message"] = property_(50)
-    forwarded_from: Optional["Message"] = property_(51)
+    reply_to: Optional["Message"] = builtin_property(50)
+    forwarded_from: Optional["Message"] = builtin_property(51)
     if TYPE_CHECKING:
         reply_to_ptr: Optional[NodeReference] = None
         forwarded_from_ptr: Optional[NodeReference] = None
 
     # content
-    text: Optional["Text"] = property_(61)
-    node: Optional["Node"] = property_(62)
+    text: Optional["Text"] = builtin_property(61)
+    node: Optional["Node"] = builtin_property(62)
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
 

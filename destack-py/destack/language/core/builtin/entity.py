@@ -8,8 +8,8 @@ from typing import (
 from .common import ResourceStatus, RoleType
 from .node import Node, NodeType, builtin_node
 from .property import (
-    property_,
-    property_parent_,
+    builtin_property,
+    builtin_property_parent,
 )
 from .trait import (
     HasName,
@@ -40,18 +40,30 @@ class Entity(Node):
     An Entity is a versioned, stateful Node.
     """
 
-    created_at: datetime = property_(15, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    created_by: Optional["IsSubject"] = property_(
+    created_at: datetime = builtin_property(
+        15,
+        is_managed=True,
+        is_eq=False,
+        is_readonly=True,
+        can_write=RoleType.SYSTEM,
+    )
+    created_by: Optional["IsSubject"] = builtin_property(
         16,
         default=None,
         is_managed=True,
         is_eq=False,
+        is_readonly=True,
         node_space_from="self",
         node_is_extensible=False,
         can_write=RoleType.SYSTEM,
     )
-    updated_at: datetime = property_(17, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    updated_by: Optional["IsSubject"] = property_(
+    updated_at: datetime = builtin_property(
+        17,
+        is_managed=True,
+        is_eq=False,
+        can_write=RoleType.SYSTEM,
+    )
+    updated_by: Optional["IsSubject"] = builtin_property(
         18,
         default=None,
         is_managed=True,
@@ -133,15 +145,15 @@ class CustomEntityDefinition(
     Custom Entities may be materialized as physical or logical tables in primary storage.
     """
 
-    parent: Optional["Folder"] = property_parent_(node_is_extensible=False)
+    parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
 
-    prototype: Optional["CustomEntity"] = property_(
+    prototype: Optional["CustomEntity"] = builtin_property(
         40,
         description="A custom Entity's prototype is the default template new CustomEntity instances are based on.",
     )
-    base_type: Optional["NodeDefinitionReference"] = property_(41)
-    base_traits: list["NodeDefinitionReference"] = property_(42)
-    is_abstract: bool = property_(45, default=False)
+    base_type: Optional["NodeDefinitionReference"] = builtin_property(41)
+    base_traits: list["NodeDefinitionReference"] = builtin_property(42)
+    is_abstract: bool = builtin_property(45, default=False)
 
 
 @builtin_node(NodeType.CUSTOM_ENTITY, is_abstract=True)
@@ -156,10 +168,10 @@ class CustomEntity(
     A CustomEntity is an instance of a CustomEntityDefinition.
     """
 
-    parent: Union["CustomEntityDefinition", "CustomEntity", None] = property_parent_(
+    parent: Union["CustomEntityDefinition", "CustomEntity", None] = builtin_property_parent(
         node_is_extensible=True
     )
-    definition: "CustomEntityDefinition" = property_(
+    definition: "CustomEntityDefinition" = builtin_property(
         6,
         description="The CustomEntityDefinition this CustomEntity is an instance of.",
         is_managed=True,
@@ -183,11 +195,11 @@ class CustomTraitDefinition(
     A CustomTraitDefinition defines a kind of CustomTrait.
     """
 
-    parent: Optional["Folder"] = property_parent_(node_is_extensible=False)
+    parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
 
-    base_type: Optional["NodeDefinitionReference"] = property_(41)
-    base_traits: list["NodeDefinitionReference"] = property_(42)
-    is_abstract: bool = property_(45, default=False)
+    base_type: Optional["NodeDefinitionReference"] = builtin_property(41)
+    base_traits: list["NodeDefinitionReference"] = builtin_property(42)
+    is_abstract: bool = builtin_property(45, default=False)
 
 
 @builtin_node(NodeType.RESOURCE, is_abstract=True)
@@ -197,8 +209,8 @@ class Resource(IsDeletable, Entity):
     The lifecycle of a Resource may be managed by some provisioner.
     """
 
-    status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
-    target_status: Optional[datetime] = property_(41)
+    status: ResourceStatus = builtin_property(40, default=ResourceStatus.PENDING)
+    target_status: Optional[datetime] = builtin_property(41)
 
 
 @builtin_node(NodeType.METRIC, is_abstract=True)

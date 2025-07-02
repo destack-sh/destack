@@ -13,7 +13,7 @@ from destack.language.core import (
     Value,
     builtin_enum,
     builtin_node,
-    property_,
+    builtin_property,
 )
 from destack.utils.uuid import UUID
 
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 class TriggerEvent(Event["Trigger"]):
     """A TriggerEvent is an Event that corresponds to a Trigger."""
 
-    node: "Trigger" = property_(35)
+    node: "Trigger" = builtin_property(35)
 
 
 @builtin_enum(EnumType.TRIGGER_TYPE)
@@ -40,10 +40,10 @@ class Trigger(IsSpatial, HasName, Entity):
     """A Trigger is a dynamic event to run something."""
 
     # when
-    event: Optional[NodeDefinitionReference] = property_(40)
-    where: Optional["Condition"] = property_(41)
+    event: Optional[NodeDefinitionReference] = builtin_property(40)
+    where: Optional["Condition"] = builtin_property(41)
     # sampling?
 
     # what
-    target: IsRunnable = property_(50)
-    arguments: dict[UUID, Value] = property_(51)
+    target: IsRunnable = builtin_property(50)
+    arguments: dict[UUID, Value] = builtin_property(51)

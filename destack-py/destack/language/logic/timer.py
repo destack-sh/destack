@@ -10,7 +10,7 @@ from destack.language.core import (
     NodeType,
     builtin_enum,
     builtin_node,
-    property_,
+    builtin_property,
 )
 
 from .schedule import Schedule
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class TimerEvent(Event["Timer"]):
     """A TimerEvent is an Event that corresponds to a Timer."""
 
-    node: "Timer" = property_(35)
+    node: "Timer" = builtin_property(35)
 
 
 @builtin_node(NodeType.TIMER_STARTED_EVENT)
@@ -59,5 +59,5 @@ class TimerType(Enum):
 class Timer(IsSpatial, HasName, Entity):
     """A Timer."""
 
-    type: TimerType = property_(30)
-    schedule: "Schedule | None" = property_(40)
+    type: TimerType = builtin_property(30)
+    schedule: "Schedule | None" = builtin_property(40)

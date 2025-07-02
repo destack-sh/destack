@@ -6,8 +6,8 @@ from ..builtin import (
     StructFrozen,
     StructType,
     builtin_enum,
+    builtin_property,
     builtin_struct,
-    property_,
 )
 
 if TYPE_CHECKING:
@@ -76,8 +76,8 @@ class LengthUnit(Enum):
 class Length(StructFrozen):
     """A length value."""
 
-    unit: LengthUnit = property_(50)
-    value: float = property_(51)
+    unit: LengthUnit = builtin_property(50)
+    value: float = builtin_property(51)
 
 
 @builtin_enum(EnumType.POSITION_TYPE)
@@ -94,11 +94,11 @@ class PositionType(Enum):
 class Position(StructFrozen):
     """A position value."""
 
-    type: PositionType = property_(30, is_repr=True)
-    top: Length | None = property_(50, is_repr=True)
-    left: Length | None = property_(51, is_repr=True)
-    width: Length | None = property_(52, is_repr=True)
-    height: Length | None = property_(53, is_repr=True)
+    type: PositionType = builtin_property(30, is_repr=True)
+    top: Length | None = builtin_property(50, is_repr=True)
+    left: Length | None = builtin_property(51, is_repr=True)
+    width: Length | None = builtin_property(52, is_repr=True)
+    height: Length | None = builtin_property(53, is_repr=True)
 
 
 @builtin_enum(EnumType.DIMENSION_TYPE)
@@ -112,66 +112,66 @@ class DimensionType(Enum):
 class Dimension(StructFrozen):
     """A dimension value (like Length but can fit or fill container)."""
 
-    type: DimensionType = property_(30, is_repr=True)
-    unit: LengthUnit = property_(50, is_repr=True)
-    value: float = property_(51, is_repr=True)
+    type: DimensionType = builtin_property(30, is_repr=True)
+    unit: LengthUnit = builtin_property(50, is_repr=True)
+    value: float = builtin_property(51, is_repr=True)
 
 
 @builtin_struct(StructType.INSETS, frozen=True)
 class Insets(StructFrozen):
     """An insets value (base + side overrides)."""
 
-    base: int | None = property_(50, is_repr=True)
-    top: int | None = property_(51, is_repr=True)
-    left: int | None = property_(52, is_repr=True)
-    right: int | None = property_(53, is_repr=True)
-    bottom: int | None = property_(54, is_repr=True)
+    base: int | None = builtin_property(50, is_repr=True)
+    top: int | None = builtin_property(51, is_repr=True)
+    left: int | None = builtin_property(52, is_repr=True)
+    right: int | None = builtin_property(53, is_repr=True)
+    bottom: int | None = builtin_property(54, is_repr=True)
 
 
 @builtin_struct(StructType.CORNERS, frozen=True)
 class Corners(StructFrozen):
     """A corners value (base + corner overrides)."""
 
-    base: int | None = property_(50, is_repr=True)
-    top_left: int | None = property_(51, is_repr=True)
-    top_right: int | None = property_(52, is_repr=True)
-    bottom_left: int | None = property_(53, is_repr=True)
-    bottom_right: int | None = property_(54, is_repr=True)
+    base: int | None = builtin_property(50, is_repr=True)
+    top_left: int | None = builtin_property(51, is_repr=True)
+    top_right: int | None = builtin_property(52, is_repr=True)
+    bottom_left: int | None = builtin_property(53, is_repr=True)
+    bottom_right: int | None = builtin_property(54, is_repr=True)
 
 
 @builtin_struct(StructType.AXIS2, frozen=True)
 class Axis2(StructFrozen):
     """A gap value (base + x/y overrides)."""
 
-    base: float | None = property_(50, is_repr=True)
-    x: float | None = property_(51, is_repr=True)
-    y: float | None = property_(52, is_repr=True)
+    base: float | None = builtin_property(50, is_repr=True)
+    x: float | None = builtin_property(51, is_repr=True)
+    y: float | None = builtin_property(52, is_repr=True)
 
 
 @builtin_struct(StructType.AXIS3, frozen=True)
 class Axis3(StructFrozen):
     """A rotation value (base + x/y/z overrides)."""
 
-    base: float | None = property_(50, is_repr=True)
-    x: float | None = property_(51, is_repr=True)
-    y: float | None = property_(52, is_repr=True)
-    z: float | None = property_(53, is_repr=True)
+    base: float | None = builtin_property(50, is_repr=True)
+    x: float | None = builtin_property(51, is_repr=True)
+    y: float | None = builtin_property(52, is_repr=True)
+    z: float | None = builtin_property(53, is_repr=True)
 
 
 @builtin_struct(StructType.GRID, frozen=True)
 class Grid(StructFrozen):
     """A grid configuration value."""
 
-    columns: int = property_(50, is_repr=True)
-    rows: int = property_(51, is_repr=True)
-    column_width: Dimension | None = property_(52, is_repr=True)
-    column_min_width: Dimension | None = property_(53, is_repr=True)
-    row_height: Dimension | None = property_(54, is_repr=True)
+    columns: int = builtin_property(50, is_repr=True)
+    rows: int = builtin_property(51, is_repr=True)
+    column_width: Dimension | None = builtin_property(52, is_repr=True)
+    column_min_width: Dimension | None = builtin_property(53, is_repr=True)
+    row_height: Dimension | None = builtin_property(54, is_repr=True)
 
 
 @builtin_struct(StructType.GRID_SPAN, frozen=True)
 class GridSpan(StructFrozen):
     """A grid span value."""
 
-    columns: int = property_(50, is_repr=True)
-    rows: int = property_(51, is_repr=True)
+    columns: int = builtin_property(50, is_repr=True)
+    rows: int = builtin_property(51, is_repr=True)
