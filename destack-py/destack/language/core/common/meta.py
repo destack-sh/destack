@@ -285,7 +285,10 @@ class TraitDefinition(StructFrozen):
     alias: str = builtin_property(32, is_repr=True)
     icon: "Icon | None" = builtin_property(34)
     description: str | None = builtin_property(36, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(40)
+    properties: list["PropertyDefinition"] = builtin_property(37)
+
+    is_extensible: bool = builtin_property(43, is_repr=True)
+
     traits: list[TraitType] = builtin_property(
         51, description="Traits directly and indirectly inherited by this trait."
     )
@@ -323,11 +326,27 @@ class NodeDefinition(StructFrozen):
     name: str = builtin_property(31, is_repr=True)
     icon: "Icon | None" = builtin_property(34)
     description: str | None = builtin_property(36, is_repr=True)
-    is_abstract: bool = builtin_property(37, is_repr=True)
-    is_global: bool = builtin_property(38, is_repr=True)
-    is_spatial: bool = builtin_property(39, is_repr=True)
+    properties: list["PropertyDefinition"] = builtin_property(37)
 
-    properties: list["PropertyDefinition"] = builtin_property(40)
+    is_global: bool = builtin_property(40, is_repr=True, description="Whether this Node is global.")
+    is_spatial: bool = builtin_property(
+        41, is_repr=True, description="Whether this Node is per Space."
+    )
+    is_abstract: bool = builtin_property(
+        42,
+        is_repr=True,
+        description="Whether this Node is abstract (cannot be instantiated directly).",
+    )
+    is_extensible: bool = builtin_property(
+        43,
+        is_repr=True,
+        description="Whether this Node is extensible (can be extended by custom Nodes).",
+    )
+    is_frozen: bool = builtin_property(
+        44,
+        is_repr=True,
+        description="Whether this Node is read-only (cannot be modified).",
+    )
 
     base_type: NodeType | None = builtin_property(
         50, description="The base type this Node extends (directly)."
@@ -366,12 +385,14 @@ class NodeDefinition(StructFrozen):
             name=node_cls.__name__,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
-            is_abstract=node_cls.__is_abstract__,
-            is_global=TraitType.GLOBAL in node_cls.__traits__,
-            is_spatial=TraitType.SPATIAL in node_cls.__traits__,
             properties=[
                 prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
             ],
+            is_global=TraitType.GLOBAL in node_cls.__traits__,
+            is_spatial=TraitType.SPATIAL in node_cls.__traits__,
+            is_abstract=node_cls.__is_abstract__,
+            is_extensible=TraitType.EXTENSIBLE in node_cls.__traits__,
+            is_frozen=node_cls.__is_frozen__,
             base_type=node_cls.__base_type__,
             extended_by=list(node_cls.__extended_by__),
             inherits=list(node_cls.__inherits__),
@@ -395,8 +416,9 @@ class StructDefinition(StructFrozen):
     name: str = builtin_property(31, is_repr=True)
     icon: "Icon | None" = builtin_property(34)
     description: str | None = builtin_property(36, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(50)
-    is_frozen: bool = builtin_property(60)
+    properties: list["PropertyDefinition"] = builtin_property(37)
+
+    is_frozen: bool = builtin_property(44)
 
     @classmethod
     def from_struct(cls, struct_cls: _type[StructBase]) -> "StructDefinition":

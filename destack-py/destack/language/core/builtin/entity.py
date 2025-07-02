@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Optional,
-    Union,
 )
 
 from .common import ResourceStatus, RoleType
@@ -29,7 +28,6 @@ if TYPE_CHECKING:
         IsSubject,
         NodeDefinitionReference,
         NodeReference,
-        Space,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -142,8 +140,10 @@ class CustomEntityDefinition(
     Entity,
 ):
     """
-    A definition for a custom Entity type (instantiated in CustomEntities).
-    Custom Entities may be materialized as physical or logical tables in primary storage.
+    A definition for a custom Entity type.
+    Custom Entities are instantiated either as:
+     1) their respective extensible base type (like ContainerView)
+     2) plain CustomEntity instance (default if not extending any other type)
     """
 
     parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
@@ -162,17 +162,13 @@ class CustomEntityDefinition(
 class CustomEntity(
     IsSpatial,
     IsExtensible,
-    IsCustomizable,
     IsDeletable,
     Entity,
 ):
     """
-    A CustomEntity is an instance of a CustomEntityDefinition.
+    A generic CustomEntity instance of a CustomEntityDefinition.
     """
 
-    parent: Union["Space", "Folder", "CustomEntity", None] = builtin_property_parent(
-        node_is_extensible=True
-    )
     definition: "CustomEntityDefinition" = builtin_property(
         6,
         is_managed=True,
@@ -181,21 +177,6 @@ class CustomEntity(
     )
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None
-
-    base_type: "NodeDefinitionReference" = builtin_property(
-        40,
-        is_readonly=True,
-        is_managed=True,
-        description="Inlined base type of this CustomEntity.",
-    )
-    base_node_type: NodeType = builtin_property(
-        41,
-        is_readonly=True,
-        is_managed=True,
-        description="Inlined builtin base NodeType of this CustomEntity.",
-    )
-    # inherits?
-    # base_traits/base_trait_types?
 
 
 @builtin_node(NodeType.CUSTOM_TRAIT_DEFINITION)
@@ -225,8 +206,8 @@ class Resource(IsDeletable, IsExtensible, Entity):
     The lifecycle of a Resource may be managed by some Provisioner.
     """
 
-    status: ResourceStatus = builtin_property(40, default=ResourceStatus.PENDING)
-    target_status: Optional[datetime] = builtin_property(41)
+    status: ResourceStatus = builtin_property(100, default=ResourceStatus.PENDING)
+    target_status: Optional[datetime] = builtin_property(101)
 
 
 @builtin_node(NodeType.METRIC, is_abstract=True)

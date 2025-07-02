@@ -394,13 +394,13 @@ class TraitType(Enum):
     ORDERED = 100, "Ordered", "Is ordered", "fas fa-sort"
     ARCHIVABLE = 101, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 102, "Deletable", "Can be deleted", "fas fa-trash"
-    EXTENSIBLE = 103, "Extensible", "Can be extended by custom Nodes", "fas fa-expand"
     CUSTOMIZABLE = (
-        104,
+        110,
         "Customizable",
         "Can be customized with custom Properties",
         "fas fa-paint-roller",
     )
+    EXTENSIBLE = 111, "Extensible", "Can be extended by custom Nodes", "fas fa-expand"
     # attribute
     HAS_NAME = 200, "Name", "Has a name", "fas fa-font-case"
     HAS_SLUG = 201, "Slug", "Has a slug", "fas fa-hashtag"

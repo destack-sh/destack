@@ -4,6 +4,7 @@ from typing import (
     TYPE_CHECKING,
     ClassVar,
     Optional,
+    Union,
     cast,
     dataclass_transform,
 )
@@ -37,9 +38,12 @@ from .property import (
 
 if TYPE_CHECKING:
     from destack.language import (
+        CustomEntityDefinition,
+        CustomEventDefinition,
         Icon,
         Node,
         NodeDefinition,
+        NodeDefinitionReference,
         NodeReference,
         Script,
         Space,
@@ -77,6 +81,7 @@ class IndexIn:
 def builtin_trait(
     trait_type: TraitType | None,
     pretend_frozen: bool = False,  # :PretendFrozen
+    is_extensible: bool = False,
 ):
     """Register a class as a node trait."""
 
@@ -102,6 +107,7 @@ def builtin_trait(
                 base_traits.add(super_trait_type)
         cls.__traits__ = tuple(traits)
         cls.__base_traits__ = tuple(base_traits)
+        cast(type["Trait"], cls).__is_extensible__ = is_extensible
 
         # register
         if trait_type is not None:
@@ -123,11 +129,15 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
     __definition__: ClassVar["NodeDefinition"]
 
+    """Whether this class is an actual Node (not a Trait)."""
     __is_node__: ClassVar[bool] = True
+    """Whether this class is a Trait (not a Node)."""
     __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__
+    """Indexes for this Node."""
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
-    __is_abstract__: ClassVar[bool] = False
 
+    """Whether this class is abstract (not concrete)."""
+    __is_abstract__: ClassVar[bool] = False
     """The base type this Node extends (directly)."""
     __base_type__: ClassVar[NodeType | None] = None
     """Nodes that extend this Node type (directly)."""
@@ -179,6 +189,7 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
 
     __is_node__: ClassVar[bool] = True
     __is_trait__: ClassVar[bool] = True
+    __is_extensible__: ClassVar[bool] = False
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
@@ -214,7 +225,7 @@ class HasIcon(Trait):
 #
 
 
-@builtin_trait(TraitType.ARCHIVABLE)
+@builtin_trait(TraitType.ARCHIVABLE, is_extensible=True)
 class IsArchivable(Trait):
     """A Node that can be archived."""
 
@@ -235,7 +246,7 @@ class IsArchivable(Trait):
         self._session.unarchive(self)
 
 
-@builtin_trait(TraitType.DELETABLE)
+@builtin_trait(TraitType.DELETABLE, is_extensible=True)
 class IsDeletable(Trait):
     """A Node that can be deleted."""
 
@@ -252,24 +263,41 @@ class IsDeletable(Trait):
         self._session.restore(self)
 
 
-@builtin_trait(TraitType.EXTENSIBLE)
-class IsExtensible(Trait):
-    """A Node that be extended by custom Nodes (i.e. used as a base type)."""
-
-    pass
-
-
 @builtin_trait(TraitType.CUSTOMIZABLE)
 class IsCustomizable(Trait):
     """A Node that can be customized with custom Properties."""
 
-    value: dict[UUID, "Value"] = builtin_property(
+    custom_values: dict[UUID, "Value"] = builtin_property(
         21,
         description="The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.",
     )
 
 
-@builtin_trait(TraitType.ORDERED)
+@builtin_trait(TraitType.EXTENSIBLE)
+class IsExtensible(IsCustomizable):
+    """A Node that be extended by custom Nodes (i.e. used as a base type)."""
+
+    definition: Union["CustomEntityDefinition", "CustomEventDefinition", None] = builtin_property(
+        6,
+        is_managed=True,
+        is_readonly=True,
+        description="The definitionthis CustomEntity is an instance of.",
+    )
+    if TYPE_CHECKING:
+        definition_ptr: Optional[NodeReference] = None
+
+    base_type: "NodeDefinitionReference | None" = builtin_property(
+        40,
+        is_readonly=True,
+        is_managed=True,
+        description="Inlined base type of this extensible Node (if extended).",
+    )
+    # base_node_type?
+    # inherits?
+    # base_traits/base_trait_types?
+
+
+@builtin_trait(TraitType.ORDERED, is_extensible=True)
 class IsOrdered(Trait):
     """A Node that can be ordered."""
 
@@ -282,21 +310,21 @@ class IsOrdered(Trait):
     )
 
 
-@builtin_trait(TraitType.REACTABLE)
+@builtin_trait(TraitType.REACTABLE, is_extensible=True)
 class IsReactable(Trait):
     """A Node that can be reacted to (with Reactions)."""
 
     pass
 
 
-@builtin_trait(TraitType.STARABLE)
+@builtin_trait(TraitType.STARABLE, is_extensible=True)
 class IsStarable(Trait):
     """A Node that can be starred (with Stars)."""
 
     pass
 
 
-@builtin_trait(TraitType.FOLLOWABLE)
+@builtin_trait(TraitType.FOLLOWABLE, is_extensible=True)
 class IsFollowable(Trait):
     """A Node that can be followed (with Follows)."""
 
@@ -327,7 +355,7 @@ class IsRunnable(Trait):
     pass
 
 
-@builtin_trait(TraitType.OWNABLE)
+@builtin_trait(TraitType.OWNABLE, is_extensible=True)
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
@@ -346,7 +374,7 @@ class JoinablePermission(Enum):
     BAN = 4
 
 
-@builtin_trait(TraitType.JOINABLE)
+@builtin_trait(TraitType.JOINABLE, is_extensible=True)
 class IsJoinable(Trait):
     """A Node that can be joined by Subjects."""
 
@@ -367,7 +395,7 @@ class IsOwner(Trait):
     pass
 
 
-@builtin_trait(TraitType.TAGGABLE)
+@builtin_trait(TraitType.TAGGABLE, is_extensible=True)
 class IsTaggable(Trait):
     """A Node that can be tagged (with a Tag)."""
 
