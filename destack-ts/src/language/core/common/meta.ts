@@ -1300,6 +1300,31 @@ export class PropertyDefinition extends StructFrozen {
     return Sort.of(this, SortType.DESCENDING);
   }
 
+  _type: Type | null = null;
+
+  toType(): Type {
+    if (this._type === null) {
+      const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
+      this._type = new _Type({
+        cardinality: this.cardinality,
+        scalarType: this.scalarType,
+        primitiveType: this.primitiveType,
+        enumType: this.enumType,
+        nodeType: this.nodeType,
+        structType: this.structType,
+        keyType: this.keyType,
+        isRequired: this.isRequired,
+        defaultValue: this.defaultValue,
+        defaultFactory: this.defaultFactory,
+        collectionConstraint: this.collectionConstraint,
+        stringConstraint: this.stringConstraint,
+        numberConstraint: this.numberConstraint,
+        nodeConstraint: this.nodeConstraint,
+      });
+    }
+    return this._type;
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);

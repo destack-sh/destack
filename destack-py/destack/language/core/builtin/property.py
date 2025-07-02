@@ -432,8 +432,7 @@ class PropertyDeclaration(TypeDeclaration):
     def is_optional(self) -> bool:
         return not self.is_required
 
-    @property
-    def type(self) -> "Type":
+    def to_type(self) -> "Type":
         """The type info for this property (can't extend TypeInfo because circles)."""
         if self._type is None:
             self._type = self._to_type()

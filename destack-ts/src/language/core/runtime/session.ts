@@ -1,8 +1,17 @@
+import { TypeCardinality } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
-import type { Node } from "@destack/language/core/builtin/node";
+import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { IsSubject } from "@destack/language/core/builtin/trait";
-import { Change, ChangeResult, Edit, EditType, Origin } from "@destack/language/core/common/edit";
-import { toValue } from "@destack/language/core/common/value";
+import {
+  Change,
+  ChangeResult,
+  ChangeStatus,
+  Edit,
+  EditOperation,
+  EditType,
+  Origin,
+} from "@destack/language/core/common/edit";
+import { toValue, Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import { Supergraph } from "@destack/language/core/runtime/graph";
 import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";
@@ -14,17 +23,19 @@ import { Temporal } from "temporal-polyfill";
  * A managed Session for interacting with Destack.
  */
 export class Session {
-  changes: Change[];
-  closedAt: Temporal.ZonedDateTime | null;
-  connections: QueryConnection[];
+  oracle: Oracle;
+  space: Space | null;
+  origin: Origin | null;
+  subject: (Node & IsSubject) | null;
+  store: Store | null;
+  supergraph: Supergraph;
+
   dirty: Record<string, Node>;
   edits: Edit[];
-  oracle: Oracle;
-  origin: Origin | null;
-  space: Space | null;
-  store: Store | null;
-  subject: (Node & IsSubject) | null;
-  supergraph: Supergraph;
+  changes: Change[];
+
+  connections: QueryConnection[];
+  closedAt: Temporal.ZonedDateTime | null;
   _token: string | null;
 
   constructor(options?: {
@@ -195,7 +206,58 @@ export class Session {
 
   /** Turn a dirty Node into Edits. */
   _flushNode(node: Node): void {
-    throw new Error("not implemented");
+    if (node._isNew) {
+      node._isNew = false;
+    } else if (node._dirty != null) {
+      // turn dirty properties into Edits (basic SET/CLEAR operations)
+      const nodePtr = node.toRef();
+      for (const [propName, propOldValue] of Object.entries(node._dirty)) {
+        const prop = (node.constructor as NodeClass).__properties__[propName];
+        const propPtr = prop.toRef();
+        const propType = prop.toType();
+
+        // undo
+        let undoOperation: EditOperation;
+        let oldValue: Value | null;
+        if (propOldValue == null || (prop.cardinality != TypeCardinality.SCALAR && !propOldValue)) {
+          undoOperation = EditOperation.CLEAR;
+          oldValue = null;
+        } else {
+          undoOperation = EditOperation.SET;
+          oldValue = toValue(propOldValue, propType);
+        }
+
+        // do
+        const propNewValue = (node as any)[propName];
+        let operation: EditOperation;
+        let newValue: Value | null;
+        if (propNewValue == null || (prop.cardinality != TypeCardinality.SCALAR && !propNewValue)) {
+          operation = EditOperation.CLEAR;
+          newValue = null;
+        } else {
+          operation = EditOperation.SET;
+          newValue = toValue(propNewValue, propType);
+        }
+
+        // create Edits
+        const undoEdit = new Edit({
+          type: EditType.UPDATE,
+          node: nodePtr,
+          propPtr: propPtr,
+          operation: undoOperation,
+          value: oldValue,
+        });
+        const edit = new Edit({
+          type: EditType.UPDATE,
+          node: nodePtr,
+          propPtr: propPtr,
+          operation: operation,
+          value: newValue,
+          undo: undoEdit,
+        });
+        this.edits.push(edit);
+      }
+    }
   }
 
   /** Turn pending updates into Edits, and Edits into Changes. */
@@ -203,7 +265,24 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    // flush dirty Nodes
+    const dirtyNodes = Object.values(this.dirty);
+    if (dirtyNodes.length > 0) {
+      for (const node of dirtyNodes) {
+        this._flushNode(node);
+      }
+      this.dirty = {};
+    }
+    // flush Edits
+    if (this.edits.length > 0) {
+      const change = new Change({
+        edits: this.edits,
+        createdBy: this.subject,
+        origin: this.origin,
+      });
+      this.edits = [];
+      this.changes.push(change);
+    }
   }
 
   /** Stage pending Edits. Also stages pending Changes in the Store if possible. */
@@ -211,14 +290,28 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    this.flush();
   }
 
   /** Commit all Changes/Edits. Returns applied Changes. */
   async commit(): Promise<ChangeResult[]> {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.store == null) {
+      throw new Error(`${this.repr()} has no Store`);
     }
-    throw new Error("not implemented");
+    this.flush();
+    const changes = this.changes;
+    this.changes = [];
+    const results = await this.store.commit(changes);
+    if (results.some((result) => result.status != ChangeStatus.COMPLETED)) {
+      const badResults = results.filter((result) => result.status != ChangeStatus.COMPLETED);
+      throw new Error(
+        `failed to commit ${changes.length} Changes: ${badResults
+          .map((result) => result.id)
+          .join(", ")}`,
+      );
+    }
+    return results;
   }
 }
