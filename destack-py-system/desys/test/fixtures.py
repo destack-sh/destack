@@ -103,7 +103,7 @@ async def global_postgres_database(
     """Gets the per test function global Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-global")
-    schema = get_builtin_schema(StoreType.GLOBAL_ENTITY)
+    schema = get_builtin_schema(StoreType.GLOBAL_ENTITY_PRIMARY)
     await create_test_db(database, schema)
     try:
         yield database
@@ -118,7 +118,7 @@ async def spatial_postgres_database(
     """Gets the per test function spatial Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-spatial")
-    schema = get_builtin_schema(StoreType.SPATIAL_ENTITY)
+    schema = get_builtin_schema(StoreType.SPATIAL_ENTITY_PRIMARY)
     await create_test_db(database, schema)
     try:
         yield database

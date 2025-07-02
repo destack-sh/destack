@@ -76,6 +76,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
   ],
   [TraitType.EXTENSIBLE]: [
     NodeType.CUSTOM_ENTITY,
+    NodeType.RESOURCE,
     NodeType.CUSTOM_EVENT,
     NodeType.VIEW,
     NodeType.CONTAINER_VIEW,
@@ -93,6 +94,10 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.ARROW_SHAPE,
     NodeType.CANVAS,
     NodeType.LINE_SHAPE,
+    NodeType.FILE,
+    NodeType.LINK,
+    NodeType.DATABASE,
+    NodeType.MACHINE,
     NodeType.SERVICE,
     NodeType.LAYER,
     NodeType.SCENE,

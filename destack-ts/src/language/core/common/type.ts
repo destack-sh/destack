@@ -1,5 +1,4 @@
 import {
-  DefaultFactory,
   EnumType,
   NodeType,
   PRIMITIVE_JS_TYPES,
@@ -9,6 +8,7 @@ import {
   StructType,
   TraitType,
   TypeCardinality,
+  ValueFactory,
 } from "@destack/language/core/builtin/common";
 import type {
   CustomEntityDefinition,
@@ -30,7 +30,6 @@ import {
 } from "@destack/language/registry";
 import {
   CollectionConstraintProto,
-  DefaultFactoryProto,
   EnumTypeProto,
   NodeConstraintProto,
   NodeTypeProto,
@@ -44,6 +43,7 @@ import {
   TraitTypeProto,
   TypeCardinalityProto,
   TypeProto,
+  ValueFactoryProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
@@ -1201,19 +1201,14 @@ export class Type extends StructFrozen {
   readonly isRequired: boolean | null;
 
   /**
-   * Type.isVariable
+   * Type.value
    */
-  readonly isVariable: boolean | null;
+  readonly value: Value | null;
 
   /**
-   * Type.defaultValue
+   * Type.valueFactory
    */
-  readonly defaultValue: Value | null;
-
-  /**
-   * Type.defaultFactory
-   */
-  readonly defaultFactory: DefaultFactory | null;
+  readonly valueFactory: ValueFactory | null;
 
   /**
    * Type.collectionConstraint
@@ -1252,9 +1247,8 @@ export class Type extends StructFrozen {
       | null;
     keyType?: Type | null;
     isRequired?: boolean | null;
-    isVariable?: boolean | null;
-    defaultValue?: Value | null;
-    defaultFactory?: DefaultFactory | null;
+    value?: Value | null;
+    valueFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
@@ -1304,12 +1298,10 @@ export class Type extends StructFrozen {
     this.keyType = _keyType;
     let _isRequired = options.isRequired ?? null;
     this.isRequired = _isRequired;
-    let _isVariable = options.isVariable ?? null;
-    this.isVariable = _isVariable;
-    let _defaultValue = options.defaultValue ?? null;
-    this.defaultValue = _defaultValue;
-    let _defaultFactory = options.defaultFactory ?? null;
-    this.defaultFactory = _defaultFactory;
+    let _value = options.value ?? null;
+    this.value = _value;
+    let _valueFactory = options.valueFactory ?? null;
+    this.valueFactory = _valueFactory;
     let _collectionConstraint = options.collectionConstraint ?? null;
     this.collectionConstraint = _collectionConstraint;
     let _stringConstraint = options.stringConstraint ?? null;
@@ -1364,16 +1356,13 @@ export class Type extends StructFrozen {
     if (!(this.isRequired === other.isRequired)) {
       return false;
     }
-    if (!(this.isVariable === other.isVariable)) {
-      return false;
-    }
     if (
-      (this.defaultValue == null) !== (other.defaultValue == null) ||
-      (this.defaultValue != null && !this.defaultValue.equals(other.defaultValue))
+      (this.value == null) !== (other.value == null) ||
+      (this.value != null && !this.value.equals(other.value))
     ) {
       return false;
     }
-    if (!(this.defaultFactory === other.defaultFactory)) {
+    if (!(this.valueFactory === other.valueFactory)) {
       return false;
     }
     if (
@@ -1463,14 +1452,11 @@ export class Type extends StructFrozen {
     if (this.isRequired !== null) {
       h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     }
-    if (this.isVariable !== null) {
-      h = (h * 31 + hashBool(this.isVariable)) & 0xffffffff;
+    if (this.value !== null) {
+      h = (h * 31 + this.value.hash()) & 0xffffffff;
     }
-    if (this.defaultValue !== null) {
-      h = (h * 31 + this.defaultValue.hash()) & 0xffffffff;
-    }
-    if (this.defaultFactory !== null) {
-      h = (h * 31 + this.defaultFactory) & 0xffffffff;
+    if (this.valueFactory !== null) {
+      h = (h * 31 + this.valueFactory) & 0xffffffff;
     }
     if (this.collectionConstraint !== null) {
       h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
@@ -1526,16 +1512,13 @@ export class Type extends StructFrozen {
       objectValue["48"] = object.keyType.toValue();
     }
     if (object.isRequired != null) {
-      objectValue["50"] = object.isRequired;
+      objectValue["49"] = object.isRequired;
     }
-    if (object.isVariable != null) {
-      objectValue["51"] = object.isVariable;
+    if (object.value != null) {
+      objectValue["50"] = object.value.toValue();
     }
-    if (object.defaultValue != null) {
-      objectValue["55"] = object.defaultValue.toValue();
-    }
-    if (object.defaultFactory != null) {
-      objectValue["56"] = object.defaultFactory;
+    if (object.valueFactory != null) {
+      objectValue["51"] = object.valueFactory;
     }
     if (object.collectionConstraint != null) {
       objectValue["60"] = object.collectionConstraint.toValue();
@@ -1593,18 +1576,15 @@ export class Type extends StructFrozen {
       keyTypeValue != undefined
         ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const isRequiredValue = objectValue["50"];
+    const isRequiredValue = objectValue["49"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
-    const isVariableValue = objectValue["51"];
-    const unpackedIsVariable = isVariableValue != undefined ? isVariableValue : null;
-    const defaultValueValue = objectValue["55"];
-    const unpackedDefaultValue =
-      defaultValueValue != undefined
-        ? _Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
+    const valueValue = objectValue["50"];
+    const unpackedValue =
+      valueValue != undefined
+        ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const defaultFactoryValue = objectValue["56"];
-    const unpackedDefaultFactory =
-      defaultFactoryValue != undefined ? Number(defaultFactoryValue) : null;
+    const valueFactoryValue = objectValue["51"];
+    const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
     const collectionConstraintValue = objectValue["60"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
@@ -1653,9 +1633,8 @@ export class Type extends StructFrozen {
       definition: unpackedDefinitionPtr,
       keyType: unpackedKeyType,
       isRequired: unpackedIsRequired,
-      isVariable: unpackedIsVariable,
-      defaultValue: unpackedDefaultValue,
-      defaultFactory: unpackedDefaultFactory,
+      value: unpackedValue,
+      valueFactory: unpackedValueFactory,
       collectionConstraint: unpackedCollectionConstraint,
       stringConstraint: unpackedStringConstraint,
       numberConstraint: unpackedNumberConstraint,
@@ -1708,14 +1687,11 @@ export class Type extends StructFrozen {
     if (object.isRequired != null) {
       objectProto.isRequired = object.isRequired;
     }
-    if (object.isVariable != null) {
-      objectProto.isVariable = object.isVariable;
+    if (object.value != null) {
+      objectProto.value = object.value.toProto();
     }
-    if (object.defaultValue != null) {
-      objectProto.defaultValue = object.defaultValue.toProto();
-    }
-    if (object.defaultFactory != null) {
-      objectProto.defaultFactory = Number(object.defaultFactory) as DefaultFactoryProto;
+    if (object.valueFactory != null) {
+      objectProto.valueFactory = Number(object.valueFactory) as ValueFactoryProto;
     }
     if (object.collectionConstraint != null) {
       objectProto.collectionConstraint = object.collectionConstraint.toProto();
@@ -1782,14 +1758,13 @@ export class Type extends StructFrozen {
           ? _Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
           : null,
       isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
-      isVariable: objectProto.isVariable != undefined ? objectProto.isVariable : null,
-      defaultValue:
-        objectProto.defaultValue != undefined
-          ? _Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
+      value:
+        objectProto.value != undefined
+          ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
           : null,
-      defaultFactory:
-        objectProto.defaultFactory != undefined
-          ? (Number(objectProto.defaultFactory) as DefaultFactory)
+      valueFactory:
+        objectProto.valueFactory != undefined
+          ? (Number(objectProto.valueFactory) as ValueFactory)
           : null,
       collectionConstraint:
         objectProto.collectionConstraint != undefined

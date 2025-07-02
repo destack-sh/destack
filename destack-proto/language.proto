@@ -213,14 +213,6 @@ enum DayOfWeekProto {
   DAY_OF_WEEK_SUNDAY = 7;
 }
 
-// The factory to use for default values.
-enum DefaultFactoryProto {
-  DEFAULT_FACTORY_UNSPECIFIED = 0;
-  DEFAULT_FACTORY_UUID = 1;
-  DEFAULT_FACTORY_NOW = 2;
-  DEFAULT_FACTORY_REGION = 3;
-}
-
 enum DimensionTypeProto {
   DIMENSION_TYPE_UNSPECIFIED = 0;
   DIMENSION_TYPE_FIXED = 2;
@@ -338,7 +330,7 @@ enum EnumTypeProto {
   ENUM_TYPE_STORE_TYPE = 21;
   ENUM_TYPE_STORE_IMPLEMENTATION = 22;
   ENUM_TYPE_PLATFORM_TYPE = 30;
-  ENUM_TYPE_RUNTIME_TYPE = 31;
+  ENUM_TYPE_RUNTIME_LANGUAGE = 31;
   ENUM_TYPE_OPERATING_SYSTEM = 40;
   ENUM_TYPE_EDIT_TYPE = 50;
   ENUM_TYPE_EDIT_OPERATION = 51;
@@ -349,7 +341,7 @@ enum EnumTypeProto {
   ENUM_TYPE_PRIMITIVE_TYPE = 500;
   ENUM_TYPE_TYPE_CARDINALITY = 501;
   ENUM_TYPE_SCALAR_TYPE = 502;
-  ENUM_TYPE_DEFAULT_FACTORY = 503;
+  ENUM_TYPE_VALUE_FACTORY = 503;
   ENUM_TYPE_STRING_FORMAT = 504;
   ENUM_TYPE_NUMBER_FORMAT = 505;
   ENUM_TYPE_CUSTOM_PROPERTY_TYPE = 506;
@@ -1245,10 +1237,10 @@ enum RunStatusProto {
   RUN_STATUS_COMPLETED = 54;
 }
 
-enum RuntimeTypeProto {
-  RUNTIME_TYPE_UNSPECIFIED = 0;
-  RUNTIME_TYPE_PYTHON = 1;
-  RUNTIME_TYPE_JAVASCRIPT = 2;
+enum RuntimeLanguageProto {
+  RUNTIME_LANGUAGE_UNSPECIFIED = 0;
+  RUNTIME_LANGUAGE_PYTHON = 1;
+  RUNTIME_LANGUAGE_JAVASCRIPT = 2;
 }
 
 // A Type of Sanction.
@@ -1331,9 +1323,9 @@ enum StoreImplementationProto {
 
 enum StoreTypeProto {
   STORE_TYPE_UNSPECIFIED = 0;
-  STORE_TYPE_GLOBAL_ENTITY = 100;
-  STORE_TYPE_SPATIAL_ENTITY = 200;
-  STORE_TYPE_LOCAL_MEMORY = 300;
+  STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000;
+  STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100;
+  STORE_TYPE_GLOBAL_EVENT_PRIMARY = 2000;
 }
 
 enum StoreZoneProto {
@@ -1564,6 +1556,14 @@ enum UserStatusProto {
   USER_STATUS_UNSPECIFIED = 0;
   USER_STATUS_CREATING = 2;
   USER_STATUS_ACTIVE = 10;
+}
+
+// The factory to use for default values.
+enum ValueFactoryProto {
+  VALUE_FACTORY_UNSPECIFIED = 0;
+  VALUE_FACTORY_UUID = 1;
+  VALUE_FACTORY_NOW = 2;
+  VALUE_FACTORY_REGION = 3;
 }
 
 enum VariantStateTypeProto {
@@ -2107,6 +2107,8 @@ message CustomEntityProto {
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
   map<string, ValueProto> value = 21;
+  NodeDefinitionReferenceProto base_type = 41;
+  repeated NodeDefinitionReferenceProto base_traits = 42;
 }
 
 // A definition for a custom Entity type (instantiated in CustomEntities).
@@ -2126,7 +2128,7 @@ message CustomEntityDefinitionProto {
   optional NodeReferenceProto owned_by_ptr = 25;
   string name = 31;
   optional NodeReferenceProto prototype_ptr = 40;
-  optional NodeDefinitionReferenceProto base_type = 41;
+  NodeDefinitionReferenceProto base_type = 41;
   repeated NodeDefinitionReferenceProto base_traits = 42;
   bool is_abstract = 45;
   optional NodeReferenceProto script_ptr = 200;
@@ -2218,22 +2220,22 @@ message CustomPropertyProto {
   optional PrimitiveTypeProto primitive_type = 42;
   optional EnumTypeProto enum_type = 43;
   optional NodeTypeProto node_type = 44;
-  optional NodeReferenceProto node_definition_ptr = 45;
-  optional StructTypeProto struct_type = 46;
-  optional NodeReferenceProto base_type_ptr = 47;
+  optional StructTypeProto struct_type = 45;
+  optional NodeReferenceProto definition_ptr = 46;
   optional TypeProto key_type = 48;
-  optional bool is_required = 50;
-  optional bool is_unique = 51;
-  optional ValueProto default_value = 55;
-  optional DefaultFactoryProto default_factory = 56;
+  optional ValueProto value = 50;
+  optional ValueFactoryProto value_factory = 51;
   optional CollectionConstraintProto collection_constraint = 60;
   optional StringConstraintProto string_constraint = 61;
   optional NumberConstraintProto number_constraint = 62;
   optional NodeConstraintProto node_constraint = 63;
   optional EdgeTypeProto edge_type = 70;
   optional CascadeActionProto cascade = 71;
-  optional bool is_readonly = 80;
-  optional bool is_static = 81;
+  optional bool is_required = 80;
+  optional bool is_unique = 81;
+  optional bool is_computed = 82;
+  optional bool is_readonly = 83;
+  optional bool is_static = 84;
   optional NodeReferenceProto source_ptr = 210;
 }
 
@@ -3778,8 +3780,8 @@ message NodeDefinitionProto {
   bool is_spatial = 39;
   repeated PropertyDefinitionProto properties = 40;
   optional NodeTypeProto base_type = 50;
-  repeated NodeTypeProto extends = 51;
-  repeated NodeTypeProto extended_by = 52;
+  repeated NodeTypeProto extended_by = 51;
+  repeated NodeTypeProto inherits = 52;
   repeated NodeTypeProto inherited_by = 53;
   repeated TraitTypeProto base_traits = 55;
   repeated TraitTypeProto traits = 56;
@@ -4171,10 +4173,8 @@ message PropertyDefinitionProto {
   optional NodeTypeProto node_type = 44;
   optional StructTypeProto struct_type = 46;
   optional TypeProto key_type = 48;
-  optional bool is_required = 50;
-  optional bool is_unique = 51;
-  optional ValueProto default_value = 55;
-  optional DefaultFactoryProto default_factory = 56;
+  optional ValueProto value = 50;
+  optional ValueFactoryProto value_factory = 51;
   optional CollectionConstraintProto collection_constraint = 60;
   optional StringConstraintProto string_constraint = 61;
   optional NumberConstraintProto number_constraint = 62;
@@ -4185,15 +4185,17 @@ message PropertyDefinitionProto {
   bool node_has_definition = 76;
   optional EdgeTypeProto edge_type = 77;
   optional CascadeActionProto cascade = 78;
-  bool is_wired = 80;
-  bool is_stored = 81;
-  bool is_repr = 82;
-  bool is_hash = 83;
-  bool is_eq = 84;
-  bool is_managed = 85;
-  bool is_computed = 86;
-  bool is_readonly = 87;
-  bool is_static = 88;
+  bool is_required = 80;
+  bool is_unique = 81;
+  bool is_computed = 82;
+  bool is_readonly = 83;
+  bool is_static = 84;
+  bool is_wired = 90;
+  bool is_stored = 91;
+  bool is_repr = 92;
+  bool is_hash = 93;
+  bool is_eq = 94;
+  bool is_managed = 95;
 }
 
 message PropertyReferenceProto {
@@ -4267,8 +4269,8 @@ message ReactionProto {
   string content = 40;
 }
 
-// A Resource represents an external asset.
-// The lifecycle of a Resource may be managed by some provisioner.
+// A Resource represents an external asset outside of Destack.
+// The lifecycle of a Resource may be managed by some Provisioner.
 message ResourceProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -5347,10 +5349,9 @@ message TypeProto {
   optional StructTypeProto struct_type = 45;
   optional NodeReferenceProto definition_ptr = 46;
   optional TypeProto key_type = 48;
-  optional bool is_required = 50;
-  optional bool is_variable = 51;
-  optional ValueProto default_value = 55;
-  optional DefaultFactoryProto default_factory = 56;
+  optional bool is_required = 49;
+  optional ValueProto value = 50;
+  optional ValueFactoryProto value_factory = 51;
   optional CollectionConstraintProto collection_constraint = 60;
   optional StringConstraintProto string_constraint = 61;
   optional NumberConstraintProto number_constraint = 62;

@@ -9,12 +9,12 @@ from destack.utils.uuid import UUID
 
 from ..builtin import (
     UNSET,
-    DefaultFactory,
     Enum,
     EnumType,
     Node,
     StructFrozen,
     StructType,
+    ValueFactory,
     builtin_enum,
     builtin_property,
     builtin_struct,
@@ -84,9 +84,7 @@ class Edit(StructFrozen):
     An Edit to a Node.
     """
 
-    id: UUID = builtin_property(
-        2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID
-    )
+    id: UUID = builtin_property(2, is_managed=True, is_repr=True, default_factory=ValueFactory.UUID)
     type: EditType = builtin_property(30, is_repr=True)
     operation: EditOperation | None = builtin_property(31, is_repr=True)
     node: Node = builtin_property(32, is_repr=True)
@@ -136,12 +134,10 @@ class Change(StructFrozen):
     """A Change is an atomic sequence of Edits."""
 
     # meta
-    id: UUID = builtin_property(
-        2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID
-    )
+    id: UUID = builtin_property(2, is_managed=True, is_repr=True, default_factory=ValueFactory.UUID)
     name: str | None = builtin_property(31, is_repr=True)
     created_at: datetime = builtin_property(
-        32, is_managed=True, is_repr=True, default_factory=DefaultFactory.NOW
+        32, is_managed=True, is_repr=True, default_factory=ValueFactory.NOW
     )
     created_by: "IsSubject | None" = builtin_property(33, is_managed=True, is_repr=True)
     origin: "Origin | None" = builtin_property(34, is_managed=True, is_repr=True)
@@ -158,7 +154,7 @@ class ChangeResult(StructFrozen):
         2,
         is_managed=True,
         is_repr=True,
-        default_factory=DefaultFactory.UUID,
+        default_factory=ValueFactory.UUID,
         description="The id of the Change.",
     )
     created_at: datetime = builtin_property(
@@ -166,7 +162,7 @@ class ChangeResult(StructFrozen):
         is_managed=True,
         is_repr=True,
         description="The time the ChangeResult was created.",
-        default_factory=DefaultFactory.NOW,
+        default_factory=ValueFactory.NOW,
     )
     debounce: "ChangeDebounce | None" = builtin_property(35, is_managed=True, is_repr=True)
     status: ChangeStatus = builtin_property(40, is_repr=True)

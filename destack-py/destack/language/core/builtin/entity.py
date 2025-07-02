@@ -151,7 +151,7 @@ class CustomEntityDefinition(
         40,
         description="A custom Entity's prototype is the default template new CustomEntity instances are based on.",
     )
-    base_type: Optional["NodeDefinitionReference"] = builtin_property(41)
+    base_type: "NodeDefinitionReference" = builtin_property(41)
     base_traits: list["NodeDefinitionReference"] = builtin_property(42)
     is_abstract: bool = builtin_property(45, default=False)
 
@@ -177,6 +177,16 @@ class CustomEntity(
         is_managed=True,
         can_write=None,
     )
+    base_type: "NodeDefinitionReference" = builtin_property(
+        41,
+        is_readonly=True,
+        description="Inlined base type of this CustomEntity.",
+    )
+    base_traits: list["NodeDefinitionReference"] = builtin_property(
+        42,
+        is_readonly=True,
+        description="Inlined base traits of this CustomEntity.",
+    )
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None
 
@@ -196,17 +206,16 @@ class CustomTraitDefinition(
     """
 
     parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
-
     base_type: Optional["NodeDefinitionReference"] = builtin_property(41)
     base_traits: list["NodeDefinitionReference"] = builtin_property(42)
     is_abstract: bool = builtin_property(45, default=False)
 
 
 @builtin_node(NodeType.RESOURCE, is_abstract=True)
-class Resource(IsDeletable, Entity):
+class Resource(IsDeletable, IsExtensible, Entity):
     """
-    A Resource represents an external asset.
-    The lifecycle of a Resource may be managed by some provisioner.
+    A Resource represents an external asset outside of Destack.
+    The lifecycle of a Resource may be managed by some Provisioner.
     """
 
     status: ResourceStatus = builtin_property(40, default=ResourceStatus.PENDING)

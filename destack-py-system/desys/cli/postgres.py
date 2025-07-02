@@ -57,10 +57,10 @@ async def apply(
     start = time.time()
 
     # resolve databases to migrate
-    if store_type == StoreType.GLOBAL_ENTITY:
+    if store_type == StoreType.GLOBAL_ENTITY_PRIMARY:
         global_database = get_global_database_from_env()
         databases = [global_database]
-    elif store_type == StoreType.SPATIAL_ENTITY:
+    elif store_type == StoreType.SPATIAL_ENTITY_PRIMARY:
         assert galaxy_name, "galaxy_name is required for spatial stores"
         assert external_name, "external_name is required for spatial stores"
         spatial_database = await DATABASE_PROVIDER.resolve_or_error(

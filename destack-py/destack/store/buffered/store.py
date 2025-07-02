@@ -27,7 +27,6 @@ class BufferedStore(Store):
     implementation: ClassVar[StoreImplementation | None] = None  # no single implementation
 
     def __init__(self, *stores: Store):
-        # implementation
         self.stores: tuple[Store, ...] = stores
         self.store_by_type: dict[StoreType, Store] = {}
         for store in stores:
@@ -37,8 +36,6 @@ class BufferedStore(Store):
                         f"already have a {store_type.name} Store: {self.store_by_type[store_type]!r} != {store!r}"
                     )
                 self.store_by_type[store_type] = store
-
-        # buffer
         self.buffer: MemoryStore = MemoryStore(types=tuple(self.store_by_type.keys()))
 
     def __str__(self):

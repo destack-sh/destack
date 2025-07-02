@@ -1,5 +1,6 @@
 import { Change, ChangeResult, Query, QueryResult, QueryUpdate, Store } from "@destack/language";
 
+/** An in-memory Store. */
 export class MemoryStore implements Store {
   repr(): string {
     throw new Error("Method not implemented.");

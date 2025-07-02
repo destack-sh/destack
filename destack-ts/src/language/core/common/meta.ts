@@ -1,6 +1,5 @@
 import {
   CascadeAction,
-  DefaultFactory,
   EdgeType,
   EnumType,
   NodeType,
@@ -9,6 +8,7 @@ import {
   StructType,
   TraitType,
   TypeCardinality,
+  ValueFactory,
 } from "@destack/language/core/builtin/common";
 import type { ObjectDefinitionReference } from "@destack/language/core/builtin/relation";
 import {
@@ -33,7 +33,6 @@ import { STRUCT_CLASS_BY_TYPE, registerStructClass } from "@destack/language/reg
 import {
   CascadeActionProto,
   ConstantDefinitionProto,
-  DefaultFactoryProto,
   EdgeTypeProto,
   EnumDefinitionProto,
   EnumTypeProto,
@@ -49,6 +48,7 @@ import {
   TraitDefinitionProto,
   TraitTypeProto,
   TypeCardinalityProto,
+  ValueFactoryProto,
 } from "@destack/proto";
 import { assertNever, base64Decode } from "@destack/utils";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
@@ -127,24 +127,14 @@ export class PropertyDefinition extends StructFrozen {
   readonly keyType: Type | null;
 
   /**
-   * PropertyDefinition.isRequired
+   * PropertyDefinition.value
    */
-  readonly isRequired: boolean | null;
+  readonly value: Value | null;
 
   /**
-   * PropertyDefinition.isUnique
+   * PropertyDefinition.valueFactory
    */
-  readonly isUnique: boolean | null;
-
-  /**
-   * PropertyDefinition.defaultValue
-   */
-  readonly defaultValue: Value | null;
-
-  /**
-   * PropertyDefinition.defaultFactory
-   */
-  readonly defaultFactory: DefaultFactory | null;
+  readonly valueFactory: ValueFactory | null;
 
   /**
    * PropertyDefinition.collectionConstraint
@@ -197,6 +187,31 @@ export class PropertyDefinition extends StructFrozen {
   readonly cascade: CascadeAction | null;
 
   /**
+   * PropertyDefinition.isRequired
+   */
+  readonly isRequired: boolean;
+
+  /**
+   * PropertyDefinition.isUnique
+   */
+  readonly isUnique: boolean;
+
+  /**
+   * PropertyDefinition.isComputed
+   */
+  readonly isComputed: boolean;
+
+  /**
+   * PropertyDefinition.isReadonly
+   */
+  readonly isReadonly: boolean;
+
+  /**
+   * PropertyDefinition.isStatic
+   */
+  readonly isStatic: boolean;
+
+  /**
    * PropertyDefinition.isWired
    */
   readonly isWired: boolean;
@@ -226,21 +241,6 @@ export class PropertyDefinition extends StructFrozen {
    */
   readonly isManaged: boolean;
 
-  /**
-   * PropertyDefinition.isComputed
-   */
-  readonly isComputed: boolean;
-
-  /**
-   * PropertyDefinition.isReadonly
-   */
-  readonly isReadonly: boolean;
-
-  /**
-   * PropertyDefinition.isStatic
-   */
-  readonly isStatic: boolean;
-
   constructor(options: {
     id: number;
     name: string;
@@ -255,10 +255,8 @@ export class PropertyDefinition extends StructFrozen {
     nodeType?: NodeType | null;
     structType?: StructType | null;
     keyType?: Type | null;
-    isRequired?: boolean | null;
-    isUnique?: boolean | null;
-    defaultValue?: Value | null;
-    defaultFactory?: DefaultFactory | null;
+    value?: Value | null;
+    valueFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
@@ -269,15 +267,17 @@ export class PropertyDefinition extends StructFrozen {
     nodeHasDefinition: boolean;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
+    isRequired: boolean;
+    isUnique: boolean;
+    isComputed: boolean;
+    isReadonly: boolean;
+    isStatic: boolean;
     isWired: boolean;
     isStored: boolean;
     isRepr: boolean;
     isHash: boolean;
     isEq: boolean;
     isManaged: boolean;
-    isComputed: boolean;
-    isReadonly: boolean;
-    isStatic: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -340,14 +340,10 @@ export class PropertyDefinition extends StructFrozen {
     this.structType = _structType;
     let _keyType = options.keyType ?? null;
     this.keyType = _keyType;
-    let _isRequired = options.isRequired ?? null;
-    this.isRequired = _isRequired;
-    let _isUnique = options.isUnique ?? null;
-    this.isUnique = _isUnique;
-    let _defaultValue = options.defaultValue ?? null;
-    this.defaultValue = _defaultValue;
-    let _defaultFactory = options.defaultFactory ?? null;
-    this.defaultFactory = _defaultFactory;
+    let _value = options.value ?? null;
+    this.value = _value;
+    let _valueFactory = options.valueFactory ?? null;
+    this.valueFactory = _valueFactory;
     let _collectionConstraint = options.collectionConstraint ?? null;
     this.collectionConstraint = _collectionConstraint;
     let _stringConstraint = options.stringConstraint ?? null;
@@ -380,6 +376,31 @@ export class PropertyDefinition extends StructFrozen {
     this.edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
     this.cascade = _cascade;
+    let _isRequired = options.isRequired;
+    if (_isRequired === null) {
+      throw new Error(`PropertyDefinition.isRequired is required`);
+    }
+    this.isRequired = _isRequired;
+    let _isUnique = options.isUnique;
+    if (_isUnique === null) {
+      throw new Error(`PropertyDefinition.isUnique is required`);
+    }
+    this.isUnique = _isUnique;
+    let _isComputed = options.isComputed;
+    if (_isComputed === null) {
+      throw new Error(`PropertyDefinition.isComputed is required`);
+    }
+    this.isComputed = _isComputed;
+    let _isReadonly = options.isReadonly;
+    if (_isReadonly === null) {
+      throw new Error(`PropertyDefinition.isReadonly is required`);
+    }
+    this.isReadonly = _isReadonly;
+    let _isStatic = options.isStatic;
+    if (_isStatic === null) {
+      throw new Error(`PropertyDefinition.isStatic is required`);
+    }
+    this.isStatic = _isStatic;
     let _isWired = options.isWired;
     if (_isWired === null) {
       throw new Error(`PropertyDefinition.isWired is required`);
@@ -410,21 +431,6 @@ export class PropertyDefinition extends StructFrozen {
       throw new Error(`PropertyDefinition.isManaged is required`);
     }
     this.isManaged = _isManaged;
-    let _isComputed = options.isComputed;
-    if (_isComputed === null) {
-      throw new Error(`PropertyDefinition.isComputed is required`);
-    }
-    this.isComputed = _isComputed;
-    let _isReadonly = options.isReadonly;
-    if (_isReadonly === null) {
-      throw new Error(`PropertyDefinition.isReadonly is required`);
-    }
-    this.isReadonly = _isReadonly;
-    let _isStatic = options.isStatic;
-    if (_isStatic === null) {
-      throw new Error(`PropertyDefinition.isStatic is required`);
-    }
-    this.isStatic = _isStatic;
 
     // identity
     // @ts-expect-error(readonly)
@@ -486,19 +492,13 @@ export class PropertyDefinition extends StructFrozen {
     ) {
       return false;
     }
-    if (!(this.isRequired === other.isRequired)) {
-      return false;
-    }
-    if (!(this.isUnique === other.isUnique)) {
-      return false;
-    }
     if (
-      (this.defaultValue == null) !== (other.defaultValue == null) ||
-      (this.defaultValue != null && !this.defaultValue.equals(other.defaultValue))
+      (this.value == null) !== (other.value == null) ||
+      (this.value != null && !this.value.equals(other.value))
     ) {
       return false;
     }
-    if (!(this.defaultFactory === other.defaultFactory)) {
+    if (!(this.valueFactory === other.valueFactory)) {
       return false;
     }
     if (
@@ -544,6 +544,21 @@ export class PropertyDefinition extends StructFrozen {
     if (!(this.cascade === other.cascade)) {
       return false;
     }
+    if (!(this.isRequired === other.isRequired)) {
+      return false;
+    }
+    if (!(this.isUnique === other.isUnique)) {
+      return false;
+    }
+    if (!(this.isComputed === other.isComputed)) {
+      return false;
+    }
+    if (!(this.isReadonly === other.isReadonly)) {
+      return false;
+    }
+    if (!(this.isStatic === other.isStatic)) {
+      return false;
+    }
     if (!(this.isWired === other.isWired)) {
       return false;
     }
@@ -560,15 +575,6 @@ export class PropertyDefinition extends StructFrozen {
       return false;
     }
     if (!(this.isManaged === other.isManaged)) {
-      return false;
-    }
-    if (!(this.isComputed === other.isComputed)) {
-      return false;
-    }
-    if (!(this.isReadonly === other.isReadonly)) {
-      return false;
-    }
-    if (!(this.isStatic === other.isStatic)) {
       return false;
     }
     return true;
@@ -599,18 +605,14 @@ export class PropertyDefinition extends StructFrozen {
       if (this.keyType !== null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
       }
-      if (this.isRequired !== null) {
-        propertyReprs.push(`isRequired=${this.isRequired}`);
+      if (this.value !== null) {
+        propertyReprs.push(`value=${this.value.repr()}`);
       }
-      if (this.isUnique !== null) {
-        propertyReprs.push(`isUnique=${this.isUnique}`);
+      if (this.valueFactory !== null) {
+        propertyReprs.push(`valueFactory=${ValueFactory[this.valueFactory]}`);
       }
-      if (this.defaultValue !== null) {
-        propertyReprs.push(`defaultValue=${this.defaultValue.repr()}`);
-      }
-      if (this.defaultFactory !== null) {
-        propertyReprs.push(`defaultFactory=${DefaultFactory[this.defaultFactory]}`);
-      }
+      propertyReprs.push(`isRequired=${this.isRequired}`);
+      propertyReprs.push(`isUnique=${this.isUnique}`);
       // @ts-expect-error(readonly)
       this._repr = `<PropertyDefinition ${propertyReprs.join(" ")}>`;
     }
@@ -651,17 +653,11 @@ export class PropertyDefinition extends StructFrozen {
     if (this.keyType !== null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
     }
-    if (this.isRequired !== null) {
-      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    if (this.value !== null) {
+      h = (h * 31 + this.value.hash()) & 0xffffffff;
     }
-    if (this.isUnique !== null) {
-      h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
-    }
-    if (this.defaultValue !== null) {
-      h = (h * 31 + this.defaultValue.hash()) & 0xffffffff;
-    }
-    if (this.defaultFactory !== null) {
-      h = (h * 31 + this.defaultFactory) & 0xffffffff;
+    if (this.valueFactory !== null) {
+      h = (h * 31 + this.valueFactory) & 0xffffffff;
     }
     if (this.collectionConstraint !== null) {
       h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
@@ -685,15 +681,17 @@ export class PropertyDefinition extends StructFrozen {
     if (this.cascade !== null) {
       h = (h * 31 + this.cascade) & 0xffffffff;
     }
+    h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isComputed)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isStatic)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isWired)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isStored)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isRepr)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isHash)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isEq)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isManaged)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isComputed)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isStatic)) & 0xffffffff;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -742,17 +740,11 @@ export class PropertyDefinition extends StructFrozen {
     if (object.keyType != null) {
       objectValue["48"] = object.keyType.toValue();
     }
-    if (object.isRequired != null) {
-      objectValue["50"] = object.isRequired;
+    if (object.value != null) {
+      objectValue["50"] = object.value.toValue();
     }
-    if (object.isUnique != null) {
-      objectValue["51"] = object.isUnique;
-    }
-    if (object.defaultValue != null) {
-      objectValue["55"] = object.defaultValue.toValue();
-    }
-    if (object.defaultFactory != null) {
-      objectValue["56"] = object.defaultFactory;
+    if (object.valueFactory != null) {
+      objectValue["51"] = object.valueFactory;
     }
     if (object.collectionConstraint != null) {
       objectValue["60"] = object.collectionConstraint.toValue();
@@ -776,15 +768,17 @@ export class PropertyDefinition extends StructFrozen {
     if (object.cascade != null) {
       objectValue["78"] = object.cascade;
     }
-    objectValue["80"] = object.isWired;
-    objectValue["81"] = object.isStored;
-    objectValue["82"] = object.isRepr;
-    objectValue["83"] = object.isHash;
-    objectValue["84"] = object.isEq;
-    objectValue["85"] = object.isManaged;
-    objectValue["86"] = object.isComputed;
-    objectValue["87"] = object.isReadonly;
-    objectValue["88"] = object.isStatic;
+    objectValue["80"] = object.isRequired;
+    objectValue["81"] = object.isUnique;
+    objectValue["82"] = object.isComputed;
+    objectValue["83"] = object.isReadonly;
+    objectValue["84"] = object.isStatic;
+    objectValue["90"] = object.isWired;
+    objectValue["91"] = object.isStored;
+    objectValue["92"] = object.isRepr;
+    objectValue["93"] = object.isHash;
+    objectValue["94"] = object.isEq;
+    objectValue["95"] = object.isManaged;
     return objectValue;
   }
 
@@ -834,18 +828,13 @@ export class PropertyDefinition extends StructFrozen {
       keyTypeValue != undefined
         ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const isRequiredValue = objectValue["50"];
-    const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
-    const isUniqueValue = objectValue["51"];
-    const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : null;
-    const defaultValueValue = objectValue["55"];
-    const unpackedDefaultValue =
-      defaultValueValue != undefined
-        ? _Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
+    const valueValue = objectValue["50"];
+    const unpackedValue =
+      valueValue != undefined
+        ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const defaultFactoryValue = objectValue["56"];
-    const unpackedDefaultFactory =
-      defaultFactoryValue != undefined ? Number(defaultFactoryValue) : null;
+    const valueFactoryValue = objectValue["51"];
+    const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
     const collectionConstraintValue = objectValue["60"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
@@ -914,10 +903,8 @@ export class PropertyDefinition extends StructFrozen {
       nodeType: unpackedNodeType,
       structType: unpackedStructType,
       keyType: unpackedKeyType,
-      isRequired: unpackedIsRequired,
-      isUnique: unpackedIsUnique,
-      defaultValue: unpackedDefaultValue,
-      defaultFactory: unpackedDefaultFactory,
+      value: unpackedValue,
+      valueFactory: unpackedValueFactory,
       collectionConstraint: unpackedCollectionConstraint,
       stringConstraint: unpackedStringConstraint,
       numberConstraint: unpackedNumberConstraint,
@@ -928,15 +915,17 @@ export class PropertyDefinition extends StructFrozen {
       nodeHasDefinition: objectValue["76"],
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
-      isWired: objectValue["80"],
-      isStored: objectValue["81"],
-      isRepr: objectValue["82"],
-      isHash: objectValue["83"],
-      isEq: objectValue["84"],
-      isManaged: objectValue["85"],
-      isComputed: objectValue["86"],
-      isReadonly: objectValue["87"],
-      isStatic: objectValue["88"],
+      isRequired: objectValue["80"],
+      isUnique: objectValue["81"],
+      isComputed: objectValue["82"],
+      isReadonly: objectValue["83"],
+      isStatic: objectValue["84"],
+      isWired: objectValue["90"],
+      isStored: objectValue["91"],
+      isRepr: objectValue["92"],
+      isHash: objectValue["93"],
+      isEq: objectValue["94"],
+      isManaged: objectValue["95"],
       _value: objectValue,
       _supergraph,
     });
@@ -995,17 +984,11 @@ export class PropertyDefinition extends StructFrozen {
     if (object.keyType != null) {
       objectProto.keyType = object.keyType.toProto();
     }
-    if (object.isRequired != null) {
-      objectProto.isRequired = object.isRequired;
+    if (object.value != null) {
+      objectProto.value = object.value.toProto();
     }
-    if (object.isUnique != null) {
-      objectProto.isUnique = object.isUnique;
-    }
-    if (object.defaultValue != null) {
-      objectProto.defaultValue = object.defaultValue.toProto();
-    }
-    if (object.defaultFactory != null) {
-      objectProto.defaultFactory = Number(object.defaultFactory) as DefaultFactoryProto;
+    if (object.valueFactory != null) {
+      objectProto.valueFactory = Number(object.valueFactory) as ValueFactoryProto;
     }
     if (object.collectionConstraint != null) {
       objectProto.collectionConstraint = object.collectionConstraint.toProto();
@@ -1029,15 +1012,17 @@ export class PropertyDefinition extends StructFrozen {
     if (object.cascade != null) {
       objectProto.cascade = Number(object.cascade) as CascadeActionProto;
     }
+    objectProto.isRequired = object.isRequired;
+    objectProto.isUnique = object.isUnique;
+    objectProto.isComputed = object.isComputed;
+    objectProto.isReadonly = object.isReadonly;
+    objectProto.isStatic = object.isStatic;
     objectProto.isWired = object.isWired;
     objectProto.isStored = object.isStored;
     objectProto.isRepr = object.isRepr;
     objectProto.isHash = object.isHash;
     objectProto.isEq = object.isEq;
     objectProto.isManaged = object.isManaged;
-    objectProto.isComputed = object.isComputed;
-    objectProto.isReadonly = object.isReadonly;
-    objectProto.isStatic = object.isStatic;
     return objectProto as PropertyDefinitionProto;
   }
 
@@ -1104,15 +1089,13 @@ export class PropertyDefinition extends StructFrozen {
         objectProto.keyType != undefined
           ? _Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
           : null,
-      isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
-      isUnique: objectProto.isUnique != undefined ? objectProto.isUnique : null,
-      defaultValue:
-        objectProto.defaultValue != undefined
-          ? _Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
+      value:
+        objectProto.value != undefined
+          ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
           : null,
-      defaultFactory:
-        objectProto.defaultFactory != undefined
-          ? (Number(objectProto.defaultFactory) as DefaultFactory)
+      valueFactory:
+        objectProto.valueFactory != undefined
+          ? (Number(objectProto.valueFactory) as ValueFactory)
           : null,
       collectionConstraint:
         objectProto.collectionConstraint != undefined
@@ -1162,15 +1145,17 @@ export class PropertyDefinition extends StructFrozen {
         objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
       cascade:
         objectProto.cascade != undefined ? (Number(objectProto.cascade) as CascadeAction) : null,
+      isRequired: objectProto.isRequired,
+      isUnique: objectProto.isUnique,
+      isComputed: objectProto.isComputed,
+      isReadonly: objectProto.isReadonly,
+      isStatic: objectProto.isStatic,
       isWired: objectProto.isWired,
       isStored: objectProto.isStored,
       isRepr: objectProto.isRepr,
       isHash: objectProto.isHash,
       isEq: objectProto.isEq,
       isManaged: objectProto.isManaged,
-      isComputed: objectProto.isComputed,
-      isReadonly: objectProto.isReadonly,
-      isStatic: objectProto.isStatic,
       _proto: objectProto,
       _supergraph,
     });
@@ -1852,14 +1837,14 @@ export class NodeDefinition extends StructFrozen {
   readonly baseType: NodeType | null;
 
   /**
-   * Nodes that this Node extends (directly and indirectly).
-   */
-  readonly extends: Array<NodeType>;
-
-  /**
    * Nodes that extend this Node type (directly).
    */
   readonly extendedBy: Array<NodeType>;
+
+  /**
+   * Nodes that this Node inherits (directly and indirectly).
+   */
+  readonly inherits: Array<NodeType>;
 
   /**
    * Nodes that inherit this Node type (directly and indirectly).
@@ -1912,8 +1897,8 @@ export class NodeDefinition extends StructFrozen {
     isSpatial: boolean;
     properties?: Array<PropertyDefinition>;
     baseType?: NodeType | null;
-    extends?: Array<NodeType>;
     extendedBy?: Array<NodeType>;
+    inherits?: Array<NodeType>;
     inheritedBy?: Array<NodeType>;
     baseTraits?: Array<TraitType>;
     traits?: Array<TraitType>;
@@ -1978,16 +1963,16 @@ export class NodeDefinition extends StructFrozen {
     this.properties = _properties;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
-    let _extends = options.extends ?? null;
-    if (_extends === null) {
-      _extends = [];
-    }
-    this.extends = _extends;
     let _extendedBy = options.extendedBy ?? null;
     if (_extendedBy === null) {
       _extendedBy = [];
     }
     this.extendedBy = _extendedBy;
+    let _inherits = options.inherits ?? null;
+    if (_inherits === null) {
+      _inherits = [];
+    }
+    this.inherits = _inherits;
     let _inheritedBy = options.inheritedBy ?? null;
     if (_inheritedBy === null) {
       _inheritedBy = [];
@@ -2079,19 +2064,19 @@ export class NodeDefinition extends StructFrozen {
     if (!(this.baseType === other.baseType)) {
       return false;
     }
-    if (this.extends.length !== other.extends.length) {
-      return false;
-    }
-    for (let i = 0; i < this.extends.length; i++) {
-      if (!(this.extends[i] === other.extends[i])) {
-        return false;
-      }
-    }
     if (this.extendedBy.length !== other.extendedBy.length) {
       return false;
     }
     for (let i = 0; i < this.extendedBy.length; i++) {
       if (!(this.extendedBy[i] === other.extendedBy[i])) {
+        return false;
+      }
+    }
+    if (this.inherits.length !== other.inherits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.inherits.length; i++) {
+      if (!(this.inherits[i] === other.inherits[i])) {
         return false;
       }
     }
@@ -2202,13 +2187,13 @@ export class NodeDefinition extends StructFrozen {
     if (this.baseType !== null) {
       h = (h * 31 + this.baseType) & 0xffffffff;
     }
-    if (this.extends && this.extends.length > 0) {
-      for (const _item of this.extends) {
+    if (this.extendedBy && this.extendedBy.length > 0) {
+      for (const _item of this.extendedBy) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.extendedBy && this.extendedBy.length > 0) {
-      for (const _item of this.extendedBy) {
+    if (this.inherits && this.inherits.length > 0) {
+      for (const _item of this.inherits) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
@@ -2293,19 +2278,19 @@ export class NodeDefinition extends StructFrozen {
     if (object.baseType != null) {
       objectValue["50"] = object.baseType;
     }
-    if (object.extends.length > 0) {
-      const packedExtends: any[] = [];
-      for (const item of object.extends) {
-        packedExtends.push(item);
-      }
-      objectValue["51"] = packedExtends;
-    }
     if (object.extendedBy.length > 0) {
       const packedExtendedBy: any[] = [];
       for (const item of object.extendedBy) {
         packedExtendedBy.push(item);
       }
-      objectValue["52"] = packedExtendedBy;
+      objectValue["51"] = packedExtendedBy;
+    }
+    if (object.inherits.length > 0) {
+      const packedInherits: any[] = [];
+      for (const item of object.inherits) {
+        packedInherits.push(item);
+      }
+      objectValue["52"] = packedInherits;
     }
     if (object.inheritedBy.length > 0) {
       const packedInheritedBy: any[] = [];
@@ -2390,16 +2375,16 @@ export class NodeDefinition extends StructFrozen {
     }
     const baseTypeValue = objectValue["50"];
     const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
-    const unpackedExtends: any[] = [];
+    const unpackedExtendedBy: any[] = [];
     if (objectValue["51"] != undefined) {
       for (const item of objectValue["51"]) {
-        unpackedExtends.push(Number(item));
+        unpackedExtendedBy.push(Number(item));
       }
     }
-    const unpackedExtendedBy: any[] = [];
+    const unpackedInherits: any[] = [];
     if (objectValue["52"] != undefined) {
       for (const item of objectValue["52"]) {
-        unpackedExtendedBy.push(Number(item));
+        unpackedInherits.push(Number(item));
       }
     }
     const unpackedInheritedBy: any[] = [];
@@ -2457,8 +2442,8 @@ export class NodeDefinition extends StructFrozen {
       isSpatial: objectValue["39"],
       properties: unpackedProperties,
       baseType: unpackedBaseType,
-      extends: unpackedExtends,
       extendedBy: unpackedExtendedBy,
+      inherits: unpackedInherits,
       inheritedBy: unpackedInheritedBy,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,
@@ -2514,19 +2499,19 @@ export class NodeDefinition extends StructFrozen {
     if (object.baseType != null) {
       objectProto.baseType = Number(object.baseType) as NodeTypeProto;
     }
-    if (object.extends) {
-      const packedExtends: any[] = [];
-      for (const item of object.extends) {
-        packedExtends.push(Number(item) as NodeTypeProto);
-      }
-      objectProto.extends = packedExtends;
-    }
     if (object.extendedBy) {
       const packedExtendedBy: any[] = [];
       for (const item of object.extendedBy) {
         packedExtendedBy.push(Number(item) as NodeTypeProto);
       }
       objectProto.extendedBy = packedExtendedBy;
+    }
+    if (object.inherits) {
+      const packedInherits: any[] = [];
+      for (const item of object.inherits) {
+        packedInherits.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.inherits = packedInherits;
     }
     if (object.inheritedBy) {
       const packedInheritedBy: any[] = [];
@@ -2602,16 +2587,16 @@ export class NodeDefinition extends StructFrozen {
         );
       }
     }
-    const unpackedExtends: any[] = [];
-    if (objectProto.extends) {
-      for (const item of objectProto.extends) {
-        unpackedExtends.push(Number(item) as NodeType);
-      }
-    }
     const unpackedExtendedBy: any[] = [];
     if (objectProto.extendedBy) {
       for (const item of objectProto.extendedBy) {
         unpackedExtendedBy.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedInherits: any[] = [];
+    if (objectProto.inherits) {
+      for (const item of objectProto.inherits) {
+        unpackedInherits.push(Number(item) as NodeType);
       }
     }
     const unpackedInheritedBy: any[] = [];
@@ -2671,8 +2656,8 @@ export class NodeDefinition extends StructFrozen {
       properties: unpackedProperties,
       baseType:
         objectProto.baseType != undefined ? (Number(objectProto.baseType) as NodeType) : null,
-      extends: unpackedExtends,
       extendedBy: unpackedExtendedBy,
+      inherits: unpackedInherits,
       inheritedBy: unpackedInheritedBy,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,

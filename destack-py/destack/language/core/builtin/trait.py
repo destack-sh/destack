@@ -130,10 +130,10 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
     """The base type this Node extends (directly)."""
     __base_type__: ClassVar[NodeType | None] = None
-    """Nodes that this Node extends (directly and indirectly)."""
-    __extends__: ClassVar[tuple[NodeType, ...]] = ()
     """Nodes that extend this Node type (directly)."""
     __extended_by__: ClassVar[tuple[NodeType, ...]] = ()
+    """Nodes that this Node extends (directly and indirectly)."""
+    __inherits__: ClassVar[tuple[NodeType, ...]] = ()
     """Nodes that extend this Node type (directly and indirectly)."""
     __inherited_by__: ClassVar[tuple[NodeType, ...]] = ()
     """Traits directly inherited by this Node (directly)."""

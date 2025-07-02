@@ -48,11 +48,11 @@ def finalize():
     # index node types by store type
     node_types_by_store_type: dict[StoreType, list[NodeType]] = defaultdict(list)
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        if NodeType.ENTITY in node_cls.__extends__ and not node_cls.__is_abstract__:
+        if NodeType.ENTITY in node_cls.__inherits__ and not node_cls.__is_abstract__:
             if TraitType.GLOBAL in node_cls.__traits__:
-                node_types_by_store_type[StoreType.GLOBAL_ENTITY].append(node_cls.metatype)
+                node_types_by_store_type[StoreType.GLOBAL_ENTITY_PRIMARY].append(node_cls.metatype)
             elif TraitType.SPATIAL in node_cls.__traits__:
-                node_types_by_store_type[StoreType.SPATIAL_ENTITY].append(node_cls.metatype)
+                node_types_by_store_type[StoreType.SPATIAL_ENTITY_PRIMARY].append(node_cls.metatype)
             else:
                 raise ValueError(f"unexpected entity node type: {node_cls!r}")
     for store_type in StoreType:

@@ -15,7 +15,6 @@ from destack.language.registry import ENUM_TYPE_BY_CLASS
 from ..builtin import (
     PRIMITIVE_PY_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
-    DefaultFactory,
     Enum,
     EnumType,
     NodeType,
@@ -26,6 +25,7 @@ from ..builtin import (
     StructType,
     TraitType,
     TypeCardinality,
+    ValueFactory,
     builtin_enum,
     builtin_property,
     builtin_struct,
@@ -38,7 +38,6 @@ if TYPE_CHECKING:
         CustomEventDefinition,
         CustomStructDefinition,
         CustomTraitDefinition,
-        NodeReference,
         Value,
     )
 
@@ -144,15 +143,11 @@ class Type(StructFrozen):
         None,
     ] = builtin_property(46, is_repr=True)
     key_type: Optional["Type"] = builtin_property(48, is_repr=True)  # for maps
-    if TYPE_CHECKING:
-        base_ptr: Optional["NodeReference"] = None
+    is_required: bool | None = builtin_property(49)
 
     # meta
-    is_required: bool | None = builtin_property(50)
-    is_variable: bool | None = builtin_property(51)
-    # is_external
-    default_value: Optional["Value"] = builtin_property(55)
-    default_factory: Optional[DefaultFactory] = builtin_property(56)
+    value: Optional["Value"] = builtin_property(50)
+    value_factory: Optional[ValueFactory] = builtin_property(51)
 
     # constraints
     collection_constraint: Optional["CollectionConstraint"] = builtin_property(60)

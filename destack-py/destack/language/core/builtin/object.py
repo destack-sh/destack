@@ -30,7 +30,6 @@ from destack.utils.string import Casing, to_casing
 from destack.utils.uuid import UUID, uuid4
 
 from .common import (
-    DefaultFactory,
     EdgeType,
     EnumType,
     NodeType,
@@ -39,6 +38,7 @@ from .common import (
     StructType,
     TraitType,
     TypeCardinality,
+    ValueFactory,
 )
 from .const import ACTIVE_SESSION, EMPTY_DICT, REGION, UNSET
 from .property import (
@@ -269,11 +269,11 @@ if {self_name} is None:
 
         # init default factory
         if prop.default_factory is not None:
-            if prop.default_factory == DefaultFactory.UUID:
+            if prop.default_factory == ValueFactory.UUID:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = uuid4()""")
-            elif prop.default_factory == DefaultFactory.NOW:
+            elif prop.default_factory == ValueFactory.NOW:
                 if is_node:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
@@ -286,7 +286,7 @@ if {arg_name} is None:
     if session is None:
         raise RuntimeError("no active session for {cls.__name__}")
     {arg_name} = session.oracle.utc()""")
-            elif prop.default_factory == DefaultFactory.REGION:
+            elif prop.default_factory == ValueFactory.REGION:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = REGION""")
@@ -489,7 +489,7 @@ def __to_ref__(self) -> "NodeReference":
         space_id=self.id,
     )
 """
-    elif NodeType.CUSTOM_EVENT in cls.__extends__ or NodeType.CUSTOM_ENTITY in cls.__extends__:
+    elif NodeType.CUSTOM_EVENT in cls.__inherits__ or NodeType.CUSTOM_ENTITY in cls.__inherits__:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(
@@ -886,7 +886,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     is_abstract: bool = False,
     base_type: NodeType | None = None,
     traits: tuple[TraitType, ...] = (),
-    extends: tuple[NodeType, ...] = (),
+    inherits: tuple[NodeType, ...] = (),
 ) -> tuple[type[ObjectT], dict[str, "PropertyDeclaration"]]:
     """Process a BuiltinObject base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
@@ -1037,7 +1037,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
                 is_root_node=is_root_node,
                 properties=properties,
                 traits=traits,
-                extends=extends,
+                extends=inherits,
             )
             exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
             # __repr__

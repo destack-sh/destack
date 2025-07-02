@@ -12,7 +12,6 @@ from ..builtin import (
     IsSourceable,
     IsSpatial,
     IsTaggable,
-    Node,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -22,7 +21,6 @@ from ..builtin import (
 from .query import Condition, ConditionalType, Sort, SortType
 from .type import (
     CollectionConstraint,
-    DefaultFactory,
     NodeConstraint,
     NumberConstraint,
     PrimitiveType,
@@ -30,11 +28,16 @@ from .type import (
     StringConstraint,
     StructType,
     TypeCardinality,
+    ValueFactory,
 )
 
 if TYPE_CHECKING:
     from destack.language import (
         CustomEntityDefinition,
+        CustomEnumDefinition,
+        CustomEventDefinition,
+        CustomStructDefinition,
+        CustomTraitDefinition,
         IsExtensible,
         Type,
         Value,
@@ -78,18 +81,20 @@ class CustomProperty(
     primitive_type: Optional[PrimitiveType] = builtin_property(42, is_repr=True)
     enum_type: Optional[EnumType] = builtin_property(43, is_repr=True)
     node_type: Optional[NodeType] = builtin_property(44, is_repr=True)
-    node_definition: Optional["CustomEntityDefinition"] = builtin_property(45, is_repr=True)
-    struct_type: Optional[StructType] = builtin_property(46, is_repr=True)
-    base_type: Optional["Node"] = builtin_property(47, is_repr=True)
+    struct_type: Optional[StructType] = builtin_property(45, is_repr=True)
+    definition: Union[
+        "CustomEntityDefinition",
+        "CustomEventDefinition",
+        "CustomEnumDefinition",
+        "CustomStructDefinition",
+        "CustomTraitDefinition",
+        None,
+    ] = builtin_property(46, is_repr=True)
     key_type: Optional["Type"] = builtin_property(48, is_repr=True)  # for maps
-    if TYPE_CHECKING:
-        pass
 
     # meta
-    is_required: bool | None = builtin_property(50)
-    is_unique: bool | None = builtin_property(51)
-    default_value: Optional["Value"] = builtin_property(55)
-    default_factory: Optional[DefaultFactory] = builtin_property(56)
+    value: Optional["Value"] = builtin_property(50)
+    value_factory: Optional[ValueFactory] = builtin_property(51)
 
     # constraints
     collection_constraint: Optional["CollectionConstraint"] = builtin_property(60)
@@ -102,8 +107,11 @@ class CustomProperty(
     cascade: Optional[CascadeAction] = builtin_property(71)
 
     # flags
-    is_readonly: bool | None = builtin_property(80)
-    is_static: bool | None = builtin_property(81)
+    is_required: bool | None = builtin_property(80)
+    is_unique: bool | None = builtin_property(81)
+    is_computed: bool | None = builtin_property(82)
+    is_readonly: bool | None = builtin_property(83)
+    is_static: bool | None = builtin_property(84)
 
     def eq(self, value: Any) -> Condition:
         if value is None:

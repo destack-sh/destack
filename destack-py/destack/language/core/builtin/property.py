@@ -23,7 +23,6 @@ from .common import (
     NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     CascadeAction,
-    DefaultFactory,
     EdgeType,
     EnumType,
     NodeType,
@@ -33,6 +32,7 @@ from .common import (
     StructType,
     TraitType,
     TypeCardinality,
+    ValueFactory,
 )
 from .const import EMPTY_DICT, UNSET
 
@@ -125,7 +125,7 @@ class TypeDeclaration:
     is_required: bool = True
 
     default: Any = UNSET
-    default_factory: DefaultFactory | None = None
+    default_factory: ValueFactory | None = None
     format: "Format | None" = None
     constraint: "Constraint | None" = None
 
@@ -188,8 +188,8 @@ class TypeDeclaration:
             node_type=None,
             struct_type=self.struct_type,
             is_required=self.is_required,
-            default_value=default,
-            default_factory=self.default_factory,
+            value=default,
+            value_factory=self.default_factory,
             key_type=self.key_type._to_type() if self.key_type else None,
             string_constraint=string_constraint,
             number_constraint=number_constraint,
@@ -522,8 +522,8 @@ class PropertyDeclaration(TypeDeclaration):
             node_types = expand_node_traits(self.node_types or ())
             self.node_has_type = len(node_types) > 1
             self.node_has_definition = self.node_is_extensible and any(
-                NodeType.CUSTOM_EVENT in NODE_CLASS_BY_TYPE[node_type].__extends__
-                or NodeType.CUSTOM_ENTITY in NODE_CLASS_BY_TYPE[node_type].__extends__
+                NodeType.CUSTOM_EVENT in NODE_CLASS_BY_TYPE[node_type].__inherits__
+                or NodeType.CUSTOM_ENTITY in NODE_CLASS_BY_TYPE[node_type].__inherits__
                 for node_type in node_types
             )
             self.node_has_space = self.node_space_from is None and any(
@@ -624,7 +624,7 @@ def builtin_property(
     *,
     description: str | None = None,
     default: Any = UNSET,
-    default_factory: DefaultFactory | None = None,
+    default_factory: ValueFactory | None = None,
     primitive_type: PrimitiveType | None = UNSET,
     format: "Format | None" = None,
     constraint: "Constraint | None" = None,

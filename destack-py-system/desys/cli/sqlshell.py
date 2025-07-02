@@ -30,9 +30,9 @@ async def sqlshell(
     from destack.language import StoreType
     from desys.sharding import DATABASE_PROVIDER, get_global_database_from_env
 
-    if store_type == StoreType.GLOBAL_ENTITY:
+    if store_type == StoreType.GLOBAL_ENTITY_PRIMARY:
         database = get_global_database_from_env()
-    elif store_type == StoreType.SPATIAL_ENTITY:
+    elif store_type == StoreType.SPATIAL_ENTITY_PRIMARY:
         assert galaxy_name is not None, "galaxy_name is required for main store_type"
         assert external_id is not None, "external_id is required for main store_type"
         database = await DATABASE_PROVIDER.resolve_or_error(region, galaxy_name, external_id)

@@ -230,7 +230,7 @@ export class CustomEntityDefinition
   /**
    * CustomEntityDefinition.baseType
    */
-  baseType: NodeDefinitionReference | null;
+  baseType: NodeDefinitionReference;
 
   /**
    * CustomEntityDefinition.baseTraits
@@ -287,7 +287,7 @@ export class CustomEntityDefinition
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
     prototype?: Node | NodeReference | null;
-    baseType?: NodeDefinitionReference | null;
+    baseType: NodeDefinitionReference;
     baseTraits?: Array<NodeDefinitionReference>;
     isAbstract?: boolean;
     script?: Script | NodeReference | null;
@@ -361,7 +361,10 @@ export class CustomEntityDefinition
       _prototype = (_prototype as Node).toRef();
     }
     this.prototypePtr = _prototype;
-    let _baseType = options.baseType ?? null;
+    let _baseType = options.baseType;
+    if (_baseType === null) {
+      throw new Error(`CustomEntityDefinition.baseType is required`);
+    }
     this.baseType = _baseType;
     let _baseTraits = options.baseTraits ?? null;
     if (_baseTraits === null) {
@@ -424,10 +427,7 @@ export class CustomEntityDefinition
     if (!(this.prototypePtr?.id === other.prototypePtr?.id)) {
       return false;
     }
-    if (
-      (this.baseType == null) !== (other.baseType == null) ||
-      (this.baseType != null && !this.baseType.equals(other.baseType))
-    ) {
+    if (!this.baseType.equals(other.baseType)) {
       return false;
     }
     if (this.baseTraits.length !== other.baseTraits.length) {
@@ -479,9 +479,7 @@ export class CustomEntityDefinition
     if (this.prototypePtr !== null) {
       h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
     }
-    if (this.baseType !== null) {
-      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
-    }
+    h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     if (this.baseTraits && this.baseTraits.length > 0) {
       for (const _item of this.baseTraits) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -605,9 +603,7 @@ export class CustomEntityDefinition
     if (object.prototypePtr != null) {
       objectValue["40"] = object.prototypePtr.toValue();
     }
-    if (object.baseType != null) {
-      objectValue["41"] = object.baseType.toValue();
-    }
+    objectValue["41"] = object.baseType.toValue();
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
@@ -646,17 +642,6 @@ export class CustomEntityDefinition
     const unpackedPrototypePtr =
       prototypePtrValue != undefined
         ? _NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const baseTypeValue = objectValue["41"];
-    const unpackedBaseType =
-      baseTypeValue != undefined
-        ? _NodeDefinitionReference.fromValue(
-            baseTypeValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
         : null;
     const unpackedBaseTraits: any[] = [];
     if (objectValue["42"] != undefined) {
@@ -713,7 +698,13 @@ export class CustomEntityDefinition
     return new CustomEntityDefinition({
       parent: unpackedParentPtr,
       prototype: unpackedPrototypePtr,
-      baseType: unpackedBaseType,
+      baseType: _NodeDefinitionReference.fromValue(
+        objectValue["41"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       baseTraits: unpackedBaseTraits,
       isAbstract: objectValue["45"],
       space: unpackedSpacePtr,
@@ -789,9 +780,7 @@ export class CustomEntityDefinition
     if (object.prototypePtr != null) {
       objectProto.prototypePtr = object.prototypePtr.toProto();
     }
-    if (object.baseType != null) {
-      objectProto.baseType = object.baseType.toProto();
-    }
+    objectProto.baseType = object.baseType.toProto();
     if (object.baseTraits) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
@@ -859,16 +848,13 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
-      baseType:
-        objectProto.baseType != undefined
-          ? _NodeDefinitionReference.fromProto(
-              objectProto.baseType!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      baseType: _NodeDefinitionReference.fromProto(
+        objectProto.baseType!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       baseTraits: unpackedBaseTraits,
       isAbstract: objectProto.isAbstract,
       space:
@@ -1063,6 +1049,16 @@ export abstract class CustomEntity
    * IsCustomizable.value
    */
   declare value: Map<string, Value>;
+
+  /**
+   * Inlined base type of this CustomEntity.
+   */
+  declare baseType: NodeDefinitionReference;
+
+  /**
+   * Inlined base traits of this CustomEntity.
+   */
+  declare baseTraits: Array<NodeDefinitionReference>;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -1837,10 +1833,10 @@ registerNodeClass(NodeType.CUSTOM_TRAIT_DEFINITION, CustomTraitDefinition);
 
 /* ==== DESTACK_GENERATED_START:NODE:10 ==== */
 /**
- * A Resource represents an external asset.
- * The lifecycle of a Resource may be managed by some provisioner.
+ * A Resource represents an external asset outside of Destack.
+ * The lifecycle of a Resource may be managed by some Provisioner.
  */
-export abstract class Resource extends Entity implements IsDeletable {
+export abstract class Resource extends Entity implements IsDeletable, IsExtensible {
   static metatype: NodeType = NodeType.RESOURCE;
 
   /**
