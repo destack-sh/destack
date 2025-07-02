@@ -1038,9 +1038,11 @@ def _generate_struct(definition: StructDefinition) -> str:
     proto_str = generate_object_proto(struct_cls)
     struct_parts.append(proto_str)
 
+    extends_str = f" extends {'StructFrozen' if definition.is_frozen else 'Struct'}"
+    generic_str = " <T extends Node = Node>" if definition.name == "Query" else ""
     struct_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
-export class {definition.name} extends {"StructFrozen" if definition.is_frozen else "Struct"} {{
+export class {definition.name}{generic_str}{extends_str} {{
 {textwrap.indent("\n\n".join(struct_parts), "  ")}
 
   {MARKER_CUSTOM_START}
@@ -1181,9 +1183,11 @@ def _generate_node(definition: NodeDefinition) -> str:
 
     base_type = definition.base_type
     base_cls_name = NODE_CLASS_BY_TYPE[base_type].__name__ if base_type else "Node"
+    extends_str = f" extends {base_cls_name}"
+    generic_str = ""
     node_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
-export {"abstract " if node_cls.__is_abstract__ else ""}class {definition.name} extends {base_cls_name}{implements_str} {{
+export {"abstract " if node_cls.__is_abstract__ else ""}class {definition.name}{generic_str}{extends_str}{implements_str} {{
 {textwrap.indent("\n\n".join(node_parts), "  ")}
 
   {MARKER_CUSTOM_START}
@@ -1659,8 +1663,12 @@ def _generate_file(
     # remove any imports that are already defined in this file
     for _, imports in language_imports_by_module.items():
         imports.difference_update(definition.name for definition in file.definitions.values())
+
+    # special cases
     if file.name.endswith(".trait"):  # defined manually in same file
         language_imports_by_module["core.builtin.trait"].discard("TraitClass")
+    if file.name.endswith(".query"):  # needs QueryConnection
+        value_dependencies.add("QueryConnection")
 
     # if we're in the same module, use granular imports, otherwise use top-level imports
     file_root_module = ".".join(file.module.split(".")[2:3])

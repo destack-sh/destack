@@ -44,12 +44,25 @@ export abstract class BuiltinObject {
 
   /** Get a PropertyDefinition or CustomProperty by name. */
   static property(name: string): PropertyDefinition {
-    const snakeName = toCasing(name, Casing.SNAKE);
-    const prop = this.__properties__[name] ?? this.__properties__[snakeName];
-    if (!prop) {
-      throw new Error(`property ${name} not found on ${this.constructor.name}`);
+    let prop = this.__properties__[name];
+    if (prop != null) {
+      return prop;
     }
-    return prop;
+    const snakeName = toCasing(name, Casing.SNAKE);
+    prop = this.__properties__[snakeName];
+    if (prop != null) {
+      return prop;
+    }
+    if (name.endsWith("Ptr")) {
+      name = name.slice(0, -3);
+    } else if (name.endsWith("_ptr")) {
+      name = name.slice(0, -4);
+    }
+    prop = this.__properties__[name];
+    if (prop != null) {
+      return prop;
+    }
+    throw new Error(`property ${name} not found on ${this.constructor.name}`);
   }
 
   // proto

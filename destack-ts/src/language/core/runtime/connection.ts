@@ -15,8 +15,8 @@ export class QueryResultContainer<T extends Node = Node> {
   readonly connection: QueryConnection;
   readonly type: QueryType;
   readonly query: Query;
-  
-	result: QueryResult | QueryResultGroup | null;
+
+  result: QueryResult | QueryResultGroup | null;
   nodes: T[];
   discriminator: Value | null;
   subcontainers: QueryResultContainer[];

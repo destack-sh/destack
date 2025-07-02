@@ -31,7 +31,7 @@ import {
 import type { Space } from "@destack/language/space";
 import { CustomStructDefinitionProto, CustomStructProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:153 ==== */
@@ -373,6 +373,11 @@ export class CustomStructDefinition
   baseType: StructDefinitionReference | null;
 
   /**
+   * CustomStructDefinition.isFrozen
+   */
+  isFrozen: boolean;
+
+  /**
    * IsSourceable.source
    */
   get source(): Script | null {
@@ -399,6 +404,7 @@ export class CustomStructDefinition
     icon?: Icon | null;
     prototype?: CustomStruct | null;
     baseType?: StructDefinitionReference | null;
+    isFrozen?: boolean;
     source?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -465,6 +471,14 @@ export class CustomStructDefinition
     this.prototype = _prototype;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
+    let _isFrozen = options.isFrozen ?? null;
+    if (_isFrozen === null) {
+      _isFrozen = false;
+    }
+    if (_isFrozen === null) {
+      throw new Error(`CustomStructDefinition.isFrozen is required`);
+    }
+    this.isFrozen = _isFrozen;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -517,6 +531,9 @@ export class CustomStructDefinition
     ) {
       return false;
     }
+    if (!(this.isFrozen === other.isFrozen)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -555,6 +572,7 @@ export class CustomStructDefinition
     if (this.baseType !== null) {
       h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
+    h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -672,6 +690,7 @@ export class CustomStructDefinition
     if (object.baseType != null) {
       objectValue["41"] = object.baseType.toValue();
     }
+    objectValue["60"] = object.isFrozen;
     if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
     }
@@ -755,6 +774,7 @@ export class CustomStructDefinition
     return new CustomStructDefinition({
       prototype: unpackedPrototype,
       baseType: unpackedBaseType,
+      isFrozen: objectValue["60"],
       space: unpackedSpacePtr,
       name: objectValue["31"],
       icon: unpackedIcon,
@@ -831,6 +851,7 @@ export class CustomStructDefinition
     if (object.baseType != null) {
       objectProto.baseType = object.baseType.toProto();
     }
+    objectProto.isFrozen = object.isFrozen;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -881,6 +902,7 @@ export class CustomStructDefinition
               _connection,
             )
           : null,
+      isFrozen: objectProto.isFrozen,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

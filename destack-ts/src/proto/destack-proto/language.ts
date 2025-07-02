@@ -2414,6 +2414,10 @@ export interface CustomStructDefinitionProto {
      */
     baseType?: StructDefinitionReferenceProto;
     /**
+     * @generated from protobuf field: bool is_frozen = 60
+     */
+    isFrozen: boolean;
+    /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto source_ptr = 210
      */
     sourcePtr?: NodeReferenceProto;
@@ -26135,6 +26139,7 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
             { no: 40, name: "prototype", kind: "message", T: () => CustomStructProto },
             { no: 41, name: "base_type", kind: "message", T: () => StructDefinitionReferenceProto },
+            { no: 60, name: "is_frozen", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 210, name: "source_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
@@ -26145,6 +26150,7 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
         message.value = {};
         message.orderKey = "";
         message.name = "";
+        message.isFrozen = false;
         if (value !== undefined)
             reflectionMergePartial<CustomStructDefinitionProto>(this, message, value);
         return message;
@@ -26198,6 +26204,9 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
                     break;
                 case /* optional symbol.destack.StructDefinitionReferenceProto base_type */ 41:
                     message.baseType = StructDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseType);
+                    break;
+                case /* bool is_frozen */ 60:
+                    message.isFrozen = reader.bool();
                     break;
                 case /* optional symbol.destack.NodeReferenceProto source_ptr */ 210:
                     message.sourcePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
@@ -26279,6 +26288,9 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
         /* optional symbol.destack.StructDefinitionReferenceProto base_type = 41; */
         if (message.baseType)
             StructDefinitionReferenceProto.internalBinaryWrite(message.baseType, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_frozen = 60; */
+        if (message.isFrozen !== false)
+            writer.tag(60, WireType.Varint).bool(message.isFrozen);
         /* optional symbol.destack.NodeReferenceProto source_ptr = 210; */
         if (message.sourcePtr)
             NodeReferenceProto.internalBinaryWrite(message.sourcePtr, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
