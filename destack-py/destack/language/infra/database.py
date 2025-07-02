@@ -33,18 +33,18 @@ class DatabaseType(Enum):
 
 @builtin_struct(StructType.DATABASE_INFO, frozen=True)
 class DatabaseInfo(StructFrozen):
-    type: DatabaseType = builtin_property(30, can_write=RoleType.SYSTEM, is_repr=True)
-    region: Region = builtin_property(50, can_write=RoleType.SYSTEM, is_repr=True)
-    galaxy_name: str | None = builtin_property(51, can_write=RoleType.SYSTEM, is_repr=True)
+    type: DatabaseType = builtin_property(100, can_write=RoleType.SYSTEM, is_repr=True)
+    region: Region = builtin_property(110, can_write=RoleType.SYSTEM, is_repr=True)
+    galaxy_name: str | None = builtin_property(111, can_write=RoleType.SYSTEM, is_repr=True)
     external_name: str = builtin_property(
-        52, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
+        112, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
     custom_schema_name: str | None = builtin_property(
-        53, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
+        113, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
-    tenancy: Tenancy = builtin_property(55, default=Tenancy.DEDICATED, is_repr=True)
+    tenancy: Tenancy = builtin_property(115, default=Tenancy.DEDICATED, is_repr=True)
     connection_url: str | None = builtin_property(
-        58, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
+        118, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
     )
 
     def to_info(self) -> "DatabaseInfo":
@@ -68,18 +68,18 @@ class Database(IsSpatial, Resource):
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
-    type: DatabaseType = builtin_property(30, can_write=RoleType.SYSTEM, is_repr=True)
-    region: Region = builtin_property(50, can_write=RoleType.SYSTEM, is_repr=True)
-    galaxy_name: str | None = builtin_property(51, can_write=RoleType.SYSTEM, is_repr=True)
+    type: DatabaseType = builtin_property(100, can_write=RoleType.SYSTEM, is_repr=True)
+    region: Region = builtin_property(110, can_write=RoleType.SYSTEM, is_repr=True)
+    galaxy_name: str | None = builtin_property(111, can_write=RoleType.SYSTEM, is_repr=True)
     external_name: str = builtin_property(
-        52, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
+        112, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
     custom_schema_name: str | None = builtin_property(
-        53, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
+        113, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
-    tenancy: Tenancy = builtin_property(55, default=Tenancy.DEDICATED, is_repr=True)
+    tenancy: Tenancy = builtin_property(115, default=Tenancy.DEDICATED, is_repr=True)
     connection_url: str | None = builtin_property(
-        58, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
+        118, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
     )
 
     def to_info(self) -> "DatabaseInfo":

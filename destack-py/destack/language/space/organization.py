@@ -35,7 +35,7 @@ class Organization(IsGlobal, IsOwner, IsJoinable, Entity):
 
     slug: str = builtin_property(101, is_repr=True)
     status: OrganizationStatus = builtin_property(
-        100, can_write=RoleType.SYSTEM, is_repr=True, default=OrganizationStatus.CREATING
+        102, can_write=RoleType.SYSTEM, is_repr=True, default=OrganizationStatus.CREATING
     )
     space: "Space" = builtin_property(110, can_write=RoleType.SYSTEM)
     handle: Optional["Handle"] = builtin_property(111, can_write=RoleType.SYSTEM)

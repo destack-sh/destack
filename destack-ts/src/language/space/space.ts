@@ -1,10 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasIcon,
-  HasName,
-  HasSlug,
-  Icon,
   IsFollowable,
   IsGlobal,
   IsJoinable,
@@ -55,16 +51,7 @@ registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
  */
 export class Space
   extends Entity
-  implements
-    IsGlobal,
-    HasName,
-    HasSlug,
-    HasIcon,
-    IsFollowable,
-    IsJoinable,
-    IsOwnable,
-    IsStarable,
-    IsSpatial
+  implements IsGlobal, IsFollowable, IsJoinable, IsOwnable, IsStarable, IsSpatial
 {
   static metatype: NodeType = NodeType.SPACE;
 
@@ -156,11 +143,6 @@ export class Space
   slug: string;
 
   /**
-   * HasIcon.icon
-   */
-  icon: Icon | null;
-
-  /**
    * Space.status
    */
   readonly status: SpaceStatus;
@@ -234,7 +216,6 @@ export class Space
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
     slug: string;
-    icon?: Icon | null;
     status: SpaceStatus;
     handle?: Handle | NodeReference | null;
     systemFolder?: Folder | NodeReference | null;
@@ -296,8 +277,6 @@ export class Space
       throw new Error(`Space.slug is required`);
     }
     this.slug = _slug;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _status = options.status;
     if (_status === null) {
       throw new Error(`Space.status is required`);
@@ -392,12 +371,6 @@ export class Space
     if (!(this.databasePtr?.id === other.databasePtr?.id)) {
       return false;
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
@@ -429,9 +402,6 @@ export class Space
     if (this.databasePtr !== null) {
       h = (h * 31 + hashString(this.databasePtr.id)) & 0xffffffff;
     }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
@@ -461,7 +431,7 @@ export class Space
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SPACE,
+      type: NodeType.SPACE,
       id: this.id,
       spaceId: this.id,
       _session: this._session,
@@ -502,38 +472,35 @@ export class Space
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["31"] = object.name;
-    objectValue["33"] = object.slug;
-    if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
-    }
-    objectValue["40"] = object.status;
+    objectValue["101"] = object.name;
+    objectValue["102"] = object.slug;
+    objectValue["110"] = object.status;
     if (object.handlePtr != null) {
-      objectValue["41"] = object.handlePtr.toValue();
+      objectValue["111"] = object.handlePtr.toValue();
     }
     if (object.systemFolderPtr != null) {
-      objectValue["42"] = object.systemFolderPtr.toValue();
+      objectValue["112"] = object.systemFolderPtr.toValue();
     }
     if (object.homeFolderPtr != null) {
-      objectValue["43"] = object.homeFolderPtr.toValue();
+      objectValue["113"] = object.homeFolderPtr.toValue();
     }
-    objectValue["50"] = object.region;
+    objectValue["120"] = object.region;
     if (object.galaxyName != null) {
-      objectValue["51"] = object.galaxyName;
+      objectValue["121"] = object.galaxyName;
     }
     if (object.databasePtr != null) {
-      objectValue["55"] = object.databasePtr.toValue();
+      objectValue["122"] = object.databasePtr.toValue();
     }
     return objectValue;
   }
@@ -546,35 +513,29 @@ export class Space
     _connection?: any | null,
   ): Space {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const handlePtrValue = objectValue["41"];
+    const handlePtrValue = objectValue["111"];
     const unpackedHandlePtr =
       handlePtrValue != undefined
         ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const systemFolderPtrValue = objectValue["42"];
+    const systemFolderPtrValue = objectValue["112"];
     const unpackedSystemFolderPtr =
       systemFolderPtrValue != undefined
         ? _NodeReference.fromValue(systemFolderPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const homeFolderPtrValue = objectValue["43"];
+    const homeFolderPtrValue = objectValue["113"];
     const unpackedHomeFolderPtr =
       homeFolderPtrValue != undefined
         ? _NodeReference.fromValue(homeFolderPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const galaxyNameValue = objectValue["51"];
+    const galaxyNameValue = objectValue["121"];
     const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
-    const databasePtrValue = objectValue["55"];
+    const databasePtrValue = objectValue["122"];
     const unpackedDatabasePtr =
       databasePtrValue != undefined
         ? _NodeReference.fromValue(databasePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -584,12 +545,12 @@ export class Space
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -600,21 +561,20 @@ export class Space
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Space({
-      name: objectValue["31"],
-      slug: objectValue["33"],
-      status: Number(objectValue["40"]),
+      name: objectValue["101"],
+      slug: objectValue["102"],
+      status: Number(objectValue["110"]),
       handle: unpackedHandlePtr,
       systemFolder: unpackedSystemFolderPtr,
       homeFolder: unpackedHomeFolderPtr,
-      region: Number(objectValue["50"]),
+      region: Number(objectValue["120"]),
       galaxyName: unpackedGalaxyName,
       database: unpackedDatabasePtr,
-      icon: unpackedIcon,
       ownedBy: unpackedOwnedByPtr,
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
@@ -660,9 +620,6 @@ export class Space
     }
     objectProto.name = object.name;
     objectProto.slug = object.slug;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
     objectProto.status = Number(object.status) as SpaceStatusProto;
     if (object.handlePtr != null) {
       objectProto.handlePtr = object.handlePtr.toProto();
@@ -691,7 +648,6 @@ export class Space
     _connection?: any | null,
   ): Space {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Space({
       name: objectProto.name,
       slug: objectProto.slug,
@@ -737,10 +693,6 @@ export class Space
               _graph,
               _connection,
             )
-          : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined

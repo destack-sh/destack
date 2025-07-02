@@ -15,5 +15,5 @@ class InputView(View):
     """An input View."""
 
     # appearance
-    is_visible: Optional[bool] = builtin_property(60)
-    opacity: Optional[float] = builtin_property(61)
+    is_visible: Optional[bool] = builtin_property(160)
+    opacity: Optional[float] = builtin_property(161)

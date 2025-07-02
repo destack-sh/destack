@@ -333,7 +333,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SANCTION_REQUESTED_EVENT,
+      type: NodeType.SANCTION_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -376,12 +376,12 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
-    objectValue["40"] = object.targetPtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
   }
 
@@ -398,7 +398,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -409,16 +409,22 @@ export class SanctionRequestedEvent extends SanctionEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SanctionRequestedEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       target: _NodeReference.fromValue(
-        objectValue["40"],
+        objectValue["110"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -760,7 +766,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SANCTION_GRANTED_EVENT,
+      type: NodeType.SANCTION_GRANTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -803,12 +809,12 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
-    objectValue["40"] = object.targetPtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
   }
 
@@ -825,7 +831,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -836,16 +842,22 @@ export class SanctionGrantedEvent extends SanctionEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SanctionGrantedEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       target: _NodeReference.fromValue(
-        objectValue["40"],
+        objectValue["110"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1187,7 +1199,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SANCTION_REVOKED_EVENT,
+      type: NodeType.SANCTION_REVOKED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -1230,12 +1242,12 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
-    objectValue["40"] = object.targetPtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
   }
 
@@ -1252,7 +1264,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1263,16 +1275,22 @@ export class SanctionRevokedEvent extends SanctionEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SanctionRevokedEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       target: _NodeReference.fromValue(
-        objectValue["40"],
+        objectValue["110"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1614,7 +1632,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SANCTION_EXPIRED_EVENT,
+      type: NodeType.SANCTION_EXPIRED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -1657,12 +1675,12 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
-    objectValue["40"] = object.targetPtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
   }
 
@@ -1679,7 +1697,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1690,16 +1708,22 @@ export class SanctionExpiredEvent extends SanctionEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SanctionExpiredEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       target: _NodeReference.fromValue(
-        objectValue["40"],
+        objectValue["110"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2087,7 +2111,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SANCTION,
+      type: NodeType.SANCTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -2130,22 +2154,22 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.expiresAt != null) {
-      objectValue["40"] = object.expiresAt.toString({ timeZoneName: "never" });
+      objectValue["110"] = object.expiresAt.toString({ timeZoneName: "never" });
     }
-    objectValue["41"] = object.targetPtr.toValue();
+    objectValue["111"] = object.targetPtr.toValue();
     return objectValue;
   }
 
@@ -2162,7 +2186,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const expiresAtValue = objectValue["40"];
+    const expiresAtValue = objectValue["110"];
     const unpackedExpiresAt =
       expiresAtValue != undefined
         ? Temporal.Instant.from(expiresAtValue).toZonedDateTimeISO("UTC")
@@ -2172,27 +2196,27 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Sanction({
       parent: unpackedParentPtr,
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       expiresAt: unpackedExpiresAt,
       target: _NodeReference.fromValue(
-        objectValue["41"],
+        objectValue["111"],
         _session,
         _supergraph,
         _graph,
@@ -2200,9 +2224,9 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       ),
       space: unpackedSpacePtr,
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,

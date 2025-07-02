@@ -1491,46 +1491,46 @@ export class Type extends StructFrozen {
   static __packValue__(object: Type): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 401;
-    objectValue["40"] = object.cardinality;
-    objectValue["41"] = object.scalarType;
+    objectValue["110"] = object.cardinality;
+    objectValue["111"] = object.scalarType;
     if (object.primitiveType != null) {
-      objectValue["42"] = object.primitiveType;
+      objectValue["112"] = object.primitiveType;
     }
     if (object.enumType != null) {
-      objectValue["43"] = object.enumType;
+      objectValue["113"] = object.enumType;
     }
     if (object.nodeType != null) {
-      objectValue["44"] = object.nodeType;
+      objectValue["114"] = object.nodeType;
     }
     if (object.structType != null) {
-      objectValue["45"] = object.structType;
+      objectValue["115"] = object.structType;
     }
     if (object.definitionPtr != null) {
-      objectValue["46"] = object.definitionPtr.toValue();
+      objectValue["116"] = object.definitionPtr.toValue();
     }
     if (object.keyType != null) {
-      objectValue["48"] = object.keyType.toValue();
+      objectValue["117"] = object.keyType.toValue();
     }
     if (object.isRequired != null) {
-      objectValue["49"] = object.isRequired;
+      objectValue["118"] = object.isRequired;
     }
     if (object.value != null) {
-      objectValue["50"] = object.value.toValue();
+      objectValue["130"] = object.value.toValue();
     }
     if (object.valueFactory != null) {
-      objectValue["51"] = object.valueFactory;
+      objectValue["131"] = object.valueFactory;
     }
     if (object.collectionConstraint != null) {
-      objectValue["60"] = object.collectionConstraint.toValue();
+      objectValue["140"] = object.collectionConstraint.toValue();
     }
     if (object.stringConstraint != null) {
-      objectValue["61"] = object.stringConstraint.toValue();
+      objectValue["141"] = object.stringConstraint.toValue();
     }
     if (object.numberConstraint != null) {
-      objectValue["62"] = object.numberConstraint.toValue();
+      objectValue["142"] = object.numberConstraint.toValue();
     }
     if (object.nodeConstraint != null) {
-      objectValue["63"] = object.nodeConstraint.toValue();
+      objectValue["143"] = object.nodeConstraint.toValue();
     }
     return objectValue;
   }
@@ -1557,35 +1557,35 @@ export class Type extends StructFrozen {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
-    const primitiveTypeValue = objectValue["42"];
+    const primitiveTypeValue = objectValue["112"];
     const unpackedPrimitiveType =
       primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
-    const enumTypeValue = objectValue["43"];
+    const enumTypeValue = objectValue["113"];
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
-    const nodeTypeValue = objectValue["44"];
+    const nodeTypeValue = objectValue["114"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const structTypeValue = objectValue["45"];
+    const structTypeValue = objectValue["115"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const definitionPtrValue = objectValue["46"];
+    const definitionPtrValue = objectValue["116"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyTypeValue = objectValue["48"];
+    const keyTypeValue = objectValue["117"];
     const unpackedKeyType =
       keyTypeValue != undefined
         ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const isRequiredValue = objectValue["49"];
+    const isRequiredValue = objectValue["118"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
-    const valueValue = objectValue["50"];
+    const valueValue = objectValue["130"];
     const unpackedValue =
       valueValue != undefined
         ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueFactoryValue = objectValue["51"];
+    const valueFactoryValue = objectValue["131"];
     const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
-    const collectionConstraintValue = objectValue["60"];
+    const collectionConstraintValue = objectValue["140"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
         ? _CollectionConstraint.fromValue(
@@ -1596,7 +1596,7 @@ export class Type extends StructFrozen {
             _connection,
           )
         : null;
-    const stringConstraintValue = objectValue["61"];
+    const stringConstraintValue = objectValue["141"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
         ? _StringConstraint.fromValue(
@@ -1607,7 +1607,7 @@ export class Type extends StructFrozen {
             _connection,
           )
         : null;
-    const numberConstraintValue = objectValue["62"];
+    const numberConstraintValue = objectValue["142"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
         ? _NumberConstraint.fromValue(
@@ -1618,14 +1618,14 @@ export class Type extends StructFrozen {
             _connection,
           )
         : null;
-    const nodeConstraintValue = objectValue["63"];
+    const nodeConstraintValue = objectValue["143"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
         ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Type({
-      cardinality: Number(objectValue["40"]),
-      scalarType: Number(objectValue["41"]),
+      cardinality: Number(objectValue["110"]),
+      scalarType: Number(objectValue["111"]),
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,

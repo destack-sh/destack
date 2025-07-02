@@ -126,8 +126,8 @@ export class Vector2 extends StructFrozen {
   static __packValue__(object: Vector2): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 500;
-    objectValue["50"] = object.x;
-    objectValue["51"] = object.y;
+    objectValue["101"] = object.x;
+    objectValue["102"] = object.y;
     return objectValue;
   }
 
@@ -139,8 +139,8 @@ export class Vector2 extends StructFrozen {
     _connection?: any | null,
   ): Vector2 {
     return new Vector2({
-      x: objectValue["50"],
-      y: objectValue["51"],
+      x: objectValue["101"],
+      y: objectValue["102"],
       _value: objectValue,
       _supergraph,
     });
@@ -495,9 +495,9 @@ export class Vector3 extends StructFrozen {
   static __packValue__(object: Vector3): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 501;
-    objectValue["50"] = object.x;
-    objectValue["51"] = object.y;
-    objectValue["52"] = object.z;
+    objectValue["101"] = object.x;
+    objectValue["102"] = object.y;
+    objectValue["103"] = object.z;
     return objectValue;
   }
 
@@ -509,9 +509,9 @@ export class Vector3 extends StructFrozen {
     _connection?: any | null,
   ): Vector3 {
     return new Vector3({
-      x: objectValue["50"],
-      y: objectValue["51"],
-      z: objectValue["52"],
+      x: objectValue["101"],
+      y: objectValue["102"],
+      z: objectValue["103"],
       _value: objectValue,
       _supergraph,
     });
@@ -910,10 +910,10 @@ export class Vector4 extends StructFrozen {
   static __packValue__(object: Vector4): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 502;
-    objectValue["50"] = object.x;
-    objectValue["51"] = object.y;
-    objectValue["52"] = object.z;
-    objectValue["53"] = object.w;
+    objectValue["101"] = object.x;
+    objectValue["102"] = object.y;
+    objectValue["103"] = object.z;
+    objectValue["104"] = object.w;
     return objectValue;
   }
 
@@ -925,10 +925,10 @@ export class Vector4 extends StructFrozen {
     _connection?: any | null,
   ): Vector4 {
     return new Vector4({
-      x: objectValue["50"],
-      y: objectValue["51"],
-      z: objectValue["52"],
-      w: objectValue["53"],
+      x: objectValue["101"],
+      y: objectValue["102"],
+      z: objectValue["103"],
+      w: objectValue["104"],
       _value: objectValue,
       _supergraph,
     });
@@ -1313,8 +1313,8 @@ export class Vector2i extends StructFrozen {
   static __packValue__(object: Vector2i): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 503;
-    objectValue["50"] = object.x;
-    objectValue["51"] = object.y;
+    objectValue["101"] = object.x;
+    objectValue["102"] = object.y;
     return objectValue;
   }
 
@@ -1326,8 +1326,8 @@ export class Vector2i extends StructFrozen {
     _connection?: any | null,
   ): Vector2i {
     return new Vector2i({
-      x: Number(objectValue["50"]),
-      y: Number(objectValue["51"]),
+      x: Number(objectValue["101"]),
+      y: Number(objectValue["102"]),
       _value: objectValue,
       _supergraph,
     });
@@ -1682,9 +1682,9 @@ export class Vector3i extends StructFrozen {
   static __packValue__(object: Vector3i): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 504;
-    objectValue["50"] = object.x;
-    objectValue["51"] = object.y;
-    objectValue["52"] = object.z;
+    objectValue["101"] = object.x;
+    objectValue["102"] = object.y;
+    objectValue["103"] = object.z;
     return objectValue;
   }
 
@@ -1696,9 +1696,9 @@ export class Vector3i extends StructFrozen {
     _connection?: any | null,
   ): Vector3i {
     return new Vector3i({
-      x: Number(objectValue["50"]),
-      y: Number(objectValue["51"]),
-      z: Number(objectValue["52"]),
+      x: Number(objectValue["101"]),
+      y: Number(objectValue["102"]),
+      z: Number(objectValue["103"]),
       _value: objectValue,
       _supergraph,
     });
@@ -2087,10 +2087,10 @@ export class Vector4i extends StructFrozen {
   static __packValue__(object: Vector4i): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 505;
-    objectValue["50"] = object.x;
-    objectValue["51"] = object.y;
-    objectValue["52"] = object.z;
-    objectValue["53"] = object.w;
+    objectValue["101"] = object.x;
+    objectValue["102"] = object.y;
+    objectValue["103"] = object.z;
+    objectValue["104"] = object.w;
     return objectValue;
   }
 
@@ -2102,10 +2102,10 @@ export class Vector4i extends StructFrozen {
     _connection?: any | null,
   ): Vector4i {
     return new Vector4i({
-      x: Number(objectValue["50"]),
-      y: Number(objectValue["51"]),
-      z: Number(objectValue["52"]),
-      w: Number(objectValue["53"]),
+      x: Number(objectValue["101"]),
+      y: Number(objectValue["102"]),
+      z: Number(objectValue["103"]),
+      w: Number(objectValue["104"]),
       _value: objectValue,
       _supergraph,
     });

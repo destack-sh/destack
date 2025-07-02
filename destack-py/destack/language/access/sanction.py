@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.SANCTION_EVENT, is_abstract=True)
 class SanctionEvent(Event["Sanction"]):
-    node: "Sanction" = builtin_property(35)
-    target: "IsSubject" = builtin_property(40)
+    node: "Sanction" = builtin_property(101)
+    target: "IsSubject" = builtin_property(110)
 
 
 @builtin_node(NodeType.SANCTION_REQUESTED_EVENT)
@@ -66,8 +66,8 @@ class Sanction(IsSpatial, IsDeletable, Entity):
     parent: Union["IsSubject", "IsJoinable", None] = builtin_property_parent(
         node_is_extensible=True
     )
-    type: SanctionType = builtin_property(30)
-    expires_at: Optional[datetime] = builtin_property(40)
-    target: IsSubject = builtin_property(41)
+    type: SanctionType = builtin_property(100)
+    expires_at: Optional[datetime] = builtin_property(110)
+    target: IsSubject = builtin_property(111)
     if TYPE_CHECKING:
         target_ptr: NodeReference = UNSET

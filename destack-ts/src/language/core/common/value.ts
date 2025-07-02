@@ -141,8 +141,8 @@ export class Value extends StructFrozen {
   static __packValue__(object: Value): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 400;
-    objectValue["30"] = object.type.toValue();
-    objectValue["40"] = object.value;
+    objectValue["100"] = object.type.toValue();
+    objectValue["110"] = object.value;
     return objectValue;
   }
 
@@ -155,8 +155,8 @@ export class Value extends StructFrozen {
   ): Value {
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     return new Value({
-      type: _Type.fromValue(objectValue["30"], _session, _supergraph, _graph, _connection),
-      value: objectValue["40"],
+      type: _Type.fromValue(objectValue["100"], _session, _supergraph, _graph, _connection),
+      value: objectValue["110"],
       _value: objectValue,
       _supergraph,
     });

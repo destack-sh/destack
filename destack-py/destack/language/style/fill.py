@@ -54,13 +54,13 @@ class FillSize(Enum):
 class Fill(StructFrozen):
     """A fill value."""
 
-    type: FillType = builtin_property(30, is_repr=True)
-    style: Optional["FillStyle"] = builtin_property(42, is_repr=True)
-    color: Color | None = builtin_property(50, is_repr=True)
-    gradient: Optional[Gradient] = builtin_property(51, is_repr=True)
-    image: "File | None" = builtin_property(52, is_repr=True)
-    position: FillPosition | None = builtin_property(53, is_repr=True)
-    size: FillSize | None = builtin_property(54, is_repr=True)
+    type: FillType = builtin_property(100, is_repr=True)
+    style: Optional["FillStyle"] = builtin_property(101, is_repr=True)
+    color: Color | None = builtin_property(102, is_repr=True)
+    gradient: Optional[Gradient] = builtin_property(103, is_repr=True)
+    image: "File | None" = builtin_property(104, is_repr=True)
+    position: FillPosition | None = builtin_property(105, is_repr=True)
+    size: FillSize | None = builtin_property(106, is_repr=True)
 
     @staticmethod
     def from_color(color: Color) -> "Fill":
@@ -75,12 +75,12 @@ class Fill(StructFrozen):
 class FillStyle(Style):
     """A fill style."""
 
-    type: FillType = builtin_property(30, is_repr=True)
-    color: Color | None = builtin_property(50, is_repr=True)
-    gradient: Optional[Gradient] = builtin_property(51, is_repr=True)
-    image: "File | None" = builtin_property(52, is_repr=True)
-    position: FillPosition | None = builtin_property(53, is_repr=True)
-    size: FillSize | None = builtin_property(54, is_repr=True)
+    type: FillType = builtin_property(100, is_repr=True)
+    color: Color | None = builtin_property(200, is_repr=True)
+    gradient: Optional[Gradient] = builtin_property(201, is_repr=True)
+    image: "File | None" = builtin_property(202, is_repr=True)
+    position: FillPosition | None = builtin_property(203, is_repr=True)
+    size: FillSize | None = builtin_property(204, is_repr=True)
 
     @staticmethod
     def from_fill(fill: Fill) -> "FillStyle":

@@ -57,7 +57,7 @@ class Event[N: Node = Node](IsSpatial, Node):
         node: Optional[N] = None
         node_ptr: Optional[NodeReference] = None
     else:
-        node: Optional["Node"] = builtin_property(35, description="The Node this Event is about.")
+        node: Optional["Node"] = builtin_property(101, description="The Node this Event is about.")
 
 
 @builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
@@ -105,8 +105,8 @@ class EditEvent(Event):
 
     # key
     type: "EditType" = builtin_property(100, is_repr=True)
-    operation: "EditOperation | None" = builtin_property(101, is_repr=True)
-    node: "Node" = builtin_property(102, is_repr=True)
+    node: "Node" = builtin_property(101, is_repr=True)
+    operation: "EditOperation | None" = builtin_property(102, is_repr=True)
     prop_ptr: "PropertyReference | None" = builtin_property(103, is_repr=True)
     key: "Value | None" = builtin_property(104, is_repr=True)  # for map operations
     if TYPE_CHECKING:

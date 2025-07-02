@@ -1,7 +1,11 @@
 import { EnumType, TraitType } from "@destack/language/core/builtin/common";
+import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
+import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
-import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { Icon } from "@destack/language/core/common/icon";
+import type {
+  NodeDefinitionReference,
+  NodeReference,
+} from "@destack/language/core/builtin/relation";
 import type { PropertyDefinition, TraitDefinition } from "@destack/language/core/common/meta";
 import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
@@ -62,78 +66,6 @@ export enum JoinablePermission {
 registerEnumClass(EnumType.JOINABLE_PERMISSION, JoinablePermission);
 /* ==== DESTACK_GENERATED_END:ENUM:101 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:200 ==== */
-/**
- * A Node with a plain name.
- */
-export interface HasName {
-  /**
-   * HasName.name
-   */
-  name: string;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node with a plain name.
- */
-class HasName$Type extends TraitClass<HasName, TraitType.HAS_NAME> {}
-
-export const HasName = new HasName$Type(TraitType.HAS_NAME);
-registerTraitClass(TraitType.HAS_NAME, HasName);
-/* ==== DESTACK_GENERATED_END:TRAIT:200 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:201 ==== */
-/**
- * A Node with a slug.
- */
-export interface HasSlug {
-  /**
-   * HasSlug.slug
-   */
-  slug: string | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node with a slug.
- */
-class HasSlug$Type extends TraitClass<HasSlug, TraitType.HAS_SLUG> {}
-
-export const HasSlug = new HasSlug$Type(TraitType.HAS_SLUG);
-registerTraitClass(TraitType.HAS_SLUG, HasSlug);
-/* ==== DESTACK_GENERATED_END:TRAIT:201 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:202 ==== */
-/**
- * A Node with an icon.
- */
-export interface HasIcon {
-  /**
-   * HasIcon.icon
-   */
-  icon: Icon | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node with an icon.
- */
-class HasIcon$Type extends TraitClass<HasIcon, TraitType.HAS_ICON> {}
-
-export const HasIcon = new HasIcon$Type(TraitType.HAS_ICON);
-registerTraitClass(TraitType.HAS_ICON, HasIcon);
-/* ==== DESTACK_GENERATED_END:TRAIT:202 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:101 ==== */
 /**
  * A Node that can be archived.
@@ -181,49 +113,6 @@ class IsDeletable$Type extends TraitClass<IsDeletable, TraitType.DELETABLE> {}
 export const IsDeletable = new IsDeletable$Type(TraitType.DELETABLE);
 registerTraitClass(TraitType.DELETABLE, IsDeletable);
 /* ==== DESTACK_GENERATED_END:TRAIT:102 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:103 ==== */
-/**
- * A Node that be extended by custom Nodes (i.e. used as a base type).
- */
-export interface IsExtensible {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that be extended by custom Nodes (i.e. used as a base type).
- */
-class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {}
-
-export const IsExtensible = new IsExtensible$Type(TraitType.EXTENSIBLE);
-registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
-/* ==== DESTACK_GENERATED_END:TRAIT:103 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:104 ==== */
-/**
- * A Node that can be customized with custom Properties.
- */
-export interface IsCustomizable {
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  value: Map<string, Value>;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be customized with custom Properties.
- */
-class IsCustomizable$Type extends TraitClass<IsCustomizable, TraitType.CUSTOMIZABLE> {}
-
-export const IsCustomizable = new IsCustomizable$Type(TraitType.CUSTOMIZABLE);
-registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
-/* ==== DESTACK_GENERATED_END:TRAIT:104 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:100 ==== */
 /**
@@ -412,44 +301,6 @@ export const IsJoinable = new IsJoinable$Type(TraitType.JOINABLE);
 registerTraitClass(TraitType.JOINABLE, IsJoinable);
 /* ==== DESTACK_GENERATED_END:TRAIT:20002 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:20005 ==== */
-/**
- * A Node that can be a Subject.
- */
-export interface IsSubject {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be a Subject.
- */
-class IsSubject$Type extends TraitClass<IsSubject, TraitType.SUBJECT> {}
-
-export const IsSubject = new IsSubject$Type(TraitType.SUBJECT);
-registerTraitClass(TraitType.SUBJECT, IsSubject);
-/* ==== DESTACK_GENERATED_END:TRAIT:20005 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:20006 ==== */
-/**
- * A Node that can be an Owner.
- */
-export interface IsOwner {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be an Owner.
- */
-class IsOwner$Type extends TraitClass<IsOwner, TraitType.OWNER> {}
-
-export const IsOwner = new IsOwner$Type(TraitType.OWNER);
-registerTraitClass(TraitType.OWNER, IsOwner);
-/* ==== DESTACK_GENERATED_END:TRAIT:20006 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:30000 ==== */
 /**
  * A Node that can be tagged (with a Tag).
@@ -509,3 +360,92 @@ class IsSpatial$Type extends TraitClass<IsSpatial, TraitType.SPATIAL> {}
 export const IsSpatial = new IsSpatial$Type(TraitType.SPATIAL);
 registerTraitClass(TraitType.SPATIAL, IsSpatial);
 /* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:110 ==== */
+/**
+ * A Node that can be customized with custom Properties.
+ */
+export interface IsCustomizable {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  customValues: Map<string, Value>;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be customized with custom Properties.
+ */
+class IsCustomizable$Type extends TraitClass<IsCustomizable, TraitType.CUSTOMIZABLE> {}
+
+export const IsCustomizable = new IsCustomizable$Type(TraitType.CUSTOMIZABLE);
+registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
+/* ==== DESTACK_GENERATED_END:TRAIT:110 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:111 ==== */
+/**
+ * A Node that be extended by custom Nodes (i.e. used as a base type).
+ */
+export interface IsExtensible extends IsCustomizable {
+  get definition(): CustomEntityDefinition | CustomEventDefinition | null;
+  readonly definitionPtr: NodeReference | null;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  readonly baseType: NodeDefinitionReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that be extended by custom Nodes (i.e. used as a base type).
+ */
+class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {}
+
+export const IsExtensible = new IsExtensible$Type(TraitType.EXTENSIBLE);
+registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
+/* ==== DESTACK_GENERATED_END:TRAIT:111 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:20003 ==== */
+/**
+ * A Node that can be a Subject.
+ */
+export interface IsSubject {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be a Subject.
+ */
+class IsSubject$Type extends TraitClass<IsSubject, TraitType.SUBJECT> {}
+
+export const IsSubject = new IsSubject$Type(TraitType.SUBJECT);
+registerTraitClass(TraitType.SUBJECT, IsSubject);
+/* ==== DESTACK_GENERATED_END:TRAIT:20003 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:20001 ==== */
+/**
+ * A Node that can be an Owner.
+ */
+export interface IsOwner {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be an Owner.
+ */
+class IsOwner$Type extends TraitClass<IsOwner, TraitType.OWNER> {}
+
+export const IsOwner = new IsOwner$Type(TraitType.OWNER);
+registerTraitClass(TraitType.OWNER, IsOwner);
+/* ==== DESTACK_GENERATED_END:TRAIT:20001 ==== */

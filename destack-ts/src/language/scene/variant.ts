@@ -1,9 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasIcon,
-  HasName,
-  HasSlug,
   Icon,
   IsDeletable,
   IsOwnable,
@@ -65,10 +62,7 @@ registerEnumClass(EnumType.VARIANT_STATE_TYPE, VariantStateType);
 /**
  * A Variant is an alternative presentation of a visual.
  */
-export class Variant
-  extends Entity
-  implements IsSpatial, HasName, HasSlug, HasIcon, IsOwnable, IsDeletable
-{
+export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.VARIANT;
 
   /**
@@ -159,17 +153,12 @@ export class Variant
   type: VariantType;
 
   /**
-   * HasName.name
+   * Variant.name
    */
   name: string;
 
   /**
-   * HasSlug.slug
-   */
-  slug: string | null;
-
-  /**
-   * HasIcon.icon
+   * Variant.icon
    */
   icon: Icon | null;
 
@@ -205,7 +194,6 @@ export class Variant
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     type: VariantType;
     name: string;
-    slug?: string | null;
     icon?: Icon | null;
     maxWidth?: Length | null;
     maxHeight?: Length | null;
@@ -267,8 +255,6 @@ export class Variant
       throw new Error(`Variant.name is required`);
     }
     this.name = _name;
-    let _slug = options.slug ?? null;
-    this.slug = _slug;
     let _icon = options.icon ?? null;
     this.icon = _icon;
     let _maxWidth = options.maxWidth ?? null;
@@ -317,6 +303,15 @@ export class Variant
     if (!(this.type === other.type)) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
     if (
       (this.maxWidth == null) !== (other.maxWidth == null) ||
       (this.maxWidth != null && !this.maxWidth.equals(other.maxWidth))
@@ -344,18 +339,6 @@ export class Variant
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (!(this.slug === other.slug)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
@@ -369,6 +352,10 @@ export class Variant
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     if (this.maxWidth !== null) {
       h = (h * 31 + this.maxWidth.hash()) & 0xffffffff;
     }
@@ -383,13 +370,6 @@ export class Variant
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.slug !== null) {
-      h = (h * 31 + hashString(this.slug)) & 0xffffffff;
-    }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
@@ -417,7 +397,7 @@ export class Variant
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.VARIANT,
+      type: NodeType.VARIANT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -426,7 +406,7 @@ export class Variant
   }
 
   get _pathKey(): string {
-    return this.slug ?? this.name;
+    return this.name;
   }
 
   get path(): string {
@@ -445,9 +425,6 @@ export class Variant
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${this.name}`);
-    if (this.slug !== null) {
-      propertyReprs.push(`slug=${this.slug}`);
-    }
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
@@ -468,39 +445,36 @@ export class Variant
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    if (object.slug != null) {
-      objectValue["33"] = object.slug;
-    }
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["102"] = object.icon.toValue();
     }
     if (object.maxWidth != null) {
-      objectValue["50"] = object.maxWidth.toValue();
+      objectValue["110"] = object.maxWidth.toValue();
     }
     if (object.maxHeight != null) {
-      objectValue["51"] = object.maxHeight.toValue();
+      objectValue["111"] = object.maxHeight.toValue();
     }
     if (object.minWidth != null) {
-      objectValue["52"] = object.minWidth.toValue();
+      objectValue["112"] = object.minWidth.toValue();
     }
     if (object.minHeight != null) {
-      objectValue["53"] = object.minHeight.toValue();
+      objectValue["113"] = object.minHeight.toValue();
     }
     return objectValue;
   }
@@ -520,22 +494,27 @@ export class Variant
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxWidthValue = objectValue["50"];
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const maxWidthValue = objectValue["110"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
         ? _Length.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxHeightValue = objectValue["51"];
+    const maxHeightValue = objectValue["111"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
         ? _Length.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minWidthValue = objectValue["52"];
+    const minWidthValue = objectValue["112"];
     const unpackedMinWidth =
       minWidthValue != undefined
         ? _Length.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minHeightValue = objectValue["53"];
+    const minHeightValue = objectValue["113"];
     const unpackedMinHeight =
       minHeightValue != undefined
         ? _Length.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
@@ -545,49 +524,41 @@ export class Variant
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue != undefined ? slugValue : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Variant({
       parent: unpackedParentPtr,
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
+      icon: unpackedIcon,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
       minWidth: unpackedMinWidth,
       minHeight: unpackedMinHeight,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
-      slug: unpackedSlug,
-      icon: unpackedIcon,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,
@@ -635,9 +606,6 @@ export class Variant
     }
     objectProto.type = Number(object.type) as VariantTypeProto;
     objectProto.name = object.name;
-    if (object.slug != null) {
-      objectProto.slug = object.slug;
-    }
     if (object.icon != null) {
       objectProto.icon = object.icon.toProto();
     }
@@ -678,6 +646,11 @@ export class Variant
             )
           : null,
       type: Number(objectProto.type) as VariantType,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       maxWidth:
         objectProto.maxWidth != undefined
           ? _Length.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
@@ -703,12 +676,6 @@ export class Variant
               _graph,
               _connection,
             )
-          : null,
-      name: objectProto.name,
-      slug: objectProto.slug != undefined ? objectProto.slug : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined

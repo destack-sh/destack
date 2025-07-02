@@ -27,10 +27,10 @@ class ArrowHeadType(Enum):
 class Arrow(StructFrozen):
     """An Arrow is a shape that represents an arrow."""
 
-    start_type: ArrowHeadType = builtin_property(100)
-    start: Vector2 = builtin_property(101)
-    end_type: ArrowHeadType = builtin_property(110)
-    end: Vector2 = builtin_property(111)
+    start_type: ArrowHeadType = builtin_property(200)
+    start: Vector2 = builtin_property(201)
+    end_type: ArrowHeadType = builtin_property(210)
+    end: Vector2 = builtin_property(211)
 
 
 @builtin_node(NodeType.ARROW_SHAPE, pretend_frozen=True)
@@ -38,7 +38,7 @@ class ArrowShape(Shape):
     """An ArrowShape is a shape that represents an arrow."""
 
     # content
-    start_type: ArrowHeadType = builtin_property(100)
-    start: Vector2 = builtin_property(101)
-    end_type: ArrowHeadType = builtin_property(110)
-    end: Vector2 = builtin_property(111)
+    start_type: ArrowHeadType = builtin_property(200)
+    start: Vector2 = builtin_property(201)
+    end_type: ArrowHeadType = builtin_property(210)
+    end: Vector2 = builtin_property(211)

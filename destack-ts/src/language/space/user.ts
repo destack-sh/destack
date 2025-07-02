@@ -1,10 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasIcon,
-  HasName,
-  HasSlug,
-  Icon,
   IsCustomizable,
   IsFollowable,
   IsGlobal,
@@ -51,7 +47,7 @@ registerEnumClass(EnumType.USER_STATUS, UserStatus);
  */
 export class User
   extends Entity
-  implements IsGlobal, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject, IsCustomizable
+  implements IsGlobal, IsOwner, IsFollowable, IsSubject, IsCustomizable
 {
   static metatype: NodeType = NodeType.USER;
 
@@ -104,7 +100,7 @@ export class User
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  value: Map<string, Value>;
+  customValues: Map<string, Value>;
 
   /**
    * User.name
@@ -115,11 +111,6 @@ export class User
    * User.slug
    */
   slug: string;
-
-  /**
-   * HasIcon.icon
-   */
-  icon: Icon | null;
 
   /**
    * User.status
@@ -194,10 +185,9 @@ export class User
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
-    value?: Map<string, Value>;
+    customValues?: Map<string, Value>;
     name: string;
     slug: string;
-    icon?: Icon | null;
     status?: UserStatus;
     lastLoggedInAt?: Temporal.ZonedDateTime | null;
     isStaff?: boolean;
@@ -241,11 +231,11 @@ export class User
       _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
-    let _value = options.value ?? null;
-    if (_value === null) {
-      _value = new Map();
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
     }
-    this.value = _value;
+    this.customValues = _customValues;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`User.name is required`);
@@ -256,8 +246,6 @@ export class User
       throw new Error(`User.slug is required`);
     }
     this.slug = _slug;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 2 /* UserStatus.CREATING */;
@@ -362,20 +350,14 @@ export class User
     if (!(this.email === other.email)) {
       return false;
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
-      return false;
-    }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
         return false;
       }
-      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
         return false;
       }
     }
@@ -409,11 +391,8 @@ export class User
     if (this.passwordHash !== null) {
       h = (h * 31 + hashBytes(this.passwordHash)) & 0xffffffff;
     }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -441,7 +420,7 @@ export class User
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.USER,
+      type: NodeType.USER,
       id: this.id,
       _session: this._session,
       _supergraph: this._supergraph,
@@ -475,46 +454,43 @@ export class User
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.value.size > 0) {
-      const packedValue: { [key: string]: any } = {};
-      for (const [key, value] of object.value) {
-        packedValue[String(String(key))] = value.toValue();
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["21"] = packedValue;
+      objectValue["26"] = packedCustomValues;
     }
-    objectValue["31"] = object.name;
-    objectValue["33"] = object.slug;
-    if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
-    }
-    objectValue["40"] = object.status;
+    objectValue["101"] = object.name;
+    objectValue["102"] = object.slug;
+    objectValue["110"] = object.status;
     if (object.lastLoggedInAt != null) {
-      objectValue["41"] = object.lastLoggedInAt.toString({ timeZoneName: "never" });
+      objectValue["111"] = object.lastLoggedInAt.toString({ timeZoneName: "never" });
     }
-    objectValue["45"] = object.isStaff;
-    objectValue["50"] = object.spacePtr.toValue();
+    objectValue["112"] = object.isStaff;
+    objectValue["120"] = object.spacePtr.toValue();
     if (object.handlePtr != null) {
-      objectValue["51"] = object.handlePtr.toValue();
+      objectValue["121"] = object.handlePtr.toValue();
     }
     if (object.cursorPtr != null) {
-      objectValue["52"] = object.cursorPtr.toValue();
+      objectValue["122"] = object.cursorPtr.toValue();
     }
     if (object.email != null) {
-      objectValue["60"] = object.email;
+      objectValue["130"] = object.email;
     }
     if (object.passwordSalt != null) {
-      objectValue["61"] = base64Encode(object.passwordSalt);
+      objectValue["131"] = base64Encode(object.passwordSalt);
     }
     if (object.passwordHash != null) {
-      objectValue["62"] = base64Encode(object.passwordHash);
+      objectValue["132"] = base64Encode(object.passwordHash);
     }
     return objectValue;
   }
@@ -528,50 +504,44 @@ export class User
   ): User {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const lastLoggedInAtValue = objectValue["41"];
+    const lastLoggedInAtValue = objectValue["111"];
     const unpackedLastLoggedInAt =
       lastLoggedInAtValue != undefined
         ? Temporal.Instant.from(lastLoggedInAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const handlePtrValue = objectValue["51"];
+    const handlePtrValue = objectValue["121"];
     const unpackedHandlePtr =
       handlePtrValue != undefined
         ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const cursorPtrValue = objectValue["52"];
+    const cursorPtrValue = objectValue["122"];
     const unpackedCursorPtr =
       cursorPtrValue != undefined
         ? _NodeReference.fromValue(cursorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const emailValue = objectValue["60"];
+    const emailValue = objectValue["130"];
     const unpackedEmail = emailValue != undefined ? emailValue : null;
-    const passwordSaltValue = objectValue["61"];
+    const passwordSaltValue = objectValue["131"];
     const unpackedPasswordSalt =
       passwordSaltValue != undefined ? base64Decode(passwordSaltValue) : null;
-    const passwordHashValue = objectValue["62"];
+    const passwordHashValue = objectValue["132"];
     const unpackedPasswordHash =
       passwordHashValue != undefined ? base64Decode(passwordHashValue) : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -582,13 +552,13 @@ export class User
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new User({
-      name: objectValue["31"],
-      slug: objectValue["33"],
-      status: Number(objectValue["40"]),
+      name: objectValue["101"],
+      slug: objectValue["102"],
+      status: Number(objectValue["110"]),
       lastLoggedInAt: unpackedLastLoggedInAt,
-      isStaff: objectValue["45"],
+      isStaff: objectValue["112"],
       space: _NodeReference.fromValue(
-        objectValue["50"],
+        objectValue["120"],
         _session,
         _supergraph,
         _graph,
@@ -599,11 +569,10 @@ export class User
       email: unpackedEmail,
       passwordSalt: unpackedPasswordSalt,
       passwordHash: unpackedPasswordHash,
-      icon: unpackedIcon,
-      value: unpackedValue,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      customValues: unpackedCustomValues,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
@@ -641,17 +610,14 @@ export class User
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.value) {
-      objectProto.value = {};
-      for (const [key, value] of object.value) {
-        objectProto.value![String(key)] = value.toProto();
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.name = object.name;
     objectProto.slug = object.slug;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
     objectProto.status = Number(object.status) as UserStatusProto;
     if (object.lastLoggedInAt != null) {
       objectProto.lastLoggedInAt = packProtoTimestamp(object.lastLoggedInAt);
@@ -685,11 +651,10 @@ export class User
   ): User {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedValue = new Map();
-    if (objectProto.value) {
-      for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
@@ -734,11 +699,7 @@ export class User
       email: objectProto.email != undefined ? objectProto.email : null,
       passwordSalt: objectProto.passwordSalt != undefined ? objectProto.passwordSalt : null,
       passwordHash: objectProto.passwordHash != undefined ? objectProto.passwordHash : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      value: unpackedValue,
+      customValues: unpackedCustomValues,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

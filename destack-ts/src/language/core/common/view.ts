@@ -227,7 +227,14 @@ export class Length extends StructFrozen {
   }
 
   repr(): string {
-    return `<Length>`;
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`unit=${LengthUnit[this.unit]}`);
+      propertyReprs.push(`value=${this.value}`);
+      // @ts-expect-error(readonly)
+      this._repr = `<Length ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -260,8 +267,8 @@ export class Length extends StructFrozen {
   static __packValue__(object: Length): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270018;
-    objectValue["50"] = object.unit;
-    objectValue["51"] = object.value;
+    objectValue["101"] = object.unit;
+    objectValue["102"] = object.value;
     return objectValue;
   }
 
@@ -273,8 +280,8 @@ export class Length extends StructFrozen {
     _connection?: any | null,
   ): Length {
     return new Length({
-      unit: Number(objectValue["50"]),
-      value: objectValue["51"],
+      unit: Number(objectValue["101"]),
+      value: objectValue["102"],
       _value: objectValue,
       _supergraph,
     });
@@ -519,18 +526,18 @@ export class Position extends StructFrozen {
   static __packValue__(object: Position): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270020;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.top != null) {
-      objectValue["50"] = object.top.toValue();
+      objectValue["101"] = object.top.toValue();
     }
     if (object.left != null) {
-      objectValue["51"] = object.left.toValue();
+      objectValue["102"] = object.left.toValue();
     }
     if (object.width != null) {
-      objectValue["52"] = object.width.toValue();
+      objectValue["103"] = object.width.toValue();
     }
     if (object.height != null) {
-      objectValue["53"] = object.height.toValue();
+      objectValue["104"] = object.height.toValue();
     }
     return objectValue;
   }
@@ -543,28 +550,28 @@ export class Position extends StructFrozen {
     _connection?: any | null,
   ): Position {
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
-    const topValue = objectValue["50"];
+    const topValue = objectValue["101"];
     const unpackedTop =
       topValue != undefined
         ? _Length.fromValue(topValue, _session, _supergraph, _graph, _connection)
         : null;
-    const leftValue = objectValue["51"];
+    const leftValue = objectValue["102"];
     const unpackedLeft =
       leftValue != undefined
         ? _Length.fromValue(leftValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectValue["52"];
+    const widthValue = objectValue["103"];
     const unpackedWidth =
       widthValue != undefined
         ? _Length.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectValue["53"];
+    const heightValue = objectValue["104"];
     const unpackedHeight =
       heightValue != undefined
         ? _Length.fromValue(heightValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Position({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       top: unpackedTop,
       left: unpackedLeft,
       width: unpackedWidth,
@@ -792,9 +799,9 @@ export class Dimension extends StructFrozen {
   static __packValue__(object: Dimension): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270022;
-    objectValue["30"] = object.type;
-    objectValue["50"] = object.unit;
-    objectValue["51"] = object.value;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.unit;
+    objectValue["102"] = object.value;
     return objectValue;
   }
 
@@ -806,9 +813,9 @@ export class Dimension extends StructFrozen {
     _connection?: any | null,
   ): Dimension {
     return new Dimension({
-      type: Number(objectValue["30"]),
-      unit: Number(objectValue["50"]),
-      value: objectValue["51"],
+      type: Number(objectValue["100"]),
+      unit: Number(objectValue["101"]),
+      value: objectValue["102"],
       _value: objectValue,
       _supergraph,
     });
@@ -1050,19 +1057,19 @@ export class Insets extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270030;
     if (object.base != null) {
-      objectValue["50"] = object.base;
+      objectValue["101"] = object.base;
     }
     if (object.top != null) {
-      objectValue["51"] = object.top;
+      objectValue["102"] = object.top;
     }
     if (object.left != null) {
-      objectValue["52"] = object.left;
+      objectValue["103"] = object.left;
     }
     if (object.right != null) {
-      objectValue["53"] = object.right;
+      objectValue["104"] = object.right;
     }
     if (object.bottom != null) {
-      objectValue["54"] = object.bottom;
+      objectValue["105"] = object.bottom;
     }
     return objectValue;
   }
@@ -1074,15 +1081,15 @@ export class Insets extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Insets {
-    const baseValue = objectValue["50"];
+    const baseValue = objectValue["101"];
     const unpackedBase = baseValue != undefined ? Number(baseValue) : null;
-    const topValue = objectValue["51"];
+    const topValue = objectValue["102"];
     const unpackedTop = topValue != undefined ? Number(topValue) : null;
-    const leftValue = objectValue["52"];
+    const leftValue = objectValue["103"];
     const unpackedLeft = leftValue != undefined ? Number(leftValue) : null;
-    const rightValue = objectValue["53"];
+    const rightValue = objectValue["104"];
     const unpackedRight = rightValue != undefined ? Number(rightValue) : null;
-    const bottomValue = objectValue["54"];
+    const bottomValue = objectValue["105"];
     const unpackedBottom = bottomValue != undefined ? Number(bottomValue) : null;
     return new Insets({
       base: unpackedBase,
@@ -1345,19 +1352,19 @@ export class Corners extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270032;
     if (object.base != null) {
-      objectValue["50"] = object.base;
+      objectValue["101"] = object.base;
     }
     if (object.topLeft != null) {
-      objectValue["51"] = object.topLeft;
+      objectValue["102"] = object.topLeft;
     }
     if (object.topRight != null) {
-      objectValue["52"] = object.topRight;
+      objectValue["103"] = object.topRight;
     }
     if (object.bottomLeft != null) {
-      objectValue["53"] = object.bottomLeft;
+      objectValue["104"] = object.bottomLeft;
     }
     if (object.bottomRight != null) {
-      objectValue["54"] = object.bottomRight;
+      objectValue["105"] = object.bottomRight;
     }
     return objectValue;
   }
@@ -1369,15 +1376,15 @@ export class Corners extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Corners {
-    const baseValue = objectValue["50"];
+    const baseValue = objectValue["101"];
     const unpackedBase = baseValue != undefined ? Number(baseValue) : null;
-    const topLeftValue = objectValue["51"];
+    const topLeftValue = objectValue["102"];
     const unpackedTopLeft = topLeftValue != undefined ? Number(topLeftValue) : null;
-    const topRightValue = objectValue["52"];
+    const topRightValue = objectValue["103"];
     const unpackedTopRight = topRightValue != undefined ? Number(topRightValue) : null;
-    const bottomLeftValue = objectValue["53"];
+    const bottomLeftValue = objectValue["104"];
     const unpackedBottomLeft = bottomLeftValue != undefined ? Number(bottomLeftValue) : null;
-    const bottomRightValue = objectValue["54"];
+    const bottomRightValue = objectValue["105"];
     const unpackedBottomRight = bottomRightValue != undefined ? Number(bottomRightValue) : null;
     return new Corners({
       base: unpackedBase,
@@ -1615,13 +1622,13 @@ export class Axis2 extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270034;
     if (object.base != null) {
-      objectValue["50"] = object.base;
+      objectValue["101"] = object.base;
     }
     if (object.x != null) {
-      objectValue["51"] = object.x;
+      objectValue["102"] = object.x;
     }
     if (object.y != null) {
-      objectValue["52"] = object.y;
+      objectValue["103"] = object.y;
     }
     return objectValue;
   }
@@ -1633,11 +1640,11 @@ export class Axis2 extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Axis2 {
-    const baseValue = objectValue["50"];
+    const baseValue = objectValue["101"];
     const unpackedBase = baseValue != undefined ? baseValue : null;
-    const xValue = objectValue["51"];
+    const xValue = objectValue["102"];
     const unpackedX = xValue != undefined ? xValue : null;
-    const yValue = objectValue["52"];
+    const yValue = objectValue["103"];
     const unpackedY = yValue != undefined ? yValue : null;
     return new Axis2({
       base: unpackedBase,
@@ -1885,16 +1892,16 @@ export class Axis3 extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270036;
     if (object.base != null) {
-      objectValue["50"] = object.base;
+      objectValue["101"] = object.base;
     }
     if (object.x != null) {
-      objectValue["51"] = object.x;
+      objectValue["102"] = object.x;
     }
     if (object.y != null) {
-      objectValue["52"] = object.y;
+      objectValue["103"] = object.y;
     }
     if (object.z != null) {
-      objectValue["53"] = object.z;
+      objectValue["104"] = object.z;
     }
     return objectValue;
   }
@@ -1906,13 +1913,13 @@ export class Axis3 extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Axis3 {
-    const baseValue = objectValue["50"];
+    const baseValue = objectValue["101"];
     const unpackedBase = baseValue != undefined ? baseValue : null;
-    const xValue = objectValue["51"];
+    const xValue = objectValue["102"];
     const unpackedX = xValue != undefined ? xValue : null;
-    const yValue = objectValue["52"];
+    const yValue = objectValue["103"];
     const unpackedY = yValue != undefined ? yValue : null;
-    const zValue = objectValue["53"];
+    const zValue = objectValue["104"];
     const unpackedZ = zValue != undefined ? zValue : null;
     return new Axis3({
       base: unpackedBase,
@@ -2171,16 +2178,16 @@ export class Grid extends StructFrozen {
   static __packValue__(object: Grid): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270026;
-    objectValue["50"] = object.columns;
-    objectValue["51"] = object.rows;
+    objectValue["101"] = object.columns;
+    objectValue["102"] = object.rows;
     if (object.columnWidth != null) {
-      objectValue["52"] = object.columnWidth.toValue();
+      objectValue["103"] = object.columnWidth.toValue();
     }
     if (object.columnMinWidth != null) {
-      objectValue["53"] = object.columnMinWidth.toValue();
+      objectValue["104"] = object.columnMinWidth.toValue();
     }
     if (object.rowHeight != null) {
-      objectValue["54"] = object.rowHeight.toValue();
+      objectValue["105"] = object.rowHeight.toValue();
     }
     return objectValue;
   }
@@ -2193,24 +2200,24 @@ export class Grid extends StructFrozen {
     _connection?: any | null,
   ): Grid {
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const columnWidthValue = objectValue["52"];
+    const columnWidthValue = objectValue["103"];
     const unpackedColumnWidth =
       columnWidthValue != undefined
         ? _Dimension.fromValue(columnWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const columnMinWidthValue = objectValue["53"];
+    const columnMinWidthValue = objectValue["104"];
     const unpackedColumnMinWidth =
       columnMinWidthValue != undefined
         ? _Dimension.fromValue(columnMinWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const rowHeightValue = objectValue["54"];
+    const rowHeightValue = objectValue["105"];
     const unpackedRowHeight =
       rowHeightValue != undefined
         ? _Dimension.fromValue(rowHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Grid({
-      columns: Number(objectValue["50"]),
-      rows: Number(objectValue["51"]),
+      columns: Number(objectValue["101"]),
+      rows: Number(objectValue["102"]),
       columnWidth: unpackedColumnWidth,
       columnMinWidth: unpackedColumnMinWidth,
       rowHeight: unpackedRowHeight,
@@ -2428,8 +2435,8 @@ export class GridSpan extends StructFrozen {
   static __packValue__(object: GridSpan): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270028;
-    objectValue["50"] = object.columns;
-    objectValue["51"] = object.rows;
+    objectValue["101"] = object.columns;
+    objectValue["102"] = object.rows;
     return objectValue;
   }
 
@@ -2441,8 +2448,8 @@ export class GridSpan extends StructFrozen {
     _connection?: any | null,
   ): GridSpan {
     return new GridSpan({
-      columns: Number(objectValue["50"]),
-      rows: Number(objectValue["51"]),
+      columns: Number(objectValue["101"]),
+      rows: Number(objectValue["102"]),
       _value: objectValue,
       _supergraph,
     });

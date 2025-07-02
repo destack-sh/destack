@@ -108,8 +108,8 @@ export abstract class Node extends BuiltinObject {
     return (this.constructor as typeof Node).__definition__.traits;
   }
 
-  get __extends__(): NodeType[] {
-    return (this.constructor as typeof Node).__definition__.extends;
+  get __inherits__(): NodeType[] {
+    return (this.constructor as typeof Node).__definition__.inherits;
   }
 
   get __extendedBy__(): NodeType[] {
@@ -183,7 +183,7 @@ export abstract class Node extends BuiltinObject {
 
     // assign order
     if (hasTrait(child, TraitType.ORDERED)) {
-      const orderType = child.__extends__.find((type) => type in INTER_ORDER_TYPES);
+      const orderType = child.__inherits__.find((type) => type in INTER_ORDER_TYPES);
       const peerClass = orderType
         ? NODE_CLASS_BY_TYPE[orderType]
         : (child.constructor as NodeClass);
@@ -563,7 +563,7 @@ export function isNode<T extends NodeType>(value: any, nodeType?: T): value is N
     value instanceof Node &&
     (nodeType == null ||
       value.metatype === nodeType ||
-      value.__definition__.extends.includes(nodeType))
+      value.__definition__.inherits.includes(nodeType))
   );
 }
 

@@ -30,7 +30,7 @@ class Friendship(IsGlobal, Entity):
 class FriendshipInviteEvent(Event["FriendshipInvite"]):
     """A Event regarding a Friendship Invite."""
 
-    node: "FriendshipInvite" = builtin_property(35)
+    node: "FriendshipInvite" = builtin_property(101)
 
 
 @builtin_node(NodeType.FRIENDSHIP_INVITE_SENT_EVENT)
@@ -65,4 +65,4 @@ class FriendshipInviteRejectedEvent(FriendshipInviteEvent):
 class FriendshipInvite(IsGlobal, IsOwnable, Entity):
     """An invite to be friends with another User."""
 
-    owned_by: "IsSubject" = builtin_property(25, is_repr=True)
+    owned_by: "IsSubject" = builtin_property(28, is_repr=True)

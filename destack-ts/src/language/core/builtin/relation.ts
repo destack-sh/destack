@@ -202,15 +202,15 @@ export class NodeDefinitionReference extends StructFrozen {
   static __packValue__(object: NodeDefinitionReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 150;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.nodeType != null) {
-      objectValue["40"] = object.nodeType;
+      objectValue["101"] = object.nodeType;
     }
     if (object.traitType != null) {
-      objectValue["41"] = object.traitType;
+      objectValue["102"] = object.traitType;
     }
     if (object.definitionPtr != null) {
-      objectValue["45"] = object.definitionPtr.toValue();
+      objectValue["105"] = object.definitionPtr.toValue();
     }
     return objectValue;
   }
@@ -223,17 +223,17 @@ export class NodeDefinitionReference extends StructFrozen {
     _connection?: any | null,
   ): NodeDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodeTypeValue = objectValue["40"];
+    const nodeTypeValue = objectValue["101"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const traitTypeValue = objectValue["41"];
+    const traitTypeValue = objectValue["102"];
     const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
-    const definitionPtrValue = objectValue["45"];
+    const definitionPtrValue = objectValue["105"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new NodeDefinitionReference({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       nodeType: unpackedNodeType,
       traitType: unpackedTraitType,
       definition: unpackedDefinitionPtr,
@@ -551,18 +551,18 @@ export class ObjectDefinitionReference extends StructFrozen {
   static __packValue__(object: ObjectDefinitionReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 151;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.nodeType != null) {
-      objectValue["31"] = object.nodeType;
+      objectValue["101"] = object.nodeType;
     }
     if (object.traitType != null) {
-      objectValue["32"] = object.traitType;
+      objectValue["102"] = object.traitType;
     }
     if (object.structType != null) {
-      objectValue["33"] = object.structType;
+      objectValue["103"] = object.structType;
     }
     if (object.definitionPtr != null) {
-      objectValue["40"] = object.definitionPtr.toValue();
+      objectValue["105"] = object.definitionPtr.toValue();
     }
     return objectValue;
   }
@@ -575,19 +575,19 @@ export class ObjectDefinitionReference extends StructFrozen {
     _connection?: any | null,
   ): ObjectDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodeTypeValue = objectValue["31"];
+    const nodeTypeValue = objectValue["101"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const traitTypeValue = objectValue["32"];
+    const traitTypeValue = objectValue["102"];
     const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
-    const structTypeValue = objectValue["33"];
+    const structTypeValue = objectValue["103"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const definitionPtrValue = objectValue["40"];
+    const definitionPtrValue = objectValue["105"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new ObjectDefinitionReference({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       nodeType: unpackedNodeType,
       traitType: unpackedTraitType,
       structType: unpackedStructType,
@@ -915,21 +915,21 @@ export class PropertyReference extends StructFrozen {
   static __packValue__(object: PropertyReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 101;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.nodeType != null) {
-      objectValue["31"] = object.nodeType;
+      objectValue["101"] = object.nodeType;
     }
     if (object.traitType != null) {
-      objectValue["32"] = object.traitType;
+      objectValue["102"] = object.traitType;
     }
     if (object.structType != null) {
-      objectValue["33"] = object.structType;
+      objectValue["103"] = object.structType;
     }
     if (object.id != null) {
-      objectValue["35"] = object.id;
+      objectValue["105"] = object.id;
     }
     if (object.customPropertyPtr != null) {
-      objectValue["36"] = object.customPropertyPtr.toValue();
+      objectValue["106"] = object.customPropertyPtr.toValue();
     }
     return objectValue;
   }
@@ -942,15 +942,15 @@ export class PropertyReference extends StructFrozen {
     _connection?: any | null,
   ): PropertyReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodeTypeValue = objectValue["31"];
+    const nodeTypeValue = objectValue["101"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const traitTypeValue = objectValue["32"];
+    const traitTypeValue = objectValue["102"];
     const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
-    const structTypeValue = objectValue["33"];
+    const structTypeValue = objectValue["103"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const idValue = objectValue["35"];
+    const idValue = objectValue["105"];
     const unpackedId = idValue != undefined ? Number(idValue) : null;
-    const customPropertyPtrValue = objectValue["36"];
+    const customPropertyPtrValue = objectValue["106"];
     const unpackedCustomPropertyPtr =
       customPropertyPtrValue != undefined
         ? _NodeReference.fromValue(
@@ -962,7 +962,7 @@ export class PropertyReference extends StructFrozen {
           )
         : null;
     return new PropertyReference({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       nodeType: unpackedNodeType,
       traitType: unpackedTraitType,
       structType: unpackedStructType,
@@ -1303,11 +1303,11 @@ export class StructDefinitionReference extends StructFrozen {
   static __packValue__(object: StructDefinitionReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 152;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.structType != null) {
-      objectValue["40"] = object.structType;
+      objectValue["101"] = object.structType;
     }
-    objectValue["45"] = object.definitionPtr.toValue();
+    objectValue["105"] = object.definitionPtr.toValue();
     return objectValue;
   }
 
@@ -1319,13 +1319,13 @@ export class StructDefinitionReference extends StructFrozen {
     _connection?: any | null,
   ): StructDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const structTypeValue = objectValue["40"];
+    const structTypeValue = objectValue["101"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
     return new StructDefinitionReference({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       structType: unpackedStructType,
       definition: _NodeReference.fromValue(
-        objectValue["45"],
+        objectValue["105"],
         _session,
         _supergraph,
         _graph,
@@ -1432,9 +1432,9 @@ export class NodeReference extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
-   * NodeReference.nodeType
+   * NodeReference.type
    */
-  readonly nodeType: NodeType;
+  readonly type: NodeType;
 
   /**
    * NodeReference.id
@@ -1452,7 +1452,7 @@ export class NodeReference extends StructFrozen {
   readonly definitionId: string | null;
 
   constructor(options: {
-    nodeType: NodeType;
+    type: NodeType;
     id: string;
     spaceId?: string | null;
     definitionId?: string | null;
@@ -1471,11 +1471,11 @@ export class NodeReference extends StructFrozen {
     );
 
     // properties
-    let _nodeType = options.nodeType;
-    if (_nodeType === null) {
-      throw new Error(`NodeReference.nodeType is required`);
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`NodeReference.type is required`);
     }
-    this.nodeType = _nodeType;
+    this.type = _type;
     let _id = options.id;
     if (_id === null) {
       throw new Error(`NodeReference.id is required`);
@@ -1501,7 +1501,7 @@ export class NodeReference extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.nodeType === other.nodeType)) {
+    if (!(this.type === other.type)) {
       return false;
     }
     if (!(this.id === other.id)) {
@@ -1519,7 +1519,7 @@ export class NodeReference extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      propertyReprs.push(`type=${NodeType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
       if (this.spaceId !== null) {
         propertyReprs.push(`spaceId=${this.spaceId}`);
@@ -1540,7 +1540,7 @@ export class NodeReference extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.nodeType) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.spaceId !== null) {
       h = (h * 31 + hashString(this.spaceId.toString())) & 0xffffffff;
@@ -1569,13 +1569,13 @@ export class NodeReference extends StructFrozen {
   static __packValue__(object: NodeReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 100;
-    objectValue["31"] = object.nodeType;
-    objectValue["32"] = String(object.id);
+    objectValue["100"] = object.type;
+    objectValue["101"] = String(object.id);
     if (object.spaceId != null) {
-      objectValue["34"] = String(object.spaceId);
+      objectValue["102"] = String(object.spaceId);
     }
     if (object.definitionId != null) {
-      objectValue["35"] = String(object.definitionId);
+      objectValue["103"] = String(object.definitionId);
     }
     return objectValue;
   }
@@ -1587,13 +1587,13 @@ export class NodeReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): NodeReference {
-    const spaceIdValue = objectValue["34"];
+    const spaceIdValue = objectValue["102"];
     const unpackedSpaceId = spaceIdValue != undefined ? String(spaceIdValue) : null;
-    const definitionIdValue = objectValue["35"];
+    const definitionIdValue = objectValue["103"];
     const unpackedDefinitionId = definitionIdValue != undefined ? String(definitionIdValue) : null;
     return new NodeReference({
-      nodeType: Number(objectValue["31"]),
-      id: String(objectValue["32"]),
+      type: Number(objectValue["100"]),
+      id: String(objectValue["101"]),
       spaceId: unpackedSpaceId,
       definitionId: unpackedDefinitionId,
       _value: objectValue,
@@ -1621,7 +1621,7 @@ export class NodeReference extends StructFrozen {
 
   static __packProto__(object: NodeReference): NodeReferenceProto {
     const objectProto: Partial<NodeReferenceProto> = { metatype: 100 };
-    objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
+    objectProto.type = Number(object.type) as NodeTypeProto;
     objectProto.id = String(object.id);
     if (object.spaceId != null) {
       objectProto.spaceId = String(object.spaceId);
@@ -1640,7 +1640,7 @@ export class NodeReference extends StructFrozen {
     _connection?: any | null,
   ): NodeReference {
     return new NodeReference({
-      nodeType: Number(objectProto.nodeType) as NodeType,
+      type: Number(objectProto.type) as NodeType,
       id: String(objectProto.id),
       spaceId: objectProto.spaceId != undefined ? String(objectProto.spaceId) : null,
       definitionId: objectProto.definitionId != undefined ? String(objectProto.definitionId) : null,

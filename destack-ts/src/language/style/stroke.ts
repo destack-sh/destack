@@ -134,7 +134,7 @@ export class StrokeStyle extends Style {
   type: StrokeType;
 
   /**
-   * HasName.name
+   * Style.name
    */
   name: string;
 
@@ -351,10 +351,10 @@ export class StrokeStyle extends Style {
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -378,6 +378,7 @@ export class StrokeStyle extends Style {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -389,7 +390,6 @@ export class StrokeStyle extends Style {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -406,7 +406,7 @@ export class StrokeStyle extends Style {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.STROKE_STYLE,
+      type: NodeType.STROKE_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -451,30 +451,30 @@ export class StrokeStyle extends Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    objectValue["50"] = object.size;
-    objectValue["51"] = object.thinning;
-    objectValue["52"] = object.smoothing;
-    objectValue["53"] = object.streamline;
-    objectValue["55"] = object.easing;
+    objectValue["27"] = object.orderKey;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
+    objectValue["200"] = object.size;
+    objectValue["201"] = object.thinning;
+    objectValue["202"] = object.smoothing;
+    objectValue["203"] = object.streamline;
+    objectValue["204"] = object.easing;
     if (object.start != null) {
-      objectValue["60"] = object.start.toValue();
+      objectValue["205"] = object.start.toValue();
     }
     if (object.end != null) {
-      objectValue["61"] = object.end.toValue();
+      objectValue["206"] = object.end.toValue();
     }
     return objectValue;
   }
@@ -488,12 +488,12 @@ export class StrokeStyle extends Style {
   ): StrokeStyle {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
-    const startValue = objectValue["60"];
+    const startValue = objectValue["205"];
     const unpackedStart =
       startValue != undefined
         ? _StrokeCap.fromValue(startValue, _session, _supergraph, _graph, _connection)
         : null;
-    const endValue = objectValue["61"];
+    const endValue = objectValue["206"];
     const unpackedEnd =
       endValue != undefined
         ? _StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
@@ -508,38 +508,38 @@ export class StrokeStyle extends Style {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new StrokeStyle({
-      type: Number(objectValue["30"]),
-      size: Number(objectValue["50"]),
-      thinning: objectValue["51"],
-      smoothing: objectValue["52"],
-      streamline: objectValue["53"],
-      easing: Number(objectValue["55"]),
+      type: Number(objectValue["100"]),
+      size: Number(objectValue["200"]),
+      thinning: objectValue["201"],
+      smoothing: objectValue["202"],
+      streamline: objectValue["203"],
+      easing: Number(objectValue["204"]),
       start: unpackedStart,
       end: unpackedEnd,
       parent: unpackedParentPtr,
+      name: objectValue["101"],
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
       _session,
@@ -633,6 +633,7 @@ export class StrokeStyle extends Style {
               _connection,
             )
           : null,
+      name: objectProto.name,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -665,7 +666,6 @@ export class StrokeStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -936,21 +936,21 @@ export class Stroke extends StructFrozen {
   static __packValue__(object: Stroke): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2701100;
-    objectValue["30"] = object.type;
-    objectValue["50"] = object.size;
-    objectValue["51"] = object.thinning;
-    objectValue["52"] = object.smoothing;
-    objectValue["53"] = object.streamline;
-    objectValue["54"] = object.simulatePressure;
-    objectValue["55"] = object.easing;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.size;
+    objectValue["102"] = object.thinning;
+    objectValue["103"] = object.smoothing;
+    objectValue["104"] = object.streamline;
+    objectValue["105"] = object.simulatePressure;
+    objectValue["106"] = object.easing;
     if (object.start != null) {
-      objectValue["60"] = object.start.toValue();
+      objectValue["107"] = object.start.toValue();
     }
     if (object.end != null) {
-      objectValue["61"] = object.end.toValue();
+      objectValue["108"] = object.end.toValue();
     }
     if (object.color != null) {
-      objectValue["70"] = object.color.toValue();
+      objectValue["109"] = object.color.toValue();
     }
     return objectValue;
   }
@@ -964,29 +964,29 @@ export class Stroke extends StructFrozen {
   ): Stroke {
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
-    const startValue = objectValue["60"];
+    const startValue = objectValue["107"];
     const unpackedStart =
       startValue != undefined
         ? _StrokeCap.fromValue(startValue, _session, _supergraph, _graph, _connection)
         : null;
-    const endValue = objectValue["61"];
+    const endValue = objectValue["108"];
     const unpackedEnd =
       endValue != undefined
         ? _StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
         : null;
-    const colorValue = objectValue["70"];
+    const colorValue = objectValue["109"];
     const unpackedColor =
       colorValue != undefined
         ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Stroke({
-      type: Number(objectValue["30"]),
-      size: Number(objectValue["50"]),
-      thinning: objectValue["51"],
-      smoothing: objectValue["52"],
-      streamline: objectValue["53"],
-      simulatePressure: objectValue["54"],
-      easing: Number(objectValue["55"]),
+      type: Number(objectValue["100"]),
+      size: Number(objectValue["101"]),
+      thinning: objectValue["102"],
+      smoothing: objectValue["103"],
+      streamline: objectValue["104"],
+      simulatePressure: objectValue["105"],
+      easing: Number(objectValue["106"]),
       start: unpackedStart,
       end: unpackedEnd,
       color: unpackedColor,
@@ -1211,9 +1211,9 @@ export class StrokeCap extends StructFrozen {
   static __packValue__(object: StrokeCap): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2701101;
-    objectValue["50"] = object.cap;
-    objectValue["51"] = object.taper;
-    objectValue["52"] = object.easing;
+    objectValue["101"] = object.cap;
+    objectValue["102"] = object.taper;
+    objectValue["103"] = object.easing;
     return objectValue;
   }
 
@@ -1225,9 +1225,9 @@ export class StrokeCap extends StructFrozen {
     _connection?: any | null,
   ): StrokeCap {
     return new StrokeCap({
-      cap: objectValue["50"],
-      taper: objectValue["51"],
-      easing: Number(objectValue["52"]),
+      cap: objectValue["101"],
+      taper: objectValue["102"],
+      easing: Number(objectValue["103"]),
       _value: objectValue,
       _supergraph,
     });
@@ -1490,13 +1490,13 @@ export class StrokePoint extends StructFrozen {
   static __packValue__(object: StrokePoint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2701103;
-    objectValue["50"] = object.point.toValue();
-    objectValue["51"] = object.originalPoint.toValue();
-    objectValue["52"] = object.pressure;
-    objectValue["53"] = object.direction.toValue();
-    objectValue["54"] = object.distance;
-    objectValue["55"] = object.runningLength;
-    objectValue["56"] = object.radius;
+    objectValue["101"] = object.point.toValue();
+    objectValue["102"] = object.originalPoint.toValue();
+    objectValue["103"] = object.pressure;
+    objectValue["104"] = object.direction.toValue();
+    objectValue["105"] = object.distance;
+    objectValue["106"] = object.runningLength;
+    objectValue["107"] = object.radius;
     return objectValue;
   }
 
@@ -1509,19 +1509,19 @@ export class StrokePoint extends StructFrozen {
   ): StrokePoint {
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     return new StrokePoint({
-      point: _Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      point: _Vector2.fromValue(objectValue["101"], _session, _supergraph, _graph, _connection),
       originalPoint: _Vector2.fromValue(
-        objectValue["51"],
+        objectValue["102"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      pressure: objectValue["52"],
-      direction: _Vector2.fromValue(objectValue["53"], _session, _supergraph, _graph, _connection),
-      distance: objectValue["54"],
-      runningLength: objectValue["55"],
-      radius: objectValue["56"],
+      pressure: objectValue["103"],
+      direction: _Vector2.fromValue(objectValue["104"], _session, _supergraph, _graph, _connection),
+      distance: objectValue["105"],
+      runningLength: objectValue["106"],
+      radius: objectValue["107"],
       _value: objectValue,
       _supergraph,
     });
@@ -1730,7 +1730,7 @@ export class StrokePath extends StructFrozen {
       for (const item of object.points) {
         packedPoints.push(item.toValue());
       }
-      objectValue["100"] = packedPoints;
+      objectValue["101"] = packedPoints;
     }
     return objectValue;
   }
@@ -1744,8 +1744,8 @@ export class StrokePath extends StructFrozen {
   ): StrokePath {
     const _StrokePoint = STRUCT_CLASS_BY_TYPE[StructType.STROKE_POINT] as typeof StrokePoint;
     const unpackedPoints: any[] = [];
-    if (objectValue["100"] != undefined) {
-      for (const item of objectValue["100"]) {
+    if (objectValue["101"] != undefined) {
+      for (const item of objectValue["101"]) {
         unpackedPoints.push(
           _StrokePoint.fromValue(item, _session, _supergraph, _graph, _connection),
         );

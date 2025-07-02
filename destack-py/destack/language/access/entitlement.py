@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.ENTITLEMENT_EVENT, is_abstract=True)
 class EntitlementEvent(Event["Entitlement"]):
-    node: "Entitlement" = builtin_property(35)
-    target: "IsSubject" = builtin_property(40)
+    node: "Entitlement" = builtin_property(101)
+    target: "IsSubject" = builtin_property(110)
 
 
 @builtin_node(NodeType.ENTITLEMENT_REQUESTED_EVENT)
@@ -66,8 +66,8 @@ class Entitlement(IsSpatial, IsDeletable, Entity):
     parent: Union["IsSubject", "IsJoinable", None] = builtin_property_parent(
         node_is_extensible=True
     )
-    type: EntitlementType = builtin_property(30)
-    expires_at: Optional[datetime] = builtin_property(40)
-    target: IsSubject = builtin_property(41)
+    type: EntitlementType = builtin_property(100)
+    expires_at: Optional[datetime] = builtin_property(110)
+    target: IsSubject = builtin_property(111)
     if TYPE_CHECKING:
         target_ptr: NodeReference = UNSET

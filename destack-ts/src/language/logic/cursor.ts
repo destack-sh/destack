@@ -396,7 +396,7 @@ export class EventCursor extends Cursor {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.EVENT_CURSOR,
+      type: NodeType.EVENT_CURSOR,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -444,20 +444,20 @@ export class EventCursor extends Cursor {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["40"] = object.status;
+    objectValue["101"] = object.status;
     if (object.activeAt != null) {
-      objectValue["41"] = object.activeAt.toString({ timeZoneName: "never" });
+      objectValue["110"] = object.activeAt.toString({ timeZoneName: "never" });
     }
     return objectValue;
   }
@@ -470,7 +470,7 @@ export class EventCursor extends Cursor {
     _connection?: any | null,
   ): EventCursor {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const activeAtValue = objectValue["41"];
+    const activeAtValue = objectValue["110"];
     const unpackedActiveAt =
       activeAtValue != undefined
         ? Temporal.Instant.from(activeAtValue).toZonedDateTimeISO("UTC")
@@ -480,17 +480,17 @@ export class EventCursor extends Cursor {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -501,13 +501,13 @@ export class EventCursor extends Cursor {
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new EventCursor({
-      status: Number(objectValue["40"]),
+      status: Number(objectValue["101"]),
       activeAt: unpackedActiveAt,
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
@@ -914,7 +914,7 @@ export class ScreenCursor extends Cursor {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SCREEN_CURSOR,
+      type: NodeType.SCREEN_CURSOR,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -962,23 +962,23 @@ export class ScreenCursor extends Cursor {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["40"] = object.status;
+    objectValue["101"] = object.status;
     if (object.activeAt != null) {
-      objectValue["41"] = object.activeAt.toString({ timeZoneName: "never" });
+      objectValue["110"] = object.activeAt.toString({ timeZoneName: "never" });
     }
     if (object.position != null) {
-      objectValue["50"] = object.position.toValue();
+      objectValue["120"] = object.position.toValue();
     }
     return objectValue;
   }
@@ -992,12 +992,12 @@ export class ScreenCursor extends Cursor {
   ): ScreenCursor {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2i = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2I] as typeof Vector2i;
-    const positionValue = objectValue["50"];
+    const positionValue = objectValue["120"];
     const unpackedPosition =
       positionValue != undefined
         ? _Vector2i.fromValue(positionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const activeAtValue = objectValue["41"];
+    const activeAtValue = objectValue["110"];
     const unpackedActiveAt =
       activeAtValue != undefined
         ? Temporal.Instant.from(activeAtValue).toZonedDateTimeISO("UTC")
@@ -1007,17 +1007,17 @@ export class ScreenCursor extends Cursor {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1029,13 +1029,13 @@ export class ScreenCursor extends Cursor {
         : null;
     return new ScreenCursor({
       position: unpackedPosition,
-      status: Number(objectValue["40"]),
+      status: Number(objectValue["101"]),
       activeAt: unpackedActiveAt,
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
@@ -1433,7 +1433,7 @@ export class ThreadCursor extends Cursor {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.THREAD_CURSOR,
+      type: NodeType.THREAD_CURSOR,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -1481,20 +1481,20 @@ export class ThreadCursor extends Cursor {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["40"] = object.status;
+    objectValue["101"] = object.status;
     if (object.activeAt != null) {
-      objectValue["41"] = object.activeAt.toString({ timeZoneName: "never" });
+      objectValue["110"] = object.activeAt.toString({ timeZoneName: "never" });
     }
     return objectValue;
   }
@@ -1507,7 +1507,7 @@ export class ThreadCursor extends Cursor {
     _connection?: any | null,
   ): ThreadCursor {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const activeAtValue = objectValue["41"];
+    const activeAtValue = objectValue["110"];
     const unpackedActiveAt =
       activeAtValue != undefined
         ? Temporal.Instant.from(activeAtValue).toZonedDateTimeISO("UTC")
@@ -1517,17 +1517,17 @@ export class ThreadCursor extends Cursor {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1538,13 +1538,13 @@ export class ThreadCursor extends Cursor {
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new ThreadCursor({
-      status: Number(objectValue["40"]),
+      status: Number(objectValue["101"]),
       activeAt: unpackedActiveAt,
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,

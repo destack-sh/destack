@@ -12,7 +12,6 @@ if TYPE_CHECKING:
         QueryUpdate,
         StoreImplementation,
         StoreType,
-        StoreZone,
     )
 
 
@@ -28,7 +27,6 @@ class Store(abc.ABC):
         from destack.language.registry import NODE_TYPES_BY_MAIN_STORE_TYPE
 
         self.types: tuple[StoreType, ...] = types
-        self.zones: tuple[StoreZone, ...] = tuple({type.zone for type in types})
         self.node_types: tuple[NodeType, ...] = tuple(
             {
                 node_type

@@ -6,6 +6,7 @@ from ..builtin import (
     Entity,
     Enum,
     EnumType,
+    IsArchivable,
     IsDeletable,
     IsSourceable,
     IsSpatial,
@@ -58,6 +59,7 @@ class CustomPropertyType(Enum):
 class CustomProperty(
     IsSpatial,
     IsTaggable,
+    IsArchivable,
     IsDeletable,
     IsSourceable,
     Entity,

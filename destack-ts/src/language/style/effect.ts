@@ -189,7 +189,7 @@ export class EffectStyle extends Style {
   type: EffectType;
 
   /**
-   * HasName.name
+   * Style.name
    */
   name: string;
 
@@ -491,10 +491,10 @@ export class EffectStyle extends Style {
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -549,6 +549,7 @@ export class EffectStyle extends Style {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -560,7 +561,6 @@ export class EffectStyle extends Style {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -577,7 +577,7 @@ export class EffectStyle extends Style {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.EFFECT_STYLE,
+      type: NodeType.EFFECT_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -665,61 +665,61 @@ export class EffectStyle extends Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["27"] = object.orderKey;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.opacity != null) {
-      objectValue["50"] = object.opacity;
+      objectValue["200"] = object.opacity;
     }
     if (object.offset != null) {
-      objectValue["51"] = object.offset.toValue();
+      objectValue["201"] = object.offset.toValue();
     }
     if (object.scale != null) {
-      objectValue["52"] = object.scale;
+      objectValue["202"] = object.scale;
     }
     if (object.rotate != null) {
-      objectValue["53"] = object.rotate.toValue();
+      objectValue["203"] = object.rotate.toValue();
     }
     if (object.skew != null) {
-      objectValue["54"] = object.skew.toValue();
+      objectValue["204"] = object.skew.toValue();
     }
     if (object.perspective != null) {
-      objectValue["55"] = object.perspective;
+      objectValue["205"] = object.perspective;
     }
     if (object.delay != null) {
-      objectValue["56"] = timedeltaToISOFormat(object.delay);
+      objectValue["206"] = timedeltaToISOFormat(object.delay);
     }
     if (object.duration != null) {
-      objectValue["57"] = object.duration;
+      objectValue["207"] = object.duration;
     }
     if (object.threshold != null) {
-      objectValue["58"] = object.threshold;
+      objectValue["208"] = object.threshold;
     }
     if (object.once != null) {
-      objectValue["59"] = object.once;
+      objectValue["209"] = object.once;
     }
     if (object.repeat != null) {
-      objectValue["60"] = object.repeat;
+      objectValue["210"] = object.repeat;
     }
     if (object.split != null) {
-      objectValue["61"] = object.split;
+      objectValue["211"] = object.split;
     }
     if (object.offscreen != null) {
-      objectValue["62"] = object.offscreen;
+      objectValue["212"] = object.offscreen;
     }
     if (object.transition != null) {
-      objectValue["70"] = object.transition.toValue();
+      objectValue["213"] = object.transition.toValue();
     }
     return objectValue;
   }
@@ -735,42 +735,42 @@ export class EffectStyle extends Style {
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const opacityValue = objectValue["50"];
+    const opacityValue = objectValue["200"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const offsetValue = objectValue["51"];
+    const offsetValue = objectValue["201"];
     const unpackedOffset =
       offsetValue != undefined
         ? _Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scaleValue = objectValue["52"];
+    const scaleValue = objectValue["202"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const rotateValue = objectValue["53"];
+    const rotateValue = objectValue["203"];
     const unpackedRotate =
       rotateValue != undefined
         ? _Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection)
         : null;
-    const skewValue = objectValue["54"];
+    const skewValue = objectValue["204"];
     const unpackedSkew =
       skewValue != undefined
         ? _Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
         : null;
-    const perspectiveValue = objectValue["55"];
+    const perspectiveValue = objectValue["205"];
     const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
-    const delayValue = objectValue["56"];
+    const delayValue = objectValue["206"];
     const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
-    const durationValue = objectValue["57"];
+    const durationValue = objectValue["207"];
     const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const thresholdValue = objectValue["58"];
+    const thresholdValue = objectValue["208"];
     const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
-    const onceValue = objectValue["59"];
+    const onceValue = objectValue["209"];
     const unpackedOnce = onceValue != undefined ? onceValue : null;
-    const repeatValue = objectValue["60"];
+    const repeatValue = objectValue["210"];
     const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
-    const splitValue = objectValue["61"];
+    const splitValue = objectValue["211"];
     const unpackedSplit = splitValue != undefined ? Number(splitValue) : null;
-    const offscreenValue = objectValue["62"];
+    const offscreenValue = objectValue["212"];
     const unpackedOffscreen = offscreenValue != undefined ? Number(offscreenValue) : null;
-    const transitionValue = objectValue["70"];
+    const transitionValue = objectValue["213"];
     const unpackedTransition =
       transitionValue != undefined
         ? _Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
@@ -785,23 +785,23 @@ export class EffectStyle extends Style {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new EffectStyle({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       opacity: unpackedOpacity,
       offset: unpackedOffset,
       scale: unpackedScale,
@@ -817,13 +817,13 @@ export class EffectStyle extends Style {
       offscreen: unpackedOffscreen,
       transition: unpackedTransition,
       parent: unpackedParentPtr,
+      name: objectValue["101"],
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
       _session,
@@ -972,6 +972,7 @@ export class EffectStyle extends Style {
               _connection,
             )
           : null,
+      name: objectProto.name,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1004,7 +1005,6 @@ export class EffectStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -1437,51 +1437,51 @@ export class Effect extends StructFrozen {
   static __packValue__(object: Effect): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2701000;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.stylePtr != null) {
-      objectValue["41"] = object.stylePtr.toValue();
+      objectValue["101"] = object.stylePtr.toValue();
     }
     if (object.opacity != null) {
-      objectValue["50"] = object.opacity;
+      objectValue["102"] = object.opacity;
     }
     if (object.offset != null) {
-      objectValue["51"] = object.offset.toValue();
+      objectValue["103"] = object.offset.toValue();
     }
     if (object.scale != null) {
-      objectValue["52"] = object.scale;
+      objectValue["104"] = object.scale;
     }
     if (object.rotate != null) {
-      objectValue["53"] = object.rotate.toValue();
+      objectValue["105"] = object.rotate.toValue();
     }
     if (object.skew != null) {
-      objectValue["54"] = object.skew.toValue();
+      objectValue["106"] = object.skew.toValue();
     }
     if (object.perspective != null) {
-      objectValue["55"] = object.perspective;
+      objectValue["107"] = object.perspective;
     }
     if (object.delay != null) {
-      objectValue["56"] = timedeltaToISOFormat(object.delay);
+      objectValue["108"] = timedeltaToISOFormat(object.delay);
     }
     if (object.duration != null) {
-      objectValue["57"] = object.duration;
+      objectValue["109"] = object.duration;
     }
     if (object.threshold != null) {
-      objectValue["58"] = object.threshold;
+      objectValue["110"] = object.threshold;
     }
     if (object.once != null) {
-      objectValue["59"] = object.once;
+      objectValue["111"] = object.once;
     }
     if (object.repeat != null) {
-      objectValue["60"] = object.repeat;
+      objectValue["112"] = object.repeat;
     }
     if (object.split != null) {
-      objectValue["61"] = object.split;
+      objectValue["113"] = object.split;
     }
     if (object.offscreen != null) {
-      objectValue["62"] = object.offscreen;
+      objectValue["114"] = object.offscreen;
     }
     if (object.transition != null) {
-      objectValue["70"] = object.transition.toValue();
+      objectValue["115"] = object.transition.toValue();
     }
     return objectValue;
   }
@@ -1497,53 +1497,53 @@ export class Effect extends StructFrozen {
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const stylePtrValue = objectValue["41"];
+    const stylePtrValue = objectValue["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
         ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const opacityValue = objectValue["50"];
+    const opacityValue = objectValue["102"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const offsetValue = objectValue["51"];
+    const offsetValue = objectValue["103"];
     const unpackedOffset =
       offsetValue != undefined
         ? _Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scaleValue = objectValue["52"];
+    const scaleValue = objectValue["104"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const rotateValue = objectValue["53"];
+    const rotateValue = objectValue["105"];
     const unpackedRotate =
       rotateValue != undefined
         ? _Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection)
         : null;
-    const skewValue = objectValue["54"];
+    const skewValue = objectValue["106"];
     const unpackedSkew =
       skewValue != undefined
         ? _Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
         : null;
-    const perspectiveValue = objectValue["55"];
+    const perspectiveValue = objectValue["107"];
     const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
-    const delayValue = objectValue["56"];
+    const delayValue = objectValue["108"];
     const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
-    const durationValue = objectValue["57"];
+    const durationValue = objectValue["109"];
     const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const thresholdValue = objectValue["58"];
+    const thresholdValue = objectValue["110"];
     const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
-    const onceValue = objectValue["59"];
+    const onceValue = objectValue["111"];
     const unpackedOnce = onceValue != undefined ? onceValue : null;
-    const repeatValue = objectValue["60"];
+    const repeatValue = objectValue["112"];
     const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
-    const splitValue = objectValue["61"];
+    const splitValue = objectValue["113"];
     const unpackedSplit = splitValue != undefined ? Number(splitValue) : null;
-    const offscreenValue = objectValue["62"];
+    const offscreenValue = objectValue["114"];
     const unpackedOffscreen = offscreenValue != undefined ? Number(offscreenValue) : null;
-    const transitionValue = objectValue["70"];
+    const transitionValue = objectValue["115"];
     const unpackedTransition =
       transitionValue != undefined
         ? _Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Effect({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       style: unpackedStylePtr,
       opacity: unpackedOpacity,
       offset: unpackedOffset,

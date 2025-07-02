@@ -32,7 +32,7 @@ class Route(
 
     parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
 
-    name: str = builtin_property(100, description="The name of the Route.")
+    name: str = builtin_property(101, description="The name of the Route.")
 
     scene: Optional["Scene"] = builtin_property(
         110,

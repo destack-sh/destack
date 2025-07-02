@@ -15,8 +15,8 @@ class ContentView(View):
     """A content View."""
 
     # layout
-    align: Optional["Align"] = builtin_property(53)
+    align: Optional["Align"] = builtin_property(150)
 
     # appearance
-    is_visible: Optional[bool] = builtin_property(60)
-    opacity: Optional[float] = builtin_property(61)
+    is_visible: Optional[bool] = builtin_property(160)
+    opacity: Optional[float] = builtin_property(161)

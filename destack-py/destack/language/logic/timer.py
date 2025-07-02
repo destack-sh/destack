@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 class TimerEvent(Event["Timer"]):
     """A TimerEvent is an Event that corresponds to a Timer."""
 
-    node: "Timer" = builtin_property(35)
+    node: "Timer" = builtin_property(101)
 
 
 @builtin_node(NodeType.TIMER_STARTED_EVENT)

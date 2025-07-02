@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, assert_never
+from typing import TYPE_CHECKING, Any, Optional, assert_never, cast
 
 from destack.language.registry import (
     ENUM_DEFINITION_BY_TYPE,
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
         Sort,
         SortType,
         StringConstraint,
+        Trait,
         Type,
         Value,
     )
@@ -316,6 +317,7 @@ class TraitDefinition(StructFrozen):
             properties=[
                 prop.definition for prop in trait_cls.__properties__.values() if prop.is_wired
             ],
+            is_extensible=cast(type["Trait"], trait_cls).__is_extensible__,
             traits=list(trait_cls.__traits__),
             base_traits=list(trait_cls.__base_traits__),
         )

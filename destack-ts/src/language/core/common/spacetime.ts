@@ -4,14 +4,13 @@ import { Entity } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
-  HasName,
-  HasSlug,
   IsDeletable,
   IsOwnable,
   IsOwner,
   IsSpatial,
   IsSubject,
 } from "@destack/language/core/builtin/trait";
+import type { Icon } from "@destack/language/core/common/icon";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
@@ -26,10 +25,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Snapshot is a point in Space time.
  */
-export class Snapshot
-  extends Entity
-  implements IsSpatial, HasName, HasSlug, IsOwnable, IsDeletable
-{
+export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.SNAPSHOT;
 
   /**
@@ -115,14 +111,14 @@ export class Snapshot
   ownedByPtr: NodeReference | null;
 
   /**
-   * HasName.name
+   * Snapshot.name
    */
   name: string;
 
   /**
-   * HasSlug.slug
+   * Snapshot.icon
    */
-  slug: string | null;
+  icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -135,7 +131,7 @@ export class Snapshot
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
-    slug?: string | null;
+    icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -187,8 +183,8 @@ export class Snapshot
       throw new Error(`Snapshot.name is required`);
     }
     this.name = _name;
-    let _slug = options.slug ?? null;
-    this.slug = _slug;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -224,13 +220,16 @@ export class Snapshot
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.slug === other.slug)) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
@@ -245,12 +244,12 @@ export class Snapshot
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.slug !== null) {
-      h = (h * 31 + hashString(this.slug)) & 0xffffffff;
     }
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
@@ -278,7 +277,7 @@ export class Snapshot
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SNAPSHOT,
+      type: NodeType.SNAPSHOT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -287,7 +286,7 @@ export class Snapshot
   }
 
   get _pathKey(): string {
-    return this.slug ?? this.name;
+    return this.name;
   }
 
   get path(): string {
@@ -306,9 +305,6 @@ export class Snapshot
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${this.name}`);
-    if (this.slug !== null) {
-      propertyReprs.push(`slug=${this.slug}`);
-    }
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
@@ -329,23 +325,23 @@ export class Snapshot
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["31"] = object.name;
-    if (object.slug != null) {
-      objectValue["33"] = object.slug;
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
     }
     return objectValue;
   }
@@ -358,48 +354,52 @@ export class Snapshot
     _connection?: any | null,
   ): Snapshot {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue != undefined ? slugValue : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Snapshot({
       parent: unpackedParentPtr,
+      name: objectValue["101"],
+      icon: unpackedIcon,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
-      slug: unpackedSlug,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,
@@ -446,8 +446,8 @@ export class Snapshot
       objectProto.ownedByPtr = object.ownedByPtr.toProto();
     }
     objectProto.name = object.name;
-    if (object.slug != null) {
-      objectProto.slug = object.slug;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
     }
     return objectProto as SnapshotProto;
   }
@@ -460,6 +460,7 @@ export class Snapshot
     _connection?: any | null,
   ): Snapshot {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Snapshot({
       parent:
         objectProto.parentPtr != undefined
@@ -471,6 +472,11 @@ export class Snapshot
               _connection,
             )
           : null,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -481,8 +487,6 @@ export class Snapshot
               _connection,
             )
           : null,
-      name: objectProto.name,
-      slug: objectProto.slug != undefined ? objectProto.slug : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -551,7 +555,7 @@ registerNodeClass(NodeType.SNAPSHOT, Snapshot);
 /**
  * A Branch is a version of a Snapshot.
  */
-export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwnable, IsDeletable {
+export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.BRANCH;
 
   /**
@@ -637,14 +641,14 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
   ownedByPtr: NodeReference | null;
 
   /**
-   * HasName.name
+   * Branch.name
    */
   name: string;
 
   /**
-   * HasSlug.slug
+   * Branch.icon
    */
-  slug: string | null;
+  icon: Icon | null;
 
   /**
    * Branch.head
@@ -676,7 +680,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
-    slug?: string | null;
+    icon?: Icon | null;
     head?: Snapshot | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -729,8 +733,8 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
       throw new Error(`Branch.name is required`);
     }
     this.name = _name;
-    let _slug = options.slug ?? null;
-    this.slug = _slug;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
     let _head = options.head ?? null;
     if (_head != null && _head.metatype != StructType.NODE_REFERENCE) {
       _head = (_head as Node).toRef();
@@ -771,16 +775,19 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
     if (!(this.headPtr?.id === other.headPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (!(this.slug === other.slug)) {
       return false;
     }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
@@ -795,15 +802,15 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     if (this.headPtr !== null) {
       h = (h * 31 + hashString(this.headPtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.slug !== null) {
-      h = (h * 31 + hashString(this.slug)) & 0xffffffff;
     }
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
@@ -831,7 +838,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.BRANCH,
+      type: NodeType.BRANCH,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -840,7 +847,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
   }
 
   get _pathKey(): string {
-    return this.slug ?? this.name;
+    return this.name;
   }
 
   get path(): string {
@@ -859,9 +866,6 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${this.name}`);
-    if (this.slug !== null) {
-      propertyReprs.push(`slug=${this.slug}`);
-    }
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
@@ -882,26 +886,26 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["31"] = object.name;
-    if (object.slug != null) {
-      objectValue["33"] = object.slug;
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
     }
     if (object.headPtr != null) {
-      objectValue["40"] = object.headPtr.toValue();
+      objectValue["110"] = object.headPtr.toValue();
     }
     return objectValue;
   }
@@ -914,12 +918,18 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
     _connection?: any | null,
   ): Branch {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const headPtrValue = objectValue["40"];
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const headPtrValue = objectValue["110"];
     const unpackedHeadPtr =
       headPtrValue != undefined
         ? _NodeReference.fromValue(headPtrValue, _session, _supergraph, _graph, _connection)
@@ -929,39 +939,37 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue != undefined ? slugValue : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Branch({
       parent: unpackedParentPtr,
+      name: objectValue["101"],
+      icon: unpackedIcon,
       head: unpackedHeadPtr,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
-      slug: unpackedSlug,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,
@@ -1008,8 +1016,8 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
       objectProto.ownedByPtr = object.ownedByPtr.toProto();
     }
     objectProto.name = object.name;
-    if (object.slug != null) {
-      objectProto.slug = object.slug;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
     }
     if (object.headPtr != null) {
       objectProto.headPtr = object.headPtr.toProto();
@@ -1025,6 +1033,7 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
     _connection?: any | null,
   ): Branch {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Branch({
       parent:
         objectProto.parentPtr != undefined
@@ -1035,6 +1044,11 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
               _graph,
               _connection,
             )
+          : null,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       head:
         objectProto.headPtr != undefined
@@ -1056,8 +1070,6 @@ export class Branch extends Entity implements IsSpatial, HasName, HasSlug, IsOwn
               _connection,
             )
           : null,
-      name: objectProto.name,
-      slug: objectProto.slug != undefined ? objectProto.slug : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(

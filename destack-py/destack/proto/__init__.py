@@ -89,7 +89,6 @@ AnyNodeProto = Union[
     CanvasProto,
     LineShapeProto,
     FileProto,
-    LinkProto,
     EnvironmentProto,
     FolderProto,
     TagProto,

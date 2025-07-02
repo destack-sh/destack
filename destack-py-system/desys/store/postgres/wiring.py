@@ -141,35 +141,43 @@ def _generate_column_pack(prop: "PropertyDeclaration") -> str:
         assert prop.cardinality == TypeCardinality.SCALAR, f"non-scalar node ref: {prop!r}"
         if prop.is_required:
             pack_lines = [f"_node_ref = node_value['{prop.id}']"]
-            pack_lines.append("row_values.append(uuid.UUID(_node_ref['32']))  # id")
+            pack_lines.append(
+                f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_ID_KEY}']))  # id"
+            )
             if prop.node_has_type:
-                pack_lines.append("row_values.append(_node_ref['31'])  # node_type")
+                pack_lines.append(
+                    f"row_values.append(_node_ref['{NODE_REFERENCE_TYPE_KEY}'])  # type"
+                )
             if prop.node_has_space:
                 pack_lines.append(
-                    "row_values.append(uuid.UUID(_node_ref['34']) if _node_ref.get('34') else None)  # space_id"
+                    f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_SPACE_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_SPACE_ID_KEY}') else None)  # space_id"
                 )
             if prop.node_has_definition:
                 pack_lines.append(
-                    "row_values.append(uuid.UUID(_node_ref['35']) if _node_ref.get('35') else None)  # definition_id"
+                    f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_DEFINITION_ID_KEY}') else None)  # definition_id"
                 )
             return "\n".join(pack_lines)
         else:
             pack_lines = [f"if (_node_ref := node_value.get('{prop.id}')) is not None:"]
-            pack_lines.append("    row_values.append(uuid.UUID(_node_ref['32']))  # id")
+            pack_lines.append(
+                f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_ID_KEY}']))  # id"
+            )
             if prop.node_has_type:
-                pack_lines.append("    row_values.append(_node_ref['31'])  # node_type")
+                pack_lines.append(
+                    f"    row_values.append(_node_ref['{NODE_REFERENCE_TYPE_KEY}'])  # type"
+                )
             if prop.node_has_space:
                 pack_lines.append(
-                    "    row_values.append(uuid.UUID(_node_ref['34']) if _node_ref.get('34') else None)  # space_id"
+                    f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_SPACE_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_SPACE_ID_KEY}') else None)  # space_id"
                 )
             if prop.node_has_definition:
                 pack_lines.append(
-                    "    row_values.append(uuid.UUID(_node_ref['35']) if _node_ref.get('35') else None)  # definition_id"
+                    f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_DEFINITION_ID_KEY}') else None)  # definition_id"
                 )
             pack_lines.append("else:")
             pack_lines.append("    row_values.append(None)  # id")
             if prop.node_has_type:
-                pack_lines.append("    row_values.append(None)  # node_type")
+                pack_lines.append("    row_values.append(None)  # type")
             if prop.node_has_space:
                 pack_lines.append("    row_values.append(None)  # space_id")
             if prop.node_has_definition:
@@ -211,32 +219,34 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
             f"if (_node_id := row['{prop.name}_id']) is not None:",
             "    _node_ref = {",
             f"        '1': {StructType.NODE_REFERENCE.value},",
-            "        '32': str(_node_id),",
+            f"        '{NODE_REFERENCE_ID_KEY}': str(_node_id),",
             "    }",
         ]
         # node_type
         if prop.node_has_type:
-            unpack_lines.append(f"    _node_ref['31'] = row['{prop.name}_type']")
+            unpack_lines.append(
+                f"    _node_ref['{NODE_REFERENCE_TYPE_KEY}'] = row['{prop.name}_type']"
+            )
         else:
             assert node_types and len(node_types) == 1, (
                 f"bad node types for {prop!r}: {node_types!r}"
             )
             node_type = node_types[0]
             assert isinstance(node_type, NodeType), f"unexpected node type {prop!r}: {node_type!r}"
-            unpack_lines.append(f"    _node_ref['31'] = {node_type.value}")
+            unpack_lines.append(f"    _node_ref['{NODE_REFERENCE_TYPE_KEY}'] = {node_type.value}")
         # space_id
         if prop.node_has_space:
             unpack_lines.append(
-                f"    _node_ref['34'] = str(row['{prop.name}_space_id']) if row.get('{prop.name}_space_id') else None"
+                f"    _node_ref['{NODE_REFERENCE_SPACE_ID_KEY}'] = str(row['{prop.name}_space_id']) if row.get('{prop.name}_space_id') else None"
             )
         elif any(issubclass(NODE_CLASS_BY_TYPE[node_type], IsSpatial) for node_type in node_types):
             unpack_lines.append(
-                "    _node_ref['34'] = str(row['space_id']) if row.get('space_id') else None"
+                f"    _node_ref['{NODE_REFERENCE_SPACE_ID_KEY}'] = str(row['space_id']) if row.get('space_id') else None"
             )
         # definition_id
         if prop.node_has_definition:
             unpack_lines.append(
-                f"    _node_ref['35'] = str(row['{prop.name}_definition_id']) if row.get('{prop.name}_definition_id') else None"
+                f"    _node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}'] = str(row['{prop.name}_definition_id']) if row.get('{prop.name}_definition_id') else None"
             )
 
         unpack_lines.append(f"    node_value['{prop.id}'] = _node_ref")

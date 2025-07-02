@@ -9,4 +9,4 @@ from .shape import Shape
 class AnnotationShape(Shape):
     """An AnnotationShape is a shape that represents an annotation."""
 
-    text: Text | None = builtin_property(100)
+    text: Text | None = builtin_property(250)

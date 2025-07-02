@@ -344,8 +344,8 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
     A reference to a Node (builtin or custom).
     """
 
-    type: NodeType = builtin_property(101, is_repr=True)
-    id: UUID = builtin_property(102, is_repr=True)
-    space_id: Optional[UUID] = builtin_property(103, is_repr=True)
-    definition_id: Optional[UUID] = builtin_property(104, is_repr=True)
-    # area? external_id?
+    type: NodeType = builtin_property(100, is_repr=True)
+    id: UUID = builtin_property(101, is_repr=True)
+    space_id: Optional[UUID] = builtin_property(102, is_repr=True)
+    definition_id: Optional[UUID] = builtin_property(103, is_repr=True)
+    # store_type? external_id?

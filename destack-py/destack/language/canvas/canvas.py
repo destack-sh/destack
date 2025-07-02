@@ -29,4 +29,4 @@ class CanvasType(Enum):
 class Canvas(ContainerView):
     """A Canvas is a container for only Shapes (other than that it's just a ContainerView)."""
 
-    type: CanvasType = builtin_property(30, default=CanvasType.SHAPE)
+    type: CanvasType = builtin_property(100, default=CanvasType.SHAPE)

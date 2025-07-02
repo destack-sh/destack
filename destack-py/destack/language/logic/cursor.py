@@ -46,8 +46,8 @@ class CursorStatus(Enum):
 class Cursor(IsSpatial, IsOwnable, Entity):
     """A Node that is a Cursor."""
 
-    status: CursorStatus = builtin_property(40, default=CursorStatus.CREATED, is_repr=True)
-    active_at: Optional[datetime] = builtin_property(41)
+    status: CursorStatus = builtin_property(101, default=CursorStatus.CREATED, is_repr=True)
+    active_at: Optional[datetime] = builtin_property(110)
 
 
 @builtin_node(NodeType.EVENT_CURSOR)
@@ -67,7 +67,7 @@ class ScreenCursor(Cursor):
     """
 
     # content
-    position: Optional[Vector2i] = builtin_property(50)
+    position: Optional[Vector2i] = builtin_property(120)
 
 
 @builtin_node(NodeType.THREAD_CURSOR)

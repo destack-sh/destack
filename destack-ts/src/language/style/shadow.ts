@@ -143,7 +143,7 @@ export class ShadowStyle extends Style {
   type: ShadowType;
 
   /**
-   * HasName.name
+   * Style.name
    */
   name: string;
 
@@ -341,10 +341,10 @@ export class ShadowStyle extends Style {
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -373,6 +373,7 @@ export class ShadowStyle extends Style {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -384,7 +385,6 @@ export class ShadowStyle extends Style {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -401,7 +401,7 @@ export class ShadowStyle extends Style {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SHADOW_STYLE,
+      type: NodeType.SHADOW_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -463,35 +463,35 @@ export class ShadowStyle extends Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["27"] = object.orderKey;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.color != null) {
-      objectValue["50"] = object.color.toValue();
+      objectValue["200"] = object.color.toValue();
     }
-    objectValue["51"] = object.position;
+    objectValue["201"] = object.position;
     if (object.offset != null) {
-      objectValue["52"] = object.offset.toValue();
+      objectValue["202"] = object.offset.toValue();
     }
     if (object.blur != null) {
-      objectValue["53"] = object.blur;
+      objectValue["203"] = object.blur;
     }
     if (object.spread != null) {
-      objectValue["54"] = object.spread;
+      objectValue["204"] = object.spread;
     }
     if (object.diffusion != null) {
-      objectValue["55"] = object.diffusion;
+      objectValue["205"] = object.diffusion;
     }
     return objectValue;
   }
@@ -506,21 +506,21 @@ export class ShadowStyle extends Style {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const colorValue = objectValue["50"];
+    const colorValue = objectValue["200"];
     const unpackedColor =
       colorValue != undefined
         ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const offsetValue = objectValue["52"];
+    const offsetValue = objectValue["202"];
     const unpackedOffset =
       offsetValue != undefined
         ? _Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
         : null;
-    const blurValue = objectValue["53"];
+    const blurValue = objectValue["203"];
     const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
-    const spreadValue = objectValue["54"];
+    const spreadValue = objectValue["204"];
     const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
-    const diffusionValue = objectValue["55"];
+    const diffusionValue = objectValue["205"];
     const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -532,37 +532,37 @@ export class ShadowStyle extends Style {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new ShadowStyle({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       color: unpackedColor,
-      position: Number(objectValue["51"]),
+      position: Number(objectValue["201"]),
       offset: unpackedOffset,
       blur: unpackedBlur,
       spread: unpackedSpread,
       diffusion: unpackedDiffusion,
       parent: unpackedParentPtr,
+      name: objectValue["101"],
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
       _session,
@@ -661,6 +661,7 @@ export class ShadowStyle extends Style {
               _connection,
             )
           : null,
+      name: objectProto.name,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -693,7 +694,6 @@ export class ShadowStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -970,25 +970,25 @@ export class Shadow extends StructFrozen {
   static __packValue__(object: Shadow): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270700;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.stylePtr != null) {
-      objectValue["41"] = object.stylePtr.toValue();
+      objectValue["101"] = object.stylePtr.toValue();
     }
     if (object.color != null) {
-      objectValue["50"] = object.color.toValue();
+      objectValue["102"] = object.color.toValue();
     }
-    objectValue["51"] = object.position;
+    objectValue["103"] = object.position;
     if (object.offset != null) {
-      objectValue["52"] = object.offset.toValue();
+      objectValue["104"] = object.offset.toValue();
     }
     if (object.blur != null) {
-      objectValue["53"] = object.blur;
+      objectValue["105"] = object.blur;
     }
     if (object.spread != null) {
-      objectValue["54"] = object.spread;
+      objectValue["106"] = object.spread;
     }
     if (object.diffusion != null) {
-      objectValue["55"] = object.diffusion;
+      objectValue["107"] = object.diffusion;
     }
     return objectValue;
   }
@@ -1003,32 +1003,32 @@ export class Shadow extends StructFrozen {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const stylePtrValue = objectValue["41"];
+    const stylePtrValue = objectValue["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
         ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const colorValue = objectValue["50"];
+    const colorValue = objectValue["102"];
     const unpackedColor =
       colorValue != undefined
         ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const offsetValue = objectValue["52"];
+    const offsetValue = objectValue["104"];
     const unpackedOffset =
       offsetValue != undefined
         ? _Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
         : null;
-    const blurValue = objectValue["53"];
+    const blurValue = objectValue["105"];
     const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
-    const spreadValue = objectValue["54"];
+    const spreadValue = objectValue["106"];
     const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
-    const diffusionValue = objectValue["55"];
+    const diffusionValue = objectValue["107"];
     const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
     return new Shadow({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       style: unpackedStylePtr,
       color: unpackedColor,
-      position: Number(objectValue["51"]),
+      position: Number(objectValue["103"]),
       offset: unpackedOffset,
       blur: unpackedBlur,
       spread: unpackedSpread,

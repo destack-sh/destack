@@ -229,7 +229,7 @@ export class FontStyle extends Style {
   type: FontType;
 
   /**
-   * HasName.name
+   * Style.name
    */
   name: string;
 
@@ -457,10 +457,10 @@ export class FontStyle extends Style {
     if (!(this.transform === other.transform)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -497,6 +497,7 @@ export class FontStyle extends Style {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -508,7 +509,6 @@ export class FontStyle extends Style {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -525,7 +525,7 @@ export class FontStyle extends Style {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.FONT_STYLE,
+      type: NodeType.FONT_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -595,43 +595,43 @@ export class FontStyle extends Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["27"] = object.orderKey;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.weight != null) {
-      objectValue["50"] = object.weight;
+      objectValue["102"] = object.weight;
     }
     if (object.color != null) {
-      objectValue["51"] = object.color.toValue();
+      objectValue["103"] = object.color.toValue();
     }
     if (object.size != null) {
-      objectValue["52"] = object.size;
+      objectValue["104"] = object.size;
     }
     if (object.align != null) {
-      objectValue["53"] = object.align;
+      objectValue["105"] = object.align;
     }
     if (object.lineHeight != null) {
-      objectValue["54"] = object.lineHeight.toValue();
+      objectValue["106"] = object.lineHeight.toValue();
     }
     if (object.letterSpacing != null) {
-      objectValue["55"] = object.letterSpacing.toValue();
+      objectValue["107"] = object.letterSpacing.toValue();
     }
     if (object.decoration != null) {
-      objectValue["56"] = object.decoration;
+      objectValue["108"] = object.decoration;
     }
     if (object.transform != null) {
-      objectValue["57"] = object.transform;
+      objectValue["109"] = object.transform;
     }
     return objectValue;
   }
@@ -646,30 +646,30 @@ export class FontStyle extends Style {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const weightValue = objectValue["50"];
+    const weightValue = objectValue["102"];
     const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
-    const colorValue = objectValue["51"];
+    const colorValue = objectValue["103"];
     const unpackedColor =
       colorValue != undefined
         ? _Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sizeValue = objectValue["52"];
+    const sizeValue = objectValue["104"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
-    const alignValue = objectValue["53"];
+    const alignValue = objectValue["105"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const lineHeightValue = objectValue["54"];
+    const lineHeightValue = objectValue["106"];
     const unpackedLineHeight =
       lineHeightValue != undefined
         ? _Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const letterSpacingValue = objectValue["55"];
+    const letterSpacingValue = objectValue["107"];
     const unpackedLetterSpacing =
       letterSpacingValue != undefined
         ? _Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
         : null;
-    const decorationValue = objectValue["56"];
+    const decorationValue = objectValue["108"];
     const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
-    const transformValue = objectValue["57"];
+    const transformValue = objectValue["109"];
     const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -681,23 +681,23 @@ export class FontStyle extends Style {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new FontStyle({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       weight: unpackedWeight,
       color: unpackedColor,
       size: unpackedSize,
@@ -707,13 +707,13 @@ export class FontStyle extends Style {
       decoration: unpackedDecoration,
       transform: unpackedTransform,
       parent: unpackedParentPtr,
+      name: objectValue["101"],
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
       _session,
@@ -837,6 +837,7 @@ export class FontStyle extends Style {
               _connection,
             )
           : null,
+      name: objectProto.name,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -869,7 +870,6 @@ export class FontStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -1192,33 +1192,33 @@ export class Font extends StructFrozen {
   static __packValue__(object: Font): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270500;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.stylePtr != null) {
-      objectValue["41"] = object.stylePtr.toValue();
+      objectValue["101"] = object.stylePtr.toValue();
     }
     if (object.weight != null) {
-      objectValue["50"] = object.weight;
+      objectValue["102"] = object.weight;
     }
     if (object.color != null) {
-      objectValue["51"] = object.color.toValue();
+      objectValue["103"] = object.color.toValue();
     }
     if (object.size != null) {
-      objectValue["52"] = object.size;
+      objectValue["104"] = object.size;
     }
     if (object.align != null) {
-      objectValue["53"] = object.align;
+      objectValue["105"] = object.align;
     }
     if (object.lineHeight != null) {
-      objectValue["54"] = object.lineHeight.toValue();
+      objectValue["106"] = object.lineHeight.toValue();
     }
     if (object.letterSpacing != null) {
-      objectValue["55"] = object.letterSpacing.toValue();
+      objectValue["107"] = object.letterSpacing.toValue();
     }
     if (object.decoration != null) {
-      objectValue["56"] = object.decoration;
+      objectValue["108"] = object.decoration;
     }
     if (object.transform != null) {
-      objectValue["57"] = object.transform;
+      objectValue["109"] = object.transform;
     }
     return objectValue;
   }
@@ -1233,38 +1233,38 @@ export class Font extends StructFrozen {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const stylePtrValue = objectValue["41"];
+    const stylePtrValue = objectValue["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
         ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const weightValue = objectValue["50"];
+    const weightValue = objectValue["102"];
     const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
-    const colorValue = objectValue["51"];
+    const colorValue = objectValue["103"];
     const unpackedColor =
       colorValue != undefined
         ? _Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sizeValue = objectValue["52"];
+    const sizeValue = objectValue["104"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
-    const alignValue = objectValue["53"];
+    const alignValue = objectValue["105"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const lineHeightValue = objectValue["54"];
+    const lineHeightValue = objectValue["106"];
     const unpackedLineHeight =
       lineHeightValue != undefined
         ? _Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const letterSpacingValue = objectValue["55"];
+    const letterSpacingValue = objectValue["107"];
     const unpackedLetterSpacing =
       letterSpacingValue != undefined
         ? _Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
         : null;
-    const decorationValue = objectValue["56"];
+    const decorationValue = objectValue["108"];
     const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
-    const transformValue = objectValue["57"];
+    const transformValue = objectValue["109"];
     const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
     return new Font({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       style: unpackedStylePtr,
       weight: unpackedWeight,
       color: unpackedColor,

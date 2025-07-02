@@ -1,5 +1,4 @@
 import type {
-  HasName,
   IsDeletable,
   IsOrdered,
   IsSpatial,
@@ -22,7 +21,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export abstract class Style
   extends Entity
-  implements IsSpatial, HasName, IsOrdered, IsTaggable, IsDeletable
+  implements IsSpatial, IsOrdered, IsTaggable, IsDeletable
 {
   static metatype: NodeType = NodeType.STYLE;
 
@@ -95,7 +94,7 @@ export abstract class Style
   declare readonly orderKey: string;
 
   /**
-   * HasName.name
+   * Style.name
    */
   declare name: string;
 

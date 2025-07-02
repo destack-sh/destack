@@ -431,7 +431,7 @@ export class Interruption extends Entity implements IsSpatial {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.INTERRUPTION,
+      type: NodeType.INTERRUPTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -474,33 +474,33 @@ export class Interruption extends Entity implements IsSpatial {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.runnablePtr != null) {
-      objectValue["32"] = object.runnablePtr.toValue();
+      objectValue["110"] = object.runnablePtr.toValue();
     }
     if (object.spanPtr != null) {
-      objectValue["37"] = object.spanPtr.toValue();
+      objectValue["111"] = object.spanPtr.toValue();
     }
-    objectValue["40"] = object.status;
+    objectValue["120"] = object.status;
     if (object.duration != null) {
-      objectValue["41"] = timedeltaToISOFormat(object.duration);
+      objectValue["121"] = timedeltaToISOFormat(object.duration);
     }
     if (object.closedAt != null) {
-      objectValue["42"] = object.closedAt.toString({ timeZoneName: "never" });
+      objectValue["122"] = object.closedAt.toString({ timeZoneName: "never" });
     }
     if (object.response != null) {
-      objectValue["54"] = object.response;
+      objectValue["130"] = object.response;
     }
     if (object.messagePtr != null) {
-      objectValue["55"] = object.messagePtr.toValue();
+      objectValue["131"] = object.messagePtr.toValue();
     }
     return objectValue;
   }
@@ -518,27 +518,27 @@ export class Interruption extends Entity implements IsSpatial {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const runnablePtrValue = objectValue["32"];
+    const runnablePtrValue = objectValue["110"];
     const unpackedRunnablePtr =
       runnablePtrValue != undefined
         ? _NodeReference.fromValue(runnablePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spanPtrValue = objectValue["37"];
+    const spanPtrValue = objectValue["111"];
     const unpackedSpanPtr =
       spanPtrValue != undefined
         ? _NodeReference.fromValue(spanPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const durationValue = objectValue["41"];
+    const durationValue = objectValue["121"];
     const unpackedDuration =
       durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
-    const closedAtValue = objectValue["42"];
+    const closedAtValue = objectValue["122"];
     const unpackedClosedAt =
       closedAtValue != undefined
         ? Temporal.Instant.from(closedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const responseValue = objectValue["54"];
+    const responseValue = objectValue["130"];
     const unpackedResponse = responseValue != undefined ? Number(responseValue) : null;
-    const messagePtrValue = objectValue["55"];
+    const messagePtrValue = objectValue["131"];
     const unpackedMessagePtr =
       messagePtrValue != undefined
         ? _NodeReference.fromValue(messagePtrValue, _session, _supergraph, _graph, _connection)
@@ -548,30 +548,30 @@ export class Interruption extends Entity implements IsSpatial {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Interruption({
       parent: unpackedParentPtr,
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       runnable: unpackedRunnablePtr,
       span: unpackedSpanPtr,
-      status: Number(objectValue["40"]),
+      status: Number(objectValue["120"]),
       duration: unpackedDuration,
       closedAt: unpackedClosedAt,
       response: unpackedResponse,
       message: unpackedMessagePtr,
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,

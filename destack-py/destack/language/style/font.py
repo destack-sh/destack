@@ -84,19 +84,19 @@ class TextTransform(Enum):
 class Font(StructFrozen):
     """A font value."""
 
-    type: FontType = builtin_property(30, default=FontType.SANS, is_repr=True)
-    style: Optional["FontStyle"] = builtin_property(41, is_repr=True)
-    weight: Optional[FontWeight] = builtin_property(50, default=FontWeight.NORMAL, is_repr=True)
-    color: Optional[Fill] = builtin_property(51, is_repr=True)
-    size: Optional[FontSize] = builtin_property(52, default=FontSize.BASE, is_repr=True)
-    align: Optional[TextAlign] = builtin_property(53, default=TextAlign.LEFT, is_repr=True)
-    line_height: Optional[Length] = builtin_property(54, is_repr=True)
-    letter_spacing: Optional[Length] = builtin_property(55, is_repr=True)
+    type: FontType = builtin_property(100, default=FontType.SANS, is_repr=True)
+    style: Optional["FontStyle"] = builtin_property(101, is_repr=True)
+    weight: Optional[FontWeight] = builtin_property(102, default=FontWeight.NORMAL, is_repr=True)
+    color: Optional[Fill] = builtin_property(103, is_repr=True)
+    size: Optional[FontSize] = builtin_property(104, default=FontSize.BASE, is_repr=True)
+    align: Optional[TextAlign] = builtin_property(105, default=TextAlign.LEFT, is_repr=True)
+    line_height: Optional[Length] = builtin_property(106, is_repr=True)
+    letter_spacing: Optional[Length] = builtin_property(107, is_repr=True)
     decoration: Optional[TextDecoration] = builtin_property(
-        56, default=TextDecoration.NONE, is_repr=True
+        108, default=TextDecoration.NONE, is_repr=True
     )
     transform: Optional[TextTransform] = builtin_property(
-        57, default=TextTransform.NONE, is_repr=True
+        109, default=TextTransform.NONE, is_repr=True
     )
 
 
@@ -104,16 +104,16 @@ class Font(StructFrozen):
 class FontStyle(Style):
     """A font style."""
 
-    type: FontType = builtin_property(30, default=FontType.SANS, is_repr=True)
-    weight: Optional[FontWeight] = builtin_property(50, default=FontWeight.NORMAL, is_repr=True)
-    color: Optional[Fill] = builtin_property(51, is_repr=True)
-    size: Optional[FontSize] = builtin_property(52, default=FontSize.BASE, is_repr=True)
-    align: Optional[TextAlign] = builtin_property(53, default=TextAlign.LEFT, is_repr=True)
-    line_height: Optional[Length] = builtin_property(54, is_repr=True)
-    letter_spacing: Optional[Length] = builtin_property(55, is_repr=True)
+    type: FontType = builtin_property(100, default=FontType.SANS, is_repr=True)
+    weight: Optional[FontWeight] = builtin_property(102, default=FontWeight.NORMAL, is_repr=True)
+    color: Optional[Fill] = builtin_property(103, is_repr=True)
+    size: Optional[FontSize] = builtin_property(104, default=FontSize.BASE, is_repr=True)
+    align: Optional[TextAlign] = builtin_property(105, default=TextAlign.LEFT, is_repr=True)
+    line_height: Optional[Length] = builtin_property(106, is_repr=True)
+    letter_spacing: Optional[Length] = builtin_property(107, is_repr=True)
     decoration: Optional[TextDecoration] = builtin_property(
-        56, default=TextDecoration.NONE, is_repr=True
+        108, default=TextDecoration.NONE, is_repr=True
     )
     transform: Optional[TextTransform] = builtin_property(
-        57, default=TextTransform.NONE, is_repr=True
+        109, default=TextTransform.NONE, is_repr=True
     )

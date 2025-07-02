@@ -3,17 +3,21 @@ import type {
   Axis2,
   Axis3,
   Corners,
+  CustomEntityDefinition,
+  CustomEventDefinition,
   Dimension,
   Graph,
   Grid,
   GridSpan,
   Insets,
   IsSubject,
+  NodeDefinitionReference,
   NodeReference,
   Position,
   QueryConnection,
   Session,
   Supergraph,
+  Value,
   Vector2,
 } from "@destack/language/core";
 import {
@@ -101,6 +105,26 @@ export class Canvas extends ContainerView {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The definitionthis CustomEntity is an instance of.
+   */
+  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as
+        | CustomEntityDefinition
+        | CustomEventDefinition
+        | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  readonly baseType: NodeDefinitionReference | null;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -140,9 +164,33 @@ export class Canvas extends ContainerView {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  customValues: Map<string, Value>;
+
+  /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  scriptPtr: NodeReference | null;
 
   /**
    * Canvas.type
@@ -150,7 +198,7 @@ export class Canvas extends ContainerView {
   type: CanvasType;
 
   /**
-   * HasName.name
+   * View.name
    */
   name: string;
 
@@ -284,35 +332,20 @@ export class Canvas extends ContainerView {
    */
   radius: Corners | null;
 
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  set script(node: Script | null) {
-    if (node === null) {
-      this.scriptPtr = null;
-    } else {
-      this.scriptPtr = node.toRef();
-    }
-  }
-  scriptPtr: NodeReference | null;
-
   constructor(options: {
     id?: string;
     parent?: Window | Scene | Layer | ContainerView | Folder | NodeReference | null;
     space?: Space | NodeReference | null;
+    definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
+    baseType?: NodeDefinitionReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: Map<string, Value>;
     orderKey?: string;
+    script?: Script | NodeReference | null;
     type?: CanvasType;
     name: string;
     position?: Position | null;
@@ -341,7 +374,6 @@ export class Canvas extends ContainerView {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
-    script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -381,8 +413,20 @@ export class Canvas extends ContainerView {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
+    }
+    this.customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -391,6 +435,11 @@ export class Canvas extends ContainerView {
       throw new Error(`Canvas.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 1 /* CanvasType.SHAPE */;
@@ -456,11 +505,6 @@ export class Canvas extends ContainerView {
     this.border = _border;
     let _radius = options.radius ?? null;
     this.radius = _radius;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
 
     // identity
     if (options.id == null) {
@@ -601,6 +645,9 @@ export class Canvas extends ContainerView {
     ) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     if (
       (this.position == null) !== (other.position == null) ||
       (this.position != null && !this.position.equals(other.position))
@@ -646,11 +693,28 @@ export class Canvas extends ContainerView {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
+    }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (
+      (this.baseType == null) !== (other.baseType == null) ||
+      (this.baseType != null && !this.baseType.equals(other.baseType))
+    ) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+        return false;
+      }
     }
     return true;
   }
@@ -719,6 +783,7 @@ export class Canvas extends ContainerView {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.position !== null) {
       h = (h * 31 + this.position.hash()) & 0xffffffff;
     }
@@ -751,15 +816,26 @@ export class Canvas extends ContainerView {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.scriptPtr !== null) {
       h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
 
     return h;
   }
@@ -771,9 +847,10 @@ export class Canvas extends ContainerView {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.CANVAS,
+      type: NodeType.CANVAS,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -816,100 +893,113 @@ export class Canvas extends ContainerView {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.baseType != null) {
+      objectValue["7"] = object.baseType.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
+    objectValue["27"] = object.orderKey;
+    if (object.scriptPtr != null) {
+      objectValue["70"] = object.scriptPtr.toValue();
+    }
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.position != null) {
-      objectValue["40"] = object.position.toValue();
+      objectValue["110"] = object.position.toValue();
     }
     if (object.width != null) {
-      objectValue["41"] = object.width.toValue();
+      objectValue["111"] = object.width.toValue();
     }
     if (object.height != null) {
-      objectValue["42"] = object.height.toValue();
+      objectValue["112"] = object.height.toValue();
     }
     if (object.minWidth != null) {
-      objectValue["43"] = object.minWidth.toValue();
+      objectValue["113"] = object.minWidth.toValue();
     }
     if (object.minHeight != null) {
-      objectValue["44"] = object.minHeight.toValue();
+      objectValue["114"] = object.minHeight.toValue();
     }
     if (object.maxWidth != null) {
-      objectValue["45"] = object.maxWidth.toValue();
+      objectValue["115"] = object.maxWidth.toValue();
     }
     if (object.maxHeight != null) {
-      objectValue["46"] = object.maxHeight.toValue();
+      objectValue["116"] = object.maxHeight.toValue();
     }
     if (object.layout != null) {
-      objectValue["50"] = object.layout;
+      objectValue["120"] = object.layout;
     }
     if (object.direction != null) {
-      objectValue["51"] = object.direction;
+      objectValue["121"] = object.direction;
     }
     if (object.distribute != null) {
-      objectValue["52"] = object.distribute;
+      objectValue["122"] = object.distribute;
     }
     if (object.align != null) {
-      objectValue["53"] = object.align;
+      objectValue["123"] = object.align;
     }
     if (object.gap != null) {
-      objectValue["54"] = object.gap.toValue();
+      objectValue["124"] = object.gap.toValue();
     }
     if (object.padding != null) {
-      objectValue["55"] = object.padding.toValue();
+      objectValue["125"] = object.padding.toValue();
     }
     if (object.grid != null) {
-      objectValue["56"] = object.grid.toValue();
+      objectValue["126"] = object.grid.toValue();
     }
     if (object.gridSpan != null) {
-      objectValue["57"] = object.gridSpan.toValue();
+      objectValue["127"] = object.gridSpan.toValue();
     }
     if (object.aspectRatio != null) {
-      objectValue["58"] = object.aspectRatio;
+      objectValue["128"] = object.aspectRatio;
     }
     if (object.isWrap != null) {
-      objectValue["59"] = object.isWrap;
+      objectValue["129"] = object.isWrap;
     }
     if (object.isVisible != null) {
-      objectValue["60"] = object.isVisible;
+      objectValue["140"] = object.isVisible;
     }
     if (object.opacity != null) {
-      objectValue["61"] = object.opacity;
+      objectValue["141"] = object.opacity;
     }
     if (object.fill != null) {
-      objectValue["62"] = object.fill.toValue();
+      objectValue["142"] = object.fill.toValue();
     }
     if (object.rotation != null) {
-      objectValue["63"] = object.rotation.toValue();
+      objectValue["143"] = object.rotation.toValue();
     }
     if (object.skew != null) {
-      objectValue["64"] = object.skew.toValue();
+      objectValue["144"] = object.skew.toValue();
     }
     if (object.scale != null) {
-      objectValue["65"] = object.scale;
+      objectValue["145"] = object.scale;
     }
     if (object.shadow != null) {
-      objectValue["66"] = object.shadow.toValue();
+      objectValue["146"] = object.shadow.toValue();
     }
     if (object.border != null) {
-      objectValue["67"] = object.border.toValue();
+      objectValue["147"] = object.border.toValue();
     }
     if (object.radius != null) {
-      objectValue["68"] = object.radius.toValue();
-    }
-    if (object.scriptPtr != null) {
-      objectValue["200"] = object.scriptPtr.toValue();
+      objectValue["148"] = object.radius.toValue();
     }
     return objectValue;
   }
@@ -922,6 +1012,10 @@ export class Canvas extends ContainerView {
     _connection?: any | null,
   ): Canvas {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
@@ -934,70 +1028,70 @@ export class Canvas extends ContainerView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
-    const layoutValue = objectValue["50"];
+    const layoutValue = objectValue["120"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
-    const directionValue = objectValue["51"];
+    const directionValue = objectValue["121"];
     const unpackedDirection = directionValue != undefined ? Number(directionValue) : null;
-    const distributeValue = objectValue["52"];
+    const distributeValue = objectValue["122"];
     const unpackedDistribute = distributeValue != undefined ? Number(distributeValue) : null;
-    const alignValue = objectValue["53"];
+    const alignValue = objectValue["123"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const gapValue = objectValue["54"];
+    const gapValue = objectValue["124"];
     const unpackedGap =
       gapValue != undefined
         ? _Axis2.fromValue(gapValue, _session, _supergraph, _graph, _connection)
         : null;
-    const paddingValue = objectValue["55"];
+    const paddingValue = objectValue["125"];
     const unpackedPadding =
       paddingValue != undefined
         ? _Insets.fromValue(paddingValue, _session, _supergraph, _graph, _connection)
         : null;
-    const gridValue = objectValue["56"];
+    const gridValue = objectValue["126"];
     const unpackedGrid =
       gridValue != undefined
         ? _Grid.fromValue(gridValue, _session, _supergraph, _graph, _connection)
         : null;
-    const gridSpanValue = objectValue["57"];
+    const gridSpanValue = objectValue["127"];
     const unpackedGridSpan =
       gridSpanValue != undefined
         ? _GridSpan.fromValue(gridSpanValue, _session, _supergraph, _graph, _connection)
         : null;
-    const aspectRatioValue = objectValue["58"];
+    const aspectRatioValue = objectValue["128"];
     const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
-    const isWrapValue = objectValue["59"];
+    const isWrapValue = objectValue["129"];
     const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
-    const isVisibleValue = objectValue["60"];
+    const isVisibleValue = objectValue["140"];
     const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
-    const opacityValue = objectValue["61"];
+    const opacityValue = objectValue["141"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const fillValue = objectValue["62"];
+    const fillValue = objectValue["142"];
     const unpackedFill =
       fillValue != undefined
         ? _Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection)
         : null;
-    const rotationValue = objectValue["63"];
+    const rotationValue = objectValue["143"];
     const unpackedRotation =
       rotationValue != undefined
         ? _Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection)
         : null;
-    const skewValue = objectValue["64"];
+    const skewValue = objectValue["144"];
     const unpackedSkew =
       skewValue != undefined
         ? _Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scaleValue = objectValue["65"];
+    const scaleValue = objectValue["145"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const shadowValue = objectValue["66"];
+    const shadowValue = objectValue["146"];
     const unpackedShadow =
       shadowValue != undefined
         ? _Shadow.fromValue(shadowValue, _session, _supergraph, _graph, _connection)
         : null;
-    const borderValue = objectValue["67"];
+    const borderValue = objectValue["147"];
     const unpackedBorder =
       borderValue != undefined
         ? _Border.fromValue(borderValue, _session, _supergraph, _graph, _connection)
         : null;
-    const radiusValue = objectValue["68"];
+    const radiusValue = objectValue["148"];
     const unpackedRadius =
       radiusValue != undefined
         ? _Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection)
@@ -1007,37 +1101,37 @@ export class Canvas extends ContainerView {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const positionValue = objectValue["40"];
+    const positionValue = objectValue["110"];
     const unpackedPosition =
       positionValue != undefined
         ? _Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectValue["41"];
+    const widthValue = objectValue["111"];
     const unpackedWidth =
       widthValue != undefined
         ? _Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectValue["42"];
+    const heightValue = objectValue["112"];
     const unpackedHeight =
       heightValue != undefined
         ? _Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minWidthValue = objectValue["43"];
+    const minWidthValue = objectValue["113"];
     const unpackedMinWidth =
       minWidthValue != undefined
         ? _Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minHeightValue = objectValue["44"];
+    const minHeightValue = objectValue["114"];
     const unpackedMinHeight =
       minHeightValue != undefined
         ? _Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxWidthValue = objectValue["45"];
+    const maxWidthValue = objectValue["115"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
         ? _Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxHeightValue = objectValue["46"];
+    const maxHeightValue = objectValue["116"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
         ? _Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
@@ -1047,28 +1141,53 @@ export class Canvas extends ContainerView {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scriptPtrValue = objectValue["200"];
+    const scriptPtrValue = objectValue["70"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["7"];
+    const unpackedBaseType =
+      baseTypeValue != undefined
+        ? _NodeDefinitionReference.fromValue(
+            baseTypeValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Canvas({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       layout: unpackedLayout,
       direction: unpackedDirection,
       distribute: unpackedDistribute,
@@ -1089,6 +1208,7 @@ export class Canvas extends ContainerView {
       border: unpackedBorder,
       radius: unpackedRadius,
       parent: unpackedParentPtr,
+      name: objectValue["101"],
       position: unpackedPosition,
       width: unpackedWidth,
       height: unpackedHeight,
@@ -1097,15 +1217,17 @@ export class Canvas extends ContainerView {
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       script: unpackedScriptPtr,
+      definition: unpackedDefinitionPtr,
+      baseType: unpackedBaseType,
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1135,6 +1257,12 @@ export class Canvas extends ContainerView {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
+    if (object.baseType != null) {
+      objectProto.baseType = object.baseType.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1146,7 +1274,16 @@ export class Canvas extends ContainerView {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.orderKey = object.orderKey;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
     objectProto.type = Number(object.type) as CanvasTypeProto;
     objectProto.name = object.name;
     if (object.position != null) {
@@ -1227,9 +1364,6 @@ export class Canvas extends ContainerView {
     if (object.radius != null) {
       objectProto.radius = object.radius.toProto();
     }
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
     return objectProto as CanvasProto;
   }
 
@@ -1241,6 +1375,10 @@ export class Canvas extends ContainerView {
     _connection?: any | null,
   ): Canvas {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
@@ -1253,6 +1391,15 @@ export class Canvas extends ContainerView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Canvas({
       type: Number(objectProto.type) as CanvasType,
       layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
@@ -1316,6 +1463,7 @@ export class Canvas extends ContainerView {
               _connection,
             )
           : null,
+      name: objectProto.name,
       position:
         objectProto.position != undefined
           ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
@@ -1376,7 +1524,6 @@ export class Canvas extends ContainerView {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
@@ -1388,9 +1535,30 @@ export class Canvas extends ContainerView {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseType:
+        objectProto.baseType != undefined
+          ? _NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       id: String(objectProto.id),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

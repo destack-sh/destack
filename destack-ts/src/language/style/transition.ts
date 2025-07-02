@@ -141,7 +141,7 @@ export class TransitionStyle extends Style {
   type: TransitionType;
 
   /**
-   * HasName.name
+   * Style.name
    */
   name: string;
 
@@ -376,10 +376,10 @@ export class TransitionStyle extends Style {
     if (!(this.springType === other.springType)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -418,6 +418,7 @@ export class TransitionStyle extends Style {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -429,7 +430,6 @@ export class TransitionStyle extends Style {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -446,7 +446,7 @@ export class TransitionStyle extends Style {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.TRANSITION_STYLE,
+      type: NodeType.TRANSITION_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -516,47 +516,47 @@ export class TransitionStyle extends Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["27"] = object.orderKey;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.delay != null) {
-      objectValue["50"] = object.delay;
+      objectValue["102"] = object.delay;
     }
     if (object.duration != null) {
-      objectValue["51"] = object.duration;
+      objectValue["103"] = object.duration;
     }
     if (object.ease.length > 0) {
       const packedEase: any[] = [];
       for (const item of object.ease) {
         packedEase.push(item);
       }
-      objectValue["52"] = packedEase;
+      objectValue["104"] = packedEase;
     }
     if (object.stiffness != null) {
-      objectValue["53"] = object.stiffness;
+      objectValue["105"] = object.stiffness;
     }
     if (object.damping != null) {
-      objectValue["54"] = object.damping;
+      objectValue["106"] = object.damping;
     }
     if (object.mass != null) {
-      objectValue["55"] = object.mass;
+      objectValue["107"] = object.mass;
     }
     if (object.bounce != null) {
-      objectValue["56"] = object.bounce;
+      objectValue["108"] = object.bounce;
     }
     if (object.springType != null) {
-      objectValue["57"] = object.springType;
+      objectValue["109"] = object.springType;
     }
     return objectValue;
   }
@@ -569,25 +569,25 @@ export class TransitionStyle extends Style {
     _connection?: any | null,
   ): TransitionStyle {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const delayValue = objectValue["50"];
+    const delayValue = objectValue["102"];
     const unpackedDelay = delayValue != undefined ? delayValue : null;
-    const durationValue = objectValue["51"];
+    const durationValue = objectValue["103"];
     const unpackedDuration = durationValue != undefined ? durationValue : null;
     const unpackedEase: any[] = [];
-    if (objectValue["52"] != undefined) {
-      for (const item of objectValue["52"]) {
+    if (objectValue["104"] != undefined) {
+      for (const item of objectValue["104"]) {
         unpackedEase.push(item);
       }
     }
-    const stiffnessValue = objectValue["53"];
+    const stiffnessValue = objectValue["105"];
     const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
-    const dampingValue = objectValue["54"];
+    const dampingValue = objectValue["106"];
     const unpackedDamping = dampingValue != undefined ? dampingValue : null;
-    const massValue = objectValue["55"];
+    const massValue = objectValue["107"];
     const unpackedMass = massValue != undefined ? massValue : null;
-    const bounceValue = objectValue["56"];
+    const bounceValue = objectValue["108"];
     const unpackedBounce = bounceValue != undefined ? bounceValue : null;
-    const springTypeValue = objectValue["57"];
+    const springTypeValue = objectValue["109"];
     const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -599,23 +599,23 @@ export class TransitionStyle extends Style {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new TransitionStyle({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       delay: unpackedDelay,
       duration: unpackedDuration,
       ease: unpackedEase,
@@ -625,13 +625,13 @@ export class TransitionStyle extends Style {
       bounce: unpackedBounce,
       springType: unpackedSpringType,
       parent: unpackedParentPtr,
+      name: objectValue["101"],
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
       _session,
@@ -743,6 +743,7 @@ export class TransitionStyle extends Style {
               _connection,
             )
           : null,
+      name: objectProto.name,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -775,7 +776,6 @@ export class TransitionStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -1107,37 +1107,37 @@ export class Transition extends StructFrozen {
   static __packValue__(object: Transition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270900;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.stylePtr != null) {
-      objectValue["41"] = object.stylePtr.toValue();
+      objectValue["101"] = object.stylePtr.toValue();
     }
     if (object.delay != null) {
-      objectValue["50"] = object.delay;
+      objectValue["102"] = object.delay;
     }
     if (object.duration != null) {
-      objectValue["51"] = object.duration;
+      objectValue["103"] = object.duration;
     }
     if (object.ease.length > 0) {
       const packedEase: any[] = [];
       for (const item of object.ease) {
         packedEase.push(item);
       }
-      objectValue["52"] = packedEase;
+      objectValue["104"] = packedEase;
     }
     if (object.stiffness != null) {
-      objectValue["53"] = object.stiffness;
+      objectValue["105"] = object.stiffness;
     }
     if (object.damping != null) {
-      objectValue["54"] = object.damping;
+      objectValue["106"] = object.damping;
     }
     if (object.mass != null) {
-      objectValue["55"] = object.mass;
+      objectValue["107"] = object.mass;
     }
     if (object.bounce != null) {
-      objectValue["56"] = object.bounce;
+      objectValue["108"] = object.bounce;
     }
     if (object.springType != null) {
-      objectValue["57"] = object.springType;
+      objectValue["109"] = object.springType;
     }
     return objectValue;
   }
@@ -1150,33 +1150,33 @@ export class Transition extends StructFrozen {
     _connection?: any | null,
   ): Transition {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const stylePtrValue = objectValue["41"];
+    const stylePtrValue = objectValue["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
         ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const delayValue = objectValue["50"];
+    const delayValue = objectValue["102"];
     const unpackedDelay = delayValue != undefined ? delayValue : null;
-    const durationValue = objectValue["51"];
+    const durationValue = objectValue["103"];
     const unpackedDuration = durationValue != undefined ? durationValue : null;
     const unpackedEase: any[] = [];
-    if (objectValue["52"] != undefined) {
-      for (const item of objectValue["52"]) {
+    if (objectValue["104"] != undefined) {
+      for (const item of objectValue["104"]) {
         unpackedEase.push(item);
       }
     }
-    const stiffnessValue = objectValue["53"];
+    const stiffnessValue = objectValue["105"];
     const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
-    const dampingValue = objectValue["54"];
+    const dampingValue = objectValue["106"];
     const unpackedDamping = dampingValue != undefined ? dampingValue : null;
-    const massValue = objectValue["55"];
+    const massValue = objectValue["107"];
     const unpackedMass = massValue != undefined ? massValue : null;
-    const bounceValue = objectValue["56"];
+    const bounceValue = objectValue["108"];
     const unpackedBounce = bounceValue != undefined ? bounceValue : null;
-    const springTypeValue = objectValue["57"];
+    const springTypeValue = objectValue["109"];
     const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
     return new Transition({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       style: unpackedStylePtr,
       delay: unpackedDelay,
       duration: unpackedDuration,

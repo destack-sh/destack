@@ -34,4 +34,4 @@ class Star(
     """A Star is a relationship between a Subject and a Starred Node."""
 
     parent: Union["IsStarable", None] = builtin_property_parent(node_is_extensible=True)
-    owned_by: "IsSubject" = builtin_property(25)
+    owned_by: "IsSubject" = builtin_property(28)

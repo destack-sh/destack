@@ -404,7 +404,7 @@ export class InviteSentEvent extends InviteEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.INVITE_SENT_EVENT,
+      type: NodeType.INVITE_SENT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -447,15 +447,15 @@ export class InviteSentEvent extends InviteEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
-    objectValue["40"] = object.joinablePtr.toValue();
-    objectValue["41"] = object.memberPtr.toValue();
-    objectValue["50"] = object.rolePtr.toValue();
-    objectValue["51"] = object.roleType;
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["102"] = object.joinablePtr.toValue();
+    objectValue["103"] = object.memberPtr.toValue();
+    objectValue["110"] = object.rolePtr.toValue();
+    objectValue["111"] = object.roleType;
     return objectValue;
   }
 
@@ -472,7 +472,7 @@ export class InviteSentEvent extends InviteEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -483,25 +483,37 @@ export class InviteSentEvent extends InviteEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new InviteSentEvent({
-      role: _NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      roleType: Number(objectValue["51"]),
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      role: _NodeReference.fromValue(
+        objectValue["110"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      roleType: Number(objectValue["111"]),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       joinable: _NodeReference.fromValue(
-        objectValue["40"],
+        objectValue["102"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       member: _NodeReference.fromValue(
-        objectValue["41"],
+        objectValue["103"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -877,7 +889,7 @@ export class InviteRescindedEvent extends InviteEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.INVITE_RESCINDED_EVENT,
+      type: NodeType.INVITE_RESCINDED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -920,13 +932,13 @@ export class InviteRescindedEvent extends InviteEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
-    objectValue["40"] = object.joinablePtr.toValue();
-    objectValue["41"] = object.memberPtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["102"] = object.joinablePtr.toValue();
+    objectValue["103"] = object.memberPtr.toValue();
     return objectValue;
   }
 
@@ -943,7 +955,7 @@ export class InviteRescindedEvent extends InviteEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -954,23 +966,29 @@ export class InviteRescindedEvent extends InviteEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new InviteRescindedEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       joinable: _NodeReference.fromValue(
-        objectValue["40"],
+        objectValue["102"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       member: _NodeReference.fromValue(
-        objectValue["41"],
+        objectValue["103"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1391,7 +1409,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.INVITE_ACCEPTED_EVENT,
+      type: NodeType.INVITE_ACCEPTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -1434,15 +1452,15 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
-    objectValue["40"] = object.joinablePtr.toValue();
-    objectValue["41"] = object.memberPtr.toValue();
-    objectValue["50"] = object.rolePtr.toValue();
-    objectValue["51"] = object.roleType;
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["102"] = object.joinablePtr.toValue();
+    objectValue["103"] = object.memberPtr.toValue();
+    objectValue["110"] = object.rolePtr.toValue();
+    objectValue["111"] = object.roleType;
     return objectValue;
   }
 
@@ -1459,7 +1477,7 @@ export class InviteAcceptedEvent extends InviteEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1470,25 +1488,37 @@ export class InviteAcceptedEvent extends InviteEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new InviteAcceptedEvent({
-      role: _NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      roleType: Number(objectValue["51"]),
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      role: _NodeReference.fromValue(
+        objectValue["110"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      roleType: Number(objectValue["111"]),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       joinable: _NodeReference.fromValue(
-        objectValue["40"],
+        objectValue["102"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       member: _NodeReference.fromValue(
-        objectValue["41"],
+        objectValue["103"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1876,7 +1906,7 @@ export class InviteRejectedEvent extends InviteEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.INVITE_REJECTED_EVENT,
+      type: NodeType.INVITE_REJECTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -1919,13 +1949,13 @@ export class InviteRejectedEvent extends InviteEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
-    objectValue["40"] = object.joinablePtr.toValue();
-    objectValue["41"] = object.memberPtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["102"] = object.joinablePtr.toValue();
+    objectValue["103"] = object.memberPtr.toValue();
     return objectValue;
   }
 
@@ -1942,7 +1972,7 @@ export class InviteRejectedEvent extends InviteEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1953,23 +1983,29 @@ export class InviteRejectedEvent extends InviteEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new InviteRejectedEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       joinable: _NodeReference.fromValue(
-        objectValue["40"],
+        objectValue["102"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       member: _NodeReference.fromValue(
-        objectValue["41"],
+        objectValue["103"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2412,7 +2448,7 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.INVITE,
+      type: NodeType.INVITE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -2463,26 +2499,26 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["40"] = object.memberPtr.toValue();
+    objectValue["110"] = object.memberPtr.toValue();
     if (object.rolePtr != null) {
-      objectValue["41"] = object.rolePtr.toValue();
+      objectValue["111"] = object.rolePtr.toValue();
     }
     if (object.roleType != null) {
-      objectValue["42"] = object.roleType;
+      objectValue["112"] = object.roleType;
     }
     return objectValue;
   }
@@ -2500,34 +2536,34 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const rolePtrValue = objectValue["41"];
+    const rolePtrValue = objectValue["111"];
     const unpackedRolePtr =
       rolePtrValue != undefined
         ? _NodeReference.fromValue(rolePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const roleTypeValue = objectValue["42"];
+    const roleTypeValue = objectValue["112"];
     const unpackedRoleType = roleTypeValue != undefined ? Number(roleTypeValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -2535,7 +2571,7 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     return new Invite({
       parent: unpackedParentPtr,
       member: _NodeReference.fromValue(
-        objectValue["40"],
+        objectValue["110"],
         _session,
         _supergraph,
         _graph,
@@ -2546,9 +2582,9 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,

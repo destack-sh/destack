@@ -2,7 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Condition,
   Graph,
-  HasName,
+  Icon,
   IsRunnable,
   IsSpatial,
   IsSubject,
@@ -113,7 +113,7 @@ registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
 /**
  * A Trigger is a dynamic event to run something.
  */
-export class Trigger extends Entity implements IsSpatial, HasName {
+export class Trigger extends Entity implements IsSpatial {
   static metatype: NodeType = NodeType.TRIGGER;
 
   /**
@@ -175,9 +175,14 @@ export class Trigger extends Entity implements IsSpatial, HasName {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * HasName.name
+   * Trigger.name
    */
   name: string;
+
+  /**
+   * Trigger.icon
+   */
+  icon: Icon | null;
 
   /**
    * Trigger.event
@@ -218,6 +223,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     name: string;
+    icon?: Icon | null;
     event?: NodeDefinitionReference | null;
     where?: Condition | null;
     target: (Node & IsRunnable) | NodeReference;
@@ -266,6 +272,8 @@ export class Trigger extends Entity implements IsSpatial, HasName {
       throw new Error(`Trigger.name is required`);
     }
     this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
     let _event = options.event ?? null;
     this.event = _event;
     let _where = options.where ?? null;
@@ -318,6 +326,15 @@ export class Trigger extends Entity implements IsSpatial, HasName {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
     if (
       (this.event == null) !== (other.event == null) ||
       (this.event != null && !this.event.equals(other.event))
@@ -347,15 +364,16 @@ export class Trigger extends Entity implements IsSpatial, HasName {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     if (this.event !== null) {
       h = (h * 31 + this.event.hash()) & 0xffffffff;
     }
@@ -372,7 +390,6 @@ export class Trigger extends Entity implements IsSpatial, HasName {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -396,7 +413,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.TRIGGER,
+      type: NodeType.TRIGGER,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -441,28 +458,31 @@ export class Trigger extends Entity implements IsSpatial, HasName {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["31"] = object.name;
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
+    }
     if (object.event != null) {
-      objectValue["40"] = object.event.toValue();
+      objectValue["110"] = object.event.toValue();
     }
     if (object.where != null) {
-      objectValue["41"] = object.where.toValue();
+      objectValue["111"] = object.where.toValue();
     }
-    objectValue["50"] = object.targetPtr.toValue();
+    objectValue["120"] = object.targetPtr.toValue();
     if (object.arguments.size > 0) {
       const packedArguments: { [key: string]: any } = {};
       for (const [key, value] of object.arguments) {
         packedArguments[String(String(key))] = value.toValue();
       }
-      objectValue["51"] = packedArguments;
+      objectValue["121"] = packedArguments;
     }
     return objectValue;
   }
@@ -480,19 +500,25 @@ export class Trigger extends Entity implements IsSpatial, HasName {
     ] as typeof NodeDefinitionReference;
     const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const eventValue = objectValue["40"];
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const eventValue = objectValue["110"];
     const unpackedEvent =
       eventValue != undefined
         ? _NodeDefinitionReference.fromValue(eventValue, _session, _supergraph, _graph, _connection)
         : null;
-    const whereValue = objectValue["41"];
+    const whereValue = objectValue["111"];
     const unpackedWhere =
       whereValue != undefined
         ? _Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedArguments = new Map();
-    if (objectValue["51"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["51"])) {
+    if (objectValue["121"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["121"])) {
         unpackedArguments.set(
           String(key),
           _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
@@ -504,12 +530,12 @@ export class Trigger extends Entity implements IsSpatial, HasName {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -520,10 +546,12 @@ export class Trigger extends Entity implements IsSpatial, HasName {
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Trigger({
+      name: objectValue["101"],
+      icon: unpackedIcon,
       event: unpackedEvent,
       where: unpackedWhere,
       target: _NodeReference.fromValue(
-        objectValue["50"],
+        objectValue["120"],
         _session,
         _supergraph,
         _graph,
@@ -531,10 +559,9 @@ export class Trigger extends Entity implements IsSpatial, HasName {
       ),
       arguments: unpackedArguments,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
@@ -576,6 +603,9 @@ export class Trigger extends Entity implements IsSpatial, HasName {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
     if (object.event != null) {
       objectProto.event = object.event.toProto();
     }
@@ -605,6 +635,7 @@ export class Trigger extends Entity implements IsSpatial, HasName {
     ] as typeof NodeDefinitionReference;
     const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedArguments = new Map();
     if (objectProto.arguments) {
       for (const [key, value] of Object.entries(objectProto.arguments)) {
@@ -615,6 +646,11 @@ export class Trigger extends Entity implements IsSpatial, HasName {
       }
     }
     return new Trigger({
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       event:
         objectProto.event != undefined
           ? _NodeDefinitionReference.fromProto(
@@ -647,7 +683,6 @@ export class Trigger extends Entity implements IsSpatial, HasName {
               _connection,
             )
           : null,
-      name: objectProto.name,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

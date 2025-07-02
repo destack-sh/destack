@@ -1,13 +1,17 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  CustomEntityDefinition,
+  CustomEventDefinition,
   Graph,
-  HasName,
+  Icon,
   IsSpatial,
   IsSubject,
+  NodeDefinitionReference,
   NodeReference,
   QueryConnection,
   Session,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   EnumType,
@@ -248,18 +252,18 @@ export class DatabaseInfo extends StructFrozen {
   static __packValue__(object: DatabaseInfo): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 160001;
-    objectValue["30"] = object.type;
-    objectValue["50"] = object.region;
+    objectValue["100"] = object.type;
+    objectValue["110"] = object.region;
     if (object.galaxyName != null) {
-      objectValue["51"] = object.galaxyName;
+      objectValue["111"] = object.galaxyName;
     }
-    objectValue["52"] = object.externalName;
+    objectValue["112"] = object.externalName;
     if (object.customSchemaName != null) {
-      objectValue["53"] = object.customSchemaName;
+      objectValue["113"] = object.customSchemaName;
     }
-    objectValue["55"] = object.tenancy;
+    objectValue["115"] = object.tenancy;
     if (object.connectionUrl != null) {
-      objectValue["58"] = object.connectionUrl;
+      objectValue["118"] = object.connectionUrl;
     }
     return objectValue;
   }
@@ -271,20 +275,20 @@ export class DatabaseInfo extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): DatabaseInfo {
-    const galaxyNameValue = objectValue["51"];
+    const galaxyNameValue = objectValue["111"];
     const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
-    const customSchemaNameValue = objectValue["53"];
+    const customSchemaNameValue = objectValue["113"];
     const unpackedCustomSchemaName =
       customSchemaNameValue != undefined ? customSchemaNameValue : null;
-    const connectionUrlValue = objectValue["58"];
+    const connectionUrlValue = objectValue["118"];
     const unpackedConnectionUrl = connectionUrlValue != undefined ? connectionUrlValue : null;
     return new DatabaseInfo({
-      type: Number(objectValue["30"]),
-      region: Number(objectValue["50"]),
+      type: Number(objectValue["100"]),
+      region: Number(objectValue["110"]),
       galaxyName: unpackedGalaxyName,
-      externalName: objectValue["52"],
+      externalName: objectValue["112"],
       customSchemaName: unpackedCustomSchemaName,
-      tenancy: Number(objectValue["55"]),
+      tenancy: Number(objectValue["115"]),
       connectionUrl: unpackedConnectionUrl,
       _value: objectValue,
       _supergraph,
@@ -375,7 +379,7 @@ registerStructClass(StructType.DATABASE_INFO, DatabaseInfo);
 /**
  * A primary storage Database of some flavor.
  */
-export class Database extends Resource implements IsSpatial, HasName {
+export class Database extends Resource implements IsSpatial {
   static metatype: NodeType = NodeType.DATABASE;
 
   /**
@@ -401,6 +405,26 @@ export class Database extends Resource implements IsSpatial, HasName {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * The definitionthis CustomEntity is an instance of.
+   */
+  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as
+        | CustomEntityDefinition
+        | CustomEventDefinition
+        | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  readonly baseType: NodeDefinitionReference | null;
 
   /**
    * Entity.createdAt
@@ -442,14 +466,9 @@ export class Database extends Resource implements IsSpatial, HasName {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * Database.type
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  readonly type: DatabaseType;
-
-  /**
-   * HasName.name
-   */
-  name: string;
+  customValues: Map<string, Value>;
 
   /**
    * Resource.status
@@ -457,9 +476,19 @@ export class Database extends Resource implements IsSpatial, HasName {
   status: ResourceStatus;
 
   /**
-   * Resource.targetStatus
+   * Database.type
    */
-  targetStatus: Temporal.ZonedDateTime | null;
+  readonly type: DatabaseType;
+
+  /**
+   * Database.name
+   */
+  name: string;
+
+  /**
+   * Database.icon
+   */
+  icon: Icon | null;
 
   /**
    * Database.region
@@ -495,15 +524,18 @@ export class Database extends Resource implements IsSpatial, HasName {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
+    baseType?: NodeDefinitionReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: Map<string, Value>;
+    status?: ResourceStatus;
     type: DatabaseType;
     name: string;
-    status?: ResourceStatus;
-    targetStatus?: Temporal.ZonedDateTime | null;
+    icon?: Icon | null;
     region: Region;
     galaxyName?: string | null;
     externalName: string;
@@ -549,8 +581,28 @@ export class Database extends Resource implements IsSpatial, HasName {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
+    }
+    this.customValues = _customValues;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* ResourceStatus.PENDING */;
+    }
+    if (_status === null) {
+      throw new Error(`Database.status is required`);
+    }
+    this.status = _status;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Database.type is required`);
@@ -561,16 +613,8 @@ export class Database extends Resource implements IsSpatial, HasName {
       throw new Error(`Database.name is required`);
     }
     this.name = _name;
-    let _status = options.status ?? null;
-    if (_status === null) {
-      _status = 1 /* ResourceStatus.PENDING */;
-    }
-    if (_status === null) {
-      throw new Error(`Database.status is required`);
-    }
-    this.status = _status;
-    let _targetStatus = options.targetStatus ?? null;
-    this.targetStatus = _targetStatus;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
     let _region = options.region;
     if (_region === null) {
       throw new Error(`Database.region is required`);
@@ -630,6 +674,15 @@ export class Database extends Resource implements IsSpatial, HasName {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -654,14 +707,28 @@ export class Database extends Resource implements IsSpatial, HasName {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.targetStatus === other.targetStatus)) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
+    }
+    if (
+      (this.baseType == null) !== (other.baseType == null) ||
+      (this.baseType != null && !this.baseType.equals(other.baseType))
+    ) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+        return false;
+      }
     }
     return true;
   }
@@ -671,6 +738,10 @@ export class Database extends Resource implements IsSpatial, HasName {
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this.region) & 0xffffffff;
@@ -688,14 +759,16 @@ export class Database extends Resource implements IsSpatial, HasName {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.targetStatus !== null) {
-      h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -704,6 +777,12 @@ export class Database extends Resource implements IsSpatial, HasName {
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
     }
 
     return h;
@@ -716,9 +795,10 @@ export class Database extends Resource implements IsSpatial, HasName {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.DATABASE,
+      type: NodeType.DATABASE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -743,6 +823,7 @@ export class Database extends Resource implements IsSpatial, HasName {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`type=${DatabaseType[this.type]}`);
     propertyReprs.push(`region=${Region[this.region]}`);
     if (this.galaxyName !== null) {
@@ -753,7 +834,6 @@ export class Database extends Resource implements IsSpatial, HasName {
       propertyReprs.push(`customSchemaName=${this.customSchemaName}`);
     }
     propertyReprs.push(`tenancy=${Tenancy[this.tenancy]}`);
-    propertyReprs.push(`name=${this.name}`);
     return `<Database '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -771,34 +851,47 @@ export class Database extends Resource implements IsSpatial, HasName {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.baseType != null) {
+      objectValue["7"] = object.baseType.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    objectValue["40"] = object.status;
-    if (object.targetStatus != null) {
-      objectValue["41"] = object.targetStatus.toString({ timeZoneName: "never" });
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
     }
-    objectValue["50"] = object.region;
+    objectValue["90"] = object.status;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
+    }
+    objectValue["110"] = object.region;
     if (object.galaxyName != null) {
-      objectValue["51"] = object.galaxyName;
+      objectValue["111"] = object.galaxyName;
     }
-    objectValue["52"] = object.externalName;
+    objectValue["112"] = object.externalName;
     if (object.customSchemaName != null) {
-      objectValue["53"] = object.customSchemaName;
+      objectValue["113"] = object.customSchemaName;
     }
-    objectValue["55"] = object.tenancy;
+    objectValue["115"] = object.tenancy;
     if (object.connectionUrl != null) {
-      objectValue["58"] = object.connectionUrl;
+      objectValue["118"] = object.connectionUrl;
     }
     return objectValue;
   }
@@ -811,62 +904,95 @@ export class Database extends Resource implements IsSpatial, HasName {
     _connection?: any | null,
   ): Database {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const galaxyNameValue = objectValue["51"];
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const galaxyNameValue = objectValue["111"];
     const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
-    const customSchemaNameValue = objectValue["53"];
+    const customSchemaNameValue = objectValue["113"];
     const unpackedCustomSchemaName =
       customSchemaNameValue != undefined ? customSchemaNameValue : null;
-    const connectionUrlValue = objectValue["58"];
+    const connectionUrlValue = objectValue["118"];
     const unpackedConnectionUrl = connectionUrlValue != undefined ? connectionUrlValue : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const targetStatusValue = objectValue["41"];
-    const unpackedTargetStatus =
-      targetStatusValue != undefined
-        ? Temporal.Instant.from(targetStatusValue).toZonedDateTimeISO("UTC")
-        : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["7"];
+    const unpackedBaseType =
+      baseTypeValue != undefined
+        ? _NodeDefinitionReference.fromValue(
+            baseTypeValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Database({
       parent: unpackedParentPtr,
-      type: Number(objectValue["30"]),
-      region: Number(objectValue["50"]),
+      name: objectValue["101"],
+      icon: unpackedIcon,
+      type: Number(objectValue["100"]),
+      region: Number(objectValue["110"]),
       galaxyName: unpackedGalaxyName,
-      externalName: objectValue["52"],
+      externalName: objectValue["112"],
       customSchemaName: unpackedCustomSchemaName,
-      tenancy: Number(objectValue["55"]),
+      tenancy: Number(objectValue["115"]),
       connectionUrl: unpackedConnectionUrl,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
-      status: Number(objectValue["40"]),
-      targetStatus: unpackedTargetStatus,
+      status: Number(objectValue["90"]),
       id: String(objectValue["2"]),
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      definition: unpackedDefinitionPtr,
+      baseType: unpackedBaseType,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -896,6 +1022,12 @@ export class Database extends Resource implements IsSpatial, HasName {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
+    if (object.baseType != null) {
+      objectProto.baseType = object.baseType.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -907,11 +1039,17 @@ export class Database extends Resource implements IsSpatial, HasName {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
+    objectProto.status = Number(object.status) as ResourceStatusProto;
     objectProto.type = Number(object.type) as DatabaseTypeProto;
     objectProto.name = object.name;
-    objectProto.status = Number(object.status) as ResourceStatusProto;
-    if (object.targetStatus != null) {
-      objectProto.targetStatus = packProtoTimestamp(object.targetStatus);
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
     }
     objectProto.region = Number(object.region) as RegionProto;
     if (object.galaxyName != null) {
@@ -936,6 +1074,20 @@ export class Database extends Resource implements IsSpatial, HasName {
     _connection?: any | null,
   ): Database {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Database({
       parent:
         objectProto.parentPtr != undefined
@@ -946,6 +1098,11 @@ export class Database extends Resource implements IsSpatial, HasName {
               _graph,
               _connection,
             )
+          : null,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       type: Number(objectProto.type) as DatabaseType,
       region: Number(objectProto.region) as Region,
@@ -965,15 +1122,30 @@ export class Database extends Resource implements IsSpatial, HasName {
               _connection,
             )
           : null,
-      name: objectProto.name,
       status: Number(objectProto.status) as ResourceStatus,
-      targetStatus:
-        objectProto.targetStatus != undefined
-          ? unpackProtoTimestamp(objectProto.targetStatus!)
-          : null,
       id: String(objectProto.id),
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseType:
+        objectProto.baseType != undefined
+          ? _NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -996,6 +1168,7 @@ export class Database extends Resource implements IsSpatial, HasName {
               _connection,
             )
           : null,
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

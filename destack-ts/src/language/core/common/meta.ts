@@ -714,71 +714,71 @@ export class PropertyDefinition extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 102;
     objectValue["2"] = object.id;
-    objectValue["31"] = object.name;
+    objectValue["101"] = object.name;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["102"] = object.icon.toValue();
     }
     if (object.description != null) {
-      objectValue["36"] = object.description;
+      objectValue["103"] = object.description;
     }
-    objectValue["37"] = object.object.toValue();
-    objectValue["38"] = object.originalObject.toValue();
-    objectValue["40"] = object.cardinality;
-    objectValue["41"] = object.scalarType;
+    objectValue["104"] = object.object.toValue();
+    objectValue["105"] = object.originalObject.toValue();
+    objectValue["110"] = object.cardinality;
+    objectValue["111"] = object.scalarType;
     if (object.primitiveType != null) {
-      objectValue["42"] = object.primitiveType;
+      objectValue["112"] = object.primitiveType;
     }
     if (object.enumType != null) {
-      objectValue["43"] = object.enumType;
+      objectValue["113"] = object.enumType;
     }
     if (object.nodeType != null) {
-      objectValue["44"] = object.nodeType;
+      objectValue["114"] = object.nodeType;
     }
     if (object.structType != null) {
-      objectValue["46"] = object.structType;
+      objectValue["115"] = object.structType;
     }
     if (object.keyType != null) {
-      objectValue["48"] = object.keyType.toValue();
+      objectValue["116"] = object.keyType.toValue();
     }
     if (object.value != null) {
-      objectValue["50"] = object.value.toValue();
+      objectValue["120"] = object.value.toValue();
     }
     if (object.valueFactory != null) {
-      objectValue["51"] = object.valueFactory;
+      objectValue["121"] = object.valueFactory;
     }
     if (object.collectionConstraint != null) {
-      objectValue["60"] = object.collectionConstraint.toValue();
+      objectValue["130"] = object.collectionConstraint.toValue();
     }
     if (object.stringConstraint != null) {
-      objectValue["61"] = object.stringConstraint.toValue();
+      objectValue["131"] = object.stringConstraint.toValue();
     }
     if (object.numberConstraint != null) {
-      objectValue["62"] = object.numberConstraint.toValue();
+      objectValue["132"] = object.numberConstraint.toValue();
     }
     if (object.nodeConstraint != null) {
-      objectValue["63"] = object.nodeConstraint.toValue();
+      objectValue["133"] = object.nodeConstraint.toValue();
     }
-    objectValue["73"] = object.nodeIsExtensible;
-    objectValue["74"] = object.nodeHasType;
-    objectValue["75"] = object.nodeHasSpace;
-    objectValue["76"] = object.nodeHasDefinition;
+    objectValue["140"] = object.nodeIsExtensible;
+    objectValue["141"] = object.nodeHasType;
+    objectValue["142"] = object.nodeHasSpace;
+    objectValue["143"] = object.nodeHasDefinition;
     if (object.edgeType != null) {
-      objectValue["77"] = object.edgeType;
+      objectValue["144"] = object.edgeType;
     }
     if (object.cascade != null) {
-      objectValue["78"] = object.cascade;
+      objectValue["145"] = object.cascade;
     }
-    objectValue["80"] = object.isRequired;
-    objectValue["81"] = object.isUnique;
-    objectValue["82"] = object.isComputed;
-    objectValue["83"] = object.isReadonly;
-    objectValue["84"] = object.isStatic;
-    objectValue["90"] = object.isWired;
-    objectValue["91"] = object.isStored;
-    objectValue["92"] = object.isRepr;
-    objectValue["93"] = object.isHash;
-    objectValue["94"] = object.isEq;
-    objectValue["95"] = object.isManaged;
+    objectValue["150"] = object.isRequired;
+    objectValue["151"] = object.isUnique;
+    objectValue["152"] = object.isComputed;
+    objectValue["153"] = object.isReadonly;
+    objectValue["154"] = object.isStatic;
+    objectValue["155"] = object.isWired;
+    objectValue["156"] = object.isStored;
+    objectValue["157"] = object.isRepr;
+    objectValue["158"] = object.isHash;
+    objectValue["159"] = object.isEq;
+    objectValue["160"] = object.isManaged;
     return objectValue;
   }
 
@@ -807,35 +807,35 @@ export class PropertyDefinition extends StructFrozen {
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["34"];
+    const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["36"];
+    const descriptionValue = objectValue["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    const primitiveTypeValue = objectValue["42"];
+    const primitiveTypeValue = objectValue["112"];
     const unpackedPrimitiveType =
       primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
-    const enumTypeValue = objectValue["43"];
+    const enumTypeValue = objectValue["113"];
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
-    const nodeTypeValue = objectValue["44"];
+    const nodeTypeValue = objectValue["114"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const structTypeValue = objectValue["46"];
+    const structTypeValue = objectValue["115"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const keyTypeValue = objectValue["48"];
+    const keyTypeValue = objectValue["116"];
     const unpackedKeyType =
       keyTypeValue != undefined
         ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueValue = objectValue["50"];
+    const valueValue = objectValue["120"];
     const unpackedValue =
       valueValue != undefined
         ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueFactoryValue = objectValue["51"];
+    const valueFactoryValue = objectValue["121"];
     const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
-    const collectionConstraintValue = objectValue["60"];
+    const collectionConstraintValue = objectValue["130"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
         ? _CollectionConstraint.fromValue(
@@ -846,7 +846,7 @@ export class PropertyDefinition extends StructFrozen {
             _connection,
           )
         : null;
-    const stringConstraintValue = objectValue["61"];
+    const stringConstraintValue = objectValue["131"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
         ? _StringConstraint.fromValue(
@@ -857,7 +857,7 @@ export class PropertyDefinition extends StructFrozen {
             _connection,
           )
         : null;
-    const numberConstraintValue = objectValue["62"];
+    const numberConstraintValue = objectValue["132"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
         ? _NumberConstraint.fromValue(
@@ -868,36 +868,36 @@ export class PropertyDefinition extends StructFrozen {
             _connection,
           )
         : null;
-    const nodeConstraintValue = objectValue["63"];
+    const nodeConstraintValue = objectValue["133"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
         ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
-    const edgeTypeValue = objectValue["77"];
+    const edgeTypeValue = objectValue["144"];
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
-    const cascadeValue = objectValue["78"];
+    const cascadeValue = objectValue["145"];
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
     return new PropertyDefinition({
       id: Number(objectValue["2"]),
-      name: objectValue["31"],
+      name: objectValue["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
       object: _ObjectDefinitionReference.fromValue(
-        objectValue["37"],
+        objectValue["104"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       originalObject: _ObjectDefinitionReference.fromValue(
-        objectValue["38"],
+        objectValue["105"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      cardinality: Number(objectValue["40"]),
-      scalarType: Number(objectValue["41"]),
+      cardinality: Number(objectValue["110"]),
+      scalarType: Number(objectValue["111"]),
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
@@ -909,23 +909,23 @@ export class PropertyDefinition extends StructFrozen {
       stringConstraint: unpackedStringConstraint,
       numberConstraint: unpackedNumberConstraint,
       nodeConstraint: unpackedNodeConstraint,
-      nodeIsExtensible: objectValue["73"],
-      nodeHasType: objectValue["74"],
-      nodeHasSpace: objectValue["75"],
-      nodeHasDefinition: objectValue["76"],
+      nodeIsExtensible: objectValue["140"],
+      nodeHasType: objectValue["141"],
+      nodeHasSpace: objectValue["142"],
+      nodeHasDefinition: objectValue["143"],
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
-      isRequired: objectValue["80"],
-      isUnique: objectValue["81"],
-      isComputed: objectValue["82"],
-      isReadonly: objectValue["83"],
-      isStatic: objectValue["84"],
-      isWired: objectValue["90"],
-      isStored: objectValue["91"],
-      isRepr: objectValue["92"],
-      isHash: objectValue["93"],
-      isEq: objectValue["94"],
-      isManaged: objectValue["95"],
+      isRequired: objectValue["150"],
+      isUnique: objectValue["151"],
+      isComputed: objectValue["152"],
+      isReadonly: objectValue["153"],
+      isStatic: objectValue["154"],
+      isWired: objectValue["155"],
+      isStored: objectValue["156"],
+      isRepr: objectValue["157"],
+      isHash: objectValue["158"],
+      isEq: objectValue["159"],
+      isManaged: objectValue["160"],
       _value: objectValue,
       _supergraph,
     });
@@ -1359,6 +1359,11 @@ export class TraitDefinition extends StructFrozen {
   readonly properties: Array<PropertyDefinition>;
 
   /**
+   * Whether this Trait can be extended by custom Nodes and custom Traits.
+   */
+  readonly isExtensible: boolean;
+
+  /**
    * Traits directly and indirectly inherited by this trait.
    */
   readonly traits: Array<TraitType>;
@@ -1376,6 +1381,7 @@ export class TraitDefinition extends StructFrozen {
     icon?: Icon | null;
     description?: string | null;
     properties?: Array<PropertyDefinition>;
+    isExtensible: boolean;
     traits?: Array<TraitType>;
     baseTraits?: Array<TraitType>;
     _session?: Session | null;
@@ -1422,6 +1428,11 @@ export class TraitDefinition extends StructFrozen {
       _properties = [];
     }
     this.properties = _properties;
+    let _isExtensible = options.isExtensible;
+    if (_isExtensible === null) {
+      throw new Error(`TraitDefinition.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _traits = options.traits ?? null;
     if (_traits === null) {
       _traits = [];
@@ -1477,6 +1488,9 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (this.traits.length !== other.traits.length) {
       return false;
     }
@@ -1506,6 +1520,7 @@ export class TraitDefinition extends StructFrozen {
       if (this.description !== null) {
         propertyReprs.push(`description=${this.description}`);
       }
+      propertyReprs.push(`isExtensible=${this.isExtensible}`);
       // @ts-expect-error(readonly)
       this._repr = `<TraitDefinition ${propertyReprs.join(" ")}>`;
     }
@@ -1534,6 +1549,7 @@ export class TraitDefinition extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.traits && this.traits.length > 0) {
       for (const _item of this.traits) {
         h = (h * 31 + _item) & 0xffffffff;
@@ -1566,35 +1582,36 @@ export class TraitDefinition extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 103;
     objectValue["2"] = object.id;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    objectValue["32"] = object.alias;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
+    objectValue["102"] = object.alias;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["103"] = object.icon.toValue();
     }
     if (object.description != null) {
-      objectValue["36"] = object.description;
+      objectValue["104"] = object.description;
     }
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toValue());
       }
-      objectValue["40"] = packedProperties;
+      objectValue["105"] = packedProperties;
     }
+    objectValue["110"] = object.isExtensible;
     if (object.traits.length > 0) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
         packedTraits.push(item);
       }
-      objectValue["51"] = packedTraits;
+      objectValue["120"] = packedTraits;
     }
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
         packedBaseTraits.push(item);
       }
-      objectValue["52"] = packedBaseTraits;
+      objectValue["121"] = packedBaseTraits;
     }
     return objectValue;
   }
@@ -1610,41 +1627,42 @@ export class TraitDefinition extends StructFrozen {
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["34"];
+    const iconValue = objectValue["103"];
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["36"];
+    const descriptionValue = objectValue["104"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedProperties: any[] = [];
-    if (objectValue["40"] != undefined) {
-      for (const item of objectValue["40"]) {
+    if (objectValue["105"] != undefined) {
+      for (const item of objectValue["105"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedTraits: any[] = [];
-    if (objectValue["51"] != undefined) {
-      for (const item of objectValue["51"]) {
+    if (objectValue["120"] != undefined) {
+      for (const item of objectValue["120"]) {
         unpackedTraits.push(Number(item));
       }
     }
     const unpackedBaseTraits: any[] = [];
-    if (objectValue["52"] != undefined) {
-      for (const item of objectValue["52"]) {
+    if (objectValue["121"] != undefined) {
+      for (const item of objectValue["121"]) {
         unpackedBaseTraits.push(Number(item));
       }
     }
     return new TraitDefinition({
       id: Number(objectValue["2"]),
-      type: Number(objectValue["30"]),
-      name: objectValue["31"],
-      alias: objectValue["32"],
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
+      alias: objectValue["102"],
       icon: unpackedIcon,
       description: unpackedDescription,
       properties: unpackedProperties,
+      isExtensible: objectValue["110"],
       traits: unpackedTraits,
       baseTraits: unpackedBaseTraits,
       _value: objectValue,
@@ -1689,6 +1707,7 @@ export class TraitDefinition extends StructFrozen {
       }
       objectProto.properties = packedProperties;
     }
+    objectProto.isExtensible = object.isExtensible;
     if (object.traits) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
@@ -1748,6 +1767,7 @@ export class TraitDefinition extends StructFrozen {
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       properties: unpackedProperties,
+      isExtensible: objectProto.isExtensible,
       traits: unpackedTraits,
       baseTraits: unpackedBaseTraits,
       _proto: objectProto,
@@ -1812,24 +1832,34 @@ export class NodeDefinition extends StructFrozen {
   readonly description: string | null;
 
   /**
-   * NodeDefinition.isAbstract
+   * NodeDefinition.properties
    */
-  readonly isAbstract: boolean;
+  readonly properties: Array<PropertyDefinition>;
 
   /**
-   * NodeDefinition.isGlobal
+   * Whether this Node is global.
    */
   readonly isGlobal: boolean;
 
   /**
-   * NodeDefinition.isSpatial
+   * Whether this Node is per Space.
    */
   readonly isSpatial: boolean;
 
   /**
-   * NodeDefinition.properties
+   * Whether this Node cannot be instantiated directly.
    */
-  readonly properties: Array<PropertyDefinition>;
+  readonly isAbstract: boolean;
+
+  /**
+   * Whether this Node can be extended by custom Nodes.
+   */
+  readonly isExtensible: boolean;
+
+  /**
+   * Whether this Node cannot be modified.
+   */
+  readonly isFrozen: boolean;
 
   /**
    * The base type this Node extends (directly).
@@ -1862,27 +1892,27 @@ export class NodeDefinition extends StructFrozen {
   readonly traits: Array<TraitType>;
 
   /**
-   * NodeDefinition.rootType
+   * The root ancestor type of this Node type (if any).
    */
   readonly rootType: NodeType | null;
 
   /**
-   * NodeDefinition.parentTypes
+   * The parent types of this Node type (directly).
    */
   readonly parentTypes: Array<NodeType>;
 
   /**
-   * NodeDefinition.childTypes
+   * The child types of this Node type (directly).
    */
   readonly childTypes: Array<NodeType>;
 
   /**
-   * NodeDefinition.ancestorTypes
+   * The ancestor types of this Node type (directly and indirectly).
    */
   readonly ancestorTypes: Array<NodeType>;
 
   /**
-   * NodeDefinition.descendantTypes
+   * The descendant types of this Node type (directly and indirectly).
    */
   readonly descendantTypes: Array<NodeType>;
 
@@ -1892,10 +1922,12 @@ export class NodeDefinition extends StructFrozen {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    isAbstract: boolean;
+    properties?: Array<PropertyDefinition>;
     isGlobal: boolean;
     isSpatial: boolean;
-    properties?: Array<PropertyDefinition>;
+    isAbstract: boolean;
+    isExtensible: boolean;
+    isFrozen: boolean;
     baseType?: NodeType | null;
     extendedBy?: Array<NodeType>;
     inherits?: Array<NodeType>;
@@ -1941,11 +1973,11 @@ export class NodeDefinition extends StructFrozen {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _isAbstract = options.isAbstract;
-    if (_isAbstract === null) {
-      throw new Error(`NodeDefinition.isAbstract is required`);
+    let _properties = options.properties ?? null;
+    if (_properties === null) {
+      _properties = [];
     }
-    this.isAbstract = _isAbstract;
+    this.properties = _properties;
     let _isGlobal = options.isGlobal;
     if (_isGlobal === null) {
       throw new Error(`NodeDefinition.isGlobal is required`);
@@ -1956,11 +1988,21 @@ export class NodeDefinition extends StructFrozen {
       throw new Error(`NodeDefinition.isSpatial is required`);
     }
     this.isSpatial = _isSpatial;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
+    let _isAbstract = options.isAbstract;
+    if (_isAbstract === null) {
+      throw new Error(`NodeDefinition.isAbstract is required`);
     }
-    this.properties = _properties;
+    this.isAbstract = _isAbstract;
+    let _isExtensible = options.isExtensible;
+    if (_isExtensible === null) {
+      throw new Error(`NodeDefinition.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
+    let _isFrozen = options.isFrozen;
+    if (_isFrozen === null) {
+      throw new Error(`NodeDefinition.isFrozen is required`);
+    }
+    this.isFrozen = _isFrozen;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
     let _extendedBy = options.extendedBy ?? null;
@@ -2044,15 +2086,6 @@ export class NodeDefinition extends StructFrozen {
     if (!(this.description === other.description)) {
       return false;
     }
-    if (!(this.isAbstract === other.isAbstract)) {
-      return false;
-    }
-    if (!(this.isGlobal === other.isGlobal)) {
-      return false;
-    }
-    if (!(this.isSpatial === other.isSpatial)) {
-      return false;
-    }
     if (this.properties.length !== other.properties.length) {
       return false;
     }
@@ -2060,6 +2093,21 @@ export class NodeDefinition extends StructFrozen {
       if (!this.properties[i].equals(other.properties[i])) {
         return false;
       }
+    }
+    if (!(this.isGlobal === other.isGlobal)) {
+      return false;
+    }
+    if (!(this.isSpatial === other.isSpatial)) {
+      return false;
+    }
+    if (!(this.isAbstract === other.isAbstract)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.isFrozen === other.isFrozen)) {
+      return false;
     }
     if (!(this.baseType === other.baseType)) {
       return false;
@@ -2151,9 +2199,11 @@ export class NodeDefinition extends StructFrozen {
       if (this.description !== null) {
         propertyReprs.push(`description=${this.description}`);
       }
-      propertyReprs.push(`isAbstract=${this.isAbstract}`);
       propertyReprs.push(`isGlobal=${this.isGlobal}`);
       propertyReprs.push(`isSpatial=${this.isSpatial}`);
+      propertyReprs.push(`isAbstract=${this.isAbstract}`);
+      propertyReprs.push(`isExtensible=${this.isExtensible}`);
+      propertyReprs.push(`isFrozen=${this.isFrozen}`);
       // @ts-expect-error(readonly)
       this._repr = `<NodeDefinition ${propertyReprs.join(" ")}>`;
     }
@@ -2176,14 +2226,16 @@ export class NodeDefinition extends StructFrozen {
     if (this.description !== null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isGlobal)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isSpatial)) & 0xffffffff;
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
+    h = (h * 31 + hashBool(this.isGlobal)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isSpatial)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
     if (this.baseType !== null) {
       h = (h * 31 + this.baseType) & 0xffffffff;
     }
@@ -2257,92 +2309,94 @@ export class NodeDefinition extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 104;
     objectValue["2"] = object.id;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["102"] = object.icon.toValue();
     }
     if (object.description != null) {
-      objectValue["36"] = object.description;
+      objectValue["103"] = object.description;
     }
-    objectValue["37"] = object.isAbstract;
-    objectValue["38"] = object.isGlobal;
-    objectValue["39"] = object.isSpatial;
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toValue());
       }
-      objectValue["40"] = packedProperties;
+      objectValue["104"] = packedProperties;
     }
+    objectValue["110"] = object.isGlobal;
+    objectValue["111"] = object.isSpatial;
+    objectValue["112"] = object.isAbstract;
+    objectValue["113"] = object.isExtensible;
+    objectValue["114"] = object.isFrozen;
     if (object.baseType != null) {
-      objectValue["50"] = object.baseType;
+      objectValue["120"] = object.baseType;
     }
     if (object.extendedBy.length > 0) {
       const packedExtendedBy: any[] = [];
       for (const item of object.extendedBy) {
         packedExtendedBy.push(item);
       }
-      objectValue["51"] = packedExtendedBy;
+      objectValue["121"] = packedExtendedBy;
     }
     if (object.inherits.length > 0) {
       const packedInherits: any[] = [];
       for (const item of object.inherits) {
         packedInherits.push(item);
       }
-      objectValue["52"] = packedInherits;
+      objectValue["122"] = packedInherits;
     }
     if (object.inheritedBy.length > 0) {
       const packedInheritedBy: any[] = [];
       for (const item of object.inheritedBy) {
         packedInheritedBy.push(item);
       }
-      objectValue["53"] = packedInheritedBy;
+      objectValue["123"] = packedInheritedBy;
     }
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
         packedBaseTraits.push(item);
       }
-      objectValue["55"] = packedBaseTraits;
+      objectValue["124"] = packedBaseTraits;
     }
     if (object.traits.length > 0) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
         packedTraits.push(item);
       }
-      objectValue["56"] = packedTraits;
+      objectValue["125"] = packedTraits;
     }
     if (object.rootType != null) {
-      objectValue["60"] = object.rootType;
+      objectValue["130"] = object.rootType;
     }
     if (object.parentTypes.length > 0) {
       const packedParentTypes: any[] = [];
       for (const item of object.parentTypes) {
         packedParentTypes.push(item);
       }
-      objectValue["61"] = packedParentTypes;
+      objectValue["131"] = packedParentTypes;
     }
     if (object.childTypes.length > 0) {
       const packedChildTypes: any[] = [];
       for (const item of object.childTypes) {
         packedChildTypes.push(item);
       }
-      objectValue["62"] = packedChildTypes;
+      objectValue["132"] = packedChildTypes;
     }
     if (object.ancestorTypes.length > 0) {
       const packedAncestorTypes: any[] = [];
       for (const item of object.ancestorTypes) {
         packedAncestorTypes.push(item);
       }
-      objectValue["63"] = packedAncestorTypes;
+      objectValue["133"] = packedAncestorTypes;
     }
     if (object.descendantTypes.length > 0) {
       const packedDescendantTypes: any[] = [];
       for (const item of object.descendantTypes) {
         packedDescendantTypes.push(item);
       }
-      objectValue["64"] = packedDescendantTypes;
+      objectValue["134"] = packedDescendantTypes;
     }
     return objectValue;
   }
@@ -2358,89 +2412,91 @@ export class NodeDefinition extends StructFrozen {
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["34"];
+    const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["36"];
+    const descriptionValue = objectValue["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedProperties: any[] = [];
-    if (objectValue["40"] != undefined) {
-      for (const item of objectValue["40"]) {
+    if (objectValue["104"] != undefined) {
+      for (const item of objectValue["104"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const baseTypeValue = objectValue["50"];
+    const baseTypeValue = objectValue["120"];
     const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
     const unpackedExtendedBy: any[] = [];
-    if (objectValue["51"] != undefined) {
-      for (const item of objectValue["51"]) {
+    if (objectValue["121"] != undefined) {
+      for (const item of objectValue["121"]) {
         unpackedExtendedBy.push(Number(item));
       }
     }
     const unpackedInherits: any[] = [];
-    if (objectValue["52"] != undefined) {
-      for (const item of objectValue["52"]) {
+    if (objectValue["122"] != undefined) {
+      for (const item of objectValue["122"]) {
         unpackedInherits.push(Number(item));
       }
     }
     const unpackedInheritedBy: any[] = [];
-    if (objectValue["53"] != undefined) {
-      for (const item of objectValue["53"]) {
+    if (objectValue["123"] != undefined) {
+      for (const item of objectValue["123"]) {
         unpackedInheritedBy.push(Number(item));
       }
     }
     const unpackedBaseTraits: any[] = [];
-    if (objectValue["55"] != undefined) {
-      for (const item of objectValue["55"]) {
+    if (objectValue["124"] != undefined) {
+      for (const item of objectValue["124"]) {
         unpackedBaseTraits.push(Number(item));
       }
     }
     const unpackedTraits: any[] = [];
-    if (objectValue["56"] != undefined) {
-      for (const item of objectValue["56"]) {
+    if (objectValue["125"] != undefined) {
+      for (const item of objectValue["125"]) {
         unpackedTraits.push(Number(item));
       }
     }
-    const rootTypeValue = objectValue["60"];
+    const rootTypeValue = objectValue["130"];
     const unpackedRootType = rootTypeValue != undefined ? Number(rootTypeValue) : null;
     const unpackedParentTypes: any[] = [];
-    if (objectValue["61"] != undefined) {
-      for (const item of objectValue["61"]) {
+    if (objectValue["131"] != undefined) {
+      for (const item of objectValue["131"]) {
         unpackedParentTypes.push(Number(item));
       }
     }
     const unpackedChildTypes: any[] = [];
-    if (objectValue["62"] != undefined) {
-      for (const item of objectValue["62"]) {
+    if (objectValue["132"] != undefined) {
+      for (const item of objectValue["132"]) {
         unpackedChildTypes.push(Number(item));
       }
     }
     const unpackedAncestorTypes: any[] = [];
-    if (objectValue["63"] != undefined) {
-      for (const item of objectValue["63"]) {
+    if (objectValue["133"] != undefined) {
+      for (const item of objectValue["133"]) {
         unpackedAncestorTypes.push(Number(item));
       }
     }
     const unpackedDescendantTypes: any[] = [];
-    if (objectValue["64"] != undefined) {
-      for (const item of objectValue["64"]) {
+    if (objectValue["134"] != undefined) {
+      for (const item of objectValue["134"]) {
         unpackedDescendantTypes.push(Number(item));
       }
     }
     return new NodeDefinition({
       id: Number(objectValue["2"]),
-      type: Number(objectValue["30"]),
-      name: objectValue["31"],
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      isAbstract: objectValue["37"],
-      isGlobal: objectValue["38"],
-      isSpatial: objectValue["39"],
       properties: unpackedProperties,
+      isGlobal: objectValue["110"],
+      isSpatial: objectValue["111"],
+      isAbstract: objectValue["112"],
+      isExtensible: objectValue["113"],
+      isFrozen: objectValue["114"],
       baseType: unpackedBaseType,
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
@@ -2486,9 +2542,6 @@ export class NodeDefinition extends StructFrozen {
     if (object.description != null) {
       objectProto.description = object.description;
     }
-    objectProto.isAbstract = object.isAbstract;
-    objectProto.isGlobal = object.isGlobal;
-    objectProto.isSpatial = object.isSpatial;
     if (object.properties) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
@@ -2496,6 +2549,11 @@ export class NodeDefinition extends StructFrozen {
       }
       objectProto.properties = packedProperties;
     }
+    objectProto.isGlobal = object.isGlobal;
+    objectProto.isSpatial = object.isSpatial;
+    objectProto.isAbstract = object.isAbstract;
+    objectProto.isExtensible = object.isExtensible;
+    objectProto.isFrozen = object.isFrozen;
     if (object.baseType != null) {
       objectProto.baseType = Number(object.baseType) as NodeTypeProto;
     }
@@ -2650,10 +2708,12 @@ export class NodeDefinition extends StructFrozen {
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
-      isAbstract: objectProto.isAbstract,
+      properties: unpackedProperties,
       isGlobal: objectProto.isGlobal,
       isSpatial: objectProto.isSpatial,
-      properties: unpackedProperties,
+      isAbstract: objectProto.isAbstract,
+      isExtensible: objectProto.isExtensible,
+      isFrozen: objectProto.isFrozen,
       baseType:
         objectProto.baseType != undefined ? (Number(objectProto.baseType) as NodeType) : null,
       extendedBy: unpackedExtendedBy,
@@ -2897,22 +2957,22 @@ export class StructDefinition extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 105;
     objectValue["2"] = object.id;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["102"] = object.icon.toValue();
     }
     if (object.description != null) {
-      objectValue["36"] = object.description;
+      objectValue["103"] = object.description;
     }
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toValue());
       }
-      objectValue["50"] = packedProperties;
+      objectValue["104"] = packedProperties;
     }
-    objectValue["60"] = object.isFrozen;
+    objectValue["110"] = object.isFrozen;
     return objectValue;
   }
 
@@ -2927,16 +2987,16 @@ export class StructDefinition extends StructFrozen {
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["34"];
+    const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["36"];
+    const descriptionValue = objectValue["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedProperties: any[] = [];
-    if (objectValue["50"] != undefined) {
-      for (const item of objectValue["50"]) {
+    if (objectValue["104"] != undefined) {
+      for (const item of objectValue["104"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
@@ -2944,12 +3004,12 @@ export class StructDefinition extends StructFrozen {
     }
     return new StructDefinition({
       id: Number(objectValue["2"]),
-      type: Number(objectValue["30"]),
-      name: objectValue["31"],
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
       properties: unpackedProperties,
-      isFrozen: objectValue["60"],
+      isFrozen: objectValue["110"],
       _value: objectValue,
       _supergraph,
     });
@@ -3252,20 +3312,20 @@ export class EnumDefinition extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 106;
     objectValue["2"] = object.id;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["102"] = object.icon.toValue();
     }
     if (object.description != null) {
-      objectValue["36"] = object.description;
+      objectValue["103"] = object.description;
     }
     if (object.options.length > 0) {
       const packedOptions: any[] = [];
       for (const item of object.options) {
         packedOptions.push(item.toValue());
       }
-      objectValue["50"] = packedOptions;
+      objectValue["104"] = packedOptions;
     }
     return objectValue;
   }
@@ -3281,16 +3341,16 @@ export class EnumDefinition extends StructFrozen {
       StructType.OPTION_DEFINITION
     ] as typeof OptionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["34"];
+    const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["36"];
+    const descriptionValue = objectValue["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedOptions: any[] = [];
-    if (objectValue["50"] != undefined) {
-      for (const item of objectValue["50"]) {
+    if (objectValue["104"] != undefined) {
+      for (const item of objectValue["104"]) {
         unpackedOptions.push(
           _OptionDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
@@ -3298,8 +3358,8 @@ export class EnumDefinition extends StructFrozen {
     }
     return new EnumDefinition({
       id: Number(objectValue["2"]),
-      type: Number(objectValue["30"]),
-      name: objectValue["31"],
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
       options: unpackedOptions,
@@ -3567,13 +3627,13 @@ export class OptionDefinition extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 107;
     objectValue["2"] = object.id;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["102"] = object.icon.toValue();
     }
     if (object.description != null) {
-      objectValue["36"] = object.description;
+      objectValue["103"] = object.description;
     }
     return objectValue;
   }
@@ -3586,17 +3646,17 @@ export class OptionDefinition extends StructFrozen {
     _connection?: any | null,
   ): OptionDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["34"];
+    const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["36"];
+    const descriptionValue = objectValue["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new OptionDefinition({
       id: Number(objectValue["2"]),
-      type: Number(objectValue["30"]),
-      name: objectValue["31"],
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
       _value: objectValue,
@@ -3855,11 +3915,11 @@ export class PermissionDefinition extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 108;
     objectValue["2"] = object.id;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    objectValue["32"] = object.nodeType;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
+    objectValue["102"] = object.nodeType;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["103"] = object.icon.toValue();
     }
     return objectValue;
   }
@@ -3872,16 +3932,16 @@ export class PermissionDefinition extends StructFrozen {
     _connection?: any | null,
   ): PermissionDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["34"];
+    const iconValue = objectValue["103"];
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     return new PermissionDefinition({
       id: Number(objectValue["2"]),
-      type: Number(objectValue["30"]),
-      name: objectValue["31"],
-      nodeType: Number(objectValue["32"]),
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
+      nodeType: Number(objectValue["102"]),
       icon: unpackedIcon,
       _value: objectValue,
       _supergraph,
@@ -4118,12 +4178,12 @@ export class ConstantDefinition extends StructFrozen {
   static __packValue__(object: ConstantDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 109;
-    objectValue["31"] = object.name;
+    objectValue["101"] = object.name;
     if (object.description != null) {
-      objectValue["36"] = object.description;
+      objectValue["103"] = object.description;
     }
-    objectValue["40"] = object.value.toValue();
-    objectValue["50"] = object.isDeferred;
+    objectValue["120"] = object.value.toValue();
+    objectValue["130"] = object.isDeferred;
     return objectValue;
   }
 
@@ -4135,13 +4195,13 @@ export class ConstantDefinition extends StructFrozen {
     _connection?: any | null,
   ): ConstantDefinition {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const descriptionValue = objectValue["36"];
+    const descriptionValue = objectValue["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new ConstantDefinition({
-      name: objectValue["31"],
+      name: objectValue["101"],
       description: unpackedDescription,
-      value: _Value.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
-      isDeferred: objectValue["50"],
+      value: _Value.fromValue(objectValue["120"], _session, _supergraph, _graph, _connection),
+      isDeferred: objectValue["130"],
       _value: objectValue,
       _supergraph,
     });

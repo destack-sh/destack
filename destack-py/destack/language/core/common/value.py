@@ -49,8 +49,8 @@ type_ = type
 class Value(StructFrozen[ValueProto]):
     """A generic Value of any Type."""
 
-    type: Type = builtin_property(30, is_repr=True)
-    value: Json = builtin_property(40)
+    type: Type = builtin_property(100, is_repr=True)
+    value: Json = builtin_property(110)
 
     _unpacked: Any | None = builtin_property_runtime()
 

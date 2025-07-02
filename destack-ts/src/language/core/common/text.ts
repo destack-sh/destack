@@ -250,30 +250,30 @@ export class TextSpan extends StructFrozen {
   static __packValue__(object: TextSpan): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60021;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.content != null) {
-      objectValue["33"] = object.content;
+      objectValue["101"] = object.content;
     }
     if (object.nodePtr != null) {
-      objectValue["34"] = object.nodePtr.toValue();
+      objectValue["102"] = object.nodePtr.toValue();
     }
     if (object.url != null) {
-      objectValue["35"] = object.url;
+      objectValue["105"] = object.url;
     }
     if (object.isBold != null) {
-      objectValue["60"] = object.isBold;
+      objectValue["150"] = object.isBold;
     }
     if (object.isItalic != null) {
-      objectValue["61"] = object.isItalic;
+      objectValue["151"] = object.isItalic;
     }
     if (object.isStrikethrough != null) {
-      objectValue["62"] = object.isStrikethrough;
+      objectValue["152"] = object.isStrikethrough;
     }
     if (object.isUnderline != null) {
-      objectValue["63"] = object.isUnderline;
+      objectValue["153"] = object.isUnderline;
     }
     if (object.isCode != null) {
-      objectValue["64"] = object.isCode;
+      objectValue["154"] = object.isCode;
     }
     return objectValue;
   }
@@ -286,27 +286,27 @@ export class TextSpan extends StructFrozen {
     _connection?: any | null,
   ): TextSpan {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const contentValue = objectValue["33"];
+    const contentValue = objectValue["101"];
     const unpackedContent = contentValue != undefined ? contentValue : null;
-    const nodePtrValue = objectValue["34"];
+    const nodePtrValue = objectValue["102"];
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const urlValue = objectValue["35"];
+    const urlValue = objectValue["105"];
     const unpackedUrl = urlValue != undefined ? urlValue : null;
-    const isBoldValue = objectValue["60"];
+    const isBoldValue = objectValue["150"];
     const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
-    const isItalicValue = objectValue["61"];
+    const isItalicValue = objectValue["151"];
     const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
-    const isStrikethroughValue = objectValue["62"];
+    const isStrikethroughValue = objectValue["152"];
     const unpackedIsStrikethrough = isStrikethroughValue != undefined ? isStrikethroughValue : null;
-    const isUnderlineValue = objectValue["63"];
+    const isUnderlineValue = objectValue["153"];
     const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
-    const isCodeValue = objectValue["64"];
+    const isCodeValue = objectValue["154"];
     const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
     return new TextSpan({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       content: unpackedContent,
       node: unpackedNodePtr,
       url: unpackedUrl,
@@ -598,22 +598,22 @@ export class Text extends StructFrozen {
       for (const item of object.spans) {
         packedSpans.push(item.toValue());
       }
-      objectValue["33"] = packedSpans;
+      objectValue["103"] = packedSpans;
     }
     if (object.isBold != null) {
-      objectValue["60"] = object.isBold;
+      objectValue["150"] = object.isBold;
     }
     if (object.isItalic != null) {
-      objectValue["61"] = object.isItalic;
+      objectValue["151"] = object.isItalic;
     }
     if (object.isStrikethrough != null) {
-      objectValue["62"] = object.isStrikethrough;
+      objectValue["152"] = object.isStrikethrough;
     }
     if (object.isUnderline != null) {
-      objectValue["63"] = object.isUnderline;
+      objectValue["153"] = object.isUnderline;
     }
     if (object.isCode != null) {
-      objectValue["64"] = object.isCode;
+      objectValue["154"] = object.isCode;
     }
     return objectValue;
   }
@@ -627,20 +627,20 @@ export class Text extends StructFrozen {
   ): Text {
     const _TextSpan = STRUCT_CLASS_BY_TYPE[StructType.TEXT_SPAN] as typeof TextSpan;
     const unpackedSpans: any[] = [];
-    if (objectValue["33"] != undefined) {
-      for (const item of objectValue["33"]) {
+    if (objectValue["103"] != undefined) {
+      for (const item of objectValue["103"]) {
         unpackedSpans.push(_TextSpan.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
-    const isBoldValue = objectValue["60"];
+    const isBoldValue = objectValue["150"];
     const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
-    const isItalicValue = objectValue["61"];
+    const isItalicValue = objectValue["151"];
     const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
-    const isStrikethroughValue = objectValue["62"];
+    const isStrikethroughValue = objectValue["152"];
     const unpackedIsStrikethrough = isStrikethroughValue != undefined ? isStrikethroughValue : null;
-    const isUnderlineValue = objectValue["63"];
+    const isUnderlineValue = objectValue["153"];
     const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
-    const isCodeValue = objectValue["64"];
+    const isCodeValue = objectValue["154"];
     const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
     return new Text({
       spans: unpackedSpans,

@@ -290,30 +290,30 @@ export class Color extends StructFrozen {
   static __packValue__(object: Color): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270300;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.stylePtr != null) {
-      objectValue["42"] = object.stylePtr.toValue();
+      objectValue["101"] = object.stylePtr.toValue();
     }
     if (object.hue != null) {
-      objectValue["50"] = object.hue;
+      objectValue["102"] = object.hue;
     }
     if (object.shade != null) {
-      objectValue["51"] = object.shade;
+      objectValue["103"] = object.shade;
     }
     if (object.intent != null) {
-      objectValue["52"] = object.intent;
+      objectValue["104"] = object.intent;
     }
     if (object.x != null) {
-      objectValue["55"] = object.x;
+      objectValue["105"] = object.x;
     }
     if (object.y != null) {
-      objectValue["56"] = object.y;
+      objectValue["106"] = object.y;
     }
     if (object.z != null) {
-      objectValue["57"] = object.z;
+      objectValue["107"] = object.z;
     }
     if (object.alpha != null) {
-      objectValue["58"] = object.alpha;
+      objectValue["108"] = object.alpha;
     }
     return objectValue;
   }
@@ -326,27 +326,27 @@ export class Color extends StructFrozen {
     _connection?: any | null,
   ): Color {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const stylePtrValue = objectValue["42"];
+    const stylePtrValue = objectValue["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
         ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const hueValue = objectValue["50"];
+    const hueValue = objectValue["102"];
     const unpackedHue = hueValue != undefined ? Number(hueValue) : null;
-    const shadeValue = objectValue["51"];
+    const shadeValue = objectValue["103"];
     const unpackedShade = shadeValue != undefined ? Number(shadeValue) : null;
-    const intentValue = objectValue["52"];
+    const intentValue = objectValue["104"];
     const unpackedIntent = intentValue != undefined ? Number(intentValue) : null;
-    const xValue = objectValue["55"];
+    const xValue = objectValue["105"];
     const unpackedX = xValue != undefined ? xValue : null;
-    const yValue = objectValue["56"];
+    const yValue = objectValue["106"];
     const unpackedY = yValue != undefined ? yValue : null;
-    const zValue = objectValue["57"];
+    const zValue = objectValue["107"];
     const unpackedZ = zValue != undefined ? zValue : null;
-    const alphaValue = objectValue["58"];
+    const alphaValue = objectValue["108"];
     const unpackedAlpha = alphaValue != undefined ? alphaValue : null;
     return new Color({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       style: unpackedStylePtr,
       hue: unpackedHue,
       shade: unpackedShade,
@@ -553,7 +553,7 @@ export class ColorStyle extends Style {
   type: ColorType;
 
   /**
-   * HasName.name
+   * Style.name
    */
   name: string;
 
@@ -770,10 +770,10 @@ export class ColorStyle extends Style {
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -810,6 +810,7 @@ export class ColorStyle extends Style {
     if (this.dark !== null) {
       h = (h * 31 + this.dark.hash()) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -821,7 +822,6 @@ export class ColorStyle extends Style {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -838,7 +838,7 @@ export class ColorStyle extends Style {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.COLOR_STYLE,
+      type: NodeType.COLOR_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -905,43 +905,43 @@ export class ColorStyle extends Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["27"] = object.orderKey;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.hue != null) {
-      objectValue["50"] = object.hue;
+      objectValue["200"] = object.hue;
     }
     if (object.shade != null) {
-      objectValue["51"] = object.shade;
+      objectValue["201"] = object.shade;
     }
     if (object.intent != null) {
-      objectValue["52"] = object.intent;
+      objectValue["202"] = object.intent;
     }
     if (object.x != null) {
-      objectValue["55"] = object.x;
+      objectValue["203"] = object.x;
     }
     if (object.y != null) {
-      objectValue["56"] = object.y;
+      objectValue["204"] = object.y;
     }
     if (object.z != null) {
-      objectValue["57"] = object.z;
+      objectValue["205"] = object.z;
     }
     if (object.alpha != null) {
-      objectValue["58"] = object.alpha;
+      objectValue["206"] = object.alpha;
     }
     if (object.dark != null) {
-      objectValue["60"] = object.dark.toValue();
+      objectValue["207"] = object.dark.toValue();
     }
     return objectValue;
   }
@@ -960,21 +960,21 @@ export class ColorStyle extends Style {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const hueValue = objectValue["50"];
+    const hueValue = objectValue["200"];
     const unpackedHue = hueValue != undefined ? Number(hueValue) : null;
-    const shadeValue = objectValue["51"];
+    const shadeValue = objectValue["201"];
     const unpackedShade = shadeValue != undefined ? Number(shadeValue) : null;
-    const intentValue = objectValue["52"];
+    const intentValue = objectValue["202"];
     const unpackedIntent = intentValue != undefined ? Number(intentValue) : null;
-    const xValue = objectValue["55"];
+    const xValue = objectValue["203"];
     const unpackedX = xValue != undefined ? xValue : null;
-    const yValue = objectValue["56"];
+    const yValue = objectValue["204"];
     const unpackedY = yValue != undefined ? yValue : null;
-    const zValue = objectValue["57"];
+    const zValue = objectValue["205"];
     const unpackedZ = zValue != undefined ? zValue : null;
-    const alphaValue = objectValue["58"];
+    const alphaValue = objectValue["206"];
     const unpackedAlpha = alphaValue != undefined ? alphaValue : null;
-    const darkValue = objectValue["60"];
+    const darkValue = objectValue["207"];
     const unpackedDark =
       darkValue != undefined
         ? _Color.fromValue(darkValue, _session, _supergraph, _graph, _connection)
@@ -984,24 +984,24 @@ export class ColorStyle extends Style {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new ColorStyle({
       parent: unpackedParentPtr,
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       hue: unpackedHue,
       shade: unpackedShade,
       intent: unpackedIntent,
@@ -1010,13 +1010,13 @@ export class ColorStyle extends Style {
       z: unpackedZ,
       alpha: unpackedAlpha,
       dark: unpackedDark,
+      name: objectValue["101"],
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
       _session,
@@ -1121,6 +1121,7 @@ export class ColorStyle extends Style {
         objectProto.dark != undefined
           ? _Color.fromProto(objectProto.dark!, _session, _supergraph, _graph, _connection)
           : null,
+      name: objectProto.name,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1153,7 +1154,6 @@ export class ColorStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,

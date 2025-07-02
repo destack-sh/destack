@@ -68,7 +68,6 @@ import type {
   ScalarType,
   StoreImplementation,
   StoreType,
-  StoreZone,
   StructType,
   Tenancy,
   ToolType,
@@ -103,9 +102,6 @@ import type {
   StructDefinitionType,
 } from "@destack/language/core/builtin/relation";
 import type {
-  HasIcon,
-  HasName,
-  HasSlug,
   IsArchivable,
   IsCustomizable,
   IsDeletable,
@@ -228,7 +224,6 @@ import type {
   FileSource,
   FileType,
 } from "@destack/language/data/file";
-import type { Link, LinkType } from "@destack/language/data/link";
 import type { Environment } from "@destack/language/deployment/environment";
 import type { Folder, FolderType } from "@destack/language/folder/folder";
 import type { Tag, Tagging } from "@destack/language/folder/tag";
@@ -505,7 +500,6 @@ export type NodeTypeMapping = {
   [NodeType.CANVAS]: Canvas;
   [NodeType.LINE_SHAPE]: LineShape;
   [NodeType.FILE]: File;
-  [NodeType.LINK]: Link;
   [NodeType.ENVIRONMENT]: Environment;
   [NodeType.FOLDER]: Folder;
   [NodeType.TAG]: Tag;
@@ -622,13 +616,10 @@ export type NodeTypeMapping = {
 };
 
 export type TraitTypeMapping = {
-  [TraitType.HAS_NAME]: HasName;
-  [TraitType.HAS_SLUG]: HasSlug;
-  [TraitType.HAS_ICON]: HasIcon;
   [TraitType.ARCHIVABLE]: IsArchivable;
   [TraitType.DELETABLE]: IsDeletable;
-  [TraitType.EXTENSIBLE]: IsExtensible;
   [TraitType.CUSTOMIZABLE]: IsCustomizable;
+  [TraitType.EXTENSIBLE]: IsExtensible;
   [TraitType.ORDERED]: IsOrdered;
   [TraitType.REACTABLE]: IsReactable;
   [TraitType.STARABLE]: IsStarable;
@@ -726,7 +717,6 @@ export type EnumTypeMapping = {
   [EnumType.STRUCT_TYPE]: StructType;
   [EnumType.TRAIT_TYPE]: TraitType;
   [EnumType.NODE_TYPE]: NodeType;
-  [EnumType.STORE_ZONE]: StoreZone;
   [EnumType.STORE_TYPE]: StoreType;
   [EnumType.STORE_IMPLEMENTATION]: StoreImplementation;
   [EnumType.RUNTIME_LANGUAGE]: RuntimeLanguage;
@@ -793,7 +783,6 @@ export type EnumTypeMapping = {
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
   [EnumType.FILE_TYPE]: FileType;
   [EnumType.FILE_FORMAT]: FileFormat;
-  [EnumType.LINK_TYPE]: LinkType;
   [EnumType.FOLDER_TYPE]: FolderType;
   [EnumType.DATABASE_TYPE]: DatabaseType;
   [EnumType.MACHINE_TYPE]: MachineType;

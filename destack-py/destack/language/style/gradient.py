@@ -33,27 +33,27 @@ class GradientType(Enum):
 class GradientStop(StructFrozen):
     """A gradient stop with color and position."""
 
-    color: Optional["Color"] = builtin_property(50, is_repr=True)
-    position: float = builtin_property(51, format=NumberFormat.PERCENTAGE, is_repr=True)
+    color: Optional["Color"] = builtin_property(101, is_repr=True)
+    position: float = builtin_property(102, format=NumberFormat.PERCENTAGE, is_repr=True)
 
 
 @builtin_struct(StructType.GRADIENT, frozen=True)
 class Gradient(StructFrozen):
     """A gradient value."""
 
-    type: GradientType = builtin_property(30, default=GradientType.LINEAR, is_repr=True)
-    style: Optional["GradientStyle"] = builtin_property(40, is_repr=True)
-    angle: Optional[float] = builtin_property(50, format=NumberFormat.ANGLE, is_repr=True)
-    stops: list[GradientStop] = builtin_property(51, is_repr=True)
-    center_anchor: Optional[Axis2] = builtin_property(52, is_repr=True)
+    type: GradientType = builtin_property(100, default=GradientType.LINEAR, is_repr=True)
+    style: Optional["GradientStyle"] = builtin_property(101, is_repr=True)
+    angle: Optional[float] = builtin_property(102, format=NumberFormat.ANGLE, is_repr=True)
+    stops: list[GradientStop] = builtin_property(103, is_repr=True)
+    center_anchor: Optional[Axis2] = builtin_property(104, is_repr=True)
 
 
 @builtin_node(NodeType.GRADIENT_STYLE)
 class GradientStyle(Style):
     """A gradient style."""
 
-    type: GradientType = builtin_property(30, default=GradientType.LINEAR, is_repr=True)
-    angle: Optional[float] = builtin_property(50, format=NumberFormat.ANGLE, is_repr=True)
-    stops: list[GradientStop] = builtin_property(51, is_repr=True)
-    center_anchor: Optional[Axis2] = builtin_property(52, is_repr=True)
-    dark: Gradient | None = builtin_property(60)
+    type: GradientType = builtin_property(100, default=GradientType.LINEAR, is_repr=True)
+    angle: Optional[float] = builtin_property(102, format=NumberFormat.ANGLE, is_repr=True)
+    stops: list[GradientStop] = builtin_property(103, is_repr=True)
+    center_anchor: Optional[Axis2] = builtin_property(104, is_repr=True)
+    dark: Gradient | None = builtin_property(105)
