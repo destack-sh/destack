@@ -14,7 +14,6 @@ from destack.language import (
     NodeType,
 )
 from destack.language.core.common.edit import EditOperation
-from destack.utils.uuid import UUID
 
 from .core import MemoryContext, MemoryDatabase, MemoryTable
 
@@ -72,13 +71,12 @@ def _optimize_change(context: MemoryContext, edits: Sequence[Edit]) -> list[Edit
     def flush():
         if not buffer:
             return
-        grouped: OrderedDict[tuple[NodeType, UUID | None, EditType], list[Edit]] = OrderedDict()
+        grouped: OrderedDict[tuple[NodeType, EditType], list[Edit]] = OrderedDict()
         for e in buffer:
-            table = context.get(e.node_ptr)
-            key = (table.node_type, table.definition_id, e.type)
+            key = (e.node_ptr.type, e.type)
             if key not in grouped:
                 grouped[key] = []
-            grouped[key].append(e)
+            grouped[key].append(e)  # contiguously batched
         for batch in grouped.values():
             optimized_edits.extend(batch)  # contiguously batched
         buffer.clear()

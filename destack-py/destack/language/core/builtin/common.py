@@ -233,7 +233,7 @@ class StructType(Enum):
     OPTION_DEFINITION = 107
     PERMISSION_DEFINITION = 108
     CONSTANT_DEFINITION = 109
-    # ACTION_DEFINITION/METHOD_DEFINITION, ...?
+    # FUNCTION_DEFINITION, ACTION_DEFINITION, ...?
     NODE_DEFINITION_REFERENCE = 150
     OBJECT_DEFINITION_REFERENCE = 151
     STRUCT_DEFINITION_REFERENCE = 152
@@ -494,22 +494,27 @@ class TraitType(Enum):
 @builtin_enum(EnumType.NODE_TYPE)
 class NodeType(Enum):
     # meta [1-10_000]
+    # root
     NODE = 1, "Node", "Root of all Node types", "fas fa-dot"
     ENTITY = 2, "Entity", "Is an Entity", "fas fa-dot"
     EVENT = 3, "Event", "Is an Event", "fas fa-dot"
-    RESOURCE = 10, "Resource", "Is a Resource", "fas fa-dot"
-    METRIC = 20, "Metric", None, "fas fa-gauge"
-    MEASUREMENT_EVENT = 21, "Measurement", None, "fas fa-gauge"
     # custom
     CUSTOM_ENTITY_DEFINITION = 100, "Custom Entity Definition", None, "fas fa-table"
-    CUSTOM_ENTITY = 101, "Custom Entity", None, "fas fa-database"
-    CUSTOM_TRAIT_DEFINITION = 110, "Custom Trait Definition", None, "fas fa-table"
-    CUSTOM_EVENT_DEFINITION = 200, "Custom Event Definition", None, "fas fa-signal"
-    CUSTOM_EVENT = 201, "Custom Event", None, "fas fa-signal"
-    CUSTOM_STRUCT_DEFINITION = 300, "Custom Struct Definition", None, "fas fa-shapes"
-    CUSTOM_ENUM_DEFINITION = 310, "Custom Enum Definition", None, "fas fa-shapes"
-    CUSTOM_PROPERTY = 320, "Custom Property", None, "fas fa-triangle"
-    CUSTOM_OPTION = 330, "Custom Option", None, "fas fa-circle"
+    CUSTOM_TRAIT_DEFINITION = 101, "Custom Trait Definition", None, "fas fa-table"
+    CUSTOM_EVENT_DEFINITION = 102, "Custom Event Definition", None, "fas fa-signal"
+    CUSTOM_STRUCT_DEFINITION = 103, "Custom Struct Definition", None, "fas fa-shapes"
+    CUSTOM_ENUM_DEFINITION = 104, "Custom Enum Definition", None, "fas fa-shapes"
+    CUSTOM_PROPERTY = 105, "Custom Property", None, "fas fa-triangle"
+    CUSTOM_OPTION = 106, "Custom Option", None, "fas fa-circle"
+    # basic
+    RECORD = 200, "Record", "Custom Entity", "fas fa-database"
+    RESOURCE = 201, "Resource", "Is a Resource", "fas fa-dot"
+    METRIC = 202, "Metric", None, "fas fa-gauge"
+    # event
+    SIGNAL = 300, "Signal", "Custom Event", "fas fa-signal"
+    EDIT_EVENT = 301, "Edit Event", None, "fas fa-file-lines"
+    MEASUREMENT_EVENT = 302, "Measurement", None, "fas fa-gauge"
+    # CHANGE_EVENT, QUERY_EVENT, ...
 
     # space [10_000-20_000]
     SPACE = 10_000, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
@@ -596,14 +601,14 @@ class NodeType(Enum):
     # TRAIT_DEFINITION/TRAIT_IMPLEMENTATION, INTERFACE, ...
 
     # data [60_000-70_000]
-
     FILE = 60_000, "File", None, "fas fa-file"
     # STREAM, SECRET, ...
 
     # logic [70_000-80_000]
     SCRIPT = 70_000, "Script", None, "fas fa-code"
     SERVICE = 70_100, "Service", None, "fas fa-screwdriver-wrench"
-    ACTION = 70_200, "Action", None, "fas fa-step-forward"
+    # FUNCTION = 70_200, "Function", None, "fas fa-code"
+    ACTION = 70_300, "Action", None, "fas fa-code"
     ROUTE = 71_000, "Route", None, "fas fa-route"
     TRIGGER = 72_000, "Trigger", None, "fas fa-bolt"
     TRIGGER_EVENT = 72_001, "Trigger Event", None, "fas fa-bolt"
@@ -618,8 +623,9 @@ class NodeType(Enum):
     THREAD_CURSOR = 72_800, "Thread Cursor", None, "fas fa-magnifying-glass"
     # QUERY_CURSOR, WEB_CURSOR, ...
     # BREAKPOINT, ...
-    # ROOM, CHANNEL, LOCK, ...
-    # TASK, ...
+    # ROOM, CHANNEL, ...
+    # SEMAPHORE, LOCK/LATCH, ...
+    # TASK, TASK_GROUP/TASK_QUEUE, ...
     # RATE_LIMIT, ...
 
     # test [80_000-90_000]
@@ -638,9 +644,9 @@ class NodeType(Enum):
     RUN_STOP_REQUESTED_EVENT = 90_007, "Run Stop Requested Event", None, "fas fa-play"
     RUN_FAILED_EVENT = 90_008, "Run Failed Event", None, "fas fa-play"
     RUN_COMPLETED_EVENT = 90_009, "Run Completed Event", None, "fas fa-play"
-    # RUN_QUEUE = 90_001, "Run Queue", "Run Queue", "fas fa-list-check"
     SPAN_EVENT = 90_301, "Span", None, "fas fa-ruler-horizontal"
     INTERRUPTION = 90_400, "Interruption", None, "fas fa-hand"
+    # QUEUE, RUN_QUEUE, ...
     # JOB, ...
     LOG_EVENT = 91_000, "Log", None, "fas fa-file-lines"
     # metric
@@ -650,9 +656,6 @@ class NodeType(Enum):
     COUNTER_MEASUREMENT_EVENT = 92_101, "Counter Measurement", None, "fas fa-gauge"
     HISTOGRAM_METRIC = 92_200, "Histogram Metric", None, "fas fa-gauge"
     HISTOGRAM_MEASUREMENT_EVENT = 92_201, "Histogram Measurement", None, "fas fa-gauge"
-    # event
-    EDIT_EVENT = 93_001, "Edit Event", None, "fas fa-file-lines"
-    # CHANGE_EVENT, QUERY_EVENT, ...
 
     # deployment [100_000-110_000]
     ENVIRONMENT = 100_000, "Environment", None, "fas fa-environment"

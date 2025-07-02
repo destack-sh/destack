@@ -152,39 +152,13 @@ class CustomEntityDefinition(
     base_traits: list["NodeDefinitionReference"] = builtin_property(41)
     is_abstract: bool = builtin_property(45, default=False)
 
-    prototype: Optional["CustomEntity"] = builtin_property(
+    prototype: Optional["Entity"] = builtin_property(
         50,
         description="A custom Entity's prototype is the default template new CustomEntity instances are based on.",
     )
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
-
-
-@builtin_node(NodeType.CUSTOM_ENTITY, is_abstract=True)
-class CustomEntity(
-    IsSpatial,
-    IsExtensible,
-    IsArchivable,
-    IsDeletable,
-    IsOwnable,
-    Entity,
-):
-    """
-    A generic CustomEntity instance of a CustomEntityDefinition.
-    The Archivable, Deletable, and Ownable traits are always present for plain CustomEntities
-     (but must be explicitly added to the CustomEntityDefinition to use them).
-    More specific base Entity types will be instanced of that base type instead.
-    """
-
-    definition: "CustomEntityDefinition" = builtin_property(
-        6,
-        is_managed=True,
-        is_readonly=True,
-        description="The CustomEntityDefinition this CustomEntity is an instance of.",
-    )
-    if TYPE_CHECKING:
-        definition_ptr: Optional[NodeReference] = None
 
 
 @builtin_node(NodeType.CUSTOM_TRAIT_DEFINITION)
@@ -209,11 +183,37 @@ class CustomTraitDefinition(
     icon: "Icon | None" = builtin_property(102)
 
 
+@builtin_node(NodeType.RECORD, is_abstract=True)
+class Record(
+    IsSpatial,
+    IsExtensible,
+    IsArchivable,
+    IsDeletable,
+    IsOwnable,
+    Entity,
+):
+    """
+    A generic Record instance of a CustomEntityDefinition like a relational Table.
+    The Archivable, Deletable, and Ownable traits are always present for plain Records
+     (but must be explicitly added to the CustomEntityDefinition to use them).
+    More specific base Entity types will be instanced of that base type instead.
+    """
+
+    definition: "CustomEntityDefinition" = builtin_property(
+        6,
+        is_managed=True,
+        is_readonly=True,
+        description="The CustomEntityDefinition this Record is an instance of.",
+    )
+    if TYPE_CHECKING:
+        definition_ptr: Optional[NodeReference] = None
+
+
 @builtin_node(NodeType.RESOURCE, is_abstract=True)
 class Resource(IsDeletable, IsExtensible, Entity):
     """
     A Resource represents an external asset outside of Destack.
-    The lifecycle of a Resource may be managed by some Provisioner.
+    The lifecycle of a Resource may be managed by some Provisioner (Service).
     """
 
     status: ResourceStatus = builtin_property(90, default=ResourceStatus.PENDING)

@@ -1847,7 +1847,7 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
     return new Type({
       cardinality: TypeCardinality.SCALAR,
       scalarType: ScalarType.NODE_REFERENCE,
-      nodeType: valueOrType.nodeType,
+      nodeType: valueOrType.type,
     });
   } else if (isNode(valueOrType)) {
     return new Type({

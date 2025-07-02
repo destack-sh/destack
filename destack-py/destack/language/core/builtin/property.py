@@ -517,17 +517,16 @@ class PropertyDeclaration(TypeDeclaration):
         """Finalize the Property after all BuiltinObjects are defined."""
         if self.scalar_type == ScalarType.NODE_REFERENCE:
             from ..runtime.graph import expand_node_traits
-            from .trait import IsSpatial
 
             node_types = expand_node_traits(self.node_types or ())
             self.node_has_type = len(node_types) > 1
             self.node_has_definition = self.node_is_extensible and any(
-                NodeType.CUSTOM_EVENT in NODE_CLASS_BY_TYPE[node_type].__inherits__
-                or NodeType.CUSTOM_ENTITY in NODE_CLASS_BY_TYPE[node_type].__inherits__
+                TraitType.EXTENSIBLE in NODE_CLASS_BY_TYPE[node_type].__traits__
                 for node_type in node_types
             )
             self.node_has_space = self.node_space_from is None and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], IsSpatial) for node_type in node_types
+                TraitType.SPATIAL in NODE_CLASS_BY_TYPE[node_type].__traits__
+                for node_type in node_types
             )
 
     #

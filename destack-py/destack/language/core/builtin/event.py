@@ -73,19 +73,14 @@ class CustomEventDefinition(
     base_traits: list["NodeDefinitionReference"] = builtin_property(41)
     is_abstract: bool = builtin_property(45, default=False)
 
-    prototype: Optional["CustomEvent"] = builtin_property(
-        50,
-        description="A custom Event's prototype is the default template new CustomEvent instances are based on.",
-    )
-
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
 
-@builtin_node(NodeType.CUSTOM_EVENT, pretend_frozen=True, is_abstract=True)
-class CustomEvent(Event, IsExtensible):
+@builtin_node(NodeType.SIGNAL, pretend_frozen=True, is_abstract=True)
+class Signal(Event, IsExtensible):
     """
-    A generic CustomEvent of a CustomEventDefinition.
+    A generic Signal of a CustomEventDefinition.
     More specific base Event types will be instanced of that base type instead.
     """
 
@@ -93,7 +88,7 @@ class CustomEvent(Event, IsExtensible):
         6,
         is_managed=True,
         is_readonly=True,
-        description="The CustomEventDefinition this CustomEvent is an instance of.",
+        description="The CustomEventDefinition this Signal is an instance of.",
     )
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None
@@ -103,7 +98,6 @@ class CustomEvent(Event, IsExtensible):
 class EditEvent(Event):
     """A Event of an Edit. Only EditEvents of Entities are allowed."""
 
-    # key
     type: "EditType" = builtin_property(100, is_repr=True)
     node: "Node" = builtin_property(101, is_repr=True)
     operation: "EditOperation | None" = builtin_property(102, is_repr=True)
@@ -112,7 +106,6 @@ class EditEvent(Event):
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET
 
-    # value
     value: "Value | None" = builtin_property(110)
 
 

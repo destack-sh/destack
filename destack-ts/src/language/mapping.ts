@@ -76,19 +76,19 @@ import type {
   ValueFactory,
 } from "@destack/language/core/builtin/common";
 import type {
-  CustomEntity,
   CustomEntityDefinition,
   CustomTraitDefinition,
   Entity,
   Metric,
+  Record,
   Resource,
 } from "@destack/language/core/builtin/entity";
 import type {
-  CustomEvent,
   CustomEventDefinition,
   EditEvent,
   Event,
   MeasurementEvent,
+  Signal,
 } from "@destack/language/core/builtin/event";
 import type {
   NodeDefinitionReference,
@@ -435,13 +435,13 @@ export type NodeTypeMapping = {
   [NodeType.NODE]: Node;
   [NodeType.ENTITY]: Entity;
   [NodeType.CUSTOM_ENTITY_DEFINITION]: CustomEntityDefinition;
-  [NodeType.CUSTOM_ENTITY]: CustomEntity;
   [NodeType.CUSTOM_TRAIT_DEFINITION]: CustomTraitDefinition;
+  [NodeType.RECORD]: Record;
   [NodeType.RESOURCE]: Resource;
   [NodeType.METRIC]: Metric;
   [NodeType.EVENT]: Event;
   [NodeType.CUSTOM_EVENT_DEFINITION]: CustomEventDefinition;
-  [NodeType.CUSTOM_EVENT]: CustomEvent;
+  [NodeType.SIGNAL]: Signal;
   [NodeType.EDIT_EVENT]: EditEvent;
   [NodeType.MEASUREMENT_EVENT]: MeasurementEvent;
   [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;

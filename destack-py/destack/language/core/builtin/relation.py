@@ -39,23 +39,19 @@ type_ = type
 
 @builtin_enum(EnumType.NODE_DEFINITION_TYPE)
 class NodeDefinitionType(Enum):
-    BUILTIN_NODE = 1
-    CUSTOM_NODE = 2
-    BUILTIN_TRAIT = 3
-    CUSTOM_TRAIT = 4
+    BUILTIN = 1
+    CUSTOM = 2
 
 
 @builtin_struct(StructType.NODE_DEFINITION_REFERENCE, frozen=True)
 class NodeDefinitionReference(StructFrozen):
-    """Reference to a Node definition (builtin, custom or by trait)."""
+    """Reference to a Node definition."""
 
     type: NodeDefinitionType = builtin_property(100, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(101, is_repr=True)
-    trait_type: Optional[TraitType] = builtin_property(102, is_repr=True)
+    node_type: NodeType = builtin_property(101, is_repr=True)
     definition: Union[
         "CustomEntityDefinition",
         "CustomEventDefinition",
-        "CustomTraitDefinition",
         None,
     ] = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
@@ -64,35 +60,18 @@ class NodeDefinitionReference(StructFrozen):
     @property
     def is_multi(self) -> bool:
         """Whether this definition references multiple Node definitions"""
-        if self.type == NodeDefinitionType.BUILTIN_NODE:
+        if self.type == NodeDefinitionType.BUILTIN:
             assert self.node_type is not None, f"no node_type for {self!r}"
             node_cls = NODE_CLASS_BY_TYPE[self.node_type]
             return TraitType.EXTENSIBLE in node_cls.__traits__
-        elif self.type == NodeDefinitionType.CUSTOM_NODE:
+        elif self.type == NodeDefinitionType.CUSTOM:
             raise NotImplementedError(f"unexpected node definition reference: {self!r}")
-        elif self.type in (NodeDefinitionType.BUILTIN_TRAIT, NodeDefinitionType.CUSTOM_TRAIT):
-            return True
         else:
             assert_never(self.type)
 
     @property
     def object_cls(self) -> type_[BuiltinObjectBase] | None:
-        if self.type == NodeDefinitionType.BUILTIN_NODE:
-            assert self.node_type is not None, f"no node_type for {self!r}"
-            return NODE_CLASS_BY_TYPE.get(self.node_type)
-        elif self.type == NodeDefinitionType.CUSTOM_NODE:
-            node_definition = self.definition
-            assert node_definition is not None, f"no definition for {self!r}"
-            return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_ENTITY)
-        elif self.type == NodeDefinitionType.BUILTIN_TRAIT:
-            assert self.trait_type is not None, f"no trait_type for {self!r}"
-            return TRAIT_CLASS_BY_TYPE.get(self.trait_type)
-        elif self.type == NodeDefinitionType.CUSTOM_TRAIT:
-            trait_definition = self.definition
-            assert trait_definition is not None, f"no trait_definition for {self!r}"
-            return TRAIT_CLASS_BY_TYPE.get(trait_definition.metatype)
-        else:
-            assert_never(self.type)
+        return NODE_CLASS_BY_TYPE.get(self.node_type)
 
     def resolve_property(self, name: str) -> "PropertyDeclaration | None":
         """Resolve a Property in this definition."""
@@ -115,15 +94,11 @@ class NodeDefinitionReference(StructFrozen):
         from .node import Node
 
         if isinstance(base, NodeType):
-            return NodeDefinitionReference(type=NodeDefinitionType.BUILTIN_NODE, node_type=base)
+            return NodeDefinitionReference(type=NodeDefinitionType.BUILTIN, node_type=base)
         elif isinstance(base, type):
             if issubclass(base, Node):
                 return NodeDefinitionReference(
-                    type=NodeDefinitionType.BUILTIN_NODE, node_type=base.metatype
-                )
-            elif issubclass(base, Trait):
-                return NodeDefinitionReference(
-                    type=NodeDefinitionType.BUILTIN_TRAIT, trait_type=base.metatype
+                    type=NodeDefinitionType.BUILTIN, node_type=base.metatype
                 )
             else:
                 raise ValueError(f"invalid definition reference type: {base!r}")
@@ -168,14 +143,7 @@ class ObjectDefinitionReference(StructFrozen):
             assert self.node_type is not None, f"no node_type for {self!r}"
             return NODE_CLASS_BY_TYPE.get(self.node_type)
         elif self.type == ObjectDefinitionType.CUSTOM_NODE:
-            definition = self.definition
-            assert definition is not None, f"no definition for {self!r}"
-            if isinstance(definition, CustomEntityDefinition):
-                return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_ENTITY)
-            elif isinstance(definition, CustomEventDefinition):
-                return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_EVENT)
-            else:
-                raise ValueError(f"unexpected object definition reference: {self!r}")
+            raise NotImplementedError(f"unexpected object definition reference: {self!r}")
         elif self.type == ObjectDefinitionType.BUILTIN_TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
             return TRAIT_CLASS_BY_TYPE.get(self.trait_type)
@@ -206,8 +174,18 @@ class ObjectDefinitionReference(StructFrozen):
 
     @classmethod
     def of(
-        cls, base: "NodeType | type[NodeBase] | CustomEntityDefinition | type[StructBase]"
+        cls,
+        base: Union[
+            "NodeType",
+            "type[NodeBase]",
+            "CustomEntityDefinition",
+            "CustomEventDefinition",
+            "CustomTraitDefinition",
+            "type[StructBase]",
+        ],
     ) -> "ObjectDefinitionReference":
+        from .entity import CustomEntityDefinition, CustomTraitDefinition
+        from .event import CustomEventDefinition
         from .node import Node
 
         if isinstance(base, NodeType):
@@ -231,12 +209,10 @@ class ObjectDefinitionReference(StructFrozen):
                 )
             else:
                 raise ValueError(f"invalid object reference type: {base!r}")
-        elif isinstance(base, Node):
-            return ObjectDefinitionReference(
-                type=ObjectDefinitionType.CUSTOM_NODE,
-                node_type=NodeType.CUSTOM_ENTITY,
-                definition=base,
-            )
+        elif isinstance(
+            base, (CustomEntityDefinition, CustomEventDefinition, CustomTraitDefinition)
+        ):
+            raise NotImplementedError(f"unexpected object definition reference: {base!r}")
         else:
             assert_never(base)
 
@@ -329,9 +305,10 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
         elif isinstance(base, PropertyDefinition):
             raise ValueError(f"cannot convert {base!r} to a PropertyReference")
         elif isinstance(base, CustomProperty):
+            assert base.parent_ptr is not None, f"no parent for {base!r}"
             return PropertyReference(
                 type=PropertyReferenceType.CUSTOM,
-                node_type=NodeType.CUSTOM_ENTITY,
+                node_type=base.parent_ptr.type,
                 custom_property=base,
             )
         else:

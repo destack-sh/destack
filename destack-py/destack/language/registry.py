@@ -40,7 +40,7 @@ NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
 STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
 
-NODE_DEFINITION_REFERENCE_BY_CLASS: dict[type["NodeBase"], "NodeDefinitionReference"] = {}
+NODE_DEFINITION_REFERENCE_BY_CLASS: dict[type["Node"], "NodeDefinitionReference"] = {}
 OBJECT_DEFINITION_REFERENCE_BY_CLASS: dict[
     type["BuiltinObjectBase"], "ObjectDefinitionReference"
 ] = {}

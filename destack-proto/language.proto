@@ -821,10 +821,8 @@ enum MouseButtonProto {
 
 enum NodeDefinitionTypeProto {
   NODE_DEFINITION_TYPE_UNSPECIFIED = 0;
-  NODE_DEFINITION_TYPE_BUILTIN_NODE = 1;
-  NODE_DEFINITION_TYPE_CUSTOM_NODE = 2;
-  NODE_DEFINITION_TYPE_BUILTIN_TRAIT = 3;
-  NODE_DEFINITION_TYPE_CUSTOM_TRAIT = 4;
+  NODE_DEFINITION_TYPE_BUILTIN = 1;
+  NODE_DEFINITION_TYPE_CUSTOM = 2;
 }
 
 enum NodePermissionProto {
@@ -840,18 +838,19 @@ enum NodeTypeProto {
   NODE_TYPE_NODE = 1;
   NODE_TYPE_ENTITY = 2;
   NODE_TYPE_EVENT = 3;
-  NODE_TYPE_RESOURCE = 10;
-  NODE_TYPE_METRIC = 20;
-  NODE_TYPE_MEASUREMENT_EVENT = 21;
   NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 100;
-  NODE_TYPE_CUSTOM_ENTITY = 101;
-  NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 110;
-  NODE_TYPE_CUSTOM_EVENT_DEFINITION = 200;
-  NODE_TYPE_CUSTOM_EVENT = 201;
-  NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 300;
-  NODE_TYPE_CUSTOM_ENUM_DEFINITION = 310;
-  NODE_TYPE_CUSTOM_PROPERTY = 320;
-  NODE_TYPE_CUSTOM_OPTION = 330;
+  NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 101;
+  NODE_TYPE_CUSTOM_EVENT_DEFINITION = 102;
+  NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 103;
+  NODE_TYPE_CUSTOM_ENUM_DEFINITION = 104;
+  NODE_TYPE_CUSTOM_PROPERTY = 105;
+  NODE_TYPE_CUSTOM_OPTION = 106;
+  NODE_TYPE_RECORD = 200;
+  NODE_TYPE_RESOURCE = 201;
+  NODE_TYPE_METRIC = 202;
+  NODE_TYPE_SIGNAL = 300;
+  NODE_TYPE_EDIT_EVENT = 301;
+  NODE_TYPE_MEASUREMENT_EVENT = 302;
   NODE_TYPE_SPACE = 10000;
   NODE_TYPE_HANDLE = 10100;
   NODE_TYPE_USER = 10200;
@@ -901,7 +900,7 @@ enum NodeTypeProto {
   NODE_TYPE_FILE = 60000;
   NODE_TYPE_SCRIPT = 70000;
   NODE_TYPE_SERVICE = 70100;
-  NODE_TYPE_ACTION = 70200;
+  NODE_TYPE_ACTION = 70300;
   NODE_TYPE_ROUTE = 71000;
   NODE_TYPE_TRIGGER = 72000;
   NODE_TYPE_TRIGGER_EVENT = 72001;
@@ -933,7 +932,6 @@ enum NodeTypeProto {
   NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 92101;
   NODE_TYPE_HISTOGRAM_METRIC = 92200;
   NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 92201;
-  NODE_TYPE_EDIT_EVENT = 93001;
   NODE_TYPE_ENVIRONMENT = 100000;
   NODE_TYPE_THREAD = 120000;
   NODE_TYPE_MESSAGE = 120100;
@@ -2092,27 +2090,6 @@ message CursorProto {
   optional google.protobuf.Timestamp active_at = 110;
 }
 
-// A generic CustomEntity instance of a CustomEntityDefinition.
-// The Archivable, Deletable, and Ownable traits are always present for plain CustomEntities
-// (but must be explicitly added to the CustomEntityDefinition to use them).
-// More specific base Entity types will be instanced of that base type instead.
-message CustomEntityProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp archived_at = 24;
-  optional google.protobuf.Timestamp deleted_at = 25;
-  map<string, ValueProto> custom_values = 26;
-  optional NodeReferenceProto owned_by_ptr = 28;
-}
-
 // A definition for a custom Entity type.
 // Custom Entities are instantiated either as:
 // 1) their respective extensible base type (like ContainerView)
@@ -2158,21 +2135,6 @@ message CustomEnumDefinitionProto {
   optional IconProto icon = 102;
 }
 
-// A generic CustomEvent of a CustomEventDefinition.
-// More specific base Event types will be instanced of that base type instead.
-message CustomEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  map<string, ValueProto> custom_values = 26;
-  optional NodeReferenceProto node_ptr = 101;
-}
-
 // A CustomEventDefinition defines a kind of CustomEvent with custom Properties.
 message CustomEventDefinitionProto {
   NodeTypeProto metatype = 1;
@@ -2188,7 +2150,6 @@ message CustomEventDefinitionProto {
   optional NodeDefinitionReferenceProto base_type = 40;
   repeated NodeDefinitionReferenceProto base_traits = 41;
   bool is_abstract = 45;
-  optional NodeReferenceProto prototype_ptr = 50;
   optional NodeReferenceProto source_ptr = 60;
   string name = 101;
   optional IconProto icon = 102;
@@ -2464,7 +2425,6 @@ message EditProto {
   optional EditOperationProto operation = 101;
   NodeReferenceProto node_ptr = 102;
   optional PropertyReferenceProto prop_ptr = 103;
-  optional NodeReferenceProto field_ptr = 104;
   optional ValueProto key = 105;
   optional ValueProto value = 110;
   optional EditProto undo = 120;
@@ -3807,8 +3767,7 @@ message NodeDefinitionProto {
 message NodeDefinitionReferenceProto {
   StructTypeProto metatype = 1;
   NodeDefinitionTypeProto type = 100;
-  optional NodeTypeProto node_type = 101;
-  optional TraitTypeProto trait_type = 102;
+  NodeTypeProto node_type = 101;
   optional NodeReferenceProto definition_ptr = 105;
 }
 
@@ -4281,8 +4240,29 @@ message ReactionProto {
   string content = 101;
 }
 
+// A generic Record instance of a CustomEntityDefinition like a relational Table.
+// The Archivable, Deletable, and Ownable traits are always present for plain Records
+// (but must be explicitly added to the CustomEntityDefinition to use them).
+// More specific base Entity types will be instanced of that base type instead.
+message RecordProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  NodeReferenceProto definition_ptr = 6;
+  optional NodeDefinitionReferenceProto base_type = 7;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  google.protobuf.Timestamp updated_at = 22;
+  optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp archived_at = 24;
+  optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto owned_by_ptr = 28;
+}
+
 // A Resource represents an external asset outside of Destack.
-// The lifecycle of a Resource may be managed by some Provisioner.
+// The lifecycle of a Resource may be managed by some Provisioner (Service).
 message ResourceProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -4830,6 +4810,21 @@ message ShapeProto {
   optional BorderProto border = 147;
   optional CornersProto radius = 148;
   optional StrokeProto stroke = 180;
+}
+
+// A generic Signal of a CustomEventDefinition.
+// More specific base Event types will be instanced of that base type instead.
+message SignalProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  NodeReferenceProto definition_ptr = 6;
+  optional NodeDefinitionReferenceProto base_type = 7;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto node_ptr = 101;
 }
 
 // A slider input View.
@@ -5543,21 +5538,21 @@ message WindowProto {
 message SomeNodeProto {
   oneof node {
     CustomEntityDefinitionProto custom_entity_definition = 100;
-    CustomTraitDefinitionProto custom_trait_definition = 110;
-    CustomEventDefinitionProto custom_event_definition = 200;
-    EditEventProto edit_event = 93001;
-    CustomEnumDefinitionProto custom_enum_definition = 310;
-    CustomOptionProto custom_option = 330;
+    CustomTraitDefinitionProto custom_trait_definition = 101;
+    CustomEventDefinitionProto custom_event_definition = 102;
+    EditEventProto edit_event = 301;
+    CustomEnumDefinitionProto custom_enum_definition = 104;
+    CustomOptionProto custom_option = 106;
     GaugeMetricProto gauge_metric = 92000;
     GaugeMeasurementEventProto gauge_measurement_event = 92001;
     CounterMetricProto counter_metric = 92100;
     CounterMeasurementEventProto counter_measurement_event = 92101;
     HistogramMetricProto histogram_metric = 92200;
     HistogramMeasurementEventProto histogram_measurement_event = 92201;
-    CustomPropertyProto custom_property = 320;
+    CustomPropertyProto custom_property = 105;
     SnapshotProto snapshot = 40000;
     BranchProto branch = 40100;
-    CustomStructDefinitionProto custom_struct_definition = 300;
+    CustomStructDefinitionProto custom_struct_definition = 103;
     EntitlementRequestedEventProto entitlement_requested_event = 20502;
     EntitlementGrantedEventProto entitlement_granted_event = 20503;
     EntitlementRevokedEventProto entitlement_revoked_event = 20504;
@@ -5624,7 +5619,7 @@ message SomeNodeProto {
     PasteEventProto paste_event = 200503;
     FocusInEventProto focus_in_event = 200601;
     FocusOutEventProto focus_out_event = 200602;
-    ActionProto action = 70200;
+    ActionProto action = 70300;
     EventCursorProto event_cursor = 72600;
     ScreenCursorProto screen_cursor = 72700;
     ThreadCursorProto thread_cursor = 72800;
@@ -5695,17 +5690,17 @@ message SomeNodeProto {
 message SomeEntityProto {
   oneof node {
     CustomEntityDefinitionProto custom_entity_definition = 100;
-    CustomTraitDefinitionProto custom_trait_definition = 110;
-    CustomEventDefinitionProto custom_event_definition = 200;
-    CustomEnumDefinitionProto custom_enum_definition = 310;
-    CustomOptionProto custom_option = 330;
+    CustomTraitDefinitionProto custom_trait_definition = 101;
+    CustomEventDefinitionProto custom_event_definition = 102;
+    CustomEnumDefinitionProto custom_enum_definition = 104;
+    CustomOptionProto custom_option = 106;
     GaugeMetricProto gauge_metric = 92000;
     CounterMetricProto counter_metric = 92100;
     HistogramMetricProto histogram_metric = 92200;
-    CustomPropertyProto custom_property = 320;
+    CustomPropertyProto custom_property = 105;
     SnapshotProto snapshot = 40000;
     BranchProto branch = 40100;
-    CustomStructDefinitionProto custom_struct_definition = 300;
+    CustomStructDefinitionProto custom_struct_definition = 103;
     EntitlementProto entitlement = 20500;
     InviteProto invite = 20100;
     MembershipProto membership = 20000;
@@ -5730,7 +5725,7 @@ message SomeEntityProto {
     TaggingProto tagging = 30101;
     DatabaseProto database = 160000;
     MachineProto machine = 160100;
-    ActionProto action = 70200;
+    ActionProto action = 70300;
     EventCursorProto event_cursor = 72600;
     ScreenCursorProto screen_cursor = 72700;
     ThreadCursorProto thread_cursor = 72800;
@@ -5776,7 +5771,7 @@ message SomeEntityProto {
 
 message SomeEventProto {
   oneof node {
-    EditEventProto edit_event = 93001;
+    EditEventProto edit_event = 301;
     GaugeMeasurementEventProto gauge_measurement_event = 92001;
     CounterMeasurementEventProto counter_measurement_event = 92101;
     HistogramMeasurementEventProto histogram_measurement_event = 92201;

@@ -44,7 +44,7 @@ export enum ActionCardinality {
 registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
 /* ==== DESTACK_GENERATED_END:ENUM:70200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:70200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:70300 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
@@ -412,7 +412,7 @@ export class Action
 
   static __packValue__(object: Action): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 70200;
+    objectValue["1"] = 70300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -550,7 +550,7 @@ export class Action
   }
 
   static __packProto__(object: Action): ActionProto {
-    const objectProto: Partial<ActionProto> = { metatype: 70200 };
+    const objectProto: Partial<ActionProto> = { metatype: 70300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -705,4 +705,4 @@ export class Action
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);
-/* ==== DESTACK_GENERATED_END:NODE:70200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:70300 ==== */
