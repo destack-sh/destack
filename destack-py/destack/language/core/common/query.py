@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast
 from destack.utils.uuid import UUID
 
 from ..builtin import (
-    BuiltinObjectMutable,
     DefaultFactory,
     Enum,
     EnumType,
@@ -17,7 +16,6 @@ from ..builtin import (
     builtin_enum,
     builtin_property,
     builtin_struct,
-    object_,
 )
 from ..builtin.relation import NodeDefinitionReference, PropertyReference
 from .value import Value
@@ -368,44 +366,50 @@ class Query[RootT: "Trait | Node"](StructFrozen):
         session = active_session()
         store = session.store
         assert store is not None, f"no store in {session!r}"
-        connection = QueryConnection(self, store, session)
+        connection = QueryConnection(query=self, store=store, session=session)
         session.connections.append(connection)
         await connection.execute()
         return connection
 
     async def execute_one_or_none(self) -> Optional[RootT]:
         """Execute the Query and return the root (if any)."""
-        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot list {self!r}"
+        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot get node of {self!r}"
         connection = await self.execute()
         return cast(RootT, connection.to_one_or_none())
 
     async def execute_one(self) -> RootT:
         """Execute the Query and return the root (error if none)."""
-        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot list {self!r}"
+        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot get node of {self!r}"
         connection = await self.execute()
         return cast(RootT, connection.to_one())
 
     async def execute_list(self) -> list[RootT]:
         """Execute the Query and return the list of roots."""
-        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot list {self!r}"
+        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), (
+            f"cannot get nodes of {self!r}"
+        )
         connection = await self.execute()
         return cast(list[RootT], connection.to_list())
 
     async def execute_exists(self) -> bool:
         """Execute the Query and return whether any results exist."""
-        assert self.type == QueryType.SCALAR, f"cannot count {self!r}"
+        assert self.type == QueryType.SCALAR, f"cannot get exists of {self!r}"
         connection = await self.execute()
         return connection.to_exists()
 
     async def execute_count(self) -> int:
         """Execute the Query and return the count."""
-        assert self.type in (QueryType.SCALAR, QueryType.GROUPED_SCALAR), f"cannot count {self!r}"
+        assert self.type in (QueryType.SCALAR, QueryType.GROUPED_SCALAR), (
+            f"cannot get count of {self!r}"
+        )
         connection = await self.execute()
         return connection.to_count()
 
     async def execute_scalar(self) -> Any:
         """Execute the Query and return the scalar value."""
-        assert self.type in (QueryType.SCALAR, QueryType.GROUPED_SCALAR), f"cannot scalar {self!r}"
+        assert self.type in (QueryType.SCALAR, QueryType.GROUPED_SCALAR), (
+            f"cannot get scalar of {self!r}"
+        )
         connection = await self.execute()
         return connection.to_scalar()
 
@@ -428,20 +432,8 @@ class Histogram(StructFrozen):
     counts: list[int] = builtin_property(41, is_repr=True)
 
 
-@object_()
-class QueryResultBase(BuiltinObjectMutable):
-    """Common base for QueryResult and QueryResultGroup."""
-
-    type: QueryType = builtin_property(30, is_repr=True)
-
-    nodes: list[Value] = builtin_property(40)
-    count: Optional[int] = builtin_property(41, is_repr=True)
-    exists: Optional[bool] = builtin_property(42, is_repr=True)
-    scalar: Optional[Value] = builtin_property(43, is_repr=True)
-
-
 @builtin_struct(StructType.QUERY_RESULT)
-class QueryResult(QueryResultBase, StructMutable):
+class QueryResult(StructMutable):
     """
     The result of a Query.
     For grouped queries, group results are in Query.groups.
@@ -450,15 +442,26 @@ class QueryResult(QueryResultBase, StructMutable):
     """
 
     id: UUID = builtin_property(2, is_repr=True)
+    type: QueryType = builtin_property(30, is_repr=True)
     groups: list["QueryResultGroup"] = builtin_property(35, is_repr=True)
     subresults: list["QueryResult"] = builtin_property(36, is_repr=True)
 
+    nodes: list[Value] = builtin_property(40)
+    count: Optional[int] = builtin_property(41, is_repr=True)
+    exists: Optional[bool] = builtin_property(42, is_repr=True)
+    scalar: Optional[Value] = builtin_property(43, is_repr=True)
+
 
 @builtin_struct(StructType.QUERY_RESULT_GROUP)
-class QueryResultGroup(QueryResultBase, StructMutable):
+class QueryResultGroup(StructMutable):
     """A group in a QueryResult."""
 
+    type: QueryType = builtin_property(30, is_repr=True)
     discriminator: Value = builtin_property(31, is_repr=True)
+    nodes: list[Value] = builtin_property(40)
+    count: Optional[int] = builtin_property(41, is_repr=True)
+    exists: Optional[bool] = builtin_property(42, is_repr=True)
+    scalar: Optional[Value] = builtin_property(43, is_repr=True)
 
 
 @builtin_enum(EnumType.QUERY_UPDATE_TYPE)
