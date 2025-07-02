@@ -80,7 +80,7 @@ class CustomEventDefinition(
 
 
 @builtin_node(NodeType.CUSTOM_EVENT, pretend_frozen=True, is_abstract=True)
-class CustomEvent(Event, IsCustomizable, IsExtensible):
+class CustomEvent(Event, IsExtensible):
     """A CustomEvent is an instance of a CustomEventDefinition."""
 
     definition: "CustomEventDefinition" = builtin_property(
@@ -91,20 +91,6 @@ class CustomEvent(Event, IsCustomizable, IsExtensible):
     )
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None
-
-    base_type: "NodeDefinitionReference" = builtin_property(
-        40,
-        is_readonly=True,
-        is_managed=True,
-        description="Inlined base type of this CustomEvent.",
-    )
-    base_node_type: NodeType = builtin_property(
-        41,
-        is_readonly=True,
-        is_managed=True,
-        description="Inlined base node type of this CustomEvent.",
-    )
-    # inherits?
 
 
 @builtin_node(NodeType.EDIT_EVENT, pretend_frozen=True)
@@ -119,7 +105,6 @@ class EditEvent(Event):
     key: "Value | None" = builtin_property(38, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET
-        field_ptr: NodeReference | None = None
 
     # value
     value: "Value | None" = builtin_property(40)

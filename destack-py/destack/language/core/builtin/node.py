@@ -71,8 +71,8 @@ def builtin_node(
         index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
     def decorate(cls: type["Node"]) -> type["Node"]:
+        nonlocal pretend_frozen
         assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
-        cls.__is_trait__ = False  # override Trait.__is_trait__
         traits: list[TraitType] = []
         base_traits: list[TraitType] = []
         inherits: list[NodeType] = []
@@ -87,6 +87,7 @@ def builtin_node(
             if trait := _resolve_trait_type(base.__name__):
                 if trait not in base_traits:
                     base_traits.append(trait)
+        cls.__is_trait__ = False  # override Trait.__is_trait__
         cls.__traits__ = tuple(reversed(traits))
         cls.__base_traits__ = tuple(reversed(base_traits))
         cls.__inherits__ = tuple(reversed(inherits))
@@ -98,6 +99,8 @@ def builtin_node(
             raise ValueError(
                 f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
             )
+        if NodeType.EVENT in inherits:
+            pretend_frozen = True  # Events are frozen by default
 
         cls, _ = _process_object_cls(
             cls=cls,
@@ -112,8 +115,8 @@ def builtin_node(
         )
         cls.__indexes__ = index
 
+        # register
         if node_type is not None:
-            # register
             cls.metatype = node_type
             NODE_CLASS_BY_TYPE[node_type] = cls
             NODE_TYPE_BY_CLASS[cls] = node_type
