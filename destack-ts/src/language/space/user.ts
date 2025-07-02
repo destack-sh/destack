@@ -102,7 +102,7 @@ export class User
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   value: Map<string, Value>;
 

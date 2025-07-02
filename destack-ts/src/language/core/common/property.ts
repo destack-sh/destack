@@ -21,6 +21,7 @@ import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   HasIcon,
   HasName,
+  IsCustomizable,
   IsDeletable,
   IsExtensible,
   IsSourceable,
@@ -69,7 +70,7 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:320 ==== */
 /**
- * A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.
+ * A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
  */
 export class CustomProperty
   extends Entity
@@ -80,10 +81,14 @@ export class CustomProperty
   /**
    * CustomProperty.parent
    */
-  get parent(): (Node & IsExtensible) | CustomProperty | null {
+  get parent(): (Node & IsCustomizable) | (Node & IsExtensible) | CustomProperty | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsExtensible) | CustomProperty | null;
+      return this._supergraph.get(nodePtr.id) as
+        | (Node & IsCustomizable)
+        | (Node & IsExtensible)
+        | CustomProperty
+        | null;
     }
     return null;
   }
@@ -141,7 +146,7 @@ export class CustomProperty
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -313,7 +318,12 @@ export class CustomProperty
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsExtensible) | CustomProperty | NodeReference | null;
+    parent?:
+      | (Node & IsCustomizable)
+      | (Node & IsExtensible)
+      | CustomProperty
+      | NodeReference
+      | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -790,7 +800,7 @@ export class CustomProperty
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
     if (object.icon != null) {
@@ -1031,7 +1041,7 @@ export class CustomProperty
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       _session,
       _graph,
       _connection,

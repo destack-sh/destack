@@ -100,7 +100,7 @@ export abstract class View
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   declare readonly orderKey: string;
 

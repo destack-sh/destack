@@ -18,7 +18,7 @@ async def set_password(user_slug: str, new_password: str):
     from desys.universe import SALT_LENGTH, hash_password
 
     global_database = get_global_database_from_env()
-    store = PostgresStore(database=global_database, types=(StoreType.GLOBAL_ENTITY,))
+    store = PostgresStore(database=global_database, types=(StoreType.GLOBAL_ENTITY_PRIMARY,))
     async with Session(store=store) as session:
         user = await User.get(where=User.property("slug").eq(user_slug)).execute_one()
         user.password_salt = generate_salt(SALT_LENGTH)

@@ -38,12 +38,12 @@ export abstract class RoleEvent extends Event {
   static metatype: NodeType = NodeType.ROLE_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -127,12 +127,12 @@ export class RoleAssignedEvent extends RoleEvent {
   static metatype: NodeType = NodeType.ROLE_ASSIGNED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -203,7 +203,7 @@ export class RoleAssignedEvent extends RoleEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -301,6 +301,9 @@ export class RoleAssignedEvent extends RoleEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.subjectPtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -312,9 +315,6 @@ export class RoleAssignedEvent extends RoleEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -388,6 +388,11 @@ export class RoleAssignedEvent extends RoleEvent {
     _connection?: any | null,
   ): RoleAssignedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -403,11 +408,6 @@ export class RoleAssignedEvent extends RoleEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RoleAssignedEvent({
       subject: _NodeReference.fromValue(
         objectValue["40"],
@@ -416,12 +416,12 @@ export class RoleAssignedEvent extends RoleEvent {
         _graph,
         _connection,
       ),
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -484,6 +484,16 @@ export class RoleAssignedEvent extends RoleEvent {
         _graph,
         _connection,
       ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -516,16 +526,6 @@ export class RoleAssignedEvent extends RoleEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -569,12 +569,12 @@ export class RoleUnassignedEvent extends RoleEvent {
   static metatype: NodeType = NodeType.ROLE_UNASSIGNED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -645,7 +645,7 @@ export class RoleUnassignedEvent extends RoleEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -743,6 +743,9 @@ export class RoleUnassignedEvent extends RoleEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.subjectPtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -754,9 +757,6 @@ export class RoleUnassignedEvent extends RoleEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -830,6 +830,11 @@ export class RoleUnassignedEvent extends RoleEvent {
     _connection?: any | null,
   ): RoleUnassignedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -845,11 +850,6 @@ export class RoleUnassignedEvent extends RoleEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RoleUnassignedEvent({
       subject: _NodeReference.fromValue(
         objectValue["40"],
@@ -858,12 +858,12 @@ export class RoleUnassignedEvent extends RoleEvent {
         _graph,
         _connection,
       ),
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -926,6 +926,16 @@ export class RoleUnassignedEvent extends RoleEvent {
         _graph,
         _connection,
       ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -958,16 +968,6 @@ export class RoleUnassignedEvent extends RoleEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1077,7 +1077,7 @@ export class Role
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -1335,7 +1335,7 @@ export class Role
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
     if (object.slug != null) {
@@ -1395,7 +1395,7 @@ export class Role
       slug: unpackedSlug,
       icon: unpackedIcon,
       name: objectValue["31"],
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,

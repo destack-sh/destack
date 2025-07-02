@@ -175,12 +175,12 @@ export class CustomEntityDefinition
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   value: Map<string, Value>;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -209,6 +209,21 @@ export class CustomEntityDefinition
   name: string;
 
   /**
+   * CustomEntityDefinition.baseType
+   */
+  baseType: NodeDefinitionReference;
+
+  /**
+   * CustomEntityDefinition.baseTraits
+   */
+  baseTraits: Array<NodeDefinitionReference>;
+
+  /**
+   * CustomEntityDefinition.isAbstract
+   */
+  isAbstract: boolean;
+
+  /**
    * A custom Entity's prototype is the default template new CustomEntity instances are based on.
    */
   get prototype(): Node | null {
@@ -226,21 +241,6 @@ export class CustomEntityDefinition
     }
   }
   prototypePtr: NodeReference | null;
-
-  /**
-   * CustomEntityDefinition.baseType
-   */
-  baseType: NodeDefinitionReference;
-
-  /**
-   * CustomEntityDefinition.baseTraits
-   */
-  baseTraits: Array<NodeDefinitionReference>;
-
-  /**
-   * CustomEntityDefinition.isAbstract
-   */
-  isAbstract: boolean;
 
   /**
    * The main / root Script of this Node.
@@ -286,10 +286,10 @@ export class CustomEntityDefinition
     orderKey?: string;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
-    prototype?: Node | NodeReference | null;
     baseType: NodeDefinitionReference;
     baseTraits?: Array<NodeDefinitionReference>;
     isAbstract?: boolean;
+    prototype?: Node | NodeReference | null;
     script?: Script | NodeReference | null;
     source?: Script | NodeReference | null;
     _session?: Session | null;
@@ -356,11 +356,6 @@ export class CustomEntityDefinition
       throw new Error(`CustomEntityDefinition.name is required`);
     }
     this.name = _name;
-    let _prototype = options.prototype ?? null;
-    if (_prototype != null && _prototype.metatype != StructType.NODE_REFERENCE) {
-      _prototype = (_prototype as Node).toRef();
-    }
-    this.prototypePtr = _prototype;
     let _baseType = options.baseType;
     if (_baseType === null) {
       throw new Error(`CustomEntityDefinition.baseType is required`);
@@ -379,6 +374,11 @@ export class CustomEntityDefinition
       throw new Error(`CustomEntityDefinition.isAbstract is required`);
     }
     this.isAbstract = _isAbstract;
+    let _prototype = options.prototype ?? null;
+    if (_prototype != null && _prototype.metatype != StructType.NODE_REFERENCE) {
+      _prototype = (_prototype as Node).toRef();
+    }
+    this.prototypePtr = _prototype;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -424,9 +424,6 @@ export class CustomEntityDefinition
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.prototypePtr?.id === other.prototypePtr?.id)) {
-      return false;
-    }
     if (!this.baseType.equals(other.baseType)) {
       return false;
     }
@@ -439,6 +436,9 @@ export class CustomEntityDefinition
       }
     }
     if (!(this.isAbstract === other.isAbstract)) {
+      return false;
+    }
+    if (!(this.prototypePtr?.id === other.prototypePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -476,9 +476,6 @@ export class CustomEntityDefinition
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.prototypePtr !== null) {
-      h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     if (this.baseTraits && this.baseTraits.length > 0) {
       for (const _item of this.baseTraits) {
@@ -486,6 +483,9 @@ export class CustomEntityDefinition
       }
     }
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
+    if (this.prototypePtr !== null) {
+      h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -595,23 +595,23 @@ export class CustomEntityDefinition
       }
       objectValue["21"] = packedValue;
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
     }
     objectValue["31"] = object.name;
-    if (object.prototypePtr != null) {
-      objectValue["40"] = object.prototypePtr.toValue();
-    }
-    objectValue["41"] = object.baseType.toValue();
+    objectValue["40"] = object.baseType.toValue();
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
         packedBaseTraits.push(item.toValue());
       }
-      objectValue["42"] = packedBaseTraits;
+      objectValue["41"] = packedBaseTraits;
     }
     objectValue["45"] = object.isAbstract;
+    if (object.prototypePtr != null) {
+      objectValue["50"] = object.prototypePtr.toValue();
+    }
     if (object.scriptPtr != null) {
       objectValue["200"] = object.scriptPtr.toValue();
     }
@@ -638,19 +638,19 @@ export class CustomEntityDefinition
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const prototypePtrValue = objectValue["40"];
-    const unpackedPrototypePtr =
-      prototypePtrValue != undefined
-        ? _NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const unpackedBaseTraits: any[] = [];
-    if (objectValue["42"] != undefined) {
-      for (const item of objectValue["42"]) {
+    if (objectValue["41"] != undefined) {
+      for (const item of objectValue["41"]) {
         unpackedBaseTraits.push(
           _NodeDefinitionReference.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
+    const prototypePtrValue = objectValue["50"];
+    const unpackedPrototypePtr =
+      prototypePtrValue != undefined
+        ? _NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -697,9 +697,8 @@ export class CustomEntityDefinition
         : null;
     return new CustomEntityDefinition({
       parent: unpackedParentPtr,
-      prototype: unpackedPrototypePtr,
       baseType: _NodeDefinitionReference.fromValue(
-        objectValue["41"],
+        objectValue["40"],
         _session,
         _supergraph,
         _graph,
@@ -707,6 +706,7 @@ export class CustomEntityDefinition
       ),
       baseTraits: unpackedBaseTraits,
       isAbstract: objectValue["45"],
+      prototype: unpackedPrototypePtr,
       space: unpackedSpacePtr,
       name: objectValue["31"],
       value: unpackedValue,
@@ -719,7 +719,7 @@ export class CustomEntityDefinition
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       _session,
       _graph,
       _connection,
@@ -777,9 +777,6 @@ export class CustomEntityDefinition
       objectProto.ownedByPtr = object.ownedByPtr.toProto();
     }
     objectProto.name = object.name;
-    if (object.prototypePtr != null) {
-      objectProto.prototypePtr = object.prototypePtr.toProto();
-    }
     objectProto.baseType = object.baseType.toProto();
     if (object.baseTraits) {
       const packedBaseTraits: any[] = [];
@@ -789,6 +786,9 @@ export class CustomEntityDefinition
       objectProto.baseTraits = packedBaseTraits;
     }
     objectProto.isAbstract = object.isAbstract;
+    if (object.prototypePtr != null) {
+      objectProto.prototypePtr = object.prototypePtr.toProto();
+    }
     if (object.scriptPtr != null) {
       objectProto.scriptPtr = object.scriptPtr.toProto();
     }
@@ -838,6 +838,15 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
+      baseType: _NodeDefinitionReference.fromProto(
+        objectProto.baseType!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      baseTraits: unpackedBaseTraits,
+      isAbstract: objectProto.isAbstract,
       prototype:
         objectProto.prototypePtr != undefined
           ? _NodeReference.fromProto(
@@ -848,15 +857,6 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
-      baseType: _NodeDefinitionReference.fromProto(
-        objectProto.baseType!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      baseTraits: unpackedBaseTraits,
-      isAbstract: objectProto.isAbstract,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -973,10 +973,10 @@ export abstract class CustomEntity
   /**
    * CustomEntity.parent
    */
-  get parent(): CustomEntityDefinition | CustomEntity | null {
+  get parent(): Space | Folder | CustomEntity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | CustomEntity | null;
+      return this._supergraph.get(nodePtr.id) as Space | Folder | CustomEntity | null;
     }
     return null;
   }
@@ -1046,19 +1046,19 @@ export abstract class CustomEntity
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   declare value: Map<string, Value>;
 
   /**
    * Inlined base type of this CustomEntity.
    */
-  declare baseType: NodeDefinitionReference;
+  declare readonly baseType: NodeDefinitionReference;
 
   /**
-   * Inlined base traits of this CustomEntity.
+   * Inlined builtin base NodeType of this CustomEntity.
    */
-  declare baseTraits: Array<NodeDefinitionReference>;
+  declare readonly baseNodeType: NodeType;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -1141,12 +1141,12 @@ export class CustomTraitDefinition
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   value: Map<string, Value>;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -1498,17 +1498,17 @@ export class CustomTraitDefinition
       }
       objectValue["21"] = packedValue;
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["31"] = object.name;
     if (object.baseType != null) {
-      objectValue["41"] = object.baseType.toValue();
+      objectValue["40"] = object.baseType.toValue();
     }
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
         packedBaseTraits.push(item.toValue());
       }
-      objectValue["42"] = packedBaseTraits;
+      objectValue["41"] = packedBaseTraits;
     }
     objectValue["45"] = object.isAbstract;
     if (object.scriptPtr != null) {
@@ -1537,7 +1537,7 @@ export class CustomTraitDefinition
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const baseTypeValue = objectValue["41"];
+    const baseTypeValue = objectValue["40"];
     const unpackedBaseType =
       baseTypeValue != undefined
         ? _NodeDefinitionReference.fromValue(
@@ -1549,8 +1549,8 @@ export class CustomTraitDefinition
           )
         : null;
     const unpackedBaseTraits: any[] = [];
-    if (objectValue["42"] != undefined) {
-      for (const item of objectValue["42"]) {
+    if (objectValue["41"] != undefined) {
+      for (const item of objectValue["41"]) {
         unpackedBaseTraits.push(
           _NodeDefinitionReference.fromValue(item, _session, _supergraph, _graph, _connection),
         );
@@ -1611,7 +1611,7 @@ export class CustomTraitDefinition
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       _session,
       _graph,
       _connection,
@@ -1973,7 +1973,7 @@ export abstract class Metric extends Entity implements IsSpatial, HasName, IsSou
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   declare readonly orderKey: string;
 

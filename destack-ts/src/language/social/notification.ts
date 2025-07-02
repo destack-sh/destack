@@ -57,12 +57,12 @@ export abstract class NotificationEvent extends Event {
   static metatype: NodeType = NodeType.NOTIFICATION_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -127,12 +127,12 @@ export class NotificationSentEvent extends NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_SENT_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -184,7 +184,7 @@ export class NotificationSentEvent extends NotificationEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -273,6 +273,9 @@ export class NotificationSentEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -281,9 +284,6 @@ export class NotificationSentEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -354,6 +354,11 @@ export class NotificationSentEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationSentEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -364,18 +369,13 @@ export class NotificationSentEvent extends NotificationEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationSentEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -435,6 +435,16 @@ export class NotificationSentEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -457,16 +467,6 @@ export class NotificationSentEvent extends NotificationEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -510,12 +510,12 @@ export class NotificationRescindedEvent extends NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_RESCINDED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -567,7 +567,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -656,6 +656,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -664,9 +667,6 @@ export class NotificationRescindedEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -737,6 +737,11 @@ export class NotificationRescindedEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationRescindedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -747,18 +752,13 @@ export class NotificationRescindedEvent extends NotificationEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationRescindedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -818,6 +818,16 @@ export class NotificationRescindedEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -840,16 +850,6 @@ export class NotificationRescindedEvent extends NotificationEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -893,12 +893,12 @@ export class NotificationReadEvent extends NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_READ_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -950,7 +950,7 @@ export class NotificationReadEvent extends NotificationEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1039,6 +1039,9 @@ export class NotificationReadEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1047,9 +1050,6 @@ export class NotificationReadEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1120,6 +1120,11 @@ export class NotificationReadEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationReadEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1130,18 +1135,13 @@ export class NotificationReadEvent extends NotificationEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationReadEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -1201,6 +1201,16 @@ export class NotificationReadEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1223,16 +1233,6 @@ export class NotificationReadEvent extends NotificationEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1276,12 +1276,12 @@ export class NotificationDismissedEvent extends NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_DISMISSED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1333,7 +1333,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1422,6 +1422,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1430,9 +1433,6 @@ export class NotificationDismissedEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1503,6 +1503,11 @@ export class NotificationDismissedEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationDismissedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1513,18 +1518,13 @@ export class NotificationDismissedEvent extends NotificationEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationDismissedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -1584,6 +1584,16 @@ export class NotificationDismissedEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1606,16 +1616,6 @@ export class NotificationDismissedEvent extends NotificationEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1659,12 +1659,12 @@ export class NotificationExpiredEvent extends NotificationEvent {
   static metatype: NodeType = NodeType.NOTIFICATION_EXPIRED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1716,7 +1716,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1805,6 +1805,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1813,9 +1816,6 @@ export class NotificationExpiredEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1886,6 +1886,11 @@ export class NotificationExpiredEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationExpiredEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1896,18 +1901,13 @@ export class NotificationExpiredEvent extends NotificationEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationExpiredEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -1967,6 +1967,16 @@ export class NotificationExpiredEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1989,16 +1999,6 @@ export class NotificationExpiredEvent extends NotificationEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

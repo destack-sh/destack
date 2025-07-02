@@ -153,8 +153,8 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
     # IsTracked.created_at/created_by/updated_at/updated_by: 15-18
     # IsArchivable.archived_at: 19
     # IsDeletable.deleted_at: 20
-    # IsExtensible.value: 21
-    # IsOrdered.order_key: 22
+    # IsCustomizable.value: 21
+    # IsOrdered.order_key: 24
     # IsOwnable.owned_by: 25
     # ...managed_by/controlled_by?
 
@@ -263,14 +263,23 @@ class IsExtensible(Trait):
 class IsCustomizable(Trait):
     """A Node that can be customized with custom Properties."""
 
-    value: dict[UUID, "Value"] = builtin_property(21)
+    value: dict[UUID, "Value"] = builtin_property(
+        21,
+        description="The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.",
+    )
 
 
 @builtin_trait(TraitType.ORDERED)
 class IsOrdered(Trait):
     """A Node that can be ordered."""
 
-    order_key: str = builtin_property(22, is_eq=False, is_managed=True, default=INTEGER_ZERO)
+    order_key: str = builtin_property(
+        24,
+        is_eq=False,
+        is_managed=True,
+        default=INTEGER_ZERO,
+        description="The absolute order key of this Node in its parent.",
+    )
 
 
 @builtin_trait(TraitType.REACTABLE)

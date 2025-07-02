@@ -5,12 +5,11 @@ from .common import RoleType
 from .const import UNSET
 from .entity import Entity
 from .node import Node, NodeType, builtin_node
-from .property import builtin_property
+from .property import builtin_property, builtin_property_parent
 from .trait import HasName, IsCustomizable, IsExtensible, IsSourceable, IsSpatial
 
 if TYPE_CHECKING:
     from destack.language import (
-        CustomProperty,
         EditOperation,
         EditType,
         IsSubject,
@@ -18,6 +17,7 @@ if TYPE_CHECKING:
         NodeDefinitionReference,
         NodeReference,
         PropertyReference,
+        Space,
         Value,
     )
 
@@ -30,6 +30,10 @@ class Event[N: Node = Node](IsSpatial, Node):
     An Event is an immutable record of something happening to an Entity.
     """
 
+    parent: Optional["Space"] = builtin_property_parent(
+        node_is_extensible=False,
+        is_readonly=True,
+    )
     created_at: datetime = builtin_property(
         15,
         is_managed=True,
@@ -65,11 +69,14 @@ class CustomEventDefinition(
 ):
     """A CustomEventDefinition defines a kind of CustomEvent with custom Properties."""
 
+    base_type: Optional["NodeDefinitionReference"] = builtin_property(40)
+    base_traits: list["NodeDefinitionReference"] = builtin_property(41)
+    is_abstract: bool = builtin_property(45, default=False)
+
     prototype: Optional["CustomEvent"] = builtin_property(
-        40,
+        50,
         description="A custom Event's prototype is the default template new CustomEvent instances are based on.",
     )
-    base_type: Optional["NodeDefinitionReference"] = builtin_property(41)
 
 
 @builtin_node(NodeType.CUSTOM_EVENT, pretend_frozen=True, is_abstract=True)
@@ -77,8 +84,27 @@ class CustomEvent(Event, IsCustomizable, IsExtensible):
     """A CustomEvent is an instance of a CustomEventDefinition."""
 
     definition: "CustomEventDefinition" = builtin_property(
-        40, description="The CustomEventDefinition this CustomEvent is an instance of."
+        6,
+        is_managed=True,
+        is_readonly=True,
+        description="The CustomEventDefinition this CustomEvent is an instance of.",
     )
+    if TYPE_CHECKING:
+        definition_ptr: Optional[NodeReference] = None
+
+    base_type: "NodeDefinitionReference" = builtin_property(
+        40,
+        is_readonly=True,
+        is_managed=True,
+        description="Inlined base type of this CustomEvent.",
+    )
+    base_node_type: NodeType = builtin_property(
+        41,
+        is_readonly=True,
+        is_managed=True,
+        description="Inlined base node type of this CustomEvent.",
+    )
+    # inherits?
 
 
 @builtin_node(NodeType.EDIT_EVENT, pretend_frozen=True)
@@ -90,7 +116,6 @@ class EditEvent(Event):
     operation: "EditOperation | None" = builtin_property(31, is_repr=True)
     node: "Node" = builtin_property(35, is_repr=True)
     prop_ptr: "PropertyReference | None" = builtin_property(36, is_repr=True)
-    field: "CustomProperty | None" = builtin_property(37, is_repr=True)  # for IsExtensible.value
     key: "Value | None" = builtin_property(38, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET

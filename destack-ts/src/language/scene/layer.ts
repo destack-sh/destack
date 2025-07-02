@@ -139,7 +139,7 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -877,7 +877,7 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
     }
@@ -1172,7 +1172,7 @@ export class Layer extends ContainerView implements HasIcon, IsOwnable {
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
       _session,
