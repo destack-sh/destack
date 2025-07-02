@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasName,
   IsSpatial,
   IsSubject,
   NodeReference,
@@ -289,7 +288,7 @@ export class TimerStartedEvent extends TimerEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.TIMER_STARTED_EVENT,
+      type: NodeType.TIMER_STARTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -332,11 +331,11 @@ export class TimerStartedEvent extends TimerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
 
@@ -353,7 +352,7 @@ export class TimerStartedEvent extends TimerEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -364,9 +363,15 @@ export class TimerStartedEvent extends TimerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new TimerStartedEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -672,7 +677,7 @@ export class TimerCompletedEvent extends TimerEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.TIMER_COMPLETED_EVENT,
+      type: NodeType.TIMER_COMPLETED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -715,11 +720,11 @@ export class TimerCompletedEvent extends TimerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
 
@@ -736,7 +741,7 @@ export class TimerCompletedEvent extends TimerEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -747,9 +752,15 @@ export class TimerCompletedEvent extends TimerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new TimerCompletedEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1055,7 +1066,7 @@ export class TimerCancelledEvent extends TimerEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.TIMER_CANCELLED_EVENT,
+      type: NodeType.TIMER_CANCELLED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -1098,11 +1109,11 @@ export class TimerCancelledEvent extends TimerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
 
@@ -1119,7 +1130,7 @@ export class TimerCancelledEvent extends TimerEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1130,9 +1141,15 @@ export class TimerCancelledEvent extends TimerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new TimerCancelledEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1266,7 +1283,7 @@ registerNodeClass(NodeType.TIMER_CANCELLED_EVENT, TimerCancelledEvent);
 /**
  * A Timer.
  */
-export class Timer extends Entity implements IsSpatial, HasName {
+export class Timer extends Entity implements IsSpatial {
   static metatype: NodeType = NodeType.TIMER;
 
   /**
@@ -1333,7 +1350,7 @@ export class Timer extends Entity implements IsSpatial, HasName {
   type: TimerType;
 
   /**
-   * HasName.name
+   * Timer.name
    */
   name: string;
 
@@ -1442,6 +1459,9 @@ export class Timer extends Entity implements IsSpatial, HasName {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     if (
       (this.schedule == null) !== (other.schedule == null) ||
       (this.schedule != null && !this.schedule.equals(other.schedule))
@@ -1451,9 +1471,6 @@ export class Timer extends Entity implements IsSpatial, HasName {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     return true;
   }
 
@@ -1461,13 +1478,13 @@ export class Timer extends Entity implements IsSpatial, HasName {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.schedule !== null) {
       h = (h * 31 + this.schedule.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1491,7 +1508,7 @@ export class Timer extends Entity implements IsSpatial, HasName {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.TIMER,
+      type: NodeType.TIMER,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -1518,6 +1535,7 @@ export class Timer extends Entity implements IsSpatial, HasName {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${TimerType[this.type]}`);
     propertyReprs.push(`name=${this.name}`);
     return `<Timer '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1536,18 +1554,18 @@ export class Timer extends Entity implements IsSpatial, HasName {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.schedule != null) {
-      objectValue["40"] = object.schedule.toValue();
+      objectValue["110"] = object.schedule.toValue();
     }
     return objectValue;
   }
@@ -1561,7 +1579,7 @@ export class Timer extends Entity implements IsSpatial, HasName {
   ): Timer {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Schedule = STRUCT_CLASS_BY_TYPE[StructType.SCHEDULE] as typeof Schedule;
-    const scheduleValue = objectValue["40"];
+    const scheduleValue = objectValue["110"];
     const unpackedSchedule =
       scheduleValue != undefined
         ? _Schedule.fromValue(scheduleValue, _session, _supergraph, _graph, _connection)
@@ -1571,12 +1589,12 @@ export class Timer extends Entity implements IsSpatial, HasName {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1587,13 +1605,13 @@ export class Timer extends Entity implements IsSpatial, HasName {
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Timer({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
       schedule: unpackedSchedule,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
@@ -1653,6 +1671,7 @@ export class Timer extends Entity implements IsSpatial, HasName {
     const _Schedule = STRUCT_CLASS_BY_TYPE[StructType.SCHEDULE] as typeof Schedule;
     return new Timer({
       type: Number(objectProto.type) as TimerType,
+      name: objectProto.name,
       schedule:
         objectProto.schedule != undefined
           ? _Schedule.fromProto(objectProto.schedule!, _session, _supergraph, _graph, _connection)
@@ -1667,7 +1686,6 @@ export class Timer extends Entity implements IsSpatial, HasName {
               _connection,
             )
           : null,
-      name: objectProto.name,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

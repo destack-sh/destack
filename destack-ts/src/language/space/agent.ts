@@ -1,10 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasIcon,
-  HasName,
-  HasSlug,
-  Icon,
   IsDeletable,
   IsFollowable,
   IsOwner,
@@ -31,7 +27,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Agent
   extends Entity
-  implements IsSpatial, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsDeletable, IsSubject
+  implements IsSpatial, IsOwner, IsFollowable, IsDeletable, IsSubject
 {
   static metatype: NodeType = NodeType.AGENT;
 
@@ -109,11 +105,6 @@ export class Agent
   slug: string;
 
   /**
-   * HasIcon.icon
-   */
-  icon: Icon | null;
-
-  /**
    * Agent.cursor
    */
   get cursor(): Cursor | null {
@@ -143,7 +134,6 @@ export class Agent
     deletedAt?: Temporal.ZonedDateTime | null;
     name: string;
     slug: string;
-    icon?: Icon | null;
     cursor?: Cursor | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -196,8 +186,6 @@ export class Agent
       throw new Error(`Agent.slug is required`);
     }
     this.slug = _slug;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _cursor = options.cursor ?? null;
     if (_cursor != null && _cursor.metatype != StructType.NODE_REFERENCE) {
       _cursor = (_cursor as Node).toRef();
@@ -250,12 +238,6 @@ export class Agent
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
     return true;
   }
 
@@ -272,9 +254,6 @@ export class Agent
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -299,7 +278,7 @@ export class Agent
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.AGENT,
+      type: NodeType.AGENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -345,24 +324,21 @@ export class Agent
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["31"] = object.name;
-    objectValue["33"] = object.slug;
-    if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
-    }
+    objectValue["101"] = object.name;
+    objectValue["102"] = object.slug;
     if (object.cursorPtr != null) {
-      objectValue["52"] = object.cursorPtr.toValue();
+      objectValue["110"] = object.cursorPtr.toValue();
     }
     return objectValue;
   }
@@ -375,13 +351,12 @@ export class Agent
     _connection?: any | null,
   ): Agent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const cursorPtrValue = objectValue["52"];
+    const cursorPtrValue = objectValue["110"];
     const unpackedCursorPtr =
       cursorPtrValue != undefined
         ? _NodeReference.fromValue(cursorPtrValue, _session, _supergraph, _graph, _connection)
@@ -391,37 +366,31 @@ export class Agent
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Agent({
       parent: unpackedParentPtr,
-      name: objectValue["31"],
-      slug: objectValue["33"],
+      name: objectValue["101"],
+      slug: objectValue["102"],
       cursor: unpackedCursorPtr,
       space: unpackedSpacePtr,
-      icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,
@@ -466,9 +435,6 @@ export class Agent
     }
     objectProto.name = object.name;
     objectProto.slug = object.slug;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
     if (object.cursorPtr != null) {
       objectProto.cursorPtr = object.cursorPtr.toProto();
     }
@@ -483,7 +449,6 @@ export class Agent
     _connection?: any | null,
   ): Agent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Agent({
       parent:
         objectProto.parentPtr != undefined
@@ -516,10 +481,6 @@ export class Agent
               _graph,
               _connection,
             )
-          : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,

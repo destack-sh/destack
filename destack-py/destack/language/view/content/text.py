@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     NodeType,
+    Text,
     builtin_node,
     builtin_property,
 )
@@ -18,10 +19,6 @@ if TYPE_CHECKING:
 class TextView(ContentView):
     """A (rich) text view."""
 
-    # appearance
-    user_select: Optional[bool] = builtin_property(65)
-    font: Optional["Font"] = builtin_property(66)
-    color: Optional["Fill"] = builtin_property(67)
-
-    # text
-    text: Optional[str] = builtin_property(100)
+    text: Optional[Text] = builtin_property(250)
+    font: Optional["Font"] = builtin_property(201)
+    color: Optional["Fill"] = builtin_property(202)

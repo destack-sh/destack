@@ -223,24 +223,24 @@ export class Icon extends StructFrozen {
   static __packValue__(object: Icon): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60031;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.emoji != null) {
-      objectValue["31"] = object.emoji;
+      objectValue["101"] = object.emoji;
     }
     if (object.faName != null) {
-      objectValue["33"] = object.faName;
+      objectValue["102"] = object.faName;
     }
     if (object.vscName != null) {
-      objectValue["34"] = object.vscName;
+      objectValue["103"] = object.vscName;
     }
     if (object.filePtr != null) {
-      objectValue["35"] = object.filePtr.toValue();
+      objectValue["104"] = object.filePtr.toValue();
     }
     if (object.fileUrl != null) {
-      objectValue["36"] = object.fileUrl;
+      objectValue["105"] = object.fileUrl;
     }
     if (object.color != null) {
-      objectValue["40"] = object.color.toValue();
+      objectValue["110"] = object.color.toValue();
     }
     return objectValue;
   }
@@ -254,26 +254,26 @@ export class Icon extends StructFrozen {
   ): Icon {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const emojiValue = objectValue["31"];
+    const emojiValue = objectValue["101"];
     const unpackedEmoji = emojiValue != undefined ? emojiValue : null;
-    const faNameValue = objectValue["33"];
+    const faNameValue = objectValue["102"];
     const unpackedFaName = faNameValue != undefined ? faNameValue : null;
-    const vscNameValue = objectValue["34"];
+    const vscNameValue = objectValue["103"];
     const unpackedVscName = vscNameValue != undefined ? vscNameValue : null;
-    const filePtrValue = objectValue["35"];
+    const filePtrValue = objectValue["104"];
     const unpackedFilePtr =
       filePtrValue != undefined
         ? _NodeReference.fromValue(filePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const fileUrlValue = objectValue["36"];
+    const fileUrlValue = objectValue["105"];
     const unpackedFileUrl = fileUrlValue != undefined ? fileUrlValue : null;
-    const colorValue = objectValue["40"];
+    const colorValue = objectValue["110"];
     const unpackedColor =
       colorValue != undefined
         ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Icon({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       emoji: unpackedEmoji,
       faName: unpackedFaName,
       vscName: unpackedVscName,

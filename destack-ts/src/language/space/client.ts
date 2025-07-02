@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasName,
   IsDeletable,
   IsGlobal,
   IsSubject,
@@ -24,7 +23,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Client to connect with the system.
  */
-export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
+export class Client extends Entity implements IsGlobal, IsDeletable {
   static metatype: NodeType = NodeType.CLIENT;
 
   /**
@@ -79,12 +78,17 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * Client.browserVersion
+   */
+  browserVersion: string | null;
+
+  /**
    * Client.type
    */
   type: ClientType;
 
   /**
-   * HasName.name
+   * Client.name
    */
   name: string;
 
@@ -127,31 +131,6 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
   userPtr: NodeReference | null;
 
   /**
-   * Client.deviceType
-   */
-  deviceType: string | null;
-
-  /**
-   * Client.deviceName
-   */
-  deviceName: string | null;
-
-  /**
-   * Client.operatingSystem
-   */
-  operatingSystem: string | null;
-
-  /**
-   * Client.browserName
-   */
-  browserName: string | null;
-
-  /**
-   * Client.browserVersion
-   */
-  browserVersion: string | null;
-
-  /**
    * Client.accessToken
    */
   accessToken: string | null;
@@ -185,6 +164,26 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
   }
   cursorPtr: NodeReference | null;
 
+  /**
+   * Client.deviceType
+   */
+  deviceType: string | null;
+
+  /**
+   * Client.deviceName
+   */
+  deviceName: string | null;
+
+  /**
+   * Client.operatingSystem
+   */
+  operatingSystem: string | null;
+
+  /**
+   * Client.browserName
+   */
+  browserName: string | null;
+
   constructor(options: {
     id?: string;
     parent?: (Node & IsSubject) | NodeReference | null;
@@ -193,19 +192,19 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    browserVersion?: string | null;
     type: ClientType;
     name: string;
     machine?: Machine | NodeReference | null;
     user?: User | NodeReference | null;
-    deviceType?: string | null;
-    deviceName?: string | null;
-    operatingSystem?: string | null;
-    browserName?: string | null;
-    browserVersion?: string | null;
     accessToken?: string | null;
     seenAt?: Temporal.ZonedDateTime | null;
     loggedInAt?: Temporal.ZonedDateTime | null;
     cursor?: Cursor | NodeReference | null;
+    deviceType?: string | null;
+    deviceName?: string | null;
+    operatingSystem?: string | null;
+    browserName?: string | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -242,6 +241,8 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     this.parentPtr = _parent;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _browserVersion = options.browserVersion ?? null;
+    this.browserVersion = _browserVersion;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Client.type is required`);
@@ -262,16 +263,6 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       _user = (_user as Node).toRef();
     }
     this.userPtr = _user;
-    let _deviceType = options.deviceType ?? null;
-    this.deviceType = _deviceType;
-    let _deviceName = options.deviceName ?? null;
-    this.deviceName = _deviceName;
-    let _operatingSystem = options.operatingSystem ?? null;
-    this.operatingSystem = _operatingSystem;
-    let _browserName = options.browserName ?? null;
-    this.browserName = _browserName;
-    let _browserVersion = options.browserVersion ?? null;
-    this.browserVersion = _browserVersion;
     let _accessToken = options.accessToken ?? null;
     this.accessToken = _accessToken;
     let _seenAt = options.seenAt ?? null;
@@ -283,6 +274,14 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       _cursor = (_cursor as Node).toRef();
     }
     this.cursorPtr = _cursor;
+    let _deviceType = options.deviceType ?? null;
+    this.deviceType = _deviceType;
+    let _deviceName = options.deviceName ?? null;
+    this.deviceName = _deviceName;
+    let _operatingSystem = options.operatingSystem ?? null;
+    this.operatingSystem = _operatingSystem;
+    let _browserName = options.browserName ?? null;
+    this.browserName = _browserName;
 
     // identity
     if (options.id == null) {
@@ -321,6 +320,9 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     if (!(this.machinePtr?.id === other.machinePtr?.id)) {
       return false;
     }
@@ -354,9 +356,6 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     if (!(this.browserVersion === other.browserVersion)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     return true;
   }
 
@@ -367,6 +366,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.machinePtr !== null) {
       h = (h * 31 + hashString(this.machinePtr.id)) & 0xffffffff;
     }
@@ -400,7 +400,6 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     if (this.browserVersion !== null) {
       h = (h * 31 + hashString(this.browserVersion)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -424,7 +423,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.CLIENT,
+      type: NodeType.CLIENT,
       id: this.id,
       _session: this._session,
       _supergraph: this._supergraph,
@@ -450,6 +449,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${ClientType[this.type]}`);
     propertyReprs.push(`name=${this.name}`);
     return `<Client '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -465,51 +465,51 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    if (object.machinePtr != null) {
-      objectValue["36"] = object.machinePtr.toValue();
-    }
-    if (object.userPtr != null) {
-      objectValue["37"] = object.userPtr.toValue();
-    }
-    if (object.deviceType != null) {
-      objectValue["40"] = object.deviceType;
-    }
-    if (object.deviceName != null) {
-      objectValue["41"] = object.deviceName;
-    }
-    if (object.operatingSystem != null) {
-      objectValue["42"] = object.operatingSystem;
-    }
-    if (object.browserName != null) {
-      objectValue["43"] = object.browserName;
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object.browserVersion != null) {
       objectValue["44"] = object.browserVersion;
     }
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
+    if (object.machinePtr != null) {
+      objectValue["110"] = object.machinePtr.toValue();
+    }
+    if (object.userPtr != null) {
+      objectValue["111"] = object.userPtr.toValue();
+    }
     if (object.accessToken != null) {
-      objectValue["50"] = object.accessToken;
+      objectValue["120"] = object.accessToken;
     }
     if (object.seenAt != null) {
-      objectValue["51"] = object.seenAt.toString({ timeZoneName: "never" });
+      objectValue["121"] = object.seenAt.toString({ timeZoneName: "never" });
     }
     if (object.loggedInAt != null) {
-      objectValue["52"] = object.loggedInAt.toString({ timeZoneName: "never" });
+      objectValue["122"] = object.loggedInAt.toString({ timeZoneName: "never" });
     }
     if (object.cursorPtr != null) {
-      objectValue["55"] = object.cursorPtr.toValue();
+      objectValue["123"] = object.cursorPtr.toValue();
+    }
+    if (object.deviceType != null) {
+      objectValue["130"] = object.deviceType;
+    }
+    if (object.deviceName != null) {
+      objectValue["131"] = object.deviceName;
+    }
+    if (object.operatingSystem != null) {
+      objectValue["132"] = object.operatingSystem;
+    }
+    if (object.browserName != null) {
+      objectValue["133"] = object.browserName;
     }
     return objectValue;
   }
@@ -527,61 +527,62 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const machinePtrValue = objectValue["36"];
+    const machinePtrValue = objectValue["110"];
     const unpackedMachinePtr =
       machinePtrValue != undefined
         ? _NodeReference.fromValue(machinePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const userPtrValue = objectValue["37"];
+    const userPtrValue = objectValue["111"];
     const unpackedUserPtr =
       userPtrValue != undefined
         ? _NodeReference.fromValue(userPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const accessTokenValue = objectValue["50"];
+    const accessTokenValue = objectValue["120"];
     const unpackedAccessToken = accessTokenValue != undefined ? accessTokenValue : null;
-    const seenAtValue = objectValue["51"];
+    const seenAtValue = objectValue["121"];
     const unpackedSeenAt =
       seenAtValue != undefined
         ? Temporal.Instant.from(seenAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const loggedInAtValue = objectValue["52"];
+    const loggedInAtValue = objectValue["122"];
     const unpackedLoggedInAt =
       loggedInAtValue != undefined
         ? Temporal.Instant.from(loggedInAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const cursorPtrValue = objectValue["55"];
+    const cursorPtrValue = objectValue["123"];
     const unpackedCursorPtr =
       cursorPtrValue != undefined
         ? _NodeReference.fromValue(cursorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deviceTypeValue = objectValue["40"];
+    const deviceTypeValue = objectValue["130"];
     const unpackedDeviceType = deviceTypeValue != undefined ? deviceTypeValue : null;
-    const deviceNameValue = objectValue["41"];
+    const deviceNameValue = objectValue["131"];
     const unpackedDeviceName = deviceNameValue != undefined ? deviceNameValue : null;
-    const operatingSystemValue = objectValue["42"];
+    const operatingSystemValue = objectValue["132"];
     const unpackedOperatingSystem = operatingSystemValue != undefined ? operatingSystemValue : null;
-    const browserNameValue = objectValue["43"];
+    const browserNameValue = objectValue["133"];
     const unpackedBrowserName = browserNameValue != undefined ? browserNameValue : null;
     const browserVersionValue = objectValue["44"];
     const unpackedBrowserVersion = browserVersionValue != undefined ? browserVersionValue : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Client({
       parent: unpackedParentPtr,
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
       machine: unpackedMachinePtr,
       user: unpackedUserPtr,
       accessToken: unpackedAccessToken,
@@ -593,11 +594,10 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
       operatingSystem: unpackedOperatingSystem,
       browserName: unpackedBrowserName,
       browserVersion: unpackedBrowserVersion,
-      name: objectValue["31"],
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,
@@ -637,6 +637,9 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object.browserVersion != null) {
+      objectProto.browserVersion = object.browserVersion;
+    }
     objectProto.type = Number(object.type) as ClientTypeProto;
     objectProto.name = object.name;
     if (object.machinePtr != null) {
@@ -644,21 +647,6 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     }
     if (object.userPtr != null) {
       objectProto.userPtr = object.userPtr.toProto();
-    }
-    if (object.deviceType != null) {
-      objectProto.deviceType = object.deviceType;
-    }
-    if (object.deviceName != null) {
-      objectProto.deviceName = object.deviceName;
-    }
-    if (object.operatingSystem != null) {
-      objectProto.operatingSystem = object.operatingSystem;
-    }
-    if (object.browserName != null) {
-      objectProto.browserName = object.browserName;
-    }
-    if (object.browserVersion != null) {
-      objectProto.browserVersion = object.browserVersion;
     }
     if (object.accessToken != null) {
       objectProto.accessToken = object.accessToken;
@@ -671,6 +659,18 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
     }
     if (object.cursorPtr != null) {
       objectProto.cursorPtr = object.cursorPtr.toProto();
+    }
+    if (object.deviceType != null) {
+      objectProto.deviceType = object.deviceType;
+    }
+    if (object.deviceName != null) {
+      objectProto.deviceName = object.deviceName;
+    }
+    if (object.operatingSystem != null) {
+      objectProto.operatingSystem = object.operatingSystem;
+    }
+    if (object.browserName != null) {
+      objectProto.browserName = object.browserName;
     }
     return objectProto as ClientProto;
   }
@@ -695,6 +695,7 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
             )
           : null,
       type: Number(objectProto.type) as ClientType,
+      name: objectProto.name,
       machine:
         objectProto.machinePtr != undefined
           ? _NodeReference.fromProto(
@@ -735,7 +736,6 @@ export class Client extends Entity implements HasName, IsGlobal, IsDeletable {
         objectProto.operatingSystem != undefined ? objectProto.operatingSystem : null,
       browserName: objectProto.browserName != undefined ? objectProto.browserName : null,
       browserVersion: objectProto.browserVersion != undefined ? objectProto.browserVersion : null,
-      name: objectProto.name,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),

@@ -11,5 +11,5 @@ from .input import InputView
 class NumberInputView(InputView):
     """A general number input View."""
 
-    value: Optional[str] = builtin_property(100)
-    placeholder: Optional[str] = builtin_property(101)
+    value: Optional[float] = builtin_property(250)
+    placeholder: Optional[str] = builtin_property(251)

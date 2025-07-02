@@ -1,9 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasIcon,
-  HasName,
-  HasSlug,
   Icon,
   IsDeletable,
   IsFollowable,
@@ -59,9 +56,6 @@ export class Folder
   extends Entity
   implements
     IsSpatial,
-    HasIcon,
-    HasSlug,
-    HasName,
     IsTaggable,
     IsOwnable,
     IsJoinable,
@@ -165,19 +159,19 @@ export class Folder
   type: FolderType;
 
   /**
-   * HasName.name
+   * Folder.name
    */
   name: string;
 
   /**
-   * HasSlug.slug
-   */
-  slug: string | null;
-
-  /**
-   * HasIcon.icon
+   * Folder.icon
    */
   icon: Icon | null;
+
+  /**
+   * Folder.slug
+   */
+  slug: string | null;
 
   /**
    * Folder.mainScene
@@ -211,8 +205,8 @@ export class Folder
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     type?: FolderType;
     name: string;
-    slug?: string | null;
     icon?: Icon | null;
+    slug?: string | null;
     mainScene?: Scene | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -281,10 +275,10 @@ export class Folder
       throw new Error(`Folder.name is required`);
     }
     this.name = _name;
-    let _slug = options.slug ?? null;
-    this.slug = _slug;
     let _icon = options.icon ?? null;
     this.icon = _icon;
+    let _slug = options.slug ?? null;
+    this.slug = _slug;
     let _mainScene = options.mainScene ?? null;
     if (_mainScene != null && _mainScene.metatype != StructType.NODE_REFERENCE) {
       _mainScene = (_mainScene as Node).toRef();
@@ -328,10 +322,7 @@ export class Folder
     if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.mainScenePtr?.id === other.mainScenePtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
     if (
@@ -343,7 +334,10 @@ export class Folder
     if (!(this.slug === other.slug)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.mainScenePtr?.id === other.mainScenePtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
@@ -359,19 +353,19 @@ export class Folder
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.mainScenePtr !== null) {
-      h = (h * 31 + hashString(this.mainScenePtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
     if (this.slug !== null) {
       h = (h * 31 + hashString(this.slug)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.mainScenePtr !== null) {
+      h = (h * 31 + hashString(this.mainScenePtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
@@ -399,7 +393,7 @@ export class Folder
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.FOLDER,
+      type: NodeType.FOLDER,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -427,10 +421,10 @@ export class Folder
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${FolderType[this.type]}`);
+    propertyReprs.push(`name=${this.name}`);
     if (this.slug !== null) {
       propertyReprs.push(`slug=${this.slug}`);
     }
-    propertyReprs.push(`name=${this.name}`);
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
@@ -451,31 +445,31 @@ export class Folder
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
+    objectValue["27"] = object.orderKey;
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    if (object.slug != null) {
-      objectValue["33"] = object.slug;
-    }
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["102"] = object.icon.toValue();
+    }
+    if (object.slug != null) {
+      objectValue["103"] = object.slug;
     }
     if (object.mainScenePtr != null) {
-      objectValue["41"] = object.mainScenePtr.toValue();
+      objectValue["110"] = object.mainScenePtr.toValue();
     }
     return objectValue;
   }
@@ -494,7 +488,14 @@ export class Folder
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const mainScenePtrValue = objectValue["41"];
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const slugValue = objectValue["103"];
+    const unpackedSlug = slugValue != undefined ? slugValue : null;
+    const mainScenePtrValue = objectValue["110"];
     const unpackedMainScenePtr =
       mainScenePtrValue != undefined
         ? _NodeReference.fromValue(mainScenePtrValue, _session, _supergraph, _graph, _connection)
@@ -504,47 +505,40 @@ export class Folder
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue != undefined ? slugValue : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Folder({
       parent: unpackedParentPtr,
-      type: Number(objectValue["30"]),
-      mainScene: unpackedMainScenePtr,
-      space: unpackedSpacePtr,
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
       icon: unpackedIcon,
       slug: unpackedSlug,
-      name: objectValue["31"],
+      mainScene: unpackedMainScenePtr,
+      space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,
@@ -593,11 +587,11 @@ export class Folder
     }
     objectProto.type = Number(object.type) as FolderTypeProto;
     objectProto.name = object.name;
-    if (object.slug != null) {
-      objectProto.slug = object.slug;
-    }
     if (object.icon != null) {
       objectProto.icon = object.icon.toProto();
+    }
+    if (object.slug != null) {
+      objectProto.slug = object.slug;
     }
     if (object.mainScenePtr != null) {
       objectProto.mainScenePtr = object.mainScenePtr.toProto();
@@ -626,6 +620,12 @@ export class Folder
             )
           : null,
       type: Number(objectProto.type) as FolderType,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      slug: objectProto.slug != undefined ? objectProto.slug : null,
       mainScene:
         objectProto.mainScenePtr != undefined
           ? _NodeReference.fromProto(
@@ -646,12 +646,6 @@ export class Folder
               _connection,
             )
           : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      slug: objectProto.slug != undefined ? objectProto.slug : null,
-      name: objectProto.name,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(

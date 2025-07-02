@@ -1,13 +1,14 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { ResourceStatus } from "@destack/language/core/builtin/common";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type {
   NodeDefinitionReference,
   NodeReference,
 } from "@destack/language/core/builtin/relation";
 import type {
-  HasName,
+  IsArchivable,
   IsCustomizable,
   IsDeletable,
   IsExtensible,
@@ -19,6 +20,7 @@ import type {
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
+import type { Icon } from "@destack/language/core/common/icon";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -94,14 +96,15 @@ registerNodeClass(NodeType.ENTITY, Entity);
 
 /* ==== DESTACK_GENERATED_START:NODE:100 ==== */
 /**
- * A definition for a custom Entity type (instantiated in CustomEntities).
- * Custom Entities may be materialized as physical or logical tables in primary storage.
+ * A definition for a custom Entity type.
+ * Custom Entities are instantiated either as:
+ *  1) their respective extensible base type (like ContainerView)
+ *  2) plain CustomEntity instance (default if not extending any other type)
  */
 export class CustomEntityDefinition
   extends Entity
   implements
     IsSpatial,
-    HasName,
     IsCustomizable,
     IsTaggable,
     IsOwnable,
@@ -177,7 +180,7 @@ export class CustomEntityDefinition
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  value: Map<string, Value>;
+  customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -202,11 +205,6 @@ export class CustomEntityDefinition
     }
   }
   ownedByPtr: NodeReference | null;
-
-  /**
-   * HasName.name
-   */
-  name: string;
 
   /**
    * CustomEntityDefinition.baseType
@@ -243,6 +241,18 @@ export class CustomEntityDefinition
   prototypePtr: NodeReference | null;
 
   /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -262,16 +272,14 @@ export class CustomEntityDefinition
   scriptPtr: NodeReference | null;
 
   /**
-   * IsSourceable.source
+   * CustomEntityDefinition.name
    */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly sourcePtr: NodeReference | null;
+  name: string;
+
+  /**
+   * CustomEntityDefinition.icon
+   */
+  icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -282,16 +290,17 @@ export class CustomEntityDefinition
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    value?: Map<string, Value>;
+    customValues?: Map<string, Value>;
     orderKey?: string;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
-    name: string;
     baseType: NodeDefinitionReference;
     baseTraits?: Array<NodeDefinitionReference>;
     isAbstract?: boolean;
     prototype?: Node | NodeReference | null;
-    script?: Script | NodeReference | null;
     source?: Script | NodeReference | null;
+    script?: Script | NodeReference | null;
+    name: string;
+    icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -333,11 +342,11 @@ export class CustomEntityDefinition
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _value = options.value ?? null;
-    if (_value === null) {
-      _value = new Map();
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
     }
-    this.value = _value;
+    this.customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -351,11 +360,6 @@ export class CustomEntityDefinition
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this.ownedByPtr = _ownedBy;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`CustomEntityDefinition.name is required`);
-    }
-    this.name = _name;
     let _baseType = options.baseType;
     if (_baseType === null) {
       throw new Error(`CustomEntityDefinition.baseType is required`);
@@ -379,16 +383,23 @@ export class CustomEntityDefinition
       _prototype = (_prototype as Node).toRef();
     }
     this.prototypePtr = _prototype;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`CustomEntityDefinition.name is required`);
+    }
+    this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -441,20 +452,26 @@ export class CustomEntityDefinition
     if (!(this.prototypePtr?.id === other.prototypePtr?.id)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.name === other.name)) {
       return false;
     }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
         return false;
       }
-      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
         return false;
       }
     }
@@ -486,12 +503,15 @@ export class CustomEntityDefinition
     if (this.prototypePtr !== null) {
       h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -529,7 +549,7 @@ export class CustomEntityDefinition
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.CUSTOM_ENTITY_DEFINITION,
+      type: NodeType.CUSTOM_ENTITY_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -577,29 +597,28 @@ export class CustomEntityDefinition
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.value.size > 0) {
-      const packedValue: { [key: string]: any } = {};
-      for (const [key, value] of object.value) {
-        packedValue[String(String(key))] = value.toValue();
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["21"] = packedValue;
+      objectValue["26"] = packedCustomValues;
     }
-    objectValue["24"] = object.orderKey;
+    objectValue["27"] = object.orderKey;
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["31"] = object.name;
     objectValue["40"] = object.baseType.toValue();
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
@@ -612,11 +631,15 @@ export class CustomEntityDefinition
     if (object.prototypePtr != null) {
       objectValue["50"] = object.prototypePtr.toValue();
     }
-    if (object.scriptPtr != null) {
-      objectValue["200"] = object.scriptPtr.toValue();
-    }
     if (object.sourcePtr != null) {
-      objectValue["210"] = object.sourcePtr.toValue();
+      objectValue["60"] = object.sourcePtr.toValue();
+    }
+    if (object.scriptPtr != null) {
+      objectValue["70"] = object.scriptPtr.toValue();
+    }
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
     }
     return objectValue;
   }
@@ -633,6 +656,7 @@ export class CustomEntityDefinition
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -651,46 +675,51 @@ export class CustomEntityDefinition
       prototypePtrValue != undefined
         ? _NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["200"];
+    const scriptPtrValue = objectValue["70"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["210"];
+    const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -707,19 +736,20 @@ export class CustomEntityDefinition
       baseTraits: unpackedBaseTraits,
       isAbstract: objectValue["45"],
       prototype: unpackedPrototypePtr,
+      name: objectValue["101"],
+      icon: unpackedIcon,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
-      value: unpackedValue,
+      customValues: unpackedCustomValues,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
       source: unpackedSourcePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       _session,
       _graph,
       _connection,
@@ -766,17 +796,16 @@ export class CustomEntityDefinition
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.value) {
-      objectProto.value = {};
-      for (const [key, value] of object.value) {
-        objectProto.value![String(key)] = value.toProto();
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
     if (object.ownedByPtr != null) {
       objectProto.ownedByPtr = object.ownedByPtr.toProto();
     }
-    objectProto.name = object.name;
     objectProto.baseType = object.baseType.toProto();
     if (object.baseTraits) {
       const packedBaseTraits: any[] = [];
@@ -789,11 +818,15 @@ export class CustomEntityDefinition
     if (object.prototypePtr != null) {
       objectProto.prototypePtr = object.prototypePtr.toProto();
     }
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
     if (object.scriptPtr != null) {
       objectProto.scriptPtr = object.scriptPtr.toProto();
     }
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
     }
     return objectProto as CustomEntityDefinitionProto;
   }
@@ -810,6 +843,7 @@ export class CustomEntityDefinition
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedBaseTraits: any[] = [];
     if (objectProto.baseTraits) {
       for (const item of objectProto.baseTraits) {
@@ -818,10 +852,10 @@ export class CustomEntityDefinition
         );
       }
     }
-    const unpackedValue = new Map();
-    if (objectProto.value) {
-      for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
@@ -857,6 +891,11 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -867,8 +906,7 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
-      name: objectProto.name,
-      value: unpackedValue,
+      customValues: unpackedCustomValues,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -962,21 +1000,24 @@ registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
 
 /* ==== DESTACK_GENERATED_START:NODE:101 ==== */
 /**
- * A CustomEntity is an instance of a CustomEntityDefinition.
+ * A generic CustomEntity instance of a CustomEntityDefinition.
+ * The Archivable, Deletable, and Ownable traits are always present for plain CustomEntities
+ *  (but must be explicitly added to the CustomEntityDefinition to use them).
+ * More specific base Entity types will be instanced of that base type instead.
  */
 export abstract class CustomEntity
   extends Entity
-  implements IsSpatial, IsExtensible, IsCustomizable, IsDeletable
+  implements IsSpatial, IsExtensible, IsArchivable, IsDeletable, IsOwnable
 {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY;
 
   /**
-   * CustomEntity.parent
+   * Trait.parent
    */
-  get parent(): Space | Folder | CustomEntity | null {
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | Folder | CustomEntity | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -1005,6 +1046,11 @@ export abstract class CustomEntity
     return null;
   }
   declare readonly definitionPtr: NodeReference;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  declare readonly baseType: NodeDefinitionReference | null;
 
   /**
    * Entity.createdAt
@@ -1041,6 +1087,11 @@ export abstract class CustomEntity
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
+   * IsArchivable.archivedAt
+   */
+  declare readonly archivedAt: Temporal.ZonedDateTime | null;
+
+  /**
    * IsDeletable.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
@@ -1048,17 +1099,26 @@ export abstract class CustomEntity
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  declare value: Map<string, Value>;
+  declare customValues: Map<string, Value>;
 
   /**
-   * Inlined base type of this CustomEntity.
+   * IsOwnable.ownedBy
    */
-  declare readonly baseType: NodeDefinitionReference;
-
-  /**
-   * Inlined builtin base NodeType of this CustomEntity.
-   */
-  declare readonly baseNodeType: NodeType;
+  get ownedBy(): (Node & IsOwner) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Node & IsOwner) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  declare ownedByPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -1073,7 +1133,7 @@ registerNodeClass(NodeType.CUSTOM_ENTITY, CustomEntity);
  */
 export class CustomTraitDefinition
   extends Entity
-  implements IsSpatial, HasName, IsSourceable, IsDeletable, IsScriptable, IsCustomizable
+  implements IsSpatial, IsSourceable, IsDeletable, IsScriptable, IsCustomizable
 {
   static metatype: NodeType = NodeType.CUSTOM_TRAIT_DEFINITION;
 
@@ -1143,17 +1203,12 @@ export class CustomTraitDefinition
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  value: Map<string, Value>;
+  customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
-
-  /**
-   * HasName.name
-   */
-  name: string;
 
   /**
    * CustomTraitDefinition.baseType
@@ -1169,6 +1224,18 @@ export class CustomTraitDefinition
    * CustomTraitDefinition.isAbstract
    */
   isAbstract: boolean;
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
 
   /**
    * The main / root Script of this Node.
@@ -1190,16 +1257,14 @@ export class CustomTraitDefinition
   scriptPtr: NodeReference | null;
 
   /**
-   * IsSourceable.source
+   * CustomTraitDefinition.name
    */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly sourcePtr: NodeReference | null;
+  name: string;
+
+  /**
+   * CustomTraitDefinition.icon
+   */
+  icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -1210,14 +1275,15 @@ export class CustomTraitDefinition
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    value?: Map<string, Value>;
+    customValues?: Map<string, Value>;
     orderKey?: string;
-    name: string;
     baseType?: NodeDefinitionReference | null;
     baseTraits?: Array<NodeDefinitionReference>;
     isAbstract?: boolean;
-    script?: Script | NodeReference | null;
     source?: Script | NodeReference | null;
+    script?: Script | NodeReference | null;
+    name: string;
+    icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1259,11 +1325,11 @@ export class CustomTraitDefinition
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _value = options.value ?? null;
-    if (_value === null) {
-      _value = new Map();
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
     }
-    this.value = _value;
+    this.customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -1272,11 +1338,6 @@ export class CustomTraitDefinition
       throw new Error(`CustomTraitDefinition.orderKey is required`);
     }
     this.orderKey = _orderKey;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`CustomTraitDefinition.name is required`);
-    }
-    this.name = _name;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
     let _baseTraits = options.baseTraits ?? null;
@@ -1292,16 +1353,23 @@ export class CustomTraitDefinition
       throw new Error(`CustomTraitDefinition.isAbstract is required`);
     }
     this.isAbstract = _isAbstract;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`CustomTraitDefinition.name is required`);
+    }
+    this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -1354,10 +1422,16 @@ export class CustomTraitDefinition
     if (!(this.isAbstract === other.isAbstract)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
@@ -1366,14 +1440,14 @@ export class CustomTraitDefinition
     if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
         return false;
       }
-      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
         return false;
       }
     }
@@ -1395,10 +1469,13 @@ export class CustomTraitDefinition
       }
     }
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
@@ -1408,8 +1485,8 @@ export class CustomTraitDefinition
     if (this.scriptPtr !== null) {
       h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
     }
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -1435,7 +1512,7 @@ export class CustomTraitDefinition
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.CUSTOM_TRAIT_DEFINITION,
+      type: NodeType.CUSTOM_TRAIT_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -1480,26 +1557,25 @@ export class CustomTraitDefinition
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.value.size > 0) {
-      const packedValue: { [key: string]: any } = {};
-      for (const [key, value] of object.value) {
-        packedValue[String(String(key))] = value.toValue();
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["21"] = packedValue;
+      objectValue["26"] = packedCustomValues;
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["31"] = object.name;
+    objectValue["27"] = object.orderKey;
     if (object.baseType != null) {
       objectValue["40"] = object.baseType.toValue();
     }
@@ -1511,11 +1587,15 @@ export class CustomTraitDefinition
       objectValue["41"] = packedBaseTraits;
     }
     objectValue["45"] = object.isAbstract;
-    if (object.scriptPtr != null) {
-      objectValue["200"] = object.scriptPtr.toValue();
-    }
     if (object.sourcePtr != null) {
-      objectValue["210"] = object.sourcePtr.toValue();
+      objectValue["60"] = object.sourcePtr.toValue();
+    }
+    if (object.scriptPtr != null) {
+      objectValue["70"] = object.scriptPtr.toValue();
+    }
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
     }
     return objectValue;
   }
@@ -1532,6 +1612,7 @@ export class CustomTraitDefinition
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1556,41 +1637,46 @@ export class CustomTraitDefinition
         );
       }
     }
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["210"];
+    const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["200"];
+    const scriptPtrValue = objectValue["70"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1600,18 +1686,19 @@ export class CustomTraitDefinition
       baseType: unpackedBaseType,
       baseTraits: unpackedBaseTraits,
       isAbstract: objectValue["45"],
+      name: objectValue["101"],
+      icon: unpackedIcon,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
       source: unpackedSourcePtr,
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
-      value: unpackedValue,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      customValues: unpackedCustomValues,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       _session,
       _graph,
       _connection,
@@ -1658,14 +1745,13 @@ export class CustomTraitDefinition
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.value) {
-      objectProto.value = {};
-      for (const [key, value] of object.value) {
-        objectProto.value![String(key)] = value.toProto();
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.name = object.name;
     if (object.baseType != null) {
       objectProto.baseType = object.baseType.toProto();
     }
@@ -1677,11 +1763,15 @@ export class CustomTraitDefinition
       objectProto.baseTraits = packedBaseTraits;
     }
     objectProto.isAbstract = object.isAbstract;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
     if (object.scriptPtr != null) {
       objectProto.scriptPtr = object.scriptPtr.toProto();
     }
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
     }
     return objectProto as CustomTraitDefinitionProto;
   }
@@ -1698,6 +1788,7 @@ export class CustomTraitDefinition
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedBaseTraits: any[] = [];
     if (objectProto.baseTraits) {
       for (const item of objectProto.baseTraits) {
@@ -1706,10 +1797,10 @@ export class CustomTraitDefinition
         );
       }
     }
-    const unpackedValue = new Map();
-    if (objectProto.value) {
-      for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
@@ -1738,6 +1829,11 @@ export class CustomTraitDefinition
           : null,
       baseTraits: unpackedBaseTraits,
       isAbstract: objectProto.isAbstract,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1748,7 +1844,6 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
-      name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -1771,7 +1866,7 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
-      value: unpackedValue,
+      customValues: unpackedCustomValues,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1852,6 +1947,26 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   declare readonly parentPtr: NodeReference | null;
 
   /**
+   * The definitionthis CustomEntity is an instance of.
+   */
+  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as
+        | CustomEntityDefinition
+        | CustomEventDefinition
+        | null;
+    }
+    return null;
+  }
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  declare readonly baseType: NodeDefinitionReference | null;
+
+  /**
    * Entity.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -1891,14 +2006,14 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  declare customValues: Map<string, Value>;
+
+  /**
    * Resource.status
    */
   declare status: ResourceStatus;
-
-  /**
-   * Resource.targetStatus
-   */
-  declare targetStatus: Temporal.ZonedDateTime | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -1911,7 +2026,7 @@ registerNodeClass(NodeType.RESOURCE, Resource);
 /**
  * An Entity that represents a Metric.
  */
-export abstract class Metric extends Entity implements IsSpatial, HasName, IsSourceable {
+export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
   static metatype: NodeType = NodeType.METRIC;
 
   /**
@@ -1978,11 +2093,6 @@ export abstract class Metric extends Entity implements IsSpatial, HasName, IsSou
   declare readonly orderKey: string;
 
   /**
-   * HasName.name
-   */
-  declare name: string;
-
-  /**
    * IsSourceable.source
    */
   get source(): Script | null {
@@ -1993,6 +2103,16 @@ export abstract class Metric extends Entity implements IsSpatial, HasName, IsSou
     return null;
   }
   declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * Metric.name
+   */
+  declare name: string;
+
+  /**
+   * Metric.icon
+   */
+  declare icon: Icon | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

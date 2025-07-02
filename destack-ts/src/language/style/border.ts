@@ -126,9 +126,19 @@ export class BorderStyle extends Style {
   type: BorderType;
 
   /**
-   * HasName.name
+   * Style.name
    */
   name: string;
+
+  /**
+   * BorderStyle.color
+   */
+  color: Color | null;
+
+  /**
+   * BorderStyle.width
+   */
+  width: Insets | null;
 
   /**
    * BorderStyle.style
@@ -149,16 +159,6 @@ export class BorderStyle extends Style {
   }
   stylePtr: NodeReference | null;
 
-  /**
-   * BorderStyle.color
-   */
-  color: Color | null;
-
-  /**
-   * BorderStyle.width
-   */
-  width: Insets | null;
-
   constructor(options: {
     id?: string;
     parent?: Scene | View | Theme | Palette | NodeReference | null;
@@ -171,9 +171,9 @@ export class BorderStyle extends Style {
     orderKey?: string;
     type?: BorderType;
     name: string;
-    style?: BorderStyle | NodeReference | null;
     color?: Color | null;
     width?: Insets | null;
+    style?: BorderStyle | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -236,15 +236,15 @@ export class BorderStyle extends Style {
       throw new Error(`BorderStyle.name is required`);
     }
     this.name = _name;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _width = options.width ?? null;
+    this.width = _width;
     let _style = options.style ?? null;
     if (_style != null && _style.metatype != StructType.NODE_REFERENCE) {
       _style = (_style as Node).toRef();
     }
     this.stylePtr = _style;
-    let _color = options.color ?? null;
-    this.color = _color;
-    let _width = options.width ?? null;
-    this.width = _width;
 
     // identity
     if (options.id == null) {
@@ -298,10 +298,10 @@ export class BorderStyle extends Style {
     if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -323,6 +323,7 @@ export class BorderStyle extends Style {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -334,7 +335,6 @@ export class BorderStyle extends Style {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -351,7 +351,7 @@ export class BorderStyle extends Style {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.BORDER_STYLE,
+      type: NodeType.BORDER_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -406,28 +406,28 @@ export class BorderStyle extends Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    if (object.stylePtr != null) {
-      objectValue["41"] = object.stylePtr.toValue();
-    }
+    objectValue["27"] = object.orderKey;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
     if (object.color != null) {
-      objectValue["50"] = object.color.toValue();
+      objectValue["200"] = object.color.toValue();
     }
     if (object.width != null) {
-      objectValue["51"] = object.width.toValue();
+      objectValue["201"] = object.width.toValue();
+    }
+    if (object.stylePtr != null) {
+      objectValue["202"] = object.stylePtr.toValue();
     }
     return objectValue;
   }
@@ -442,17 +442,17 @@ export class BorderStyle extends Style {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const colorValue = objectValue["50"];
+    const colorValue = objectValue["200"];
     const unpackedColor =
       colorValue != undefined
         ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectValue["51"];
+    const widthValue = objectValue["201"];
     const unpackedWidth =
       widthValue != undefined
         ? _Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const stylePtrValue = objectValue["41"];
+    const stylePtrValue = objectValue["202"];
     const unpackedStylePtr =
       stylePtrValue != undefined
         ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
@@ -467,34 +467,34 @@ export class BorderStyle extends Style {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new BorderStyle({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       color: unpackedColor,
       width: unpackedWidth,
       style: unpackedStylePtr,
       parent: unpackedParentPtr,
+      name: objectValue["101"],
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
       _session,
@@ -540,14 +540,14 @@ export class BorderStyle extends Style {
     objectProto.orderKey = object.orderKey;
     objectProto.type = Number(object.type) as BorderTypeProto;
     objectProto.name = object.name;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
     if (object.color != null) {
       objectProto.color = object.color.toProto();
     }
     if (object.width != null) {
       objectProto.width = object.width.toProto();
+    }
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
     }
     return objectProto as BorderStyleProto;
   }
@@ -592,6 +592,7 @@ export class BorderStyle extends Style {
               _connection,
             )
           : null,
+      name: objectProto.name,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -624,7 +625,6 @@ export class BorderStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -672,6 +672,16 @@ export class Border extends StructFrozen {
   readonly type: BorderType;
 
   /**
+   * Border.color
+   */
+  readonly color: Color | null;
+
+  /**
+   * Border.width
+   */
+  readonly width: Insets | null;
+
+  /**
    * style
    */
   get style(): BorderStyle | null {
@@ -686,21 +696,11 @@ export class Border extends StructFrozen {
   }
   readonly stylePtr: NodeReference | null;
 
-  /**
-   * Border.color
-   */
-  readonly color: Color | null;
-
-  /**
-   * Border.width
-   */
-  readonly width: Insets | null;
-
   constructor(options: {
     type?: BorderType;
-    style?: BorderStyle | NodeReference | null;
     color?: Color | null;
     width?: Insets | null;
+    style?: BorderStyle | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -724,15 +724,15 @@ export class Border extends StructFrozen {
       throw new Error(`Border.type is required`);
     }
     this.type = _type;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _width = options.width ?? null;
+    this.width = _width;
     let _style = options.style ?? null;
     if (_style != null && _style.metatype != StructType.NODE_REFERENCE) {
       _style = (_style as Node).toRef();
     }
     this.stylePtr = _style;
-    let _color = options.color ?? null;
-    this.color = _color;
-    let _width = options.width ?? null;
-    this.width = _width;
 
     // identity
     // @ts-expect-error(readonly)
@@ -827,15 +827,15 @@ export class Border extends StructFrozen {
   static __packValue__(object: Border): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 270600;
-    objectValue["30"] = object.type;
-    if (object.stylePtr != null) {
-      objectValue["41"] = object.stylePtr.toValue();
-    }
+    objectValue["100"] = object.type;
     if (object.color != null) {
-      objectValue["50"] = object.color.toValue();
+      objectValue["101"] = object.color.toValue();
     }
     if (object.width != null) {
-      objectValue["51"] = object.width.toValue();
+      objectValue["102"] = object.width.toValue();
+    }
+    if (object.stylePtr != null) {
+      objectValue["103"] = object.stylePtr.toValue();
     }
     return objectValue;
   }
@@ -850,23 +850,23 @@ export class Border extends StructFrozen {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const colorValue = objectValue["50"];
+    const colorValue = objectValue["101"];
     const unpackedColor =
       colorValue != undefined
         ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectValue["51"];
+    const widthValue = objectValue["102"];
     const unpackedWidth =
       widthValue != undefined
         ? _Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const stylePtrValue = objectValue["41"];
+    const stylePtrValue = objectValue["103"];
     const unpackedStylePtr =
       stylePtrValue != undefined
         ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Border({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       color: unpackedColor,
       width: unpackedWidth,
       style: unpackedStylePtr,
@@ -896,14 +896,14 @@ export class Border extends StructFrozen {
   static __packProto__(object: Border): BorderProto {
     const objectProto: Partial<BorderProto> = { metatype: 270600 };
     objectProto.type = Number(object.type) as BorderTypeProto;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
     if (object.color != null) {
       objectProto.color = object.color.toProto();
     }
     if (object.width != null) {
       objectProto.width = object.width.toProto();
+    }
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
     }
     return objectProto as BorderProto;
   }

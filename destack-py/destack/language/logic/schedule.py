@@ -60,22 +60,22 @@ class ScheduleFrequency(Enum):
 class Schedule(StructMutable):
     """The time-based schedule of something (compatible with rrule)."""
 
-    frequency: ScheduleFrequency = builtin_property(31)
-    interval: int = builtin_property(32, default=1)
-    start: datetime | None = builtin_property(33)
-    end: datetime | None = builtin_property(34)
-    count: int | None = builtin_property(35)
-    week_start: DayOfWeek | None = builtin_property(36)
-    by_set_pos: list[int] = builtin_property(37)
-    by_month: list[Month] = builtin_property(38)
-    by_month_day: list[int] = builtin_property(39)
-    by_year_day: list[int] = builtin_property(40)
-    by_easter: list[int] = builtin_property(41)
-    by_week_no: list[int] = builtin_property(42)
-    by_week_day: list[DayOfWeek] = builtin_property(43)
-    by_hour: list[int] = builtin_property(44)
-    by_minute: list[int] = builtin_property(45)
-    by_second: list[int] = builtin_property(46)
+    frequency: ScheduleFrequency = builtin_property(101)
+    interval: int = builtin_property(102, default=1)
+    start: datetime | None = builtin_property(110)
+    end: datetime | None = builtin_property(111)
+    count: int | None = builtin_property(112)
+    week_start: DayOfWeek | None = builtin_property(113)
+    by_set_pos: list[int] = builtin_property(114)
+    by_month: list[Month] = builtin_property(115)
+    by_month_day: list[int] = builtin_property(116)
+    by_year_day: list[int] = builtin_property(117)
+    by_easter: list[int] = builtin_property(118)
+    by_week_no: list[int] = builtin_property(119)
+    by_week_day: list[DayOfWeek] = builtin_property(120)
+    by_hour: list[int] = builtin_property(121)
+    by_minute: list[int] = builtin_property(122)
+    by_second: list[int] = builtin_property(123)
 
     @staticmethod
     def from_rrule(rrule: rrule) -> "Schedule":

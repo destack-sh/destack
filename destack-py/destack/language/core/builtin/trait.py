@@ -58,7 +58,7 @@ AT_LEAST_ONE_TRAITS = ((TraitType.GLOBAL, TraitType.SPATIAL),)
 # traits you can have at most one of
 AT_MOST_ONE_TRAITS = ()
 # traits where every descendant must have the trait
-INFECTIOUS_TRAITS = (TraitType.ARCHIVABLE, TraitType.DELETABLE)
+INFECTIOUS_TRAITS = (TraitType.DELETABLE,)
 
 # traits where all matching nodes are ordered together
 INTER_ORDER_TYPES = (NodeType.VIEW, NodeType.STYLE)
@@ -303,7 +303,7 @@ class IsFollowable(Trait):
 class IsSourceable(IsOrdered):
     """A Node that can be sourced from / defined by a Script."""
 
-    source: Optional["Script"] = builtin_property(210, is_managed=True)
+    source: Optional["Script"] = builtin_property(60, is_managed=True)
     # token_range, ...
 
 
@@ -312,7 +312,7 @@ class IsScriptable(Trait):
     """A Node that can be scripted."""
 
     script: Optional["Script"] = builtin_property(
-        200, description="The main / root Script of this Node."
+        70, description="The main / root Script of this Node."
     )
 
 

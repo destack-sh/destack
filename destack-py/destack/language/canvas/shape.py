@@ -12,4 +12,4 @@ if TYPE_CHECKING:
 class Shape(ContainerView):
     """A Shape is a View representing a Shape."""
 
-    stroke: Optional["Stroke"] = builtin_property(80, is_repr=True)
+    stroke: Optional["Stroke"] = builtin_property(180, is_repr=True)

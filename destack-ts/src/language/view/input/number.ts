@@ -1,13 +1,17 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  CustomEntityDefinition,
+  CustomEventDefinition,
   Dimension,
   Graph,
   IsSubject,
+  NodeDefinitionReference,
   NodeReference,
   Position,
   QueryConnection,
   Session,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import { Node, NodeType, StructType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
@@ -60,6 +64,26 @@ export class NumberInputView extends InputView {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The definitionthis CustomEntity is an instance of.
+   */
+  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as
+        | CustomEntityDefinition
+        | CustomEventDefinition
+        | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  readonly baseType: NodeDefinitionReference | null;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -99,12 +123,36 @@ export class NumberInputView extends InputView {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  customValues: Map<string, Value>;
+
+  /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
   /**
-   * HasName.name
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  scriptPtr: NodeReference | null;
+
+  /**
+   * View.name
    */
   name: string;
 
@@ -156,42 +204,27 @@ export class NumberInputView extends InputView {
   /**
    * NumberInputView.value
    */
-  value: string | null;
+  value: number | null;
 
   /**
    * NumberInputView.placeholder
    */
   placeholder: string | null;
 
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  set script(node: Script | null) {
-    if (node === null) {
-      this.scriptPtr = null;
-    } else {
-      this.scriptPtr = node.toRef();
-    }
-  }
-  scriptPtr: NodeReference | null;
-
   constructor(options: {
     id?: string;
     parent?: Window | Scene | Layer | ContainerView | Folder | NodeReference | null;
     space?: Space | NodeReference | null;
+    definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
+    baseType?: NodeDefinitionReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: Map<string, Value>;
     orderKey?: string;
+    script?: Script | NodeReference | null;
     name: string;
     position?: Position | null;
     width?: Dimension | null;
@@ -202,9 +235,8 @@ export class NumberInputView extends InputView {
     maxHeight?: Dimension | null;
     isVisible?: boolean | null;
     opacity?: number | null;
-    value?: string | null;
+    value?: number | null;
     placeholder?: string | null;
-    script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -244,8 +276,20 @@ export class NumberInputView extends InputView {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
+    }
+    this.customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -254,6 +298,11 @@ export class NumberInputView extends InputView {
       throw new Error(`NumberInputView.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`NumberInputView.name is required`);
@@ -281,11 +330,6 @@ export class NumberInputView extends InputView {
     this.value = _value;
     let _placeholder = options.placeholder ?? null;
     this.placeholder = _placeholder;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
 
     // identity
     if (options.id == null) {
@@ -321,7 +365,11 @@ export class NumberInputView extends InputView {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.value === other.value)) {
+    if (
+      (this.value == null) !== (other.value == null) ||
+      (this.value != null &&
+        !(this.value === other.value || Math.abs(this.value - other.value) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.placeholder === other.placeholder)) {
@@ -335,6 +383,9 @@ export class NumberInputView extends InputView {
       (this.opacity != null &&
         !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
     ) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
       return false;
     }
     if (
@@ -382,11 +433,28 @@ export class NumberInputView extends InputView {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
+    }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (
+      (this.baseType == null) !== (other.baseType == null) ||
+      (this.baseType != null && !this.baseType.equals(other.baseType))
+    ) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+        return false;
+      }
     }
     return true;
   }
@@ -395,7 +463,7 @@ export class NumberInputView extends InputView {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.value !== null) {
-      h = (h * 31 + hashString(this.value)) & 0xffffffff;
+      h = (h * 31 + hashFloat(this.value)) & 0xffffffff;
     }
     if (this.placeholder !== null) {
       h = (h * 31 + hashString(this.placeholder)) & 0xffffffff;
@@ -409,6 +477,7 @@ export class NumberInputView extends InputView {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.position !== null) {
       h = (h * 31 + this.position.hash()) & 0xffffffff;
     }
@@ -441,15 +510,26 @@ export class NumberInputView extends InputView {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.scriptPtr !== null) {
       h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
 
     return h;
   }
@@ -461,9 +541,10 @@ export class NumberInputView extends InputView {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.NUMBER_INPUT_VIEW,
+      type: NodeType.NUMBER_INPUT_VIEW,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -506,54 +587,67 @@ export class NumberInputView extends InputView {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.baseType != null) {
+      objectValue["7"] = object.baseType.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["31"] = object.name;
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
+    objectValue["27"] = object.orderKey;
+    if (object.scriptPtr != null) {
+      objectValue["70"] = object.scriptPtr.toValue();
+    }
+    objectValue["101"] = object.name;
     if (object.position != null) {
-      objectValue["40"] = object.position.toValue();
+      objectValue["110"] = object.position.toValue();
     }
     if (object.width != null) {
-      objectValue["41"] = object.width.toValue();
+      objectValue["111"] = object.width.toValue();
     }
     if (object.height != null) {
-      objectValue["42"] = object.height.toValue();
+      objectValue["112"] = object.height.toValue();
     }
     if (object.minWidth != null) {
-      objectValue["43"] = object.minWidth.toValue();
+      objectValue["113"] = object.minWidth.toValue();
     }
     if (object.minHeight != null) {
-      objectValue["44"] = object.minHeight.toValue();
+      objectValue["114"] = object.minHeight.toValue();
     }
     if (object.maxWidth != null) {
-      objectValue["45"] = object.maxWidth.toValue();
+      objectValue["115"] = object.maxWidth.toValue();
     }
     if (object.maxHeight != null) {
-      objectValue["46"] = object.maxHeight.toValue();
+      objectValue["116"] = object.maxHeight.toValue();
     }
     if (object.isVisible != null) {
-      objectValue["60"] = object.isVisible;
+      objectValue["160"] = object.isVisible;
     }
     if (object.opacity != null) {
-      objectValue["61"] = object.opacity;
+      objectValue["161"] = object.opacity;
     }
     if (object.value != null) {
-      objectValue["100"] = object.value;
+      objectValue["250"] = object.value;
     }
     if (object.placeholder != null) {
-      objectValue["101"] = object.placeholder;
-    }
-    if (object.scriptPtr != null) {
-      objectValue["200"] = object.scriptPtr.toValue();
+      objectValue["251"] = object.placeholder;
     }
     return objectValue;
   }
@@ -566,52 +660,56 @@ export class NumberInputView extends InputView {
     _connection?: any | null,
   ): NumberInputView {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const valueValue = objectValue["100"];
+    const valueValue = objectValue["250"];
     const unpackedValue = valueValue != undefined ? valueValue : null;
-    const placeholderValue = objectValue["101"];
+    const placeholderValue = objectValue["251"];
     const unpackedPlaceholder = placeholderValue != undefined ? placeholderValue : null;
-    const isVisibleValue = objectValue["60"];
+    const isVisibleValue = objectValue["160"];
     const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
-    const opacityValue = objectValue["61"];
+    const opacityValue = objectValue["161"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const positionValue = objectValue["40"];
+    const positionValue = objectValue["110"];
     const unpackedPosition =
       positionValue != undefined
         ? _Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectValue["41"];
+    const widthValue = objectValue["111"];
     const unpackedWidth =
       widthValue != undefined
         ? _Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectValue["42"];
+    const heightValue = objectValue["112"];
     const unpackedHeight =
       heightValue != undefined
         ? _Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minWidthValue = objectValue["43"];
+    const minWidthValue = objectValue["113"];
     const unpackedMinWidth =
       minWidthValue != undefined
         ? _Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minHeightValue = objectValue["44"];
+    const minHeightValue = objectValue["114"];
     const unpackedMinHeight =
       minHeightValue != undefined
         ? _Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxWidthValue = objectValue["45"];
+    const maxWidthValue = objectValue["115"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
         ? _Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxHeightValue = objectValue["46"];
+    const maxHeightValue = objectValue["116"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
         ? _Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
@@ -621,32 +719,58 @@ export class NumberInputView extends InputView {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scriptPtrValue = objectValue["200"];
+    const scriptPtrValue = objectValue["70"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["7"];
+    const unpackedBaseType =
+      baseTypeValue != undefined
+        ? _NodeDefinitionReference.fromValue(
+            baseTypeValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new NumberInputView({
       value: unpackedValue,
       placeholder: unpackedPlaceholder,
       isVisible: unpackedIsVisible,
       opacity: unpackedOpacity,
       parent: unpackedParentPtr,
+      name: objectValue["101"],
       position: unpackedPosition,
       width: unpackedWidth,
       height: unpackedHeight,
@@ -655,15 +779,17 @@ export class NumberInputView extends InputView {
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       script: unpackedScriptPtr,
+      definition: unpackedDefinitionPtr,
+      baseType: unpackedBaseType,
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -693,6 +819,12 @@ export class NumberInputView extends InputView {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
+    if (object.baseType != null) {
+      objectProto.baseType = object.baseType.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -704,7 +836,16 @@ export class NumberInputView extends InputView {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.orderKey = object.orderKey;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
     objectProto.name = object.name;
     if (object.position != null) {
       objectProto.position = object.position.toProto();
@@ -739,9 +880,6 @@ export class NumberInputView extends InputView {
     if (object.placeholder != null) {
       objectProto.placeholder = object.placeholder;
     }
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
     return objectProto as NumberInputViewProto;
   }
 
@@ -753,8 +891,21 @@ export class NumberInputView extends InputView {
     _connection?: any | null,
   ): NumberInputView {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new NumberInputView({
       value: objectProto.value != undefined ? objectProto.value : null,
       placeholder: objectProto.placeholder != undefined ? objectProto.placeholder : null,
@@ -770,6 +921,7 @@ export class NumberInputView extends InputView {
               _connection,
             )
           : null,
+      name: objectProto.name,
       position:
         objectProto.position != undefined
           ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
@@ -830,7 +982,6 @@ export class NumberInputView extends InputView {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
@@ -842,9 +993,30 @@ export class NumberInputView extends InputView {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseType:
+        objectProto.baseType != undefined
+          ? _NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       id: String(objectProto.id),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

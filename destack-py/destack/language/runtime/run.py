@@ -67,8 +67,8 @@ class RunStatus(Enum):
 class RunEvent(Event["Run"]):
     """An Event regarding a Run."""
 
-    node: "Run" = builtin_property(35)
-    target: Optional[IsRunnable] = builtin_property(40)
+    node: "Run" = builtin_property(101)
+    target: Optional[IsRunnable] = builtin_property(110)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
 
@@ -138,31 +138,31 @@ class Run(IsSpatial, IsCustomizable, Entity):
     """
 
     parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
-    target: Optional[IsRunnable] = builtin_property(40)
+    target: Optional[IsRunnable] = builtin_property(111)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
-    status: RunStatus = builtin_property(41, is_repr=True)
+    status: RunStatus = builtin_property(112, is_repr=True)
     duration: Optional[timedelta] = builtin_property(
-        42,
+        113,
         default=None,
         description="Duration from first attempt start to last attempt termination.",
         is_repr=True,
     )
     scheduled_at: Optional[datetime] = builtin_property(
-        45, description="When the Run is scheduled to start."
+        116, description="When the Run is scheduled to start."
     )
     started_at: Optional[datetime] = builtin_property(
-        46, description="When the Run first started.", is_repr=True
+        117, description="When the Run first started.", is_repr=True
     )
-    seen_at: Optional[datetime] = builtin_property(47, description="When the Run was last active.")
+    seen_at: Optional[datetime] = builtin_property(118, description="When the Run was last active.")
     interrupted_at: Optional[datetime] = builtin_property(
-        48, description="When the Run was interrupted."
+        119, description="When the Run was interrupted."
     )
     terminated_at: Optional[datetime] = builtin_property(
-        49, description="When the Run was last terminated."
+        120, description="When the Run was last terminated."
     )
     interruption: Optional["Interruption"] = builtin_property(
-        51,
+        121,
         node_space_from="self",
         description="The latest Interruption.",
         is_repr=True,

@@ -29,7 +29,7 @@ sessionTest("entity crud operations", async ({ session }) => {
     status: UserStatus.ACTIVE,
     name: "Floof",
     slug: "floof",
-    space: new NodeReference({ nodeType: NodeType.SPACE, id: uuid4() }),
+    space: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
   });
   session.create(user);
   await session.commit();
@@ -89,7 +89,7 @@ sessionTest("create star", async ({ session }) => {
       new User({
         name: `User${i}`,
         slug: `user${i}`,
-        space: new NodeReference({ nodeType: NodeType.SPACE, id: uuid4() }),
+        space: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
       }),
   );
   for (const user of users) {

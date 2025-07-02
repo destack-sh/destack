@@ -15,7 +15,6 @@ export enum EnumType {
   STRUCT_DEFINITION_TYPE = 12,
   PROPERTY_REFERENCE_TYPE = 13,
   MATERIALIZATION_TYPE = 14,
-  STORE_ZONE = 20,
   STORE_TYPE = 21,
   STORE_IMPLEMENTATION = 22,
   PLATFORM_TYPE = 30,
@@ -63,7 +62,6 @@ export enum EnumType {
   FILE_FORMAT = 60003,
   TEXT_SPAN_TYPE = 60004,
   ICON_TYPE = 60005,
-  LINK_TYPE = 60100,
   TRIGGER_TYPE = 70400,
   SCHEDULE_FREQUENCY = 70500,
   DAY_OF_WEEK = 70501,
@@ -234,15 +232,12 @@ export enum TraitType {
   ORDERED = 100,
   ARCHIVABLE = 101,
   DELETABLE = 102,
-  EXTENSIBLE = 103,
-  CUSTOMIZABLE = 104,
-  HAS_NAME = 200,
-  HAS_SLUG = 201,
-  HAS_ICON = 202,
+  CUSTOMIZABLE = 110,
+  EXTENSIBLE = 111,
   OWNABLE = 20000,
+  OWNER = 20001,
   JOINABLE = 20002,
-  SUBJECT = 20005,
-  OWNER = 20006,
+  SUBJECT = 20003,
   TAGGABLE = 30000,
   RUNNABLE = 70001,
   SCRIPTABLE = 70002,
@@ -325,7 +320,6 @@ export enum NodeType {
   SNAPSHOT = 40000,
   BRANCH = 40100,
   FILE = 60000,
-  LINK = 60100,
   SCRIPT = 70000,
   SERVICE = 70100,
   ACTION = 70200,
@@ -452,22 +446,6 @@ export enum NodeType {
 }
 registerEnumClass(EnumType.NODE_TYPE, NodeType);
 /* ==== DESTACK_GENERATED_END:ENUM:2 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
-/**
- * StoreZone
- */
-export enum StoreZone {
-  GLOBAL = 1,
-  SPATIAL = 2,
-  LOCAL = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.STORE_ZONE, StoreZone);
-/* ==== DESTACK_GENERATED_END:ENUM:20 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:21 ==== */
 /**

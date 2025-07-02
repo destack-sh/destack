@@ -1,10 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasIcon,
-  HasName,
-  HasSlug,
-  Icon,
   IsGlobal,
   IsJoinable,
   IsOwner,
@@ -25,10 +21,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * An Team with Users and Teams.
  */
-export class Team
-  extends Entity
-  implements IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable
-{
+export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
   static metatype: NodeType = NodeType.TEAM;
 
   /**
@@ -78,19 +71,14 @@ export class Team
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * HasName.name
+   * Team.name
    */
   name: string;
 
   /**
-   * HasSlug.slug
+   * Team.slug
    */
-  slug: string | null;
-
-  /**
-   * HasIcon.icon
-   */
-  icon: Icon | null;
+  slug: string;
 
   constructor(options: {
     id?: string;
@@ -100,8 +88,7 @@ export class Team
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     name: string;
-    slug?: string | null;
-    icon?: Icon | null;
+    slug: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -141,10 +128,11 @@ export class Team
       throw new Error(`Team.name is required`);
     }
     this.name = _name;
-    let _slug = options.slug ?? null;
+    let _slug = options.slug;
+    if (_slug === null) {
+      throw new Error(`Team.slug is required`);
+    }
     this.slug = _slug;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -180,16 +168,10 @@ export class Team
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.slug === other.slug)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
     if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.slug === other.slug)) {
       return false;
     }
     return true;
@@ -201,13 +183,8 @@ export class Team
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.slug !== null) {
-      h = (h * 31 + hashString(this.slug)) & 0xffffffff;
-    }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.slug)) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -228,7 +205,7 @@ export class Team
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.TEAM,
+      type: NodeType.TEAM,
       id: this.id,
       _session: this._session,
       _supergraph: this._supergraph,
@@ -245,10 +222,8 @@ export class Team
 
   repr(): string {
     const propertyReprs: string[] = [];
-    if (this.slug !== null) {
-      propertyReprs.push(`slug=${this.slug}`);
-    }
     propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`slug=${this.slug}`);
     return `<Team '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -263,21 +238,16 @@ export class Team
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["31"] = object.name;
-    if (object.slug != null) {
-      objectValue["33"] = object.slug;
-    }
-    if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
-    }
+    objectValue["101"] = object.name;
+    objectValue["102"] = object.slug;
     return objectValue;
   }
 
@@ -289,37 +259,28 @@ export class Team
     _connection?: any | null,
   ): Team {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue != undefined ? slugValue : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Team({
       parent: unpackedParentPtr,
-      slug: unpackedSlug,
-      icon: unpackedIcon,
-      name: objectValue["31"],
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      name: objectValue["101"],
+      slug: objectValue["102"],
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,
@@ -357,12 +318,7 @@ export class Team
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.name = object.name;
-    if (object.slug != null) {
-      objectProto.slug = object.slug;
-    }
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
+    objectProto.slug = object.slug;
     return objectProto as TeamProto;
   }
 
@@ -374,7 +330,6 @@ export class Team
     _connection?: any | null,
   ): Team {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Team({
       parent:
         objectProto.parentPtr != undefined
@@ -386,12 +341,8 @@ export class Team
               _connection,
             )
           : null,
-      slug: objectProto.slug != undefined ? objectProto.slug : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
       name: objectProto.name,
+      slug: objectProto.slug,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

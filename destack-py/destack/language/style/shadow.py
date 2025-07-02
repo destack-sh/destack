@@ -42,24 +42,24 @@ class ShadowPosition(Enum):
 class Shadow(StructFrozen):
     """A shadow value."""
 
-    type: ShadowType = builtin_property(30, default=ShadowType.BOX, is_repr=True)
-    style: Optional["ShadowStyle"] = builtin_property(41, is_repr=True)
-    color: Optional["Color"] = builtin_property(50, is_repr=True)
-    position: ShadowPosition = builtin_property(51, default=ShadowPosition.OUTSIDE, is_repr=True)
-    offset: Optional[Axis2] = builtin_property(52, is_repr=True)
-    blur: int | None = builtin_property(53, is_repr=True)
-    spread: int | None = builtin_property(54, is_repr=True)
-    diffusion: float | None = builtin_property(55, is_repr=True)
+    type: ShadowType = builtin_property(100, default=ShadowType.BOX, is_repr=True)
+    style: Optional["ShadowStyle"] = builtin_property(101, is_repr=True)
+    color: Optional["Color"] = builtin_property(102, is_repr=True)
+    position: ShadowPosition = builtin_property(103, default=ShadowPosition.OUTSIDE, is_repr=True)
+    offset: Optional[Axis2] = builtin_property(104, is_repr=True)
+    blur: int | None = builtin_property(105, is_repr=True)
+    spread: int | None = builtin_property(106, is_repr=True)
+    diffusion: float | None = builtin_property(107, is_repr=True)
 
 
 @builtin_node(NodeType.SHADOW_STYLE)
 class ShadowStyle(Style):
     """A shadow style."""
 
-    type: ShadowType = builtin_property(30, default=ShadowType.BOX, is_repr=True)
-    color: Optional["Color"] = builtin_property(50, is_repr=True)
-    position: ShadowPosition = builtin_property(51, default=ShadowPosition.OUTSIDE, is_repr=True)
-    offset: Optional[Axis2] = builtin_property(52, is_repr=True)
-    blur: int | None = builtin_property(53, is_repr=True)
-    spread: int | None = builtin_property(54, is_repr=True)
-    diffusion: float | None = builtin_property(55, is_repr=True)
+    type: ShadowType = builtin_property(100, default=ShadowType.BOX, is_repr=True)
+    color: Optional["Color"] = builtin_property(200, is_repr=True)
+    position: ShadowPosition = builtin_property(201, default=ShadowPosition.OUTSIDE, is_repr=True)
+    offset: Optional[Axis2] = builtin_property(202, is_repr=True)
+    blur: int | None = builtin_property(203, is_repr=True)
+    spread: int | None = builtin_property(204, is_repr=True)
+    diffusion: float | None = builtin_property(205, is_repr=True)

@@ -362,25 +362,25 @@ export class Edit extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 200;
     objectValue["2"] = String(object.id);
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.operation != null) {
-      objectValue["31"] = object.operation;
+      objectValue["101"] = object.operation;
     }
-    objectValue["32"] = object.nodePtr.toValue();
+    objectValue["102"] = object.nodePtr.toValue();
     if (object.propPtr != null) {
-      objectValue["33"] = object.propPtr.toValue();
+      objectValue["103"] = object.propPtr.toValue();
     }
     if (object.fieldPtr != null) {
-      objectValue["34"] = object.fieldPtr.toValue();
+      objectValue["104"] = object.fieldPtr.toValue();
     }
     if (object.key != null) {
-      objectValue["35"] = object.key.toValue();
+      objectValue["105"] = object.key.toValue();
     }
     if (object.value != null) {
-      objectValue["40"] = object.value.toValue();
+      objectValue["110"] = object.value.toValue();
     }
     if (object.undo != null) {
-      objectValue["50"] = object.undo.toValue();
+      objectValue["120"] = object.undo.toValue();
     }
     return objectValue;
   }
@@ -398,38 +398,44 @@ export class Edit extends StructFrozen {
     ] as typeof PropertyReference;
     const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const operationValue = objectValue["31"];
+    const operationValue = objectValue["101"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
-    const propPtrValue = objectValue["33"];
+    const propPtrValue = objectValue["103"];
     const unpackedPropPtr =
       propPtrValue != undefined
         ? _PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const fieldPtrValue = objectValue["34"];
+    const fieldPtrValue = objectValue["104"];
     const unpackedFieldPtr =
       fieldPtrValue != undefined
         ? _NodeReference.fromValue(fieldPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["35"];
+    const keyValue = objectValue["105"];
     const unpackedKey =
       keyValue != undefined
         ? _Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueValue = objectValue["40"];
+    const valueValue = objectValue["110"];
     const unpackedValue =
       valueValue != undefined
         ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const undoValue = objectValue["50"];
+    const undoValue = objectValue["120"];
     const unpackedUndo =
       undoValue != undefined
         ? _Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Edit({
       id: String(objectValue["2"]),
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       operation: unpackedOperation,
-      node: _NodeReference.fromValue(objectValue["32"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["102"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       propPtr: unpackedPropPtr,
       field: unpackedFieldPtr,
       key: unpackedKey,
@@ -799,24 +805,24 @@ export class Change extends StructFrozen {
     objectValue["1"] = 201;
     objectValue["2"] = String(object.id);
     if (object.name != null) {
-      objectValue["31"] = object.name;
+      objectValue["101"] = object.name;
     }
-    objectValue["32"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["102"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["33"] = object.createdByPtr.toValue();
+      objectValue["103"] = object.createdByPtr.toValue();
     }
     if (object.origin != null) {
-      objectValue["34"] = object.origin.toValue();
+      objectValue["104"] = object.origin.toValue();
     }
     if (object.debounce != null) {
-      objectValue["35"] = object.debounce;
+      objectValue["105"] = object.debounce;
     }
     if (object.edits.length > 0) {
       const packedEdits: any[] = [];
       for (const item of object.edits) {
         packedEdits.push(item.toValue());
       }
-      objectValue["40"] = packedEdits;
+      objectValue["110"] = packedEdits;
     }
     return objectValue;
   }
@@ -831,30 +837,30 @@ export class Change extends StructFrozen {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
     const _Origin = STRUCT_CLASS_BY_TYPE[StructType.ORIGIN] as typeof Origin;
-    const nameValue = objectValue["31"];
+    const nameValue = objectValue["101"];
     const unpackedName = nameValue != undefined ? nameValue : null;
-    const createdByPtrValue = objectValue["33"];
+    const createdByPtrValue = objectValue["103"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const originValue = objectValue["34"];
+    const originValue = objectValue["104"];
     const unpackedOrigin =
       originValue != undefined
         ? _Origin.fromValue(originValue, _session, _supergraph, _graph, _connection)
         : null;
-    const debounceValue = objectValue["35"];
+    const debounceValue = objectValue["105"];
     const unpackedDebounce = debounceValue != undefined ? Number(debounceValue) : null;
     const unpackedEdits: any[] = [];
-    if (objectValue["40"] != undefined) {
-      for (const item of objectValue["40"]) {
+    if (objectValue["110"] != undefined) {
+      for (const item of objectValue["110"]) {
         unpackedEdits.push(_Edit.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     return new Change({
       id: String(objectValue["2"]),
       name: unpackedName,
-      createdAt: Temporal.Instant.from(objectValue["32"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["102"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       origin: unpackedOrigin,
       debounce: unpackedDebounce,
@@ -1173,24 +1179,24 @@ export class ChangeResult extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 202;
     objectValue["2"] = String(object.id);
-    objectValue["10"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.debounce != null) {
-      objectValue["35"] = object.debounce;
+      objectValue["105"] = object.debounce;
     }
-    objectValue["40"] = object.status;
+    objectValue["120"] = object.status;
     if (object.edits.length > 0) {
       const packedEdits: any[] = [];
       for (const item of object.edits) {
         packedEdits.push(item.toValue());
       }
-      objectValue["41"] = packedEdits;
+      objectValue["121"] = packedEdits;
     }
     if (object.cascadedEdits.length > 0) {
       const packedCascadedEdits: any[] = [];
       for (const item of object.cascadedEdits) {
         packedCascadedEdits.push(item.toValue());
       }
-      objectValue["42"] = packedCascadedEdits;
+      objectValue["122"] = packedCascadedEdits;
     }
     return objectValue;
   }
@@ -1203,17 +1209,17 @@ export class ChangeResult extends StructFrozen {
     _connection?: any | null,
   ): ChangeResult {
     const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
-    const debounceValue = objectValue["35"];
+    const debounceValue = objectValue["105"];
     const unpackedDebounce = debounceValue != undefined ? Number(debounceValue) : null;
     const unpackedEdits: any[] = [];
-    if (objectValue["41"] != undefined) {
-      for (const item of objectValue["41"]) {
+    if (objectValue["121"] != undefined) {
+      for (const item of objectValue["121"]) {
         unpackedEdits.push(_Edit.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const unpackedCascadedEdits: any[] = [];
-    if (objectValue["42"] != undefined) {
-      for (const item of objectValue["42"]) {
+    if (objectValue["122"] != undefined) {
+      for (const item of objectValue["122"]) {
         unpackedCascadedEdits.push(
           _Edit.fromValue(item, _session, _supergraph, _graph, _connection),
         );
@@ -1221,9 +1227,9 @@ export class ChangeResult extends StructFrozen {
     }
     return new ChangeResult({
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["10"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       debounce: unpackedDebounce,
-      status: Number(objectValue["40"]),
+      status: Number(objectValue["120"]),
       edits: unpackedEdits,
       cascadedEdits: unpackedCascadedEdits,
       _value: objectValue,
@@ -1464,15 +1470,15 @@ export class Origin extends StructFrozen {
   static __packValue__(object: Origin): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 203;
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
     if (object.id != null) {
-      objectValue["31"] = String(object.id);
+      objectValue["101"] = String(object.id);
     }
     if (object.ck != null) {
-      objectValue["32"] = String(object.ck);
+      objectValue["102"] = String(object.ck);
     }
     if (object.nonce != null) {
-      objectValue["33"] = String(object.nonce);
+      objectValue["103"] = String(object.nonce);
     }
     return objectValue;
   }
@@ -1484,14 +1490,14 @@ export class Origin extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Origin {
-    const idValue = objectValue["31"];
+    const idValue = objectValue["101"];
     const unpackedId = idValue != undefined ? String(idValue) : null;
-    const ckValue = objectValue["32"];
+    const ckValue = objectValue["102"];
     const unpackedCk = ckValue != undefined ? String(ckValue) : null;
-    const nonceValue = objectValue["33"];
+    const nonceValue = objectValue["103"];
     const unpackedNonce = nonceValue != undefined ? String(nonceValue) : null;
     return new Origin({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
       id: unpackedId,
       ck: unpackedCk,
       nonce: unpackedNonce,

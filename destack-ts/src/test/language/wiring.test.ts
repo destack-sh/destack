@@ -26,7 +26,7 @@ const sessionTest = test.extend<{ session: Session }>({
 sessionTest("roundtrip node reference", ({ session }) => {
   // pack and unpack a NodeReference as value
   const nodeRef = new NodeReference({
-    nodeType: NodeType.FOLDER,
+    type: NodeType.FOLDER,
     id: uuid4(),
     spaceId: uuid4(),
     definitionId: uuid4(),
@@ -84,7 +84,7 @@ sessionTest("roundtrip user", ({ session }) => {
     status: UserStatus.ACTIVE,
     name: "Florian",
     slug: "florian",
-    space: new NodeReference({ id: uuid4(), nodeType: NodeType.SPACE }),
+    space: new NodeReference({ id: uuid4(), type: NodeType.SPACE }),
   });
 
   // value

@@ -166,9 +166,9 @@ class ChangeResult(StructFrozen):
         default_factory=ValueFactory.NOW,
     )
     debounce: "ChangeDebounce | None" = builtin_property(105, is_managed=True, is_repr=True)
-    status: ChangeStatus = builtin_property(100, is_repr=True)
 
-    edits: list[Edit] = builtin_property(110, description="The applied Edits (may differ).")
+    status: ChangeStatus = builtin_property(120, is_repr=True)
+    edits: list[Edit] = builtin_property(121, description="The applied Edits (may differ).")
     cascaded_edits: list[Edit] = builtin_property(
-        111, description="The Edits cascaded from the applied Edits."
+        122, description="The Edits cascaded from the applied Edits."
     )

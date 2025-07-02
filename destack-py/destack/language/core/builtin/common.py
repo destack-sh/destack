@@ -26,7 +26,6 @@ class EnumType(Enum):
     STRUCT_DEFINITION_TYPE = 12
     PROPERTY_REFERENCE_TYPE = 13
     MATERIALIZATION_TYPE = 14
-    STORE_ZONE = 20
     STORE_TYPE = 21
     STORE_IMPLEMENTATION = 22
     PLATFORM_TYPE = 30
@@ -91,7 +90,6 @@ class EnumType(Enum):
     FILE_FORMAT = 60_003
     TEXT_SPAN_TYPE = 60_004
     ICON_TYPE = 60_005
-    LINK_TYPE = 60_100
     # ...
 
     # logic [70_000-80_000]
@@ -600,7 +598,6 @@ class NodeType(Enum):
     # data [60_000-70_000]
 
     FILE = 60_000, "File", None, "fas fa-file"
-    LINK = 60_100, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
 
     # logic [70_000-80_000]
@@ -837,13 +834,6 @@ STRUCT_TYPES: tuple[StructType, ...] = tuple(StructType)
 TRAIT_TYPES: tuple[TraitType, ...] = tuple(TraitType)
 
 
-@builtin_enum(EnumType.STORE_ZONE)
-class StoreZone(Enum):
-    GLOBAL = 1
-    SPATIAL = 2
-    LOCAL = 3
-
-
 @builtin_enum(EnumType.STORE_TYPE)
 class StoreType(Enum):
     GLOBAL_ENTITY_PRIMARY = 1000
@@ -852,10 +842,6 @@ class StoreType(Enum):
     GLOBAL_EVENT_PRIMARY = 2000
     # SPATIAL_PARTICLE, SPATIAL_ANALYTIC, ...
     # SPATIAL_SEARCH, SPATIAL_CACHE, ...
-
-    @property
-    def zone(self) -> StoreZone:
-        return StoreZone(self.value // 100)
 
 
 @builtin_enum(EnumType.STORE_IMPLEMENTATION)

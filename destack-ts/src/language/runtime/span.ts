@@ -65,38 +65,19 @@ export class SpanEvent extends Event {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * The Node this Event is about.
+   * SpanEvent.node
    */
-  get node(): Node | null {
+  get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
-
-  /**
-   * SpanEvent.run
-   */
-  get run(): Run | null {
-    const nodePtr: NodeReference | null = this.runPtr;
     if (nodePtr !== null) {
       return this._supergraph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
-  set run(node: Run) {
-    this.runPtr = node.toRef();
+  set node(node: Run) {
+    this.nodePtr = node.toRef();
   }
-  runPtr: NodeReference;
+  nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -104,8 +85,7 @@ export class SpanEvent extends Event {
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    node?: Node | NodeReference | null;
-    run: Run | NodeReference;
+    node: Run | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -145,19 +125,14 @@ export class SpanEvent extends Event {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
-    let _node = options.node ?? null;
+    let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
     }
+    if (_node === null) {
+      throw new Error(`SpanEvent.node is required`);
+    }
     this.nodePtr = _node;
-    let _run = options.run;
-    if (_run != null && _run.metatype != StructType.NODE_REFERENCE) {
-      _run = (_run as Node).toRef();
-    }
-    if (_run === null) {
-      throw new Error(`SpanEvent.run is required`);
-    }
-    this.runPtr = _run;
 
     // identity
     if (options.id == null) {
@@ -182,10 +157,7 @@ export class SpanEvent extends Event {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.runPtr.id === other.runPtr.id)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -197,16 +169,13 @@ export class SpanEvent extends Event {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.runPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -223,7 +192,7 @@ export class SpanEvent extends Event {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SPAN_EVENT,
+      type: NodeType.SPAN_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -266,14 +235,11 @@ export class SpanEvent extends Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
-    }
-    objectValue["40"] = object.runPtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
 
@@ -290,15 +256,10 @@ export class SpanEvent extends Event {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const nodePtrValue = objectValue["35"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
@@ -306,11 +267,16 @@ export class SpanEvent extends Event {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SpanEvent({
-      run: _NodeReference.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -346,10 +312,7 @@ export class SpanEvent extends Event {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.runPtr = object.runPtr.toProto();
+    objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as SpanEventProto;
   }
 
@@ -362,8 +325,8 @@ export class SpanEvent extends Event {
   ): SpanEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new SpanEvent({
-      run: _NodeReference.fromProto(
-        objectProto.runPtr!,
+      node: _NodeReference.fromProto(
+        objectProto.nodePtr!,
         _session,
         _supergraph,
         _graph,
@@ -384,16 +347,6 @@ export class SpanEvent extends Event {
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
               _session,
               _supergraph,
               _graph,

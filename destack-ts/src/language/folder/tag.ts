@@ -1,8 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasIcon,
-  HasName,
   Icon,
   IsDeletable,
   IsOrdered,
@@ -27,7 +25,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Tag to tag something.
  */
-export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdered, IsDeletable {
+export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.TAG;
 
   /**
@@ -99,12 +97,12 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
   readonly orderKey: string;
 
   /**
-   * HasName.name
+   * Tag.name
    */
   name: string;
 
   /**
-   * HasIcon.icon
+   * Tag.icon
    */
   icon: Icon | null;
 
@@ -211,9 +209,6 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.name === other.name)) {
       return false;
     }
@@ -221,6 +216,9 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
       (this.icon == null) !== (other.icon == null) ||
       (this.icon != null && !this.icon.equals(other.icon))
     ) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -232,12 +230,12 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
@@ -263,7 +261,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.TAG,
+      type: NodeType.TAG,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -308,21 +306,21 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["31"] = object.name;
+    objectValue["27"] = object.orderKey;
+    objectValue["101"] = object.name;
     if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
+      objectValue["102"] = object.icon.toValue();
     }
     return objectValue;
   }
@@ -341,41 +339,41 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Tag({
       parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      name: objectValue["31"],
+      name: objectValue["101"],
       icon: unpackedIcon,
-      orderKey: objectValue["24"],
+      space: unpackedSpacePtr,
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,
@@ -446,6 +444,11 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
               _connection,
             )
           : null,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -455,11 +458,6 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
               _graph,
               _connection,
             )
-          : null,
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       orderKey: objectProto.orderKey,
       deletedAt:
@@ -755,7 +753,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.TAGGING,
+      type: NodeType.TAGGING,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -798,20 +796,20 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
+    objectValue["27"] = object.orderKey;
     if (object.tagPtr != null) {
-      objectValue["40"] = object.tagPtr.toValue();
+      objectValue["110"] = object.tagPtr.toValue();
     }
     return objectValue;
   }
@@ -829,7 +827,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const tagPtrValue = objectValue["40"];
+    const tagPtrValue = objectValue["110"];
     const unpackedTagPtr =
       tagPtrValue != undefined
         ? _NodeReference.fromValue(tagPtrValue, _session, _supergraph, _graph, _connection)
@@ -839,17 +837,17 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -858,11 +856,11 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       parent: unpackedParentPtr,
       tag: unpackedTagPtr,
       space: unpackedSpacePtr,
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,

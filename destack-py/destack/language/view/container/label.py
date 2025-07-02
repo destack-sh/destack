@@ -8,3 +8,5 @@ from .container import ContainerView
 @builtin_node(NodeType.LABEL_VIEW)
 class LabelView(ContainerView):
     """A label container View for form-like input views."""
+
+    pass

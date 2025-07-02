@@ -15,7 +15,6 @@ from .file import (
     upload_file,
     upload_file_batch,
 )
-from .link import Link, LinkType
 
 __all__ = [
     "FILE_FORMAT_BY_EXTENSION",
@@ -28,8 +27,6 @@ __all__ = [
     "FileRetentionMode",
     "FileSource",
     "FileType",
-    "Link",
-    "LinkType",
     "detect_file_format",
     "download_file_batch",
     "extract_file_info",

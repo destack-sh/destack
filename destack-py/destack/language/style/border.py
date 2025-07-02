@@ -38,17 +38,17 @@ class BorderType(Enum):
 class Border(StructFrozen):
     """A border value."""
 
-    type: BorderType = builtin_property(30, default=BorderType.SOLID, is_repr=True)
-    color: Optional["Color"] = builtin_property(50, is_repr=True)
-    width: Optional[Insets] = builtin_property(51, is_repr=True)
-    style: Optional["BorderStyle"] = builtin_property(41, is_repr=True)
+    type: BorderType = builtin_property(100, default=BorderType.SOLID, is_repr=True)
+    color: Optional["Color"] = builtin_property(101, is_repr=True)
+    width: Optional[Insets] = builtin_property(102, is_repr=True)
+    style: Optional["BorderStyle"] = builtin_property(103, is_repr=True)
 
 
 @builtin_node(NodeType.BORDER_STYLE)
 class BorderStyle(Style):
     """A border style."""
 
-    type: BorderType = builtin_property(30, default=BorderType.SOLID, is_repr=True)
-    color: Optional["Color"] = builtin_property(50, is_repr=True)
-    width: Optional[Insets] = builtin_property(51, is_repr=True)
-    style: Optional["BorderStyle"] = builtin_property(41, is_repr=True)
+    type: BorderType = builtin_property(100, default=BorderType.SOLID, is_repr=True)
+    color: Optional["Color"] = builtin_property(200, is_repr=True)
+    width: Optional[Insets] = builtin_property(201, is_repr=True)
+    style: Optional["BorderStyle"] = builtin_property(202, is_repr=True)

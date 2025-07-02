@@ -27,7 +27,8 @@ if TYPE_CHECKING:
 class RoleEvent(Event["Role"]):
     """A Event regarding a Role."""
 
-    subject: "IsSubject" = builtin_property(40)
+    node: "Role" = builtin_property(101)
+    subject: "IsSubject" = builtin_property(110)
 
 
 @builtin_node(NodeType.ROLE_ASSIGNED_EVENT)

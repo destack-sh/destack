@@ -428,8 +428,8 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
 class Histogram(StructFrozen):
     """A histogram."""
 
-    buckets: list[Value] = builtin_property(100, is_repr=True)
-    counts: list[int] = builtin_property(101, is_repr=True)
+    buckets: list[Value] = builtin_property(101, is_repr=True)
+    counts: list[int] = builtin_property(102, is_repr=True)
 
 
 @builtin_struct(StructType.QUERY_RESULT)

@@ -1,7 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasName,
+  Icon,
   IsCustomizable,
   IsDeletable,
   IsRunnable,
@@ -51,7 +51,7 @@ registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
  */
 export class Action
   extends Entity
-  implements IsSpatial, HasName, IsTaggable, IsSourceable, IsCustomizable, IsDeletable, IsRunnable
+  implements IsSpatial, IsTaggable, IsSourceable, IsCustomizable, IsDeletable, IsRunnable
 {
   static metatype: NodeType = NodeType.ACTION;
 
@@ -121,27 +121,12 @@ export class Action
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  value: Map<string, Value>;
+  customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
-
-  /**
-   * HasName.name
-   */
-  name: string;
-
-  /**
-   * Action.cardinality
-   */
-  cardinality: ActionCardinality;
-
-  /**
-   * Action.text
-   */
-  text: Text | null;
 
   /**
    * IsSourceable.source
@@ -155,6 +140,26 @@ export class Action
   }
   readonly sourcePtr: NodeReference | null;
 
+  /**
+   * Action.name
+   */
+  name: string;
+
+  /**
+   * Action.icon
+   */
+  icon: Icon | null;
+
+  /**
+   * Action.text
+   */
+  text: Text | null;
+
+  /**
+   * Action.cardinality
+   */
+  cardinality: ActionCardinality;
+
   constructor(options: {
     id?: string;
     parent?: (Node & IsScriptable) | NodeReference | null;
@@ -164,12 +169,13 @@ export class Action
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    value?: Map<string, Value>;
+    customValues?: Map<string, Value>;
     orderKey?: string;
-    name: string;
-    cardinality?: ActionCardinality;
-    text?: Text | null;
     source?: Script | NodeReference | null;
+    name: string;
+    icon?: Icon | null;
+    text?: Text | null;
+    cardinality?: ActionCardinality;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -211,11 +217,11 @@ export class Action
     this.spacePtr = _space;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _value = options.value ?? null;
-    if (_value === null) {
-      _value = new Map();
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
     }
-    this.value = _value;
+    this.customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -224,11 +230,20 @@ export class Action
       throw new Error(`Action.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Action.name is required`);
     }
     this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
+    let _text = options.text ?? null;
+    this.text = _text;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
       _cardinality = 1 /* ActionCardinality.UNARY */;
@@ -237,13 +252,6 @@ export class Action
       throw new Error(`Action.cardinality is required`);
     }
     this.cardinality = _cardinality;
-    let _text = options.text ?? null;
-    this.text = _text;
-    let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
-      _source = (_source as Node).toRef();
-    }
-    this.sourcePtr = _source;
 
     // identity
     if (options.id == null) {
@@ -279,7 +287,13 @@ export class Action
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.cardinality === other.cardinality)) {
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (
@@ -288,23 +302,23 @@ export class Action
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.cardinality === other.cardinality)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
         return false;
       }
-      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
         return false;
       }
     }
@@ -317,19 +331,22 @@ export class Action
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.cardinality) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     if (this.text !== null) {
       h = (h * 31 + this.text.hash()) & 0xffffffff;
     }
+    h = (h * 31 + this.cardinality) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -358,7 +375,7 @@ export class Action
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.ACTION,
+      type: NodeType.ACTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -403,33 +420,36 @@ export class Action
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.value.size > 0) {
-      const packedValue: { [key: string]: any } = {};
-      for (const [key, value] of object.value) {
-        packedValue[String(String(key))] = value.toValue();
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["21"] = packedValue;
+      objectValue["26"] = packedCustomValues;
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["31"] = object.name;
-    objectValue["40"] = object.cardinality;
-    if (object.text != null) {
-      objectValue["41"] = object.text.toValue();
-    }
+    objectValue["27"] = object.orderKey;
     if (object.sourcePtr != null) {
-      objectValue["210"] = object.sourcePtr.toValue();
+      objectValue["60"] = object.sourcePtr.toValue();
     }
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
+    }
+    if (object.text != null) {
+      objectValue["104"] = object.text.toValue();
+    }
+    objectValue["110"] = object.cardinality;
     return objectValue;
   }
 
@@ -443,12 +463,18 @@ export class Action
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const textValue = objectValue["41"];
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const textValue = objectValue["104"];
     const unpackedText =
       textValue != undefined
         ? _Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
@@ -458,50 +484,51 @@ export class Action
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["210"];
+    const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Action({
       parent: unpackedParentPtr,
-      cardinality: Number(objectValue["40"]),
+      name: objectValue["101"],
+      icon: unpackedIcon,
       text: unpackedText,
+      cardinality: Number(objectValue["110"]),
       space: unpackedSpacePtr,
-      name: objectValue["31"],
       source: unpackedSourcePtr,
-      value: unpackedValue,
+      customValues: unpackedCustomValues,
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       _session,
       _graph,
       _connection,
@@ -542,21 +569,24 @@ export class Action
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.value) {
-      objectProto.value = {};
-      for (const [key, value] of object.value) {
-        objectProto.value![String(key)] = value.toProto();
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.name = object.name;
-    objectProto.cardinality = Number(object.cardinality) as ActionCardinalityProto;
-    if (object.text != null) {
-      objectProto.text = object.text.toProto();
-    }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    if (object.text != null) {
+      objectProto.text = object.text.toProto();
+    }
+    objectProto.cardinality = Number(object.cardinality) as ActionCardinalityProto;
     return objectProto as ActionProto;
   }
 
@@ -570,10 +600,11 @@ export class Action
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
-    const unpackedValue = new Map();
-    if (objectProto.value) {
-      for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
@@ -590,11 +621,16 @@ export class Action
               _connection,
             )
           : null,
-      cardinality: Number(objectProto.cardinality) as ActionCardinality,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       text:
         objectProto.text != undefined
           ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
           : null,
+      cardinality: Number(objectProto.cardinality) as ActionCardinality,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -605,7 +641,6 @@ export class Action
               _connection,
             )
           : null,
-      name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -616,7 +651,7 @@ export class Action
               _connection,
             )
           : null,
-      value: unpackedValue,
+      customValues: unpackedCustomValues,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),

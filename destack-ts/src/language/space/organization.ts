@@ -1,10 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasIcon,
-  HasName,
-  HasSlug,
-  Icon,
   IsGlobal,
   IsJoinable,
   IsOwner,
@@ -46,10 +42,7 @@ registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
 /**
  * An Organization with Users and Teams.
  */
-export class Organization
-  extends Entity
-  implements IsGlobal, HasSlug, HasIcon, HasName, IsOwner, IsJoinable
-{
+export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinable {
   static metatype: NodeType = NodeType.ORGANIZATION;
 
   /**
@@ -99,19 +92,9 @@ export class Organization
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * HasName.name
-   */
-  name: string;
-
-  /**
    * Organization.slug
    */
   slug: string;
-
-  /**
-   * HasIcon.icon
-   */
-  icon: Icon | null;
 
   /**
    * Organization.status
@@ -149,9 +132,7 @@ export class Organization
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
-    name: string;
     slug: string;
-    icon?: Icon | null;
     status?: OrganizationStatus;
     space: Space | NodeReference;
     handle?: Handle | NodeReference | null;
@@ -189,18 +170,11 @@ export class Organization
       _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Organization.name is required`);
-    }
-    this.name = _name;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Organization.slug is required`);
     }
     this.slug = _slug;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* OrganizationStatus.CREATING */;
@@ -269,15 +243,6 @@ export class Organization
     if (!(this.handlePtr?.id === other.handlePtr?.id)) {
       return false;
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     return true;
   }
 
@@ -290,10 +255,6 @@ export class Organization
     if (this.handlePtr !== null) {
       h = (h * 31 + hashString(this.handlePtr.id)) & 0xffffffff;
     }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -317,7 +278,7 @@ export class Organization
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.ORGANIZATION,
+      type: NodeType.ORGANIZATION,
       id: this.id,
       _session: this._session,
       _supergraph: this._supergraph,
@@ -325,18 +286,17 @@ export class Organization
   }
 
   get _pathKey(): string {
-    return this.slug ?? this.name;
+    return this.slug ?? "Organization[id={this.id}]";
   }
 
   get path(): string {
-    return this.slug ?? this.name;
+    return this.slug ?? "Organization[id={this.id}]";
   }
 
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`slug=${this.slug}`);
     propertyReprs.push(`status=${OrganizationStatus[this.status]}`);
-    propertyReprs.push(`name=${this.name}`);
     return `<Organization '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -351,23 +311,19 @@ export class Organization
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["31"] = object.name;
-    objectValue["33"] = object.slug;
-    if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
-    }
-    objectValue["40"] = object.status;
-    objectValue["50"] = object.spacePtr.toValue();
+    objectValue["101"] = object.slug;
+    objectValue["102"] = object.status;
+    objectValue["110"] = object.spacePtr.toValue();
     if (object.handlePtr != null) {
-      objectValue["51"] = object.handlePtr.toValue();
+      objectValue["111"] = object.handlePtr.toValue();
     }
     return objectValue;
   }
@@ -380,23 +336,17 @@ export class Organization
     _connection?: any | null,
   ): Organization {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const handlePtrValue = objectValue["51"];
+    const handlePtrValue = objectValue["111"];
     const unpackedHandlePtr =
       handlePtrValue != undefined
         ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -407,21 +357,19 @@ export class Organization
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Organization({
-      slug: objectValue["33"],
-      status: Number(objectValue["40"]),
+      slug: objectValue["101"],
+      status: Number(objectValue["102"]),
       space: _NodeReference.fromValue(
-        objectValue["50"],
+        objectValue["110"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       handle: unpackedHandlePtr,
-      icon: unpackedIcon,
-      name: objectValue["31"],
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
@@ -459,11 +407,7 @@ export class Organization
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.name = object.name;
     objectProto.slug = object.slug;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
     objectProto.status = Number(object.status) as OrganizationStatusProto;
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.handlePtr != null) {
@@ -480,7 +424,6 @@ export class Organization
     _connection?: any | null,
   ): Organization {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Organization({
       slug: objectProto.slug,
       status: Number(objectProto.status) as OrganizationStatus,
@@ -501,11 +444,6 @@ export class Organization
               _connection,
             )
           : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      name: objectProto.name,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

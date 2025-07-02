@@ -56,22 +56,22 @@ class Interruption(IsSpatial, Entity):
 
     # meta
     parent: Optional["Run"] = builtin_property_parent(node_is_extensible=False)
-    type: InterruptionType = builtin_property(30)
-    runnable: Optional["IsRunnable"] = builtin_property(32)
-    span: Optional["SpanEvent"] = builtin_property(37)
+    type: InterruptionType = builtin_property(100)
+    runnable: Optional["IsRunnable"] = builtin_property(110)
+    span: Optional["SpanEvent"] = builtin_property(111)
     if TYPE_CHECKING:
         runnable_ptr: Optional[NodeReference] = None
         span_ptr: Optional[NodeReference] = None
 
     # status
-    status: InterruptionStatus = builtin_property(40, default=InterruptionStatus.OPEN)
-    duration: Optional[timedelta] = builtin_property(41)
-    closed_at: Optional[datetime] = builtin_property(42)
+    status: InterruptionStatus = builtin_property(120, default=InterruptionStatus.OPEN)
+    duration: Optional[timedelta] = builtin_property(121)
+    closed_at: Optional[datetime] = builtin_property(122)
 
     # content
-    response: Optional[InterruptionResponse] = builtin_property(54)
+    response: Optional[InterruptionResponse] = builtin_property(130)
     message: Optional["Message"] = builtin_property(
-        55,
+        131,
         description="The Message that was created for this Interruption.",
         node_space_from="self",
     )

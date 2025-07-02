@@ -8,3 +8,5 @@ from .container import ContainerView
 @builtin_node(NodeType.SPLIT_VIEW)
 class SplitView(ContainerView):
     """A split container View."""
+
+    pass

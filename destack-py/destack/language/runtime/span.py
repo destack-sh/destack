@@ -15,10 +15,9 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.SPAN_EVENT)
-class SpanEvent(Event):
+class SpanEvent(Event["Run"]):
     """
     A Span is a trace inside a Run.
     """
 
-    # meta
-    run: "Run" = builtin_property(40)
+    node: "Run" = builtin_property(101)

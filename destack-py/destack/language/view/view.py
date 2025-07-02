@@ -47,10 +47,10 @@ class View(
     name: str = builtin_property(101, is_repr=True)
 
     # sizing
-    position: Optional["Position"] = builtin_property(40)
-    width: Optional["Dimension"] = builtin_property(41)
-    height: Optional["Dimension"] = builtin_property(42)
-    min_width: Optional["Dimension"] = builtin_property(43)
-    min_height: Optional["Dimension"] = builtin_property(44)
-    max_width: Optional["Dimension"] = builtin_property(45)
-    max_height: Optional["Dimension"] = builtin_property(46)
+    position: Optional["Position"] = builtin_property(110)
+    width: Optional["Dimension"] = builtin_property(111)
+    height: Optional["Dimension"] = builtin_property(112)
+    min_width: Optional["Dimension"] = builtin_property(113)
+    min_height: Optional["Dimension"] = builtin_property(114)
+    max_width: Optional["Dimension"] = builtin_property(115)
+    max_height: Optional["Dimension"] = builtin_property(116)

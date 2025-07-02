@@ -3,21 +3,23 @@ import type {
   Axis2,
   Axis3,
   Corners,
+  CustomEntityDefinition,
+  CustomEventDefinition,
   Dimension,
   Graph,
   Grid,
   GridSpan,
-  HasIcon,
-  Icon,
   Insets,
   IsOwnable,
   IsOwner,
   IsSubject,
+  NodeDefinitionReference,
   NodeReference,
   Position,
   QueryConnection,
   Session,
   Supergraph,
+  Value,
   Vector2,
 } from "@destack/language/core";
 import {
@@ -169,7 +171,7 @@ export class SceneEnteredEvent extends SceneEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * SceneEnteredEvent.node
+   * SceneEvent.node
    */
   get node(): Scene | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -296,7 +298,7 @@ export class SceneEnteredEvent extends SceneEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SCENE_ENTERED_EVENT,
+      type: NodeType.SCENE_ENTERED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -339,11 +341,11 @@ export class SceneEnteredEvent extends SceneEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
 
@@ -360,7 +362,7 @@ export class SceneEnteredEvent extends SceneEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -371,9 +373,15 @@ export class SceneEnteredEvent extends SceneEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SceneEnteredEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -552,7 +560,7 @@ export class SceneExitedEvent extends SceneEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * SceneExitedEvent.node
+   * SceneEvent.node
    */
   get node(): Scene | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -679,7 +687,7 @@ export class SceneExitedEvent extends SceneEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SCENE_EXITED_EVENT,
+      type: NodeType.SCENE_EXITED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -722,11 +730,11 @@ export class SceneExitedEvent extends SceneEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["35"] = object.nodePtr.toValue();
+    objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
 
@@ -743,7 +751,7 @@ export class SceneExitedEvent extends SceneEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -754,9 +762,15 @@ export class SceneExitedEvent extends SceneEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new SceneExitedEvent({
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -890,7 +904,7 @@ registerNodeClass(NodeType.SCENE_EXITED_EVENT, SceneExitedEvent);
 /**
  * A Scene is a container for a specific interaction point.
  */
-export class Scene extends ContainerView implements HasIcon, IsOwnable {
+export class Scene extends ContainerView implements IsOwnable {
   static metatype: NodeType = NodeType.SCENE;
 
   /**
@@ -916,6 +930,26 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * The definitionthis CustomEntity is an instance of.
+   */
+  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as
+        | CustomEntityDefinition
+        | CustomEventDefinition
+        | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  readonly baseType: NodeDefinitionReference | null;
 
   /**
    * Entity.createdAt
@@ -957,6 +991,11 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  customValues: Map<string, Value>;
+
+  /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
@@ -981,14 +1020,28 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
   ownedByPtr: NodeReference | null;
 
   /**
-   * HasName.name
+   * The main / root Script of this Node.
    */
-  name: string;
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  scriptPtr: NodeReference | null;
 
   /**
-   * HasIcon.icon
+   * View.name
    */
-  icon: Icon | null;
+  name: string;
 
   /**
    * View.position
@@ -1139,38 +1192,22 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
   }
   rootViewPtr: NodeReference | null;
 
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  set script(node: Script | null) {
-    if (node === null) {
-      this.scriptPtr = null;
-    } else {
-      this.scriptPtr = node.toRef();
-    }
-  }
-  scriptPtr: NodeReference | null;
-
   constructor(options: {
     id?: string;
     parent?: Folder | Scene | Window | NodeReference | null;
     space?: Space | NodeReference | null;
+    definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
+    baseType?: NodeDefinitionReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: Map<string, Value>;
     orderKey?: string;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
+    script?: Script | NodeReference | null;
     name: string;
-    icon?: Icon | null;
     position?: Position | null;
     width?: Dimension | null;
     height?: Dimension | null;
@@ -1198,7 +1235,6 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     border?: Border | null;
     radius?: Corners | null;
     rootView?: ContainerView | NodeReference | null;
-    script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1238,8 +1274,20 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
+    }
+    this.customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -1253,13 +1301,16 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this.ownedByPtr = _ownedBy;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Scene.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _position = options.position ?? null;
     this.position = _position;
     let _width = options.width ?? null;
@@ -1317,11 +1368,6 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       _rootView = (_rootView as Node).toRef();
     }
     this.rootViewPtr = _rootView;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
 
     // identity
     if (options.id == null) {
@@ -1358,12 +1404,6 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       return false;
     }
     if (!(this.rootViewPtr?.id === other.rootViewPtr?.id)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
       return false;
     }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
@@ -1471,6 +1511,9 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     ) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     if (
       (this.position == null) !== (other.position == null) ||
       (this.position != null && !this.position.equals(other.position))
@@ -1516,11 +1559,28 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
+    }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (
+      (this.baseType == null) !== (other.baseType == null) ||
+      (this.baseType != null && !this.baseType.equals(other.baseType))
+    ) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+        return false;
+      }
     }
     return true;
   }
@@ -1533,9 +1593,6 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     }
     if (this.rootViewPtr !== null) {
       h = (h * 31 + hashString(this.rootViewPtr.id)) & 0xffffffff;
-    }
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
@@ -1598,6 +1655,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       h = (h * 31 + this.radius.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.position !== null) {
       h = (h * 31 + this.position.hash()) & 0xffffffff;
     }
@@ -1630,13 +1688,24 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.scriptPtr !== null) {
       h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
+    }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
     }
 
     return h;
@@ -1649,9 +1718,10 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.SCENE,
+      type: NodeType.SCENE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1697,108 +1767,118 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.baseType != null) {
+      objectValue["7"] = object.baseType.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
+    objectValue["27"] = object.orderKey;
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
-    }
-    objectValue["31"] = object.name;
-    if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
-    }
-    if (object.position != null) {
-      objectValue["40"] = object.position.toValue();
-    }
-    if (object.width != null) {
-      objectValue["41"] = object.width.toValue();
-    }
-    if (object.height != null) {
-      objectValue["42"] = object.height.toValue();
-    }
-    if (object.minWidth != null) {
-      objectValue["43"] = object.minWidth.toValue();
-    }
-    if (object.minHeight != null) {
-      objectValue["44"] = object.minHeight.toValue();
-    }
-    if (object.maxWidth != null) {
-      objectValue["45"] = object.maxWidth.toValue();
-    }
-    if (object.maxHeight != null) {
-      objectValue["46"] = object.maxHeight.toValue();
-    }
-    if (object.layout != null) {
-      objectValue["50"] = object.layout;
-    }
-    if (object.direction != null) {
-      objectValue["51"] = object.direction;
-    }
-    if (object.distribute != null) {
-      objectValue["52"] = object.distribute;
-    }
-    if (object.align != null) {
-      objectValue["53"] = object.align;
-    }
-    if (object.gap != null) {
-      objectValue["54"] = object.gap.toValue();
-    }
-    if (object.padding != null) {
-      objectValue["55"] = object.padding.toValue();
-    }
-    if (object.grid != null) {
-      objectValue["56"] = object.grid.toValue();
-    }
-    if (object.gridSpan != null) {
-      objectValue["57"] = object.gridSpan.toValue();
-    }
-    if (object.aspectRatio != null) {
-      objectValue["58"] = object.aspectRatio;
-    }
-    if (object.isWrap != null) {
-      objectValue["59"] = object.isWrap;
-    }
-    if (object.isVisible != null) {
-      objectValue["60"] = object.isVisible;
-    }
-    if (object.opacity != null) {
-      objectValue["61"] = object.opacity;
-    }
-    if (object.fill != null) {
-      objectValue["62"] = object.fill.toValue();
-    }
-    if (object.rotation != null) {
-      objectValue["63"] = object.rotation.toValue();
-    }
-    if (object.skew != null) {
-      objectValue["64"] = object.skew.toValue();
-    }
-    if (object.scale != null) {
-      objectValue["65"] = object.scale;
-    }
-    if (object.shadow != null) {
-      objectValue["66"] = object.shadow.toValue();
-    }
-    if (object.border != null) {
-      objectValue["67"] = object.border.toValue();
-    }
-    if (object.radius != null) {
-      objectValue["68"] = object.radius.toValue();
-    }
-    if (object.rootViewPtr != null) {
-      objectValue["100"] = object.rootViewPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
     if (object.scriptPtr != null) {
-      objectValue["200"] = object.scriptPtr.toValue();
+      objectValue["70"] = object.scriptPtr.toValue();
+    }
+    objectValue["101"] = object.name;
+    if (object.position != null) {
+      objectValue["110"] = object.position.toValue();
+    }
+    if (object.width != null) {
+      objectValue["111"] = object.width.toValue();
+    }
+    if (object.height != null) {
+      objectValue["112"] = object.height.toValue();
+    }
+    if (object.minWidth != null) {
+      objectValue["113"] = object.minWidth.toValue();
+    }
+    if (object.minHeight != null) {
+      objectValue["114"] = object.minHeight.toValue();
+    }
+    if (object.maxWidth != null) {
+      objectValue["115"] = object.maxWidth.toValue();
+    }
+    if (object.maxHeight != null) {
+      objectValue["116"] = object.maxHeight.toValue();
+    }
+    if (object.layout != null) {
+      objectValue["120"] = object.layout;
+    }
+    if (object.direction != null) {
+      objectValue["121"] = object.direction;
+    }
+    if (object.distribute != null) {
+      objectValue["122"] = object.distribute;
+    }
+    if (object.align != null) {
+      objectValue["123"] = object.align;
+    }
+    if (object.gap != null) {
+      objectValue["124"] = object.gap.toValue();
+    }
+    if (object.padding != null) {
+      objectValue["125"] = object.padding.toValue();
+    }
+    if (object.grid != null) {
+      objectValue["126"] = object.grid.toValue();
+    }
+    if (object.gridSpan != null) {
+      objectValue["127"] = object.gridSpan.toValue();
+    }
+    if (object.aspectRatio != null) {
+      objectValue["128"] = object.aspectRatio;
+    }
+    if (object.isWrap != null) {
+      objectValue["129"] = object.isWrap;
+    }
+    if (object.isVisible != null) {
+      objectValue["140"] = object.isVisible;
+    }
+    if (object.opacity != null) {
+      objectValue["141"] = object.opacity;
+    }
+    if (object.fill != null) {
+      objectValue["142"] = object.fill.toValue();
+    }
+    if (object.rotation != null) {
+      objectValue["143"] = object.rotation.toValue();
+    }
+    if (object.skew != null) {
+      objectValue["144"] = object.skew.toValue();
+    }
+    if (object.scale != null) {
+      objectValue["145"] = object.scale;
+    }
+    if (object.shadow != null) {
+      objectValue["146"] = object.shadow.toValue();
+    }
+    if (object.border != null) {
+      objectValue["147"] = object.border.toValue();
+    }
+    if (object.radius != null) {
+      objectValue["148"] = object.radius.toValue();
+    }
+    if (object.rootViewPtr != null) {
+      objectValue["200"] = object.rootViewPtr.toValue();
     }
     return objectValue;
   }
@@ -1811,8 +1891,11 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     _connection?: any | null,
   ): Scene {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -1829,120 +1912,115 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const rootViewPtrValue = objectValue["100"];
+    const rootViewPtrValue = objectValue["200"];
     const unpackedRootViewPtr =
       rootViewPtrValue != undefined
         ? _NodeReference.fromValue(rootViewPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const layoutValue = objectValue["50"];
+    const layoutValue = objectValue["120"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
-    const directionValue = objectValue["51"];
+    const directionValue = objectValue["121"];
     const unpackedDirection = directionValue != undefined ? Number(directionValue) : null;
-    const distributeValue = objectValue["52"];
+    const distributeValue = objectValue["122"];
     const unpackedDistribute = distributeValue != undefined ? Number(distributeValue) : null;
-    const alignValue = objectValue["53"];
+    const alignValue = objectValue["123"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const gapValue = objectValue["54"];
+    const gapValue = objectValue["124"];
     const unpackedGap =
       gapValue != undefined
         ? _Axis2.fromValue(gapValue, _session, _supergraph, _graph, _connection)
         : null;
-    const paddingValue = objectValue["55"];
+    const paddingValue = objectValue["125"];
     const unpackedPadding =
       paddingValue != undefined
         ? _Insets.fromValue(paddingValue, _session, _supergraph, _graph, _connection)
         : null;
-    const gridValue = objectValue["56"];
+    const gridValue = objectValue["126"];
     const unpackedGrid =
       gridValue != undefined
         ? _Grid.fromValue(gridValue, _session, _supergraph, _graph, _connection)
         : null;
-    const gridSpanValue = objectValue["57"];
+    const gridSpanValue = objectValue["127"];
     const unpackedGridSpan =
       gridSpanValue != undefined
         ? _GridSpan.fromValue(gridSpanValue, _session, _supergraph, _graph, _connection)
         : null;
-    const aspectRatioValue = objectValue["58"];
+    const aspectRatioValue = objectValue["128"];
     const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
-    const isWrapValue = objectValue["59"];
+    const isWrapValue = objectValue["129"];
     const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
-    const isVisibleValue = objectValue["60"];
+    const isVisibleValue = objectValue["140"];
     const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
-    const opacityValue = objectValue["61"];
+    const opacityValue = objectValue["141"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const fillValue = objectValue["62"];
+    const fillValue = objectValue["142"];
     const unpackedFill =
       fillValue != undefined
         ? _Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection)
         : null;
-    const rotationValue = objectValue["63"];
+    const rotationValue = objectValue["143"];
     const unpackedRotation =
       rotationValue != undefined
         ? _Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection)
         : null;
-    const skewValue = objectValue["64"];
+    const skewValue = objectValue["144"];
     const unpackedSkew =
       skewValue != undefined
         ? _Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scaleValue = objectValue["65"];
+    const scaleValue = objectValue["145"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const shadowValue = objectValue["66"];
+    const shadowValue = objectValue["146"];
     const unpackedShadow =
       shadowValue != undefined
         ? _Shadow.fromValue(shadowValue, _session, _supergraph, _graph, _connection)
         : null;
-    const borderValue = objectValue["67"];
+    const borderValue = objectValue["147"];
     const unpackedBorder =
       borderValue != undefined
         ? _Border.fromValue(borderValue, _session, _supergraph, _graph, _connection)
         : null;
-    const radiusValue = objectValue["68"];
+    const radiusValue = objectValue["148"];
     const unpackedRadius =
       radiusValue != undefined
         ? _Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection)
         : null;
-    const positionValue = objectValue["40"];
+    const positionValue = objectValue["110"];
     const unpackedPosition =
       positionValue != undefined
         ? _Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectValue["41"];
+    const widthValue = objectValue["111"];
     const unpackedWidth =
       widthValue != undefined
         ? _Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectValue["42"];
+    const heightValue = objectValue["112"];
     const unpackedHeight =
       heightValue != undefined
         ? _Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minWidthValue = objectValue["43"];
+    const minWidthValue = objectValue["113"];
     const unpackedMinWidth =
       minWidthValue != undefined
         ? _Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minHeightValue = objectValue["44"];
+    const minHeightValue = objectValue["114"];
     const unpackedMinHeight =
       minHeightValue != undefined
         ? _Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxWidthValue = objectValue["45"];
+    const maxWidthValue = objectValue["115"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
         ? _Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxHeightValue = objectValue["46"];
+    const maxHeightValue = objectValue["116"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
         ? _Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
@@ -1952,30 +2030,54 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scriptPtrValue = objectValue["200"];
+    const scriptPtrValue = objectValue["70"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["7"];
+    const unpackedBaseType =
+      baseTypeValue != undefined
+        ? _NodeDefinitionReference.fromValue(
+            baseTypeValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Scene({
       parent: unpackedParentPtr,
       rootView: unpackedRootViewPtr,
-      icon: unpackedIcon,
       ownedBy: unpackedOwnedByPtr,
       layout: unpackedLayout,
       direction: unpackedDirection,
@@ -1997,6 +2099,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       border: unpackedBorder,
       radius: unpackedRadius,
       id: String(objectValue["2"]),
+      name: objectValue["101"],
       position: unpackedPosition,
       width: unpackedWidth,
       height: unpackedHeight,
@@ -2005,14 +2108,16 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       script: unpackedScriptPtr,
+      definition: unpackedDefinitionPtr,
+      baseType: unpackedBaseType,
       deletedAt: unpackedDeletedAt,
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2042,6 +2147,12 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
+    if (object.baseType != null) {
+      objectProto.baseType = object.baseType.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -2053,14 +2164,20 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.orderKey = object.orderKey;
     if (object.ownedByPtr != null) {
       objectProto.ownedByPtr = object.ownedByPtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
     }
+    objectProto.name = object.name;
     if (object.position != null) {
       objectProto.position = object.position.toProto();
     }
@@ -2142,9 +2259,6 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     if (object.rootViewPtr != null) {
       objectProto.rootViewPtr = object.rootViewPtr.toProto();
     }
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
     return objectProto as SceneProto;
   }
 
@@ -2156,8 +2270,11 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     _connection?: any | null,
   ): Scene {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -2169,6 +2286,15 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Scene({
       parent:
         objectProto.parentPtr != undefined
@@ -2189,10 +2315,6 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
               _graph,
               _connection,
             )
-          : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
@@ -2256,6 +2378,7 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
           ? _Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
           : null,
       id: String(objectProto.id),
+      name: objectProto.name,
       position:
         objectProto.position != undefined
           ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
@@ -2316,7 +2439,6 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
               _connection,
             )
           : null,
-      name: objectProto.name,
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
@@ -2328,8 +2450,29 @@ export class Scene extends ContainerView implements HasIcon, IsOwnable {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseType:
+        objectProto.baseType != undefined
+          ? _NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

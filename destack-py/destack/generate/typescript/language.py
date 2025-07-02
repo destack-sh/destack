@@ -928,7 +928,7 @@ def _generate_to_ref(cls: type["Node"]) -> str:
 __toRef__(): NodeReference {{
   const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
   return new _NodeReference({{
-    nodeType: NodeType.{node_type.name},
+    type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.id,
     _session: this._session,
@@ -941,7 +941,7 @@ __toRef__(): NodeReference {{
 __toRef__(): NodeReference {{
   const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
   return new _NodeReference({{
-    nodeType: NodeType.{node_type.name},
+    type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
     definitionId: this.definitionPtr?.id ?? null,
@@ -955,7 +955,7 @@ __toRef__(): NodeReference {{
 __toRef__(): NodeReference {{
   const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
   return new _NodeReference({{
-    nodeType: NodeType.{node_type.name},
+    type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
     _session: this._session,
@@ -968,7 +968,7 @@ __toRef__(): NodeReference {{
 __toRef__(): NodeReference {{
   const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
   return new _NodeReference({{
-    nodeType: NodeType.{node_type.name},
+    type: NodeType.{node_type.name},
     id: this.id,
     _session: this._session,
     _supergraph: this._supergraph,

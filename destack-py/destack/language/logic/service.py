@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    IsCustomizable,
     IsDeletable,
     IsExtensible,
     IsOwnable,
@@ -33,11 +32,10 @@ class Service(
     IsScriptable,
     IsExtensible,
     IsSourceable,
-    IsCustomizable,
     Entity,
 ):
     """
-    A set of Actions for a Node.
+    A Service provides functionality.
     """
 
     name: str = builtin_property(101, is_repr=True)

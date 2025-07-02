@@ -127,13 +127,13 @@ class Type(StructFrozen):
 
     # scalar
     cardinality: TypeCardinality = builtin_property(
-        40, default=TypeCardinality.SCALAR, is_repr=True
+        110, default=TypeCardinality.SCALAR, is_repr=True
     )
-    scalar_type: ScalarType = builtin_property(41, is_repr=True)
-    primitive_type: Optional[PrimitiveType] = builtin_property(42, is_repr=True)
-    enum_type: Optional[EnumType] = builtin_property(43, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(44, is_repr=True)
-    struct_type: Optional[StructType] = builtin_property(45, is_repr=True)
+    scalar_type: ScalarType = builtin_property(111, is_repr=True)
+    primitive_type: Optional[PrimitiveType] = builtin_property(112, is_repr=True)
+    enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
+    node_type: Optional[NodeType] = builtin_property(114, is_repr=True)
+    struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
     definition: Union[
         "CustomEntityDefinition",
         "CustomEventDefinition",
@@ -141,19 +141,19 @@ class Type(StructFrozen):
         "CustomStructDefinition",
         "CustomTraitDefinition",
         None,
-    ] = builtin_property(46, is_repr=True)
-    key_type: Optional["Type"] = builtin_property(48, is_repr=True)  # for maps
-    is_required: bool | None = builtin_property(49)
+    ] = builtin_property(116, is_repr=True)
+    key_type: Optional["Type"] = builtin_property(117, is_repr=True)  # for maps
+    is_required: bool | None = builtin_property(118)
 
     # meta
-    value: Optional["Value"] = builtin_property(50)
-    value_factory: Optional[ValueFactory] = builtin_property(51)
+    value: Optional["Value"] = builtin_property(130)
+    value_factory: Optional[ValueFactory] = builtin_property(131)
 
     # constraints
-    collection_constraint: Optional["CollectionConstraint"] = builtin_property(60)
-    string_constraint: Optional["StringConstraint"] = builtin_property(61)
-    number_constraint: Optional["NumberConstraint"] = builtin_property(62)
-    node_constraint: Optional["NodeConstraint"] = builtin_property(63)
+    collection_constraint: Optional["CollectionConstraint"] = builtin_property(140)
+    string_constraint: Optional["StringConstraint"] = builtin_property(141)
+    number_constraint: Optional["NumberConstraint"] = builtin_property(142)
+    node_constraint: Optional["NodeConstraint"] = builtin_property(143)
 
 
 def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":

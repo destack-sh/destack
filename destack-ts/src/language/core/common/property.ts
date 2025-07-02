@@ -19,8 +19,7 @@ import type { CustomEventDefinition } from "@destack/language/core/builtin/event
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
-  HasIcon,
-  HasName,
+  IsArchivable,
   IsCustomizable,
   IsDeletable,
   IsExtensible,
@@ -74,7 +73,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class CustomProperty
   extends Entity
-  implements IsSpatial, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable
+  implements IsSpatial, IsTaggable, IsArchivable, IsDeletable, IsSourceable
 {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
 
@@ -141,6 +140,11 @@ export class CustomProperty
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * IsArchivable.archivedAt
+   */
+  readonly archivedAt: Temporal.ZonedDateTime | null;
+
+  /**
    * IsDeletable.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
@@ -151,17 +155,34 @@ export class CustomProperty
   readonly orderKey: string;
 
   /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * CustomProperty.isStatic
+   */
+  isStatic: boolean | null;
+
+  /**
    * CustomProperty.type
    */
   type: CustomPropertyType;
 
   /**
-   * HasName.name
+   * CustomProperty.name
    */
   name: string;
 
   /**
-   * HasIcon.icon
+   * CustomProperty.icon
    */
   icon: Icon | null;
 
@@ -299,23 +320,6 @@ export class CustomProperty
    */
   isReadonly: boolean | null;
 
-  /**
-   * CustomProperty.isStatic
-   */
-  isStatic: boolean | null;
-
-  /**
-   * IsSourceable.source
-   */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly sourcePtr: NodeReference | null;
-
   constructor(options: {
     id?: string;
     parent?:
@@ -329,8 +333,11 @@ export class CustomProperty
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
+    archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
+    source?: Script | NodeReference | null;
+    isStatic?: boolean | null;
     type?: CustomPropertyType;
     name: string;
     icon?: Icon | null;
@@ -361,8 +368,6 @@ export class CustomProperty
     isUnique?: boolean | null;
     isComputed?: boolean | null;
     isReadonly?: boolean | null;
-    isStatic?: boolean | null;
-    source?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -402,6 +407,8 @@ export class CustomProperty
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _archivedAt = options.archivedAt ?? null;
+    this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -412,6 +419,13 @@ export class CustomProperty
       throw new Error(`CustomProperty.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _isStatic = options.isStatic ?? null;
+    this.isStatic = _isStatic;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 1 /* CustomPropertyType.MEMBER */;
@@ -479,13 +493,6 @@ export class CustomProperty
     this.isComputed = _isComputed;
     let _isReadonly = options.isReadonly ?? null;
     this.isReadonly = _isReadonly;
-    let _isStatic = options.isStatic ?? null;
-    this.isStatic = _isStatic;
-    let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
-      _source = (_source as Node).toRef();
-    }
-    this.sourcePtr = _source;
 
     // identity
     if (options.id == null) {
@@ -522,6 +529,15 @@ export class CustomProperty
       return false;
     }
     if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.cardinality === other.cardinality)) {
@@ -609,15 +625,6 @@ export class CustomProperty
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -631,6 +638,10 @@ export class CustomProperty
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     h = (h * 31 + this.cardinality) & 0xffffffff;
     h = (h * 31 + this.scalarType) & 0xffffffff;
     if (this.primitiveType !== null) {
@@ -693,9 +704,8 @@ export class CustomProperty
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    if (this.archivedAt !== null) {
+      h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -724,7 +734,7 @@ export class CustomProperty
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.CUSTOM_PROPERTY,
+      type: NodeType.CUSTOM_PROPERTY,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -751,6 +761,7 @@ export class CustomProperty
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
     propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
     if (this.primitiveType !== null) {
@@ -771,7 +782,6 @@ export class CustomProperty
     if (this.keyType !== null) {
       propertyReprs.push(`keyType=${this.keyType.repr()}`);
     }
-    propertyReprs.push(`name=${this.name}`);
     return `<CustomProperty '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -789,84 +799,87 @@ export class CustomProperty
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
+    }
+    if (object.archivedAt != null) {
+      objectValue["24"] = object.archivedAt.toString({ timeZoneName: "never" });
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    if (object.icon != null) {
-      objectValue["34"] = object.icon.toValue();
-    }
-    objectValue["40"] = object.cardinality;
-    objectValue["41"] = object.scalarType;
-    if (object.primitiveType != null) {
-      objectValue["42"] = object.primitiveType;
-    }
-    if (object.enumType != null) {
-      objectValue["43"] = object.enumType;
-    }
-    if (object.nodeType != null) {
-      objectValue["44"] = object.nodeType;
-    }
-    if (object.structType != null) {
-      objectValue["45"] = object.structType;
-    }
-    if (object.definitionPtr != null) {
-      objectValue["46"] = object.definitionPtr.toValue();
-    }
-    if (object.keyType != null) {
-      objectValue["48"] = object.keyType.toValue();
-    }
-    if (object.value != null) {
-      objectValue["50"] = object.value.toValue();
-    }
-    if (object.valueFactory != null) {
-      objectValue["51"] = object.valueFactory;
-    }
-    if (object.collectionConstraint != null) {
-      objectValue["60"] = object.collectionConstraint.toValue();
-    }
-    if (object.stringConstraint != null) {
-      objectValue["61"] = object.stringConstraint.toValue();
-    }
-    if (object.numberConstraint != null) {
-      objectValue["62"] = object.numberConstraint.toValue();
-    }
-    if (object.nodeConstraint != null) {
-      objectValue["63"] = object.nodeConstraint.toValue();
-    }
-    if (object.edgeType != null) {
-      objectValue["70"] = object.edgeType;
-    }
-    if (object.cascade != null) {
-      objectValue["71"] = object.cascade;
-    }
-    if (object.isRequired != null) {
-      objectValue["80"] = object.isRequired;
-    }
-    if (object.isUnique != null) {
-      objectValue["81"] = object.isUnique;
-    }
-    if (object.isComputed != null) {
-      objectValue["82"] = object.isComputed;
-    }
-    if (object.isReadonly != null) {
-      objectValue["83"] = object.isReadonly;
+    objectValue["27"] = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectValue["60"] = object.sourcePtr.toValue();
     }
     if (object.isStatic != null) {
       objectValue["84"] = object.isStatic;
     }
-    if (object.sourcePtr != null) {
-      objectValue["210"] = object.sourcePtr.toValue();
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
+    }
+    objectValue["110"] = object.cardinality;
+    objectValue["111"] = object.scalarType;
+    if (object.primitiveType != null) {
+      objectValue["112"] = object.primitiveType;
+    }
+    if (object.enumType != null) {
+      objectValue["113"] = object.enumType;
+    }
+    if (object.nodeType != null) {
+      objectValue["114"] = object.nodeType;
+    }
+    if (object.structType != null) {
+      objectValue["115"] = object.structType;
+    }
+    if (object.definitionPtr != null) {
+      objectValue["116"] = object.definitionPtr.toValue();
+    }
+    if (object.keyType != null) {
+      objectValue["117"] = object.keyType.toValue();
+    }
+    if (object.value != null) {
+      objectValue["120"] = object.value.toValue();
+    }
+    if (object.valueFactory != null) {
+      objectValue["121"] = object.valueFactory;
+    }
+    if (object.collectionConstraint != null) {
+      objectValue["130"] = object.collectionConstraint.toValue();
+    }
+    if (object.stringConstraint != null) {
+      objectValue["131"] = object.stringConstraint.toValue();
+    }
+    if (object.numberConstraint != null) {
+      objectValue["132"] = object.numberConstraint.toValue();
+    }
+    if (object.nodeConstraint != null) {
+      objectValue["133"] = object.nodeConstraint.toValue();
+    }
+    if (object.edgeType != null) {
+      objectValue["140"] = object.edgeType;
+    }
+    if (object.cascade != null) {
+      objectValue["141"] = object.cascade;
+    }
+    if (object.isRequired != null) {
+      objectValue["150"] = object.isRequired;
+    }
+    if (object.isUnique != null) {
+      objectValue["151"] = object.isUnique;
+    }
+    if (object.isComputed != null) {
+      objectValue["152"] = object.isComputed;
+    }
+    if (object.isReadonly != null) {
+      objectValue["153"] = object.isReadonly;
     }
     return objectValue;
   }
@@ -899,33 +912,38 @@ export class CustomProperty
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const primitiveTypeValue = objectValue["42"];
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const primitiveTypeValue = objectValue["112"];
     const unpackedPrimitiveType =
       primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
-    const enumTypeValue = objectValue["43"];
+    const enumTypeValue = objectValue["113"];
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
-    const nodeTypeValue = objectValue["44"];
+    const nodeTypeValue = objectValue["114"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const structTypeValue = objectValue["45"];
+    const structTypeValue = objectValue["115"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const definitionPtrValue = objectValue["46"];
+    const definitionPtrValue = objectValue["116"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyTypeValue = objectValue["48"];
+    const keyTypeValue = objectValue["117"];
     const unpackedKeyType =
       keyTypeValue != undefined
         ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueValue = objectValue["50"];
+    const valueValue = objectValue["120"];
     const unpackedValue =
       valueValue != undefined
         ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueFactoryValue = objectValue["51"];
+    const valueFactoryValue = objectValue["121"];
     const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
-    const collectionConstraintValue = objectValue["60"];
+    const collectionConstraintValue = objectValue["130"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
         ? _CollectionConstraint.fromValue(
@@ -936,7 +954,7 @@ export class CustomProperty
             _connection,
           )
         : null;
-    const stringConstraintValue = objectValue["61"];
+    const stringConstraintValue = objectValue["131"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
         ? _StringConstraint.fromValue(
@@ -947,7 +965,7 @@ export class CustomProperty
             _connection,
           )
         : null;
-    const numberConstraintValue = objectValue["62"];
+    const numberConstraintValue = objectValue["132"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
         ? _NumberConstraint.fromValue(
@@ -958,22 +976,22 @@ export class CustomProperty
             _connection,
           )
         : null;
-    const nodeConstraintValue = objectValue["63"];
+    const nodeConstraintValue = objectValue["133"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
         ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
-    const edgeTypeValue = objectValue["70"];
+    const edgeTypeValue = objectValue["140"];
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
-    const cascadeValue = objectValue["71"];
+    const cascadeValue = objectValue["141"];
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
-    const isRequiredValue = objectValue["80"];
+    const isRequiredValue = objectValue["150"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
-    const isUniqueValue = objectValue["81"];
+    const isUniqueValue = objectValue["151"];
     const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : null;
-    const isComputedValue = objectValue["82"];
+    const isComputedValue = objectValue["152"];
     const unpackedIsComputed = isComputedValue != undefined ? isComputedValue : null;
-    const isReadonlyValue = objectValue["83"];
+    const isReadonlyValue = objectValue["153"];
     const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : null;
     const isStaticValue = objectValue["84"];
     const unpackedIsStatic = isStaticValue != undefined ? isStaticValue : null;
@@ -982,36 +1000,38 @@ export class CustomProperty
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["34"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+    const archivedAtValue = objectValue["24"];
+    const unpackedArchivedAt =
+      archivedAtValue != undefined
+        ? Temporal.Instant.from(archivedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const sourcePtrValue = objectValue["210"];
+    const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomProperty({
       parent: unpackedParentPtr,
-      type: Number(objectValue["30"]),
-      cardinality: Number(objectValue["40"]),
-      scalarType: Number(objectValue["41"]),
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
+      icon: unpackedIcon,
+      cardinality: Number(objectValue["110"]),
+      scalarType: Number(objectValue["111"]),
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
@@ -1032,16 +1052,15 @@ export class CustomProperty
       isReadonly: unpackedIsReadonly,
       isStatic: unpackedIsStatic,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
-      icon: unpackedIcon,
+      archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       _session,
       _graph,
       _connection,
@@ -1079,10 +1098,19 @@ export class CustomProperty
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
+    if (object.archivedAt != null) {
+      objectProto.archivedAt = packProtoTimestamp(object.archivedAt);
+    }
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object.isStatic != null) {
+      objectProto.isStatic = object.isStatic;
+    }
     objectProto.type = Number(object.type) as CustomPropertyTypeProto;
     objectProto.name = object.name;
     if (object.icon != null) {
@@ -1144,12 +1172,6 @@ export class CustomProperty
     if (object.isReadonly != null) {
       objectProto.isReadonly = object.isReadonly;
     }
-    if (object.isStatic != null) {
-      objectProto.isStatic = object.isStatic;
-    }
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
     return objectProto as CustomPropertyProto;
   }
 
@@ -1188,6 +1210,11 @@ export class CustomProperty
             )
           : null,
       type: Number(objectProto.type) as CustomPropertyType,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       cardinality: Number(objectProto.cardinality) as TypeCardinality,
       scalarType: Number(objectProto.scalarType) as ScalarType,
       primitiveType:
@@ -1281,11 +1308,8 @@ export class CustomProperty
               _connection,
             )
           : null,
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
+      archivedAt:
+        objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:

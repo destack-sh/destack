@@ -1,6 +1,7 @@
 import type {
+  CustomEntityDefinition,
+  CustomEventDefinition,
   Dimension,
-  HasName,
   IsDeletable,
   IsExtensible,
   IsOrdered,
@@ -8,8 +9,10 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  NodeDefinitionReference,
   NodeReference,
   Position,
+  Value,
 } from "@destack/language/core";
 import { Entity, Node, NodeType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
@@ -26,7 +29,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export abstract class View
   extends Entity
-  implements IsSpatial, HasName, IsOrdered, IsTaggable, IsScriptable, IsExtensible, IsDeletable
+  implements IsSpatial, IsOrdered, IsTaggable, IsScriptable, IsExtensible, IsDeletable
 {
   static metatype: NodeType = NodeType.VIEW;
 
@@ -59,6 +62,26 @@ export abstract class View
     return null;
   }
   declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * The definitionthis CustomEntity is an instance of.
+   */
+  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as
+        | CustomEntityDefinition
+        | CustomEventDefinition
+        | null;
+    }
+    return null;
+  }
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  declare readonly baseType: NodeDefinitionReference | null;
 
   /**
    * Entity.createdAt
@@ -100,12 +123,36 @@ export abstract class View
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  declare customValues: Map<string, Value>;
+
+  /**
    * The absolute order key of this Node in its parent.
    */
   declare readonly orderKey: string;
 
   /**
-   * HasName.name
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  declare scriptPtr: NodeReference | null;
+
+  /**
+   * View.name
    */
   declare name: string;
 
@@ -143,25 +190,6 @@ export abstract class View
    * View.maxHeight
    */
   declare maxHeight: Dimension | null;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  set script(node: Script | null) {
-    if (node === null) {
-      this.scriptPtr = null;
-    } else {
-      this.scriptPtr = node.toRef();
-    }
-  }
-  declare scriptPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

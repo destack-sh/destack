@@ -133,9 +133,9 @@ export class GalaxyInfo extends StructFrozen {
   static __packValue__(object: GalaxyInfo): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 160101;
-    objectValue["50"] = object.region;
-    objectValue["51"] = object.name;
-    objectValue["52"] = object.host;
+    objectValue["110"] = object.region;
+    objectValue["111"] = object.name;
+    objectValue["112"] = object.host;
     return objectValue;
   }
 
@@ -147,9 +147,9 @@ export class GalaxyInfo extends StructFrozen {
     _connection?: any | null,
   ): GalaxyInfo {
     return new GalaxyInfo({
-      region: Number(objectValue["50"]),
-      name: objectValue["51"],
-      host: objectValue["52"],
+      region: Number(objectValue["110"]),
+      name: objectValue["111"],
+      host: objectValue["112"],
       _value: objectValue,
       _supergraph,
     });

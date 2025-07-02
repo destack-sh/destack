@@ -91,15 +91,15 @@ class ColorIntent(Enum):
 class Color(StructFrozen):
     """A color value."""
 
-    type: ColorType = builtin_property(30, is_repr=True)
-    style: Optional["ColorStyle"] = builtin_property(42, is_repr=True)
-    hue: Optional[ColorHue] = builtin_property(50, is_repr=True)
-    shade: Optional[ColorShade] = builtin_property(51, is_repr=True)
-    intent: Optional[ColorIntent] = builtin_property(52, is_repr=True)
-    x: Optional[float] = builtin_property(55, is_repr=True)
-    y: Optional[float] = builtin_property(56, is_repr=True)
-    z: Optional[float] = builtin_property(57, is_repr=True)
-    alpha: Optional[float] = builtin_property(58, is_repr=True)
+    type: ColorType = builtin_property(100, is_repr=True)
+    style: Optional["ColorStyle"] = builtin_property(101, is_repr=True)
+    hue: Optional[ColorHue] = builtin_property(102, is_repr=True)
+    shade: Optional[ColorShade] = builtin_property(103, is_repr=True)
+    intent: Optional[ColorIntent] = builtin_property(104, is_repr=True)
+    x: Optional[float] = builtin_property(105, is_repr=True)
+    y: Optional[float] = builtin_property(106, is_repr=True)
+    z: Optional[float] = builtin_property(107, is_repr=True)
+    alpha: Optional[float] = builtin_property(108, is_repr=True)
 
     @staticmethod
     def from_hex(hex: str) -> "Color":
@@ -118,15 +118,15 @@ class ColorStyle(Style):
     parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent(
         node_is_extensible=True
     )
-    type: ColorType = builtin_property(30, is_repr=True)
-    hue: Optional[ColorHue] = builtin_property(50, is_repr=True)
-    shade: Optional[ColorShade] = builtin_property(51, is_repr=True)
-    intent: Optional[ColorIntent] = builtin_property(52, is_repr=True)
-    x: Optional[float] = builtin_property(55, is_repr=True)
-    y: Optional[float] = builtin_property(56, is_repr=True)
-    z: Optional[float] = builtin_property(57, is_repr=True)
-    alpha: Optional[float] = builtin_property(58, is_repr=True)
-    dark: Color | None = builtin_property(60)
+    type: ColorType = builtin_property(100, is_repr=True)
+    hue: Optional[ColorHue] = builtin_property(200, is_repr=True)
+    shade: Optional[ColorShade] = builtin_property(201, is_repr=True)
+    intent: Optional[ColorIntent] = builtin_property(202, is_repr=True)
+    x: Optional[float] = builtin_property(203, is_repr=True)
+    y: Optional[float] = builtin_property(204, is_repr=True)
+    z: Optional[float] = builtin_property(205, is_repr=True)
+    alpha: Optional[float] = builtin_property(206, is_repr=True)
+    dark: Color | None = builtin_property(207)
 
     @staticmethod
     def from_color(name: str, color: Color, dark: Color | None = None) -> "ColorStyle":

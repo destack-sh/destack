@@ -28,17 +28,17 @@ if TYPE_CHECKING:
 class MembershipEvent(Event["Membership"]):
     """A Event regarding a Membership."""
 
-    node: "Membership" = builtin_property(35)
-    joinable: "IsJoinable" = builtin_property(40)
-    member: "IsSubject" = builtin_property(41)
+    node: "Membership" = builtin_property(101)
+    joinable: "IsJoinable" = builtin_property(102)
+    member: "IsSubject" = builtin_property(103)
 
 
 @builtin_node(NodeType.MEMBERSHIP_JOINED_EVENT)
 class MembershipJoinedEvent(MembershipEvent):
     """A Event regarding a Membership Join."""
 
-    role: "Role" = builtin_property(50)
-    role_type: "RoleType" = builtin_property(51)
+    role: "Role" = builtin_property(110)
+    role_type: "RoleType" = builtin_property(111)
 
 
 @builtin_node(NodeType.MEMBERSHIP_LEFT_EVENT)
@@ -67,6 +67,6 @@ class Membership(
     """A Membership of a Subject in a Joinable."""
 
     parent: Optional["IsJoinable"] = builtin_property_parent(node_is_extensible=False)
-    member: "IsSubject" = builtin_property(40)
-    role: Optional["Role"] = builtin_property(41)
-    role_type: Optional["RoleType"] = builtin_property(42)
+    member: "IsSubject" = builtin_property(110)
+    role: Optional["Role"] = builtin_property(111)
+    role_type: Optional["RoleType"] = builtin_property(112)

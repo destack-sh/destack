@@ -25,17 +25,17 @@ if TYPE_CHECKING:
 class InviteEvent(Event["Invite"]):
     """A Event regarding an Invite."""
 
-    node: "Invite" = builtin_property(35)
-    joinable: "IsJoinable" = builtin_property(40)
-    member: "IsSubject" = builtin_property(41)
+    node: "Invite" = builtin_property(101)
+    joinable: "IsJoinable" = builtin_property(102)
+    member: "IsSubject" = builtin_property(103)
 
 
 @builtin_node(NodeType.INVITE_SENT_EVENT)
 class InviteSentEvent(InviteEvent):
     """An Invite was sent."""
 
-    role: "Role" = builtin_property(50)
-    role_type: "RoleType" = builtin_property(51)
+    role: "Role" = builtin_property(110)
+    role_type: "RoleType" = builtin_property(111)
 
 
 @builtin_node(NodeType.INVITE_RESCINDED_EVENT)
@@ -49,8 +49,8 @@ class InviteRescindedEvent(InviteEvent):
 class InviteAcceptedEvent(InviteEvent):
     """An Invite was accepted."""
 
-    role: "Role" = builtin_property(50)
-    role_type: "RoleType" = builtin_property(51)
+    role: "Role" = builtin_property(110)
+    role_type: "RoleType" = builtin_property(111)
 
 
 @builtin_node(NodeType.INVITE_REJECTED_EVENT)
@@ -65,6 +65,6 @@ class Invite(IsGlobal, IsSpatial, IsOwnable, IsDeletable, Entity):
     """An Invite to a Joinable."""
 
     parent: Optional["IsJoinable"] = builtin_property_parent(node_is_extensible=False)
-    member: "IsSubject" = builtin_property(40)
-    role: Optional["Role"] = builtin_property(41)
-    role_type: Optional["RoleType"] = builtin_property(42)
+    member: "IsSubject" = builtin_property(110)
+    role: Optional["Role"] = builtin_property(111)
+    role_type: Optional["RoleType"] = builtin_property(112)

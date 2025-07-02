@@ -8,7 +8,6 @@ import type {
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
 import type {
-  HasName,
   IsCustomizable,
   IsExtensible,
   IsSourceable,
@@ -16,6 +15,7 @@ import type {
   IsSubject,
 } from "@destack/language/core/builtin/trait";
 import { EditOperation, EditType } from "@destack/language/core/common/edit";
+import type { Icon } from "@destack/language/core/common/icon";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -113,7 +113,7 @@ registerNodeClass(NodeType.EVENT, Event);
  */
 export class CustomEventDefinition
   extends Entity
-  implements IsSpatial, HasName, IsSourceable, IsCustomizable
+  implements IsSpatial, IsSourceable, IsCustomizable
 {
   static metatype: NodeType = NodeType.CUSTOM_EVENT_DEFINITION;
 
@@ -178,17 +178,12 @@ export class CustomEventDefinition
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  value: Map<string, Value>;
+  customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
-
-  /**
-   * HasName.name
-   */
-  name: string;
 
   /**
    * CustomEventDefinition.baseType
@@ -236,6 +231,16 @@ export class CustomEventDefinition
   }
   readonly sourcePtr: NodeReference | null;
 
+  /**
+   * CustomEventDefinition.name
+   */
+  name: string;
+
+  /**
+   * CustomEventDefinition.icon
+   */
+  icon: Icon | null;
+
   constructor(options: {
     id?: string;
     parent?: Node | NodeReference | null;
@@ -244,14 +249,15 @@ export class CustomEventDefinition
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
-    value?: Map<string, Value>;
+    customValues?: Map<string, Value>;
     orderKey?: string;
-    name: string;
     baseType?: NodeDefinitionReference | null;
     baseTraits?: Array<NodeDefinitionReference>;
     isAbstract?: boolean;
     prototype?: Node | NodeReference | null;
     source?: Script | NodeReference | null;
+    name: string;
+    icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -291,11 +297,11 @@ export class CustomEventDefinition
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
-    let _value = options.value ?? null;
-    if (_value === null) {
-      _value = new Map();
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
     }
-    this.value = _value;
+    this.customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -304,11 +310,6 @@ export class CustomEventDefinition
       throw new Error(`CustomEventDefinition.orderKey is required`);
     }
     this.orderKey = _orderKey;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`CustomEventDefinition.name is required`);
-    }
-    this.name = _name;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
     let _baseTraits = options.baseTraits ?? null;
@@ -334,6 +335,13 @@ export class CustomEventDefinition
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`CustomEventDefinition.name is required`);
+    }
+    this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -389,23 +397,29 @@ export class CustomEventDefinition
     if (!(this.prototypePtr?.id === other.prototypePtr?.id)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.name === other.name)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
         return false;
       }
-      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
         return false;
       }
     }
@@ -427,15 +441,18 @@ export class CustomEventDefinition
     if (this.prototypePtr !== null) {
       h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this.value && Object.keys(this.value).length > 0) {
-      for (const [_key, _value] of Object.entries(this.value)) {
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -464,7 +481,7 @@ export class CustomEventDefinition
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.CUSTOM_EVENT_DEFINITION,
+      type: NodeType.CUSTOM_EVENT_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -509,23 +526,22 @@ export class CustomEventDefinition
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.value.size > 0) {
-      const packedValue: { [key: string]: any } = {};
-      for (const [key, value] of object.value) {
-        packedValue[String(String(key))] = value.toValue();
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["21"] = packedValue;
+      objectValue["26"] = packedCustomValues;
     }
-    objectValue["24"] = object.orderKey;
-    objectValue["31"] = object.name;
+    objectValue["27"] = object.orderKey;
     if (object.baseType != null) {
       objectValue["40"] = object.baseType.toValue();
     }
@@ -541,7 +557,11 @@ export class CustomEventDefinition
       objectValue["50"] = object.prototypePtr.toValue();
     }
     if (object.sourcePtr != null) {
-      objectValue["210"] = object.sourcePtr.toValue();
+      objectValue["60"] = object.sourcePtr.toValue();
+    }
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
     }
     return objectValue;
   }
@@ -558,6 +578,7 @@ export class CustomEventDefinition
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const baseTypeValue = objectValue["40"];
     const unpackedBaseType =
       baseTypeValue != undefined
@@ -582,31 +603,36 @@ export class CustomEventDefinition
       prototypePtrValue != undefined
         ? _NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["210"];
+    const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedValue = new Map();
-    if (objectValue["21"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -621,17 +647,18 @@ export class CustomEventDefinition
       baseTraits: unpackedBaseTraits,
       isAbstract: objectValue["45"],
       prototype: unpackedPrototypePtr,
+      name: objectValue["101"],
+      icon: unpackedIcon,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
       source: unpackedSourcePtr,
-      value: unpackedValue,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      customValues: unpackedCustomValues,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       _session,
       _graph,
       _connection,
@@ -675,14 +702,13 @@ export class CustomEventDefinition
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.value) {
-      objectProto.value = {};
-      for (const [key, value] of object.value) {
-        objectProto.value![String(key)] = value.toProto();
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.name = object.name;
     if (object.baseType != null) {
       objectProto.baseType = object.baseType.toProto();
     }
@@ -700,6 +726,10 @@ export class CustomEventDefinition
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
     return objectProto as CustomEventDefinitionProto;
   }
 
@@ -715,6 +745,7 @@ export class CustomEventDefinition
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedBaseTraits: any[] = [];
     if (objectProto.baseTraits) {
       for (const item of objectProto.baseTraits) {
@@ -723,10 +754,10 @@ export class CustomEventDefinition
         );
       }
     }
-    const unpackedValue = new Map();
-    if (objectProto.value) {
-      for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
@@ -755,6 +786,11 @@ export class CustomEventDefinition
               _connection,
             )
           : null,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -765,7 +801,6 @@ export class CustomEventDefinition
               _connection,
             )
           : null,
-      name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -776,7 +811,7 @@ export class CustomEventDefinition
               _connection,
             )
           : null,
-      value: unpackedValue,
+      customValues: unpackedCustomValues,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -848,9 +883,10 @@ registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
 
 /* ==== DESTACK_GENERATED_START:NODE:201 ==== */
 /**
- * A CustomEvent is an instance of a CustomEventDefinition.
+ * A generic CustomEvent of a CustomEventDefinition.
+ * More specific base Event types will be instanced of that base type instead.
  */
-export abstract class CustomEvent extends Event implements IsCustomizable, IsExtensible {
+export abstract class CustomEvent extends Event implements IsExtensible {
   static metatype: NodeType = NodeType.CUSTOM_EVENT;
 
   /**
@@ -890,6 +926,11 @@ export abstract class CustomEvent extends Event implements IsCustomizable, IsExt
   declare readonly definitionPtr: NodeReference;
 
   /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  declare readonly baseType: NodeDefinitionReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -909,7 +950,7 @@ export abstract class CustomEvent extends Event implements IsCustomizable, IsExt
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  declare value: Map<string, Value>;
+  declare customValues: Map<string, Value>;
 
   /**
    * The Node this Event is about.
@@ -929,16 +970,6 @@ export abstract class CustomEvent extends Event implements IsCustomizable, IsExt
     }
   }
   declare nodePtr: NodeReference | null;
-
-  /**
-   * Inlined base type of this CustomEvent.
-   */
-  declare readonly baseType: NodeDefinitionReference;
-
-  /**
-   * Inlined base node type of this CustomEvent.
-   */
-  declare readonly baseNodeType: NodeType;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -1087,11 +1118,6 @@ export class EditEvent extends Event {
   type: EditType;
 
   /**
-   * EditEvent.operation
-   */
-  operation: EditOperation | null;
-
-  /**
    * EditEvent.node
    */
   get node(): Node | null {
@@ -1105,6 +1131,11 @@ export class EditEvent extends Event {
     this.nodePtr = node.toRef();
   }
   nodePtr: NodeReference;
+
+  /**
+   * EditEvent.operation
+   */
+  operation: EditOperation | null;
 
   /**
    * EditEvent.propPtr
@@ -1128,8 +1159,8 @@ export class EditEvent extends Event {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     type: EditType;
-    operation?: EditOperation | null;
     node: Node | NodeReference;
+    operation?: EditOperation | null;
     propPtr?: PropertyReference | null;
     key?: Value | null;
     value?: Value | null;
@@ -1177,8 +1208,6 @@ export class EditEvent extends Event {
       throw new Error(`EditEvent.type is required`);
     }
     this.type = _type;
-    let _operation = options.operation ?? null;
-    this.operation = _operation;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1187,6 +1216,8 @@ export class EditEvent extends Event {
       throw new Error(`EditEvent.node is required`);
     }
     this.nodePtr = _node;
+    let _operation = options.operation ?? null;
+    this.operation = _operation;
     let _propPtr = options.propPtr ?? null;
     this.propPtr = _propPtr;
     let _key = options.key ?? null;
@@ -1220,10 +1251,10 @@ export class EditEvent extends Event {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.operation === other.operation)) {
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
-    if (!(this.nodePtr.id === other.nodePtr.id)) {
+    if (!(this.operation === other.operation)) {
       return false;
     }
     if (
@@ -1254,10 +1285,10 @@ export class EditEvent extends Event {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.operation !== null) {
       h = (h * 31 + this.operation) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.propPtr !== null) {
       h = (h * 31 + this.propPtr.hash()) & 0xffffffff;
     }
@@ -1289,7 +1320,7 @@ export class EditEvent extends Event {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.EDIT_EVENT,
+      type: NodeType.EDIT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -1317,10 +1348,10 @@ export class EditEvent extends Event {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${EditType[this.type]}`);
+    propertyReprs.push(`node=${this.node?.repr()}`);
     if (this.operation !== null) {
       propertyReprs.push(`operation=${EditOperation[this.operation]}`);
     }
-    propertyReprs.push(`node=${this.node?.repr()}`);
     if (this.propPtr !== null) {
       propertyReprs.push(`propPtr=${this.propPtr.repr()}`);
     }
@@ -1344,23 +1375,23 @@ export class EditEvent extends Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["30"] = object.type;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.nodePtr.toValue();
     if (object.operation != null) {
-      objectValue["31"] = object.operation;
+      objectValue["102"] = object.operation;
     }
-    objectValue["35"] = object.nodePtr.toValue();
     if (object.propPtr != null) {
-      objectValue["36"] = object.propPtr.toValue();
+      objectValue["103"] = object.propPtr.toValue();
     }
     if (object.key != null) {
-      objectValue["38"] = object.key.toValue();
+      objectValue["104"] = object.key.toValue();
     }
     if (object.value != null) {
-      objectValue["40"] = object.value.toValue();
+      objectValue["110"] = object.value.toValue();
     }
     return objectValue;
   }
@@ -1377,19 +1408,19 @@ export class EditEvent extends Event {
       StructType.PROPERTY_REFERENCE
     ] as typeof PropertyReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const operationValue = objectValue["31"];
+    const operationValue = objectValue["102"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
-    const propPtrValue = objectValue["36"];
+    const propPtrValue = objectValue["103"];
     const unpackedPropPtr =
       propPtrValue != undefined
         ? _PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["38"];
+    const keyValue = objectValue["104"];
     const unpackedKey =
       keyValue != undefined
         ? _Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueValue = objectValue["40"];
+    const valueValue = objectValue["110"];
     const unpackedValue =
       valueValue != undefined
         ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
@@ -1399,7 +1430,7 @@ export class EditEvent extends Event {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1410,14 +1441,20 @@ export class EditEvent extends Event {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new EditEvent({
-      type: Number(objectValue["30"]),
+      type: Number(objectValue["100"]),
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       operation: unpackedOperation,
-      node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       propPtr: unpackedPropPtr,
       key: unpackedKey,
       value: unpackedValue,
       parent: unpackedParentPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1455,10 +1492,10 @@ export class EditEvent extends Event {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     objectProto.type = Number(object.type) as EditTypeProto;
+    objectProto.nodePtr = object.nodePtr.toProto();
     if (object.operation != null) {
       objectProto.operation = Number(object.operation) as EditOperationProto;
     }
-    objectProto.nodePtr = object.nodePtr.toProto();
     if (object.propPtr != null) {
       objectProto.propPtr = object.propPtr.toProto();
     }
@@ -1485,10 +1522,6 @@ export class EditEvent extends Event {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     return new EditEvent({
       type: Number(objectProto.type) as EditType,
-      operation:
-        objectProto.operation != undefined
-          ? (Number(objectProto.operation) as EditOperation)
-          : null,
       node: _NodeReference.fromProto(
         objectProto.nodePtr!,
         _session,
@@ -1496,6 +1529,10 @@ export class EditEvent extends Event {
         _graph,
         _connection,
       ),
+      operation:
+        objectProto.operation != undefined
+          ? (Number(objectProto.operation) as EditOperation)
+          : null,
       propPtr:
         objectProto.propPtr != undefined
           ? _PropertyReference.fromProto(

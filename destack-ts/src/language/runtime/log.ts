@@ -272,7 +272,7 @@ export class LogEvent extends Event {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.LOG_EVENT,
+      type: NodeType.LOG_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -315,22 +315,22 @@ export class LogEvent extends Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
     if (object.nodePtr != null) {
-      objectValue["35"] = object.nodePtr.toValue();
+      objectValue["101"] = object.nodePtr.toValue();
     }
-    objectValue["40"] = object.content;
+    objectValue["110"] = object.content;
     if (object.attributes.size > 0) {
       const packedAttributes: { [key: string]: any } = {};
       for (const [key, value] of object.attributes) {
         packedAttributes[String(key)] = value;
       }
-      objectValue["41"] = packedAttributes;
+      objectValue["111"] = packedAttributes;
     }
-    objectValue["42"] = object.level;
+    objectValue["112"] = object.level;
     return objectValue;
   }
 
@@ -348,17 +348,17 @@ export class LogEvent extends Event {
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedAttributes = new Map();
-    if (objectValue["41"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["41"])) {
+    if (objectValue["111"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["111"])) {
         unpackedAttributes.set(key, value as any);
       }
     }
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const nodePtrValue = objectValue["35"];
+    const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
@@ -370,10 +370,10 @@ export class LogEvent extends Event {
         : null;
     return new LogEvent({
       parent: unpackedParentPtr,
-      content: objectValue["40"],
+      content: objectValue["110"],
       attributes: unpackedAttributes,
-      level: Number(objectValue["42"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      level: Number(objectValue["112"]),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
       space: unpackedSpacePtr,

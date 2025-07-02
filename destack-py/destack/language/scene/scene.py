@@ -12,7 +12,7 @@ from destack.language.core import (
 from ..view import ContainerView
 
 if TYPE_CHECKING:
-    from destack.language import Folder, Icon, Window
+    from destack.language import Folder, Window
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -21,21 +21,21 @@ if TYPE_CHECKING:
 class SceneEvent(Event["Scene"]):
     """A Event regarding a Scene."""
 
-    node: "Scene" = builtin_property(35)
+    node: "Scene" = builtin_property(101)
 
 
 @builtin_node(NodeType.SCENE_ENTERED_EVENT)
 class SceneEnteredEvent(SceneEvent):
     """A Scene was entered."""
 
-    node: "Scene" = builtin_property(35)
+    pass
 
 
 @builtin_node(NodeType.SCENE_EXITED_EVENT)
 class SceneExitedEvent(SceneEvent):
     """A Scene was exited."""
 
-    node: "Scene" = builtin_property(35)
+    pass
 
 
 @builtin_node(NodeType.SCENE)
@@ -45,8 +45,6 @@ class Scene(IsOwnable, ContainerView):
     parent: Union["Folder", "Scene", "Window", None] = builtin_property_parent(
         node_is_extensible=True
     )
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
     root_view: Optional["ContainerView"] = builtin_property(
-        110, description="The root view of the Scene."
+        200, description="The root view of the Scene."
     )

@@ -39,7 +39,7 @@ class CustomStructDefinition(
         description="A custom Struct's prototype is the default template new CustomStruct instances are based on.",
     )
     base_type: Optional["StructDefinitionReference"] = builtin_property(41)
-    is_frozen: bool = builtin_property(60, default=False)
+    is_frozen: bool = builtin_property(42, default=False)
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
@@ -50,4 +50,4 @@ class CustomStruct(StructMutable):
     """A CustomStruct is an instance of a CustomStructDefinition."""
 
     definition: "CustomStructDefinition" = builtin_property(6)
-    value: dict[UUID, "Value"] = builtin_property(21)
+    custom_values: dict[UUID, "Value"] = builtin_property(26)

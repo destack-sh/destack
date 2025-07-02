@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  HasName,
   IsDeletable,
   IsOrdered,
   IsOwnable,
@@ -30,7 +29,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Route
   extends Entity
-  implements IsSpatial, HasName, IsDeletable, IsOrdered, IsOwnable, IsTaggable
+  implements IsSpatial, IsDeletable, IsOrdered, IsOwnable, IsTaggable
 {
   static metatype: NodeType = NodeType.ROUTE;
 
@@ -122,7 +121,7 @@ export class Route
   ownedByPtr: NodeReference | null;
 
   /**
-   * HasName.name
+   * The name of the Route.
    */
   name: string;
 
@@ -257,13 +256,13 @@ export class Route
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     if (!(this.scenePtr?.id === other.scenePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
       return false;
     }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
@@ -278,13 +277,13 @@ export class Route
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.scenePtr !== null) {
       h = (h * 31 + hashString(this.scenePtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -312,7 +311,7 @@ export class Route
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.ROUTE,
+      type: NodeType.ROUTE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -339,11 +338,14 @@ export class Route
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<Route '${this.path}' ${propertyReprs.join(" ")}>`;
+    if (propertyReprs.length > 0) {
+      return `<Route '${this.path}' ${propertyReprs.join(" ")}>`;
+    } else {
+      return `<Route '${this.path}'>`;
+    }
   }
 
   toValue(): { [key: string]: any } {
@@ -360,24 +362,24 @@ export class Route
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+      objectValue["21"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["24"] = object.orderKey;
+    objectValue["27"] = object.orderKey;
     if (object.ownedByPtr != null) {
-      objectValue["25"] = object.ownedByPtr.toValue();
+      objectValue["28"] = object.ownedByPtr.toValue();
     }
-    objectValue["31"] = object.name;
+    objectValue["101"] = object.name;
     if (object.scenePtr != null) {
-      objectValue["40"] = object.scenePtr.toValue();
+      objectValue["110"] = object.scenePtr.toValue();
     }
     return objectValue;
   }
@@ -395,7 +397,7 @@ export class Route
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scenePtrValue = objectValue["40"];
+    const scenePtrValue = objectValue["110"];
     const unpackedScenePtr =
       scenePtrValue != undefined
         ? _NodeReference.fromValue(scenePtrValue, _session, _supergraph, _graph, _connection)
@@ -405,37 +407,37 @@ export class Route
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const ownedByPtrValue = objectValue["25"];
+    const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Route({
       parent: unpackedParentPtr,
+      name: objectValue["101"],
       scene: unpackedScenePtr,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
       deletedAt: unpackedDeletedAt,
-      orderKey: objectValue["24"],
+      orderKey: objectValue["27"],
       ownedBy: unpackedOwnedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       _session,
@@ -508,6 +510,7 @@ export class Route
               _connection,
             )
           : null,
+      name: objectProto.name,
       scene:
         objectProto.scenePtr != undefined
           ? _NodeReference.fromProto(
@@ -528,7 +531,6 @@ export class Route
               _connection,
             )
           : null,
-      name: objectProto.name,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       orderKey: objectProto.orderKey,

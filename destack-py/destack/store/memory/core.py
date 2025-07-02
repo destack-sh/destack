@@ -86,11 +86,13 @@ class MemoryContext:
     def get(self, definition: NodeDefinitionReference | NodeReference) -> "MemoryTable":
         """Get the (single) Table for a node / definition. Doesn't work for multi-definitions."""
         assert definition.type is not None, f"no node_type for {definition!r}"
+        table_key: tuple[NodeType, UUID | None]
         if isinstance(definition, NodeReference):
             if definition.type != NodeType.CUSTOM_ENTITY:
                 table_key = (definition.type, None)
             else:
                 table_key = (definition.type, definition.definition_id)
+            node_type = definition.type
         else:
             if definition.node_type != NodeType.CUSTOM_ENTITY:
                 table_key = (definition.node_type, None)
@@ -99,9 +101,10 @@ class MemoryContext:
                     definition.node_type,
                     definition.definition_ptr.id if definition.definition_ptr else None,
                 )
+            node_type = definition.node_type
         if table_key not in self.database.tables:
             self.database.tables[table_key] = MemoryTable(
-                database=self.database, metatype=definition.type, definition=None
+                database=self.database, metatype=node_type, definition=None
             )
         return self.database.tables[table_key]
 

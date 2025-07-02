@@ -216,8 +216,7 @@ class Resource(IsDeletable, IsExtensible, Entity):
     The lifecycle of a Resource may be managed by some Provisioner.
     """
 
-    status: ResourceStatus = builtin_property(100, default=ResourceStatus.PENDING)
-    target_status: Optional[datetime] = builtin_property(101)
+    status: ResourceStatus = builtin_property(90, default=ResourceStatus.PENDING)
 
 
 @builtin_node(NodeType.METRIC, is_abstract=True)

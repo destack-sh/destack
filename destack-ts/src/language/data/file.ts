@@ -5,15 +5,18 @@ import {
   unpackProtoTimestamp,
 } from "@destack/grpc";
 import type {
+  CustomEntityDefinition,
+  CustomEventDefinition,
   Graph,
-  HasName,
   IsGlobal,
   IsSpatial,
   IsSubject,
+  NodeDefinitionReference,
   NodeReference,
   QueryConnection,
   Session,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   EnumType,
@@ -203,7 +206,7 @@ registerEnumClass(EnumType.FILE_FORMAT, FileFormat);
 /**
  * A File stored somewhere.
  */
-export class File extends Resource implements IsSpatial, IsGlobal, HasName {
+export class File extends Resource implements IsSpatial, IsGlobal {
   static metatype: NodeType = NodeType.FILE;
 
   /**
@@ -229,6 +232,26 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * The definitionthis CustomEntity is an instance of.
+   */
+  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as
+        | CustomEntityDefinition
+        | CustomEventDefinition
+        | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
+   * Inlined base type of this extensible Node (if extended).
+   */
+  readonly baseType: NodeDefinitionReference | null;
 
   /**
    * Entity.createdAt
@@ -270,14 +293,9 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * File.type
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  type: FileType;
-
-  /**
-   * HasName.name
-   */
-  name: string;
+  customValues: Map<string, Value>;
 
   /**
    * Resource.status
@@ -285,9 +303,14 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
   status: ResourceStatus;
 
   /**
-   * Resource.targetStatus
+   * File.type
    */
-  targetStatus: Temporal.ZonedDateTime | null;
+  type: FileType;
+
+  /**
+   * File.name
+   */
+  name: string;
 
   /**
    * File.source
@@ -378,15 +401,17 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     id?: string;
     parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
+    definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
+    baseType?: NodeDefinitionReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: Map<string, Value>;
+    status?: ResourceStatus;
     type: FileType;
     name: string;
-    status?: ResourceStatus;
-    targetStatus?: Temporal.ZonedDateTime | null;
     source: FileSource;
     mimeType?: string | null;
     format?: FileFormat | null;
@@ -443,8 +468,28 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
+    }
+    this.customValues = _customValues;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* ResourceStatus.PENDING */;
+    }
+    if (_status === null) {
+      throw new Error(`File.status is required`);
+    }
+    this.status = _status;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`File.type is required`);
@@ -455,16 +500,6 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
       throw new Error(`File.name is required`);
     }
     this.name = _name;
-    let _status = options.status ?? null;
-    if (_status === null) {
-      _status = 1 /* ResourceStatus.PENDING */;
-    }
-    if (_status === null) {
-      throw new Error(`File.status is required`);
-    }
-    this.status = _status;
-    let _targetStatus = options.targetStatus ?? null;
-    this.targetStatus = _targetStatus;
     let _source = options.source;
     if (_source === null) {
       throw new Error(`File.source is required`);
@@ -540,6 +575,9 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     if (!(this.source === other.source)) {
       return false;
     }
@@ -601,14 +639,28 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.targetStatus === other.targetStatus)) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
+    }
+    if (
+      (this.baseType == null) !== (other.baseType == null) ||
+      (this.baseType != null && !this.baseType.equals(other.baseType))
+    ) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+        return false;
+      }
     }
     return true;
   }
@@ -617,6 +669,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + this.source) & 0xffffffff;
     if (this.mimeType !== null) {
       h = (h * 31 + hashString(this.mimeType)) & 0xffffffff;
@@ -669,17 +722,19 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.targetStatus !== null) {
-      h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -688,6 +743,12 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
     }
 
     return h;
@@ -700,9 +761,10 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      nodeType: NodeType.FILE,
+      type: NodeType.FILE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -728,6 +790,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${FileType[this.type]}`);
+    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`source=${FileSource[this.source]}`);
     if (this.mimeType !== null) {
       propertyReprs.push(`mimeType=${this.mimeType}`);
@@ -741,7 +804,6 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     if (this.url !== null) {
       propertyReprs.push(`url=${this.url}`);
     }
-    propertyReprs.push(`name=${this.name}`);
     return `<File '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -759,71 +821,81 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.baseType != null) {
+      objectValue["7"] = object.baseType.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+      objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["30"] = object.type;
-    objectValue["31"] = object.name;
-    objectValue["40"] = object.status;
-    if (object.targetStatus != null) {
-      objectValue["41"] = object.targetStatus.toString({ timeZoneName: "never" });
+    if (object.customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object.customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
     }
-    objectValue["60"] = object.source;
+    objectValue["90"] = object.status;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
+    objectValue["110"] = object.source;
     if (object.mimeType != null) {
-      objectValue["61"] = object.mimeType;
+      objectValue["111"] = object.mimeType;
     }
     if (object.format != null) {
-      objectValue["62"] = object.format;
+      objectValue["112"] = object.format;
     }
     if (object.size != null) {
-      objectValue["63"] = object.size;
+      objectValue["113"] = object.size;
     }
     if (object.sha256 != null) {
-      objectValue["64"] = object.sha256;
+      objectValue["114"] = object.sha256;
     }
     if (object.width != null) {
-      objectValue["65"] = object.width;
+      objectValue["115"] = object.width;
     }
     if (object.height != null) {
-      objectValue["66"] = object.height;
+      objectValue["116"] = object.height;
     }
     if (object.aspectRatio != null) {
-      objectValue["67"] = object.aspectRatio;
+      objectValue["117"] = object.aspectRatio;
     }
     if (object.codec != null) {
-      objectValue["68"] = object.codec;
+      objectValue["118"] = object.codec;
     }
     if (object.duration != null) {
-      objectValue["69"] = timedeltaToISOFormat(object.duration);
+      objectValue["119"] = timedeltaToISOFormat(object.duration);
     }
     if (object.url != null) {
-      objectValue["70"] = object.url;
+      objectValue["120"] = object.url;
     }
     if (object.contentUrl != null) {
-      objectValue["71"] = object.contentUrl;
+      objectValue["121"] = object.contentUrl;
     }
     if (object.thumbnailUrl != null) {
-      objectValue["72"] = object.thumbnailUrl;
+      objectValue["122"] = object.thumbnailUrl;
     }
     if (object.faviconUrl != null) {
-      objectValue["73"] = object.faviconUrl;
+      objectValue["123"] = object.faviconUrl;
     }
     if (object.thumbnailWidth != null) {
-      objectValue["74"] = object.thumbnailWidth;
+      objectValue["124"] = object.thumbnailWidth;
     }
     if (object.thumbnailHeight != null) {
-      objectValue["75"] = object.thumbnailHeight;
+      objectValue["125"] = object.thumbnailHeight;
     }
     if (object.content != null) {
-      objectValue["76"] = base64Encode(object.content);
+      objectValue["126"] = base64Encode(object.content);
     }
     return objectValue;
   }
@@ -836,74 +908,99 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     _connection?: any | null,
   ): File {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const mimeTypeValue = objectValue["61"];
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const mimeTypeValue = objectValue["111"];
     const unpackedMimeType = mimeTypeValue != undefined ? mimeTypeValue : null;
-    const formatValue = objectValue["62"];
+    const formatValue = objectValue["112"];
     const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
-    const sizeValue = objectValue["63"];
+    const sizeValue = objectValue["113"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
-    const sha256Value = objectValue["64"];
+    const sha256Value = objectValue["114"];
     const unpackedSha256 = sha256Value != undefined ? sha256Value : null;
-    const widthValue = objectValue["65"];
+    const widthValue = objectValue["115"];
     const unpackedWidth = widthValue != undefined ? Number(widthValue) : null;
-    const heightValue = objectValue["66"];
+    const heightValue = objectValue["116"];
     const unpackedHeight = heightValue != undefined ? Number(heightValue) : null;
-    const aspectRatioValue = objectValue["67"];
+    const aspectRatioValue = objectValue["117"];
     const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
-    const codecValue = objectValue["68"];
+    const codecValue = objectValue["118"];
     const unpackedCodec = codecValue != undefined ? codecValue : null;
-    const durationValue = objectValue["69"];
+    const durationValue = objectValue["119"];
     const unpackedDuration =
       durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
-    const urlValue = objectValue["70"];
+    const urlValue = objectValue["120"];
     const unpackedUrl = urlValue != undefined ? urlValue : null;
-    const contentUrlValue = objectValue["71"];
+    const contentUrlValue = objectValue["121"];
     const unpackedContentUrl = contentUrlValue != undefined ? contentUrlValue : null;
-    const thumbnailUrlValue = objectValue["72"];
+    const thumbnailUrlValue = objectValue["122"];
     const unpackedThumbnailUrl = thumbnailUrlValue != undefined ? thumbnailUrlValue : null;
-    const faviconUrlValue = objectValue["73"];
+    const faviconUrlValue = objectValue["123"];
     const unpackedFaviconUrl = faviconUrlValue != undefined ? faviconUrlValue : null;
-    const thumbnailWidthValue = objectValue["74"];
+    const thumbnailWidthValue = objectValue["124"];
     const unpackedThumbnailWidth =
       thumbnailWidthValue != undefined ? Number(thumbnailWidthValue) : null;
-    const thumbnailHeightValue = objectValue["75"];
+    const thumbnailHeightValue = objectValue["125"];
     const unpackedThumbnailHeight =
       thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
-    const contentValue = objectValue["76"];
+    const contentValue = objectValue["126"];
     const unpackedContent = contentValue != undefined ? base64Decode(contentValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const targetStatusValue = objectValue["41"];
-    const unpackedTargetStatus =
-      targetStatusValue != undefined
-        ? Temporal.Instant.from(targetStatusValue).toZonedDateTimeISO("UTC")
-        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["20"];
+    const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const createdByPtrValue = objectValue["16"];
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["7"];
+    const unpackedBaseType =
+      baseTypeValue != undefined
+        ? _NodeDefinitionReference.fromValue(
+            baseTypeValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
+    const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["18"];
+    const updatedByPtrValue = objectValue["23"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new File({
-      type: Number(objectValue["30"]),
-      source: Number(objectValue["60"]),
+      type: Number(objectValue["100"]),
+      name: objectValue["101"],
+      source: Number(objectValue["110"]),
       mimeType: unpackedMimeType,
       format: unpackedFormat,
       size: unpackedSize,
@@ -921,16 +1018,17 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
       thumbnailHeight: unpackedThumbnailHeight,
       content: unpackedContent,
       space: unpackedSpacePtr,
-      name: objectValue["31"],
-      status: Number(objectValue["40"]),
-      targetStatus: unpackedTargetStatus,
+      status: Number(objectValue["90"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       deletedAt: unpackedDeletedAt,
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      definition: unpackedDefinitionPtr,
+      baseType: unpackedBaseType,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -960,6 +1058,12 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
+    if (object.baseType != null) {
+      objectProto.baseType = object.baseType.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -971,12 +1075,15 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object.customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object.customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
+    objectProto.status = Number(object.status) as ResourceStatusProto;
     objectProto.type = Number(object.type) as FileTypeProto;
     objectProto.name = object.name;
-    objectProto.status = Number(object.status) as ResourceStatusProto;
-    if (object.targetStatus != null) {
-      objectProto.targetStatus = packProtoTimestamp(object.targetStatus);
-    }
     objectProto.source = Number(object.source) as FileSourceProto;
     if (object.mimeType != null) {
       objectProto.mimeType = object.mimeType;
@@ -1037,8 +1144,22 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
     _connection?: any | null,
   ): File {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new File({
       type: Number(objectProto.type) as FileType,
+      name: objectProto.name,
       source: Number(objectProto.source) as FileSource,
       mimeType: objectProto.mimeType != undefined ? objectProto.mimeType : null,
       format: objectProto.format != undefined ? (Number(objectProto.format) as FileFormat) : null,
@@ -1069,12 +1190,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
               _connection,
             )
           : null,
-      name: objectProto.name,
       status: Number(objectProto.status) as ResourceStatus,
-      targetStatus:
-        objectProto.targetStatus != undefined
-          ? unpackProtoTimestamp(objectProto.targetStatus!)
-          : null,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
@@ -1088,6 +1204,26 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseType:
+        objectProto.baseType != undefined
+          ? _NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1110,6 +1246,7 @@ export class File extends Resource implements IsSpatial, IsGlobal, HasName {
               _connection,
             )
           : null,
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
