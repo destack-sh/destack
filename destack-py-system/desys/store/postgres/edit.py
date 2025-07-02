@@ -256,8 +256,9 @@ WHERE id = ${param_i}
     elif edit_type == EditType.MOVE:
         # prepare statement
         parent_prop = node_cls.__parent_property__
+        parent_prop_type = parent_prop.to_type()
         update_template: dict[str, Any] = {}
-        pack_column_wide(parent_prop.type, None, table, parent_prop.name, update_template)
+        pack_column_wide(parent_prop_type, None, table, parent_prop.name, update_template)
         stmt = f"""\
 UPDATE {table.name}
 SET {", ".join(f'"{key}" = ${i + 1}' for i, key in enumerate(update_template.keys()))}
@@ -271,7 +272,7 @@ WHERE id = ${len(update_template) + 1}
                 f"unexpected value: {edit!r}"
             )
             update: dict[str, Any] = {}
-            pack_column_wide(parent_prop.type, edit.value.value, table, parent_prop.name, update)
+            pack_column_wide(parent_prop_type, edit.value.value, table, parent_prop.name, update)
             row_values = (*update.values(), edit.node_ptr.id)
             values_packed.append(row_values)
         await conn.executemany(stmt, values_packed)

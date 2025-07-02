@@ -202,7 +202,7 @@ def get_naive_object_strategy(object_cls: type[BuiltinObjectBase]):
         if prop.name in STRATEGY_BY_PROPERTY:
             object_kwargs[prop_name] = STRATEGY_BY_PROPERTY[prop.name]
         else:
-            object_kwargs[prop_name] = get_type_strategy(prop.type)
+            object_kwargs[prop_name] = get_type_strategy(prop.to_type())
 
     return object_kwargs
 

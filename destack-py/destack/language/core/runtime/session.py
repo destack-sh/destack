@@ -199,6 +199,7 @@ class Session:
             for prop_name, prop_old_value in node._dirty.items():
                 prop = node.__properties__[prop_name]
                 prop_ptr = prop.to_ref()
+                prop_type = prop.to_type()
 
                 # undo
                 if prop_old_value is None or (
@@ -208,7 +209,7 @@ class Session:
                     old_value = None
                 else:
                     undo_operation = EditOperation.SET
-                    old_value = to_value(prop_old_value, prop.type)
+                    old_value = to_value(prop_old_value, prop_type)
 
                 # do
                 prop_new_value = getattr(node, prop_name)
@@ -219,7 +220,7 @@ class Session:
                     new_value = None
                 else:
                     operation = EditOperation.SET
-                    new_value = to_value(prop_new_value, prop.type)
+                    new_value = to_value(prop_new_value, prop_type)
 
                 undo_edit = Edit(
                     type=EditType.UPDATE,
@@ -253,18 +254,21 @@ class Session:
 
     async def stage(self):
         """Stage pending Edits. Also stages pending Changes in the Store if possible."""
-        assert self.store is not None, f"{self!r} has no Store"
+        assert self.closed_at is None, f"{self!r} is closed"
         self.flush()
 
     async def commit(self) -> Sequence[ChangeResult]:
         """
         Commits all Changes/Edits. Returns applied Changes.
         """
+        assert self.closed_at is None, f"{self!r} is closed"
         assert self.store is not None, f"{self!r} has no Store"
         self.flush()
-        results = await self.store.commit(self.changes)
+        changes = list(self.changes)
+        self.changes = []
+        results = await self.store.commit(changes)
         if any(result.status != ChangeStatus.COMPLETED for result in results):
-            changes_by_id: dict[UUID, Change] = {change.id: change for change in self.changes}
+            changes_by_id: dict[UUID, Change] = {change.id: change for change in changes}
             failed_changes = [
                 changes_by_id[result.id]
                 for result in results
@@ -273,7 +277,6 @@ class Session:
             raise RuntimeError(
                 f"failed to commit {len(failed_changes)} Changes: {failed_changes!r}"
             )
-        self.changes = []
         return results
 
     async def __aenter__(self):
