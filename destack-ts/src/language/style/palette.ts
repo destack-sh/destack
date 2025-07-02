@@ -96,7 +96,7 @@ export class Palette
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -321,7 +321,7 @@ export class Palette
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["31"] = object.name;
     if (object.icon != null) {
       objectValue["34"] = object.icon.toValue();
@@ -372,7 +372,7 @@ export class Palette
       space: unpackedSpacePtr,
       name: objectValue["31"],
       icon: unpackedIcon,
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,

@@ -102,12 +102,12 @@ export class CustomEnumDefinition
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   value: Map<string, Value>;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -386,7 +386,7 @@ export class CustomEnumDefinition
       }
       objectValue["21"] = packedValue;
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["31"] = object.name;
     if (object.icon != null) {
       objectValue["34"] = object.icon.toValue();
@@ -464,7 +464,7 @@ export class CustomEnumDefinition
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       _session,
       _graph,
       _connection,
@@ -719,7 +719,7 @@ export class CustomOption
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -968,7 +968,7 @@ export class CustomOption
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["31"] = object.name;
     if (object.icon != null) {
       objectValue["34"] = object.icon.toValue();
@@ -1035,7 +1035,7 @@ export class CustomOption
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       _session,
       _graph,
       _connection,

@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         CustomEventDefinition,
         CustomStructDefinition,
         CustomTraitDefinition,
+        IsCustomizable,
         IsExtensible,
         Type,
         Value,
@@ -65,11 +66,11 @@ class CustomProperty(
     Entity,
 ):
     """
-    A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.
+    A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
     """
 
-    parent: Union["IsExtensible", "CustomProperty", None] = builtin_property_parent(
-        node_is_extensible=True
+    parent: Union["IsCustomizable", "IsExtensible", "CustomProperty", None] = (
+        builtin_property_parent(node_is_extensible=True)
     )
     type: CustomPropertyType = builtin_property(30, default=CustomPropertyType.MEMBER)
 

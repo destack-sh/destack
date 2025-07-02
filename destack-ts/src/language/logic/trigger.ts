@@ -47,12 +47,12 @@ export abstract class TriggerEvent extends Event {
   static metatype: NodeType = NodeType.TRIGGER_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }

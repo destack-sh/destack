@@ -69,12 +69,12 @@ export abstract class RunEvent extends Event {
   static metatype: NodeType = NodeType.RUN_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -158,12 +158,12 @@ export class RunStartedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_STARTED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -234,7 +234,7 @@ export class RunStartedEvent extends RunEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -335,6 +335,9 @@ export class RunStartedEvent extends RunEvent {
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -343,9 +346,6 @@ export class RunStartedEvent extends RunEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -424,6 +424,11 @@ export class RunStartedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -434,19 +439,14 @@ export class RunStartedEvent extends RunEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunStartedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -513,6 +513,16 @@ export class RunStartedEvent extends RunEvent {
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -535,16 +545,6 @@ export class RunStartedEvent extends RunEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -582,12 +582,12 @@ export class RunPauseRequestedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_PAUSE_REQUESTED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -658,7 +658,7 @@ export class RunPauseRequestedEvent extends RunEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -759,6 +759,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -767,9 +770,6 @@ export class RunPauseRequestedEvent extends RunEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -848,6 +848,11 @@ export class RunPauseRequestedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -858,19 +863,14 @@ export class RunPauseRequestedEvent extends RunEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunPauseRequestedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -943,6 +943,16 @@ export class RunPauseRequestedEvent extends RunEvent {
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -965,16 +975,6 @@ export class RunPauseRequestedEvent extends RunEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1018,12 +1018,12 @@ export class RunPausedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_PAUSED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1094,7 +1094,7 @@ export class RunPausedEvent extends RunEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1195,6 +1195,9 @@ export class RunPausedEvent extends RunEvent {
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1203,9 +1206,6 @@ export class RunPausedEvent extends RunEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1284,6 +1284,11 @@ export class RunPausedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1294,19 +1299,14 @@ export class RunPausedEvent extends RunEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunPausedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -1373,6 +1373,16 @@ export class RunPausedEvent extends RunEvent {
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1395,16 +1405,6 @@ export class RunPausedEvent extends RunEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1442,12 +1442,12 @@ export class RunResumeRequestedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_RESUME_REQUESTED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1518,7 +1518,7 @@ export class RunResumeRequestedEvent extends RunEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1619,6 +1619,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1627,9 +1630,6 @@ export class RunResumeRequestedEvent extends RunEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1708,6 +1708,11 @@ export class RunResumeRequestedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1718,19 +1723,14 @@ export class RunResumeRequestedEvent extends RunEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunResumeRequestedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -1803,6 +1803,16 @@ export class RunResumeRequestedEvent extends RunEvent {
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1825,16 +1835,6 @@ export class RunResumeRequestedEvent extends RunEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1878,12 +1878,12 @@ export class RunResumedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_RESUMED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1954,7 +1954,7 @@ export class RunResumedEvent extends RunEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -2055,6 +2055,9 @@ export class RunResumedEvent extends RunEvent {
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -2063,9 +2066,6 @@ export class RunResumedEvent extends RunEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -2144,6 +2144,11 @@ export class RunResumedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2154,19 +2159,14 @@ export class RunResumedEvent extends RunEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunResumedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -2233,6 +2233,16 @@ export class RunResumedEvent extends RunEvent {
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -2255,16 +2265,6 @@ export class RunResumedEvent extends RunEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -2302,12 +2302,12 @@ export class RunStopRequestedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_STOP_REQUESTED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -2378,7 +2378,7 @@ export class RunStopRequestedEvent extends RunEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -2479,6 +2479,9 @@ export class RunStopRequestedEvent extends RunEvent {
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -2487,9 +2490,6 @@ export class RunStopRequestedEvent extends RunEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -2568,6 +2568,11 @@ export class RunStopRequestedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2578,19 +2583,14 @@ export class RunStopRequestedEvent extends RunEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunStopRequestedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -2663,6 +2663,16 @@ export class RunStopRequestedEvent extends RunEvent {
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -2685,16 +2695,6 @@ export class RunStopRequestedEvent extends RunEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -2738,12 +2738,12 @@ export class RunFailedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_FAILED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -2814,7 +2814,7 @@ export class RunFailedEvent extends RunEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -2915,6 +2915,9 @@ export class RunFailedEvent extends RunEvent {
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -2923,9 +2926,6 @@ export class RunFailedEvent extends RunEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -3004,6 +3004,11 @@ export class RunFailedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3014,19 +3019,14 @@ export class RunFailedEvent extends RunEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunFailedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -3093,6 +3093,16 @@ export class RunFailedEvent extends RunEvent {
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -3115,16 +3125,6 @@ export class RunFailedEvent extends RunEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -3162,12 +3162,12 @@ export class RunCompletedEvent extends RunEvent {
   static metatype: NodeType = NodeType.RUN_COMPLETED_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -3238,7 +3238,7 @@ export class RunCompletedEvent extends RunEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -3339,6 +3339,9 @@ export class RunCompletedEvent extends RunEvent {
     if (this.targetPtr !== null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -3347,9 +3350,6 @@ export class RunCompletedEvent extends RunEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -3428,6 +3428,11 @@ export class RunCompletedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3438,19 +3443,14 @@ export class RunCompletedEvent extends RunEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunCompletedEvent({
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -3523,6 +3523,16 @@ export class RunCompletedEvent extends RunEvent {
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -3545,16 +3555,6 @@ export class RunCompletedEvent extends RunEvent {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -3656,7 +3656,7 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   value: Map<string, Value>;
 

@@ -98,12 +98,12 @@ export class Script
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   value: Map<string, Value>;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -355,7 +355,7 @@ export class Script
       }
       objectValue["21"] = packedValue;
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["31"] = object.name;
     if (object.code != null) {
       objectValue["100"] = object.code;
@@ -413,7 +413,7 @@ export class Script
       code: unpackedCode,
       space: unpackedSpacePtr,
       name: objectValue["31"],
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       deletedAt: unpackedDeletedAt,
       value: unpackedValue,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),

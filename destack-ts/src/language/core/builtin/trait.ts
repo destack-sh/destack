@@ -207,7 +207,7 @@ registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
  */
 export interface IsCustomizable {
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   value: Map<string, Value>;
 
@@ -231,7 +231,7 @@ registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
  */
 export interface IsOrdered {
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 

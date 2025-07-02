@@ -358,7 +358,7 @@ export class ArrowShape extends Shape {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -1107,7 +1107,7 @@ export class ArrowShape extends Shape {
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["31"] = object.name;
     if (object.position != null) {
       objectValue["40"] = object.position.toValue();
@@ -1398,7 +1398,7 @@ export class ArrowShape extends Shape {
       updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),

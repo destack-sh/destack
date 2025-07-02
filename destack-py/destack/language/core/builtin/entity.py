@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         IsSubject,
         NodeDefinitionReference,
         NodeReference,
+        Space,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -147,13 +148,14 @@ class CustomEntityDefinition(
 
     parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
 
+    base_type: "NodeDefinitionReference" = builtin_property(40)
+    base_traits: list["NodeDefinitionReference"] = builtin_property(41)
+    is_abstract: bool = builtin_property(45, default=False)
+
     prototype: Optional["CustomEntity"] = builtin_property(
-        40,
+        50,
         description="A custom Entity's prototype is the default template new CustomEntity instances are based on.",
     )
-    base_type: "NodeDefinitionReference" = builtin_property(41)
-    base_traits: list["NodeDefinitionReference"] = builtin_property(42)
-    is_abstract: bool = builtin_property(45, default=False)
 
 
 @builtin_node(NodeType.CUSTOM_ENTITY, is_abstract=True)
@@ -168,27 +170,32 @@ class CustomEntity(
     A CustomEntity is an instance of a CustomEntityDefinition.
     """
 
-    parent: Union["CustomEntityDefinition", "CustomEntity", None] = builtin_property_parent(
+    parent: Union["Space", "Folder", "CustomEntity", None] = builtin_property_parent(
         node_is_extensible=True
     )
     definition: "CustomEntityDefinition" = builtin_property(
         6,
-        description="The CustomEntityDefinition this CustomEntity is an instance of.",
         is_managed=True,
-        can_write=None,
-    )
-    base_type: "NodeDefinitionReference" = builtin_property(
-        41,
         is_readonly=True,
-        description="Inlined base type of this CustomEntity.",
-    )
-    base_traits: list["NodeDefinitionReference"] = builtin_property(
-        42,
-        is_readonly=True,
-        description="Inlined base traits of this CustomEntity.",
+        description="The CustomEntityDefinition this CustomEntity is an instance of.",
     )
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None
+
+    base_type: "NodeDefinitionReference" = builtin_property(
+        40,
+        is_readonly=True,
+        is_managed=True,
+        description="Inlined base type of this CustomEntity.",
+    )
+    base_node_type: NodeType = builtin_property(
+        41,
+        is_readonly=True,
+        is_managed=True,
+        description="Inlined builtin base NodeType of this CustomEntity.",
+    )
+    # inherits?
+    # base_traits/base_trait_types?
 
 
 @builtin_node(NodeType.CUSTOM_TRAIT_DEFINITION)
@@ -206,8 +213,8 @@ class CustomTraitDefinition(
     """
 
     parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
-    base_type: Optional["NodeDefinitionReference"] = builtin_property(41)
-    base_traits: list["NodeDefinitionReference"] = builtin_property(42)
+    base_type: Optional["NodeDefinitionReference"] = builtin_property(40)
+    base_traits: list["NodeDefinitionReference"] = builtin_property(41)
     is_abstract: bool = builtin_property(45, default=False)
 
 

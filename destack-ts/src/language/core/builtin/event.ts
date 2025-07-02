@@ -16,7 +16,6 @@ import type {
   IsSubject,
 } from "@destack/language/core/builtin/trait";
 import { EditOperation, EditType } from "@destack/language/core/common/edit";
-import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -31,7 +30,7 @@ import {
   EditTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3 ==== */
@@ -42,12 +41,12 @@ export abstract class Event extends Node implements IsSpatial {
   static metatype: NodeType = NodeType.EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -177,12 +176,12 @@ export class CustomEventDefinition
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   value: Map<string, Value>;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -190,6 +189,21 @@ export class CustomEventDefinition
    * HasName.name
    */
   name: string;
+
+  /**
+   * CustomEventDefinition.baseType
+   */
+  baseType: NodeDefinitionReference | null;
+
+  /**
+   * CustomEventDefinition.baseTraits
+   */
+  baseTraits: Array<NodeDefinitionReference>;
+
+  /**
+   * CustomEventDefinition.isAbstract
+   */
+  isAbstract: boolean;
 
   /**
    * A custom Event's prototype is the default template new CustomEvent instances are based on.
@@ -209,11 +223,6 @@ export class CustomEventDefinition
     }
   }
   prototypePtr: NodeReference | null;
-
-  /**
-   * CustomEventDefinition.baseType
-   */
-  baseType: NodeDefinitionReference | null;
 
   /**
    * IsSourceable.source
@@ -238,8 +247,10 @@ export class CustomEventDefinition
     value?: Map<string, Value>;
     orderKey?: string;
     name: string;
-    prototype?: Node | NodeReference | null;
     baseType?: NodeDefinitionReference | null;
+    baseTraits?: Array<NodeDefinitionReference>;
+    isAbstract?: boolean;
+    prototype?: Node | NodeReference | null;
     source?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -298,13 +309,26 @@ export class CustomEventDefinition
       throw new Error(`CustomEventDefinition.name is required`);
     }
     this.name = _name;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
+    let _baseTraits = options.baseTraits ?? null;
+    if (_baseTraits === null) {
+      _baseTraits = [];
+    }
+    this.baseTraits = _baseTraits;
+    let _isAbstract = options.isAbstract ?? null;
+    if (_isAbstract === null) {
+      _isAbstract = false;
+    }
+    if (_isAbstract === null) {
+      throw new Error(`CustomEventDefinition.isAbstract is required`);
+    }
+    this.isAbstract = _isAbstract;
     let _prototype = options.prototype ?? null;
     if (_prototype != null && _prototype.metatype != StructType.NODE_REFERENCE) {
       _prototype = (_prototype as Node).toRef();
     }
     this.prototypePtr = _prototype;
-    let _baseType = options.baseType ?? null;
-    this.baseType = _baseType;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -345,13 +369,24 @@ export class CustomEventDefinition
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.prototypePtr?.id === other.prototypePtr?.id)) {
-      return false;
-    }
     if (
       (this.baseType == null) !== (other.baseType == null) ||
       (this.baseType != null && !this.baseType.equals(other.baseType))
     ) {
+      return false;
+    }
+    if (this.baseTraits.length !== other.baseTraits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseTraits.length; i++) {
+      if (!this.baseTraits[i].equals(other.baseTraits[i])) {
+        return false;
+      }
+    }
+    if (!(this.isAbstract === other.isAbstract)) {
+      return false;
+    }
+    if (!(this.prototypePtr?.id === other.prototypePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -380,11 +415,17 @@ export class CustomEventDefinition
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.prototypePtr !== null) {
-      h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
-    }
     if (this.baseType !== null) {
       h = (h * 31 + this.baseType.hash()) & 0xffffffff;
+    }
+    if (this.baseTraits && this.baseTraits.length > 0) {
+      for (const _item of this.baseTraits) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
+    if (this.prototypePtr !== null) {
+      h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -483,13 +524,21 @@ export class CustomEventDefinition
       }
       objectValue["21"] = packedValue;
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["31"] = object.name;
-    if (object.prototypePtr != null) {
-      objectValue["40"] = object.prototypePtr.toValue();
-    }
     if (object.baseType != null) {
-      objectValue["41"] = object.baseType.toValue();
+      objectValue["40"] = object.baseType.toValue();
+    }
+    if (object.baseTraits.length > 0) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(item.toValue());
+      }
+      objectValue["41"] = packedBaseTraits;
+    }
+    objectValue["45"] = object.isAbstract;
+    if (object.prototypePtr != null) {
+      objectValue["50"] = object.prototypePtr.toValue();
     }
     if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
@@ -509,12 +558,7 @@ export class CustomEventDefinition
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const prototypePtrValue = objectValue["40"];
-    const unpackedPrototypePtr =
-      prototypePtrValue != undefined
-        ? _NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const baseTypeValue = objectValue["41"];
+    const baseTypeValue = objectValue["40"];
     const unpackedBaseType =
       baseTypeValue != undefined
         ? _NodeDefinitionReference.fromValue(
@@ -524,6 +568,19 @@ export class CustomEventDefinition
             _graph,
             _connection,
           )
+        : null;
+    const unpackedBaseTraits: any[] = [];
+    if (objectValue["41"] != undefined) {
+      for (const item of objectValue["41"]) {
+        unpackedBaseTraits.push(
+          _NodeDefinitionReference.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const prototypePtrValue = objectValue["50"];
+    const unpackedPrototypePtr =
+      prototypePtrValue != undefined
+        ? _NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
@@ -560,8 +617,10 @@ export class CustomEventDefinition
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEventDefinition({
-      prototype: unpackedPrototypePtr,
       baseType: unpackedBaseType,
+      baseTraits: unpackedBaseTraits,
+      isAbstract: objectValue["45"],
+      prototype: unpackedPrototypePtr,
       space: unpackedSpacePtr,
       name: objectValue["31"],
       source: unpackedSourcePtr,
@@ -572,7 +631,7 @@ export class CustomEventDefinition
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       _session,
       _graph,
       _connection,
@@ -624,11 +683,19 @@ export class CustomEventDefinition
     }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object.name;
-    if (object.prototypePtr != null) {
-      objectProto.prototypePtr = object.prototypePtr.toProto();
-    }
     if (object.baseType != null) {
       objectProto.baseType = object.baseType.toProto();
+    }
+    if (object.baseTraits) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(item.toProto());
+      }
+      objectProto.baseTraits = packedBaseTraits;
+    }
+    objectProto.isAbstract = object.isAbstract;
+    if (object.prototypePtr != null) {
+      objectProto.prototypePtr = object.prototypePtr.toProto();
     }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
@@ -648,6 +715,14 @@ export class CustomEventDefinition
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedBaseTraits: any[] = [];
+    if (objectProto.baseTraits) {
+      for (const item of objectProto.baseTraits) {
+        unpackedBaseTraits.push(
+          _NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
@@ -658,20 +733,22 @@ export class CustomEventDefinition
       }
     }
     return new CustomEventDefinition({
-      prototype:
-        objectProto.prototypePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.prototypePtr!,
+      baseType:
+        objectProto.baseType != undefined
+          ? _NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
               _session,
               _supergraph,
               _graph,
               _connection,
             )
           : null,
-      baseType:
-        objectProto.baseType != undefined
-          ? _NodeDefinitionReference.fromProto(
-              objectProto.baseType!,
+      baseTraits: unpackedBaseTraits,
+      isAbstract: objectProto.isAbstract,
+      prototype:
+        objectProto.prototypePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.prototypePtr!,
               _session,
               _supergraph,
               _graph,
@@ -777,12 +854,12 @@ export abstract class CustomEvent extends Event implements IsCustomizable, IsExt
   static metatype: NodeType = NodeType.CUSTOM_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -799,6 +876,18 @@ export abstract class CustomEvent extends Event implements IsCustomizable, IsExt
     return null;
   }
   declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * The CustomEventDefinition this CustomEvent is an instance of.
+   */
+  get definition(): CustomEventDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as CustomEventDefinition | null;
+    }
+    return null;
+  }
+  declare readonly definitionPtr: NodeReference;
 
   /**
    * Event.createdAt
@@ -818,7 +907,7 @@ export abstract class CustomEvent extends Event implements IsCustomizable, IsExt
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   declare value: Map<string, Value>;
 
@@ -842,19 +931,14 @@ export abstract class CustomEvent extends Event implements IsCustomizable, IsExt
   declare nodePtr: NodeReference | null;
 
   /**
-   * The CustomEventDefinition this CustomEvent is an instance of.
+   * Inlined base type of this CustomEvent.
    */
-  get definition(): CustomEventDefinition | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEventDefinition | null;
-    }
-    return null;
-  }
-  set definition(node: CustomEventDefinition) {
-    this.definitionPtr = node.toRef();
-  }
-  declare definitionPtr: NodeReference;
+  declare readonly baseType: NodeDefinitionReference;
+
+  /**
+   * Inlined base node type of this CustomEvent.
+   */
+  declare readonly baseNodeType: NodeType;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -871,12 +955,12 @@ export abstract class MeasurementEvent extends Event {
   static metatype: NodeType = NodeType.MEASUREMENT_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -957,12 +1041,12 @@ export class EditEvent extends Event {
   static metatype: NodeType = NodeType.EDIT_EVENT;
 
   /**
-   * Node.parent
+   * Event.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1028,25 +1112,6 @@ export class EditEvent extends Event {
   propPtr: PropertyReference | null;
 
   /**
-   * EditEvent.field
-   */
-  get field(): CustomProperty | null {
-    const nodePtr: NodeReference | null = this.fieldPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomProperty | null;
-    }
-    return null;
-  }
-  set field(node: CustomProperty | null) {
-    if (node === null) {
-      this.fieldPtr = null;
-    } else {
-      this.fieldPtr = node.toRef();
-    }
-  }
-  fieldPtr: NodeReference | null;
-
-  /**
    * EditEvent.key
    */
   key: Value | null;
@@ -1058,7 +1123,7 @@ export class EditEvent extends Event {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
@@ -1066,7 +1131,6 @@ export class EditEvent extends Event {
     operation?: EditOperation | null;
     node: Node | NodeReference;
     propPtr?: PropertyReference | null;
-    field?: CustomProperty | NodeReference | null;
     key?: Value | null;
     value?: Value | null;
     _session?: Session | null;
@@ -1125,11 +1189,6 @@ export class EditEvent extends Event {
     this.nodePtr = _node;
     let _propPtr = options.propPtr ?? null;
     this.propPtr = _propPtr;
-    let _field = options.field ?? null;
-    if (_field != null && _field.metatype != StructType.NODE_REFERENCE) {
-      _field = (_field as Node).toRef();
-    }
-    this.fieldPtr = _field;
     let _key = options.key ?? null;
     this.key = _key;
     let _value = options.value ?? null;
@@ -1173,9 +1232,6 @@ export class EditEvent extends Event {
     ) {
       return false;
     }
-    if (!(this.fieldPtr?.id === other.fieldPtr?.id)) {
-      return false;
-    }
     if (
       (this.key == null) !== (other.key == null) ||
       (this.key != null && !this.key.equals(other.key))
@@ -1205,14 +1261,14 @@ export class EditEvent extends Event {
     if (this.propPtr !== null) {
       h = (h * 31 + this.propPtr.hash()) & 0xffffffff;
     }
-    if (this.fieldPtr !== null) {
-      h = (h * 31 + hashString(this.fieldPtr.id)) & 0xffffffff;
-    }
     if (this.key !== null) {
       h = (h * 31 + this.key.hash()) & 0xffffffff;
     }
     if (this.value !== null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -1222,9 +1278,6 @@ export class EditEvent extends Event {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1271,9 +1324,6 @@ export class EditEvent extends Event {
     if (this.propPtr !== null) {
       propertyReprs.push(`propPtr=${this.propPtr.repr()}`);
     }
-    if (this.field !== null) {
-      propertyReprs.push(`field=${this.field?.repr()}`);
-    }
     if (this.key !== null) {
       propertyReprs.push(`key=${this.key.repr()}`);
     }
@@ -1306,9 +1356,6 @@ export class EditEvent extends Event {
     if (object.propPtr != null) {
       objectValue["36"] = object.propPtr.toValue();
     }
-    if (object.fieldPtr != null) {
-      objectValue["37"] = object.fieldPtr.toValue();
-    }
     if (object.key != null) {
       objectValue["38"] = object.key.toValue();
     }
@@ -1337,11 +1384,6 @@ export class EditEvent extends Event {
       propPtrValue != undefined
         ? _PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const fieldPtrValue = objectValue["37"];
-    const unpackedFieldPtr =
-      fieldPtrValue != undefined
-        ? _NodeReference.fromValue(fieldPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const keyValue = objectValue["38"];
     const unpackedKey =
       keyValue != undefined
@@ -1351,6 +1393,11 @@ export class EditEvent extends Event {
     const unpackedValue =
       valueValue != undefined
         ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
@@ -1362,24 +1409,18 @@ export class EditEvent extends Event {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new EditEvent({
       type: Number(objectValue["30"]),
       operation: unpackedOperation,
       node: _NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       propPtr: unpackedPropPtr,
-      field: unpackedFieldPtr,
       key: unpackedKey,
       value: unpackedValue,
+      parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -1420,9 +1461,6 @@ export class EditEvent extends Event {
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.propPtr != null) {
       objectProto.propPtr = object.propPtr.toProto();
-    }
-    if (object.fieldPtr != null) {
-      objectProto.fieldPtr = object.fieldPtr.toProto();
     }
     if (object.key != null) {
       objectProto.key = object.key.toProto();
@@ -1468,16 +1506,6 @@ export class EditEvent extends Event {
               _connection,
             )
           : null,
-      field:
-        objectProto.fieldPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.fieldPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       key:
         objectProto.key != undefined
           ? _Value.fromProto(objectProto.key!, _session, _supergraph, _graph, _connection)
@@ -1485,6 +1513,16 @@ export class EditEvent extends Event {
       value:
         objectProto.value != undefined
           ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
@@ -1508,16 +1546,6 @@ export class EditEvent extends Event {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

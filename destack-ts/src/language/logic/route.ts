@@ -98,7 +98,7 @@ export class Route
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -371,7 +371,7 @@ export class Route
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
     }
@@ -431,7 +431,7 @@ export class Route
       space: unpackedSpacePtr,
       name: objectValue["31"],
       deletedAt: unpackedDeletedAt,
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       ownedBy: unpackedOwnedByPtr,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,

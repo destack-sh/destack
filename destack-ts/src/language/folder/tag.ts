@@ -94,7 +94,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -319,7 +319,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     objectValue["31"] = object.name;
     if (object.icon != null) {
       objectValue["34"] = object.icon.toValue();
@@ -371,7 +371,7 @@ export class Tag extends Entity implements IsSpatial, HasName, HasIcon, IsOrdere
       space: unpackedSpacePtr,
       name: objectValue["31"],
       icon: unpackedIcon,
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -587,7 +587,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -809,7 +809,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     if (object.tagPtr != null) {
       objectValue["40"] = object.tagPtr.toValue();
     }
@@ -858,7 +858,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       parent: unpackedParentPtr,
       tag: unpackedTagPtr,
       space: unpackedSpacePtr,
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       deletedAt: unpackedDeletedAt,
       createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,

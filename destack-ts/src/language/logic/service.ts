@@ -112,12 +112,12 @@ export class Service
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsCustomizable.value
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   value: Map<string, Value>;
 
   /**
-   * IsOrdered.orderKey
+   * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
@@ -444,7 +444,7 @@ export class Service
       }
       objectValue["21"] = packedValue;
     }
-    objectValue["22"] = object.orderKey;
+    objectValue["24"] = object.orderKey;
     if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
     }
@@ -530,7 +530,7 @@ export class Service
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
-      orderKey: objectValue["22"],
+      orderKey: objectValue["24"],
       _session,
       _graph,
       _connection,
