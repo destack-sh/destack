@@ -5,6 +5,7 @@ import { TraitClass } from "@destack/language/core/builtin/trait";
 import type { Session } from "@destack/language/core/runtime/session";
 import { NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/lookup";
 import type { TraitTypeMapping } from "@destack/language/mapping";
+import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
 import { INTEGER_ZERO } from "@destack/utils/fractional";
 
 /** A Graph is a collection of Nodes. */
@@ -251,7 +252,7 @@ export class PolyGraph extends Graph {
   }
 
   override getRoots(classOrTrait?: NodeClass | TraitClass): Node[] {
-    const nodeTypes = getNodeTypes(classOrTrait);
+    const nodeTypes = expandNodeTypes(classOrTrait);
     if (nodeTypes === null) {
       return this.nodes.filter((node) => node.parentPtr === null);
     }
@@ -261,7 +262,7 @@ export class PolyGraph extends Graph {
   }
 
   override getLeaves(classOrTrait?: NodeClass | TraitClass): Node[] {
-    const nodeTypes = getNodeTypes(classOrTrait);
+    const nodeTypes = expandNodeTypes(classOrTrait);
     if (nodeTypes === null) {
       return this.nodes.filter((node) => !this.nodesByParent.has(node.id));
     }
@@ -301,7 +302,7 @@ export class PolyGraph extends Graph {
       return children;
     } else {
       // turn into type
-      const nodeTypes = getNodeTypes(classOrTrait);
+      const nodeTypes = expandNodeTypes(classOrTrait);
       if (nodeTypes === null) {
         // collect children across all types
         const children: Node[] = [];
@@ -365,7 +366,7 @@ export class PolyGraph extends Graph {
     const descendants: Node[] = [];
 
     // collect
-    const nodeTypes = getNodeTypes(classOrTrait);
+    const nodeTypes = expandNodeTypes(classOrTrait);
     while (queue.length > 0) {
       const current = queue.shift()!;
       const childrenByType = this.nodesByParent.get(current.id);
@@ -470,17 +471,44 @@ export class Supergraph {
   }
 }
 
+/** Expand a collection of NodeTypes into a flat collection of NodeTypes. */
+export function expandNodeInheritance(nodeTypes: NodeType[]): NodeType[] {
+  const expanded: NodeType[] = [];
+  for (const type of nodeTypes) {
+    const nodeDefinition = NODE_CLASS_BY_TYPE[type].__definition__;
+    for (const inheritedType of nodeDefinition.inheritedBy) {
+      if (!expanded.includes(inheritedType)) {
+        expanded.push(inheritedType);
+      }
+    }
+    if (!nodeDefinition.isAbstract && !expanded.includes(type)) {
+      expanded.push(type);
+    }
+  }
+  return expanded;
+}
+
 /** Resolve the NodeTypes for a NodeType, TraitType, or Node class. */
-export function getNodeTypes(classOrTrait?: NodeClass | TraitClass): NodeType[] | null {
-  if (classOrTrait == null) {
+export function expandNodeTypes(
+  nodeType?: NodeType | NodeClass | TraitClass,
+  options: { expandInheritance: boolean } = { expandInheritance: true },
+): NodeType[] | null {
+  if (nodeType == null) {
     return null;
   }
-  const nodeTypes: NodeType[] = [];
-  if (classOrTrait instanceof TraitClass) {
-    const traitType = classOrTrait.metatype;
-    nodeTypes.push(...NODE_TYPES_BY_TRAIT_TYPE[traitType]);
+  let nodeTypes: NodeType[] = [];
+  if (nodeType instanceof TraitClass) {
+    const traitType = nodeType.metatype;
+    nodeTypes.push(...(NODE_TYPES_BY_TRAIT_TYPE[traitType] ?? []));
+  } else if (typeof nodeType == "number") {
+    nodeTypes.push(nodeType);
   } else {
-    nodeTypes.push(classOrTrait.metatype);
+    nodeTypes.push(nodeType.metatype);
   }
+
+  if (options.expandInheritance) {
+    nodeTypes = expandNodeInheritance(nodeTypes);
+  }
+
   return nodeTypes;
 }

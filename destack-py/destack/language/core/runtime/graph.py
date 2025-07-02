@@ -525,9 +525,8 @@ def expand_node_inheritance(types: Collection[NodeType | TraitType]) -> tuple[No
     for typ in types:
         if isinstance(typ, NodeType):
             node_cls = NODE_CLASS_BY_TYPE[typ]
-            if node_cls.__is_abstract__:
-                node_types.update(node_cls.__inherited_by__)
-            else:
+            node_types.update(node_cls.__inherited_by__)
+            if not node_cls.__is_abstract__:
                 node_types.add(typ)
         elif isinstance(typ, TraitType):
             node_types.update(NODE_TYPES_BY_TRAIT_TYPE.get(typ, ()))
