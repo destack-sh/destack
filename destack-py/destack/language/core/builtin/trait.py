@@ -22,6 +22,7 @@ from .common import (
     Enum,
     EnumType,
     NodeType,
+    StoreType,
     TraitType,
     builtin_enum,
 )
@@ -149,13 +150,22 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
     __base_traits__: ClassVar[tuple[TraitType, ...]] = ()
     """Traits directly and indirectly inherited by this Node (directly and indirectly)."""
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
+    """The main StoreTypes this Node is primarily stored in."""
+    __primary_store_types__: ClassVar[tuple[StoreType, ...]] = ()
 
+    """The root ancestor type of this Node type (if any)."""
     __root_type__: ClassVar[NodeType | None] = None
+    """The parent type of this Node type (directly)."""
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
+    """The parent classes of this Node type (directly)."""
     __parent_classes__: ClassVar[tuple[type["Node"], ...]] = ()
+    """The parent types of this Node type (directly)."""
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The child types of this Node type (directly)."""
     __child_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The ancestor types of this Node type (directly and indirectly)."""
     __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The descendant types of this Node type (directly and indirectly)."""
     __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
     # 20-40: node tracking

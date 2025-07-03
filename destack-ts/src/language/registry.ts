@@ -3,6 +3,7 @@ import type {
   EnumType,
   NodeClass,
   NodeType,
+  StoreType,
   StructClass,
   StructType,
   TraitClass,
@@ -15,6 +16,9 @@ export function registerNodeClass(nodeType: NodeType, nodeClass: NodeClass): voi
   NODE_CLASS_BY_TYPE[nodeType] = nodeClass;
   NODE_TYPE_BY_CLASS.set(nodeClass, nodeType);
 }
+
+export const NODE_TYPES_BY_PRIMARY_STORE_TYPE: Record<StoreType, NodeType[]> = {} as any;
+export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {} as any;
 
 export const TRAIT_CLASS_BY_TYPE: Record<TraitType, TraitClass> = {} as any;
 export const TRAIT_TYPE_BY_CLASS: Map<TraitClass, TraitType> = new Map();

@@ -1288,7 +1288,7 @@ class StoreTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STORE_TYPE_UNSPECIFIED: _ClassVar[StoreTypeProto]
     STORE_TYPE_GLOBAL_ENTITY_PRIMARY: _ClassVar[StoreTypeProto]
     STORE_TYPE_SPATIAL_ENTITY_PRIMARY: _ClassVar[StoreTypeProto]
-    STORE_TYPE_GLOBAL_EVENT_PRIMARY: _ClassVar[StoreTypeProto]
+    STORE_TYPE_SPATIAL_EVENT_PRIMARY: _ClassVar[StoreTypeProto]
 
 class StringFormatProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2499,7 +2499,7 @@ STORE_IMPLEMENTATION_POSTGRES: StoreImplementationProto
 STORE_TYPE_UNSPECIFIED: StoreTypeProto
 STORE_TYPE_GLOBAL_ENTITY_PRIMARY: StoreTypeProto
 STORE_TYPE_SPATIAL_ENTITY_PRIMARY: StoreTypeProto
-STORE_TYPE_GLOBAL_EVENT_PRIMARY: StoreTypeProto
+STORE_TYPE_SPATIAL_EVENT_PRIMARY: StoreTypeProto
 STRING_FORMAT_UNSPECIFIED: StringFormatProto
 STRING_FORMAT_NAME: StringFormatProto
 STRING_FORMAT_SLUG: StringFormatProto
@@ -6716,13 +6716,14 @@ class NodeConstraintProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., node_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., node_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ...) -> None: ...
 
 class NodeDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "is_global", "is_spatial", "is_abstract", "is_extensible", "is_frozen", "base_type", "extended_by", "inherits", "inherited_by", "base_traits", "traits", "root_type", "parent_types", "child_types", "ancestor_types", "descendant_types")
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "primary_store_types", "properties", "is_global", "is_spatial", "is_abstract", "is_extensible", "is_frozen", "base_type", "extended_by", "inherits", "inherited_by", "base_traits", "traits", "root_type", "parent_types", "child_types", "ancestor_types", "descendant_types")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    PRIMARY_STORE_TYPES_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     IS_GLOBAL_FIELD_NUMBER: _ClassVar[int]
     IS_SPATIAL_FIELD_NUMBER: _ClassVar[int]
@@ -6746,6 +6747,7 @@ class NodeDefinitionProto(_message.Message):
     name: str
     icon: IconProto
     description: str
+    primary_store_types: _containers.RepeatedScalarFieldContainer[StoreTypeProto]
     properties: _containers.RepeatedCompositeFieldContainer[PropertyDefinitionProto]
     is_global: bool
     is_spatial: bool
@@ -6763,7 +6765,7 @@ class NodeDefinitionProto(_message.Message):
     child_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     ancestor_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     descendant_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., is_global: bool = ..., is_spatial: bool = ..., is_abstract: bool = ..., is_extensible: bool = ..., is_frozen: bool = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., base_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., root_type: _Optional[_Union[NodeTypeProto, str]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., primary_store_types: _Optional[_Iterable[_Union[StoreTypeProto, str]]] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., is_global: bool = ..., is_spatial: bool = ..., is_abstract: bool = ..., is_extensible: bool = ..., is_frozen: bool = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., base_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., root_type: _Optional[_Union[NodeTypeProto, str]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ...) -> None: ...
 
 class NodeDefinitionReferenceProto(_message.Message):
     __slots__ = ("metatype", "type", "node_type", "definition_ptr")

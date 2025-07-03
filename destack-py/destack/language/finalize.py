@@ -23,7 +23,7 @@ from .registry import (
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
     NODE_DEFINITION_REFERENCE_BY_CLASS,
-    NODE_TYPES_BY_MAIN_STORE_TYPE,
+    NODE_TYPES_BY_PRIMARY_STORE_TYPE,
     NODE_TYPES_BY_TRAIT_TYPE,
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
@@ -48,15 +48,22 @@ def finalize():
     # index node types by store type
     node_types_by_store_type: dict[StoreType, list[NodeType]] = defaultdict(list)
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        if NodeType.ENTITY in node_cls.__inherits__ and not node_cls.__is_abstract__:
+        if node_cls.__is_abstract__:
+            continue
+        primary_store_types: list[StoreType] = []
+        if NodeType.ENTITY in node_cls.__inherits__:
             if TraitType.GLOBAL in node_cls.__traits__:
-                node_types_by_store_type[StoreType.GLOBAL_ENTITY_PRIMARY].append(node_cls.metatype)
-            elif TraitType.SPATIAL in node_cls.__traits__:
-                node_types_by_store_type[StoreType.SPATIAL_ENTITY_PRIMARY].append(node_cls.metatype)
-            else:
-                raise ValueError(f"unexpected entity node type: {node_cls!r}")
+                primary_store_types.append(StoreType.GLOBAL_ENTITY_PRIMARY)
+            if TraitType.SPATIAL in node_cls.__traits__:
+                primary_store_types.append(StoreType.SPATIAL_ENTITY_PRIMARY)
+        elif NodeType.EVENT in node_cls.__inherits__:
+            if TraitType.SPATIAL in node_cls.__traits__:
+                primary_store_types.append(StoreType.SPATIAL_EVENT_PRIMARY)
+        else:
+            raise ValueError(f"unexpected node type: {node_cls}")
+        node_cls.__primary_store_types__ = tuple(primary_store_types)
     for store_type in StoreType:
-        NODE_TYPES_BY_MAIN_STORE_TYPE[store_type] = tuple(
+        NODE_TYPES_BY_PRIMARY_STORE_TYPE[store_type] = tuple(
             node_types_by_store_type.get(store_type, ())
         )
 

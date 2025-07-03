@@ -1733,8 +1733,8 @@ def _generate_file(
     return new_str
 
 
-def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> tuple[str, str, str]:
-    """Generate the global registry, mapping and lookup files."""
+def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> tuple[str, str]:
+    """Generate the global mapping and lookup files."""
 
     # mappings
     mapping_str_parts: list[str] = []
@@ -1791,42 +1791,6 @@ def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> tu
 
     mapping_str = "\n\n".join(mapping_str_parts)
 
-    # registry
-    registry_str_parts: list[str] = [
-        """
-import type { NodeClass, NodeType, EnumType, EnumClass, StructClass, StructType, TraitType, TraitClass } from '@destack/language/core/builtin';
-
-export const NODE_CLASS_BY_TYPE: Record<NodeType, NodeClass> = {} as any;
-export const NODE_TYPE_BY_CLASS: Map<NodeClass, NodeType> = new Map();
-export function registerNodeClass(nodeType: NodeType, nodeClass: NodeClass): void {
-  NODE_CLASS_BY_TYPE[nodeType] = nodeClass;
-  NODE_TYPE_BY_CLASS.set(nodeClass, nodeType);
-}
-
-export const TRAIT_CLASS_BY_TYPE: Record<TraitType, TraitClass> = {} as any;
-export const TRAIT_TYPE_BY_CLASS: Map<TraitClass, TraitType> = new Map();
-export function registerTraitClass(traitType: TraitType, traitClass: TraitClass): void {
-  TRAIT_CLASS_BY_TYPE[traitType] = traitClass;
-  TRAIT_TYPE_BY_CLASS.set(traitClass, traitType);
-}
-
-export const STRUCT_CLASS_BY_TYPE: Record<StructType, StructClass> = {} as any;
-export const STRUCT_TYPE_BY_CLASS: Map<StructClass, StructType> = new Map();
-export function registerStructClass(structType: StructType, structClass: StructClass): void {
-  STRUCT_CLASS_BY_TYPE[structType] = structClass;
-  STRUCT_TYPE_BY_CLASS.set(structClass, structType);
-}
-
-export const ENUM_CLASS_BY_TYPE: Record<EnumType, EnumClass> = {} as any;
-export const ENUM_TYPE_BY_CLASS: Map<EnumClass, EnumType> = new Map();
-export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): void {
-  ENUM_CLASS_BY_TYPE[enumType] = enumClass;
-  ENUM_TYPE_BY_CLASS.set(enumClass, enumType);
-}
-"""
-    ]
-    registry_str = "\n\n".join(registry_str_parts)
-
     # lookup
     node_type_by_trait_str_parts: list[str] = [
         "import { NodeType, TraitType } from '@destack/language/core/builtin';",
@@ -1841,7 +1805,7 @@ export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): voi
     node_type_by_trait_str_parts.append("};")
     lookup_str = "\n".join(node_type_by_trait_str_parts)
 
-    return registry_str, mapping_str, lookup_str
+    return mapping_str, lookup_str
 
 
 def generate():
@@ -1923,12 +1887,10 @@ def generate():
         file.path.parent.mkdir(parents=True, exist_ok=True)
         file.path.write_text(file.new_str)
 
-    # update registry/mapping/lookup files
-    registry_path = Path(GENERATION_PATH) / "registry.ts"
+    # update mapping/lookup files
     mapping_path = Path(GENERATION_PATH) / "mapping.ts"
     lookup_path = Path(GENERATION_PATH) / "lookup.ts"
-    registry_str, mapping_str, lookup_str = _generate_global(definitions_by_name)
-    registry_path.write_text(registry_str)
+    mapping_str, lookup_str = _generate_global(definitions_by_name)
     mapping_path.write_text(mapping_str)
     lookup_path.write_text(lookup_str)
 
