@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Optional,
+    Self,
     Union,
 )
 
@@ -53,32 +54,32 @@ class Entity(Node):
         is_repr=False,
         default=Materialization.FULL,
     )
-    # snapshot: Optional["Snapshot"] = property_(
-    #     11,
-    #     is_readonly=True,
-    #     is_managed=True,
-    #     node_space_from="self",
-    #     description="The Snapshot this Entity is part of.",
-    # )
-    # predecessor: Optional["Snapshot"] = property_(
-    #     12,
-    #     is_readonly=True,
-    #     is_managed=True,
-    #     node_space_from="self",
-    #     description="The previous Entity this Entity is based on (from another Snapshot).",
-    # )
-    # template: Optional["Entity"] = property_(
-    #     13,
-    #     is_readonly=True,
-    #     is_managed=True,
-    #     description="The template this Entity instance is based on.",
-    # )
-    # instance_root: Optional["Entity"] = property_(
-    #     14,
-    #     is_readonly=True,
-    #     is_managed=True,
-    #     description="The (root) Entity in this Entity's instance tree.",
-    # )
+    snapshot: Optional["Snapshot"] = builtin_property(
+        11,
+        is_readonly=True,
+        is_managed=True,
+        node_space_from="self",
+        description="The Snapshot this Entity is part of.",
+    )
+    predecessor: Optional[Self] = builtin_property(
+        12,
+        is_readonly=True,
+        is_managed=True,
+        node_space_from="self",
+        description="The previous Entity this Entity is based on (from another Snapshot).",
+    )
+    template: Optional[Self] = builtin_property(
+        13,
+        is_readonly=True,
+        is_managed=True,
+        description="The template this Entity instance is based on (from another instance).",
+    )
+    instance_root: Optional["Entity"] = builtin_property(
+        14,
+        is_readonly=True,
+        is_managed=True,
+        description="The (root) Entity in this Entity's instance tree.",
+    )
     # Entity.set_properties: 15
     if TYPE_CHECKING:
         snapshot_ptr: Optional["NodeReference"] = None

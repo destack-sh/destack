@@ -123,6 +123,7 @@ class TypeDeclaration:
     node_types: Sequence[NodeType | TraitType] | None = None  # for node scalar nodes
     key_type: "TypeDeclaration | None" = None
     is_required: bool = True
+    is_self: bool = False
 
     default: Any = UNSET
     default_factory: ValueFactory | None = None
@@ -288,6 +289,7 @@ def parse_type_annotation(
         )
 
     # determine scalar type
+    is_self = False
     class_name = get_class_name(py_type)
     if isinstance(py_type, type) and (primitive_t := PRIMITIVE_TYPE_BY_PY_TYPE.get(py_type)):
         scalar_type = ScalarType.PRIMITIVE
@@ -295,6 +297,9 @@ def parse_type_annotation(
     elif class_name == "Json":
         scalar_type = ScalarType.PRIMITIVE
         primitive_type = PrimitiveType.JSON
+    elif class_name == "Self":
+        scalar_type = ScalarType.NODE_REFERENCE
+        is_self = True
     elif class_name and (enum_t := _resolve_enum_type(class_name)):
         scalar_type = ScalarType.ENUM
         enum_type = enum_t
@@ -315,11 +320,14 @@ def parse_type_annotation(
         enum_type=enum_type,
         struct_type=struct_type,
         node_types=node_types,
+        is_self=is_self,
         is_required=is_required,
     )
 
 
-def get_class_name(py_type: type | typing.ForwardRef | typing.TypeAliasType | str) -> str | None:
+def get_class_name(
+    py_type: type | typing.ForwardRef | typing.TypeAliasType | typing._SpecialForm | str,
+) -> str | None:
     if isinstance(py_type, str):
         return py_type
     elif isinstance(py_type, type):  # noqa: SIM114
@@ -328,8 +336,10 @@ def get_class_name(py_type: type | typing.ForwardRef | typing.TypeAliasType | st
         return py_type.__name__
     elif isinstance(py_type, typing.ForwardRef):
         return py_type.__forward_arg__
+    elif isinstance(py_type, typing._SpecialForm):
+        return getattr(py_type, "__name__", None)
     else:
-        return None
+        raise ValueError(f"unexpected type: {py_type!r}")
 
 
 @dataclass(eq=False, slots=True)
@@ -466,6 +476,15 @@ class PropertyDeclaration(TypeDeclaration):
         self.node_types = annotation.node_types
         self.key_type = annotation.key_type
         self.is_required = annotation.is_required
+
+        # resolve self type
+        if annotation.is_self and object_type is not None:
+            if isinstance(object_type, NodeType):
+                self.node_types = (object_type,)
+            elif isinstance(object_type, StructType):
+                self.struct_type = object_type
+            else:
+                raise ValueError(f"unexpected object type: {object_type!r}")
 
         # only scalar types can be optional
         if not self.is_required and self.cardinality != TypeCardinality.SCALAR:

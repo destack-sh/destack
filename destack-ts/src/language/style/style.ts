@@ -6,6 +6,7 @@ import type {
   IsTaggable,
   Materialization,
   NodeReference,
+  Snapshot,
 } from "@destack/language/core";
 import { Entity, Node, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
@@ -54,6 +55,54 @@ export abstract class Style
    * Entity.materialization
    */
   declare readonly materialization: Materialization;
+
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  declare readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
+  get predecessor(): Style | null {
+    const nodePtr: NodeReference | null = this.predecessorPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Style | null;
+    }
+    return null;
+  }
+  declare readonly predecessorPtr: NodeReference | null;
+
+  /**
+   * The template this Entity instance is based on.
+   */
+  get template(): Style | null {
+    const nodePtr: NodeReference | null = this.templatePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Style | null;
+    }
+    return null;
+  }
+  declare readonly templatePtr: NodeReference | null;
+
+  /**
+   * The (root) Entity in this Entity's instance tree.
+   */
+  get instanceRoot(): Entity | null {
+    const nodePtr: NodeReference | null = this.instanceRootPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  declare readonly instanceRootPtr: NodeReference | null;
 
   /**
    * Entity.createdAt

@@ -42,6 +42,22 @@ export interface ActionProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -118,6 +134,22 @@ export interface AgentProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -202,6 +234,22 @@ export interface AnnotationShapeProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -412,6 +460,22 @@ export interface ArrowShapeProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -673,6 +737,22 @@ export interface BorderStyleProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -744,6 +824,22 @@ export interface BranchProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -814,6 +910,22 @@ export interface CanvasProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -1121,6 +1233,22 @@ export interface ClientProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -1317,6 +1445,22 @@ export interface ColorStyleProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -1461,6 +1605,22 @@ export interface ContainerViewProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -1638,6 +1798,22 @@ export interface ContentViewProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -1847,6 +2023,22 @@ export interface CounterMetricProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -1906,6 +2098,22 @@ export interface CursorProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -1963,6 +2171,22 @@ export interface CustomEntityDefinitionProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -2057,6 +2281,22 @@ export interface CustomEnumDefinitionProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -2125,6 +2365,22 @@ export interface CustomEventDefinitionProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -2201,6 +2457,22 @@ export interface CustomOptionProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -2263,6 +2535,22 @@ export interface CustomPropertyProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -2438,6 +2726,22 @@ export interface CustomStructDefinitionProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -2518,6 +2822,22 @@ export interface CustomTraitDefinitionProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -2646,6 +2966,22 @@ export interface DatabaseProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -3307,6 +3643,22 @@ export interface EffectStyleProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3421,6 +3773,22 @@ export interface EntitlementProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -3662,6 +4030,22 @@ export interface EntityProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3737,6 +4121,22 @@ export interface EnvironmentProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -3827,6 +4227,22 @@ export interface EventCursorProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -3923,6 +4339,22 @@ export interface FileProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -4093,6 +4525,22 @@ export interface FillStyleProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -4278,6 +4726,22 @@ export interface FolderProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -4352,6 +4816,22 @@ export interface FollowProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -4453,6 +4933,22 @@ export interface FontStyleProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -4551,6 +5047,22 @@ export interface FrameViewProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -4717,6 +5229,22 @@ export interface FriendshipProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -4763,6 +5291,22 @@ export interface FriendshipInviteProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -5067,6 +5611,22 @@ export interface GaugeMetricProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -5171,6 +5731,22 @@ export interface GradientStyleProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -5289,6 +5865,22 @@ export interface HandleProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -5391,6 +5983,22 @@ export interface HistogramMetricProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -5531,6 +6139,22 @@ export interface InputViewProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -5669,6 +6293,22 @@ export interface InternalViewProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -5762,6 +6402,22 @@ export interface InterruptionProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -5836,6 +6492,22 @@ export interface InviteProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -6420,6 +7092,22 @@ export interface LabelViewProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -6596,6 +7284,22 @@ export interface LayerProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -6886,6 +7590,22 @@ export interface LineShapeProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -7185,6 +7905,22 @@ export interface MachineProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -7332,6 +8068,22 @@ export interface MembershipProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -7533,6 +8285,22 @@ export interface MessageProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -7607,6 +8375,22 @@ export interface MetricProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -7984,6 +8768,22 @@ export interface NotificationProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -8294,6 +9094,22 @@ export interface NumberInputViewProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -8457,6 +9273,22 @@ export interface OrganizationProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -8540,6 +9372,22 @@ export interface PaletteProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -8634,6 +9482,22 @@ export interface PermissionProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -9531,6 +10395,22 @@ export interface ReactionProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9597,6 +10477,22 @@ export interface RecordProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9662,6 +10558,22 @@ export interface ResourceProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -9786,6 +10698,22 @@ export interface RoleProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -9967,6 +10895,22 @@ export interface RouteProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -10029,6 +10973,22 @@ export interface RunProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -10466,6 +11426,22 @@ export interface SanctionProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -10717,6 +11693,22 @@ export interface SceneProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11073,6 +12065,22 @@ export interface ScreenCursorProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11131,6 +12139,22 @@ export interface ScriptProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11226,6 +12250,22 @@ export interface ServiceProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11345,6 +12385,22 @@ export interface ShadowStyleProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11435,6 +12491,22 @@ export interface ShapeProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11667,6 +12739,22 @@ export interface SliderInputViewProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11784,6 +12872,22 @@ export interface SnapshotProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11863,6 +12967,22 @@ export interface SpaceProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11989,6 +13109,22 @@ export interface SplitViewProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -12158,6 +13294,22 @@ export interface StarProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -12355,6 +13507,22 @@ export interface StrokeStyleProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -12500,6 +13668,22 @@ export interface StyleProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -12554,6 +13738,22 @@ export interface TagProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -12614,6 +13814,22 @@ export interface TaggingProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -12664,6 +13880,22 @@ export interface TeamProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -12802,6 +14034,22 @@ export interface TextViewProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -12919,6 +14167,22 @@ export interface ThemeProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -12976,6 +14240,22 @@ export interface ThreadProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -13031,6 +14311,22 @@ export interface ThreadCursorProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -13085,6 +14381,22 @@ export interface TimerProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -13379,6 +14691,22 @@ export interface TransitionStyleProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -13469,6 +14797,22 @@ export interface TriggerProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -13639,6 +14983,22 @@ export interface UserProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -13748,6 +15108,22 @@ export interface VariantProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -13962,6 +15338,22 @@ export interface ViewProto {
      */
     materialization: MaterializationProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -14125,6 +15517,22 @@ export interface WindowProto {
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -21260,6 +22668,10 @@ class ActionProto$Type extends MessageType<ActionProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -21306,6 +22718,18 @@ class ActionProto$Type extends MessageType<ActionProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -21386,6 +22810,18 @@ class ActionProto$Type extends MessageType<ActionProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -21445,6 +22881,10 @@ class AgentProto$Type extends MessageType<AgentProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -21485,6 +22925,18 @@ class AgentProto$Type extends MessageType<AgentProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -21537,6 +22989,18 @@ class AgentProto$Type extends MessageType<AgentProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -21644,6 +23108,10 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -21720,6 +23188,18 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -21881,6 +23361,18 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -22094,6 +23586,10 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -22175,6 +23671,18 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -22345,6 +23853,18 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -22707,6 +24227,10 @@ class BorderStyleProto$Type extends MessageType<BorderStyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -22751,6 +24275,18 @@ class BorderStyleProto$Type extends MessageType<BorderStyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -22812,6 +24348,18 @@ class BorderStyleProto$Type extends MessageType<BorderStyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -22864,6 +24412,10 @@ class BranchProto$Type extends MessageType<BranchProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -22904,6 +24456,18 @@ class BranchProto$Type extends MessageType<BranchProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -22959,6 +24523,18 @@ class BranchProto$Type extends MessageType<BranchProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -23007,6 +24583,10 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -23083,6 +24663,18 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -23241,6 +24833,18 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -23715,6 +25319,10 @@ class ClientProto$Type extends MessageType<ClientProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -23762,6 +25370,18 @@ class ClientProto$Type extends MessageType<ClientProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -23841,6 +25461,18 @@ class ClientProto$Type extends MessageType<ClientProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -24176,6 +25808,10 @@ class ColorStyleProto$Type extends MessageType<ColorStyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -24225,6 +25861,18 @@ class ColorStyleProto$Type extends MessageType<ColorStyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -24301,6 +25949,18 @@ class ColorStyleProto$Type extends MessageType<ColorStyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -24516,6 +26176,10 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -24590,6 +26254,18 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -24745,6 +26421,18 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -24875,6 +26563,10 @@ class ContentViewProto$Type extends MessageType<ContentViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -24933,6 +26625,18 @@ class ContentViewProto$Type extends MessageType<ContentViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -25040,6 +26744,18 @@ class ContentViewProto$Type extends MessageType<ContentViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -25389,6 +27105,10 @@ class CounterMetricProto$Type extends MessageType<CounterMetricProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -25429,6 +27149,18 @@ class CounterMetricProto$Type extends MessageType<CounterMetricProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -25481,6 +27213,18 @@ class CounterMetricProto$Type extends MessageType<CounterMetricProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -25524,6 +27268,10 @@ class CursorProto$Type extends MessageType<CursorProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -25562,6 +27310,18 @@ class CursorProto$Type extends MessageType<CursorProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -25611,6 +27371,18 @@ class CursorProto$Type extends MessageType<CursorProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -25651,6 +27423,10 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -25702,6 +27478,18 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -25794,6 +27582,18 @@ class CustomEntityDefinitionProto$Type extends MessageType<CustomEntityDefinitio
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -25865,6 +27665,10 @@ class CustomEnumDefinitionProto$Type extends MessageType<CustomEnumDefinitionPro
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -25908,6 +27712,18 @@ class CustomEnumDefinitionProto$Type extends MessageType<CustomEnumDefinitionPro
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -25982,6 +27798,18 @@ class CustomEnumDefinitionProto$Type extends MessageType<CustomEnumDefinitionPro
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -26035,6 +27863,10 @@ class CustomEventDefinitionProto$Type extends MessageType<CustomEventDefinitionP
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -26082,6 +27914,18 @@ class CustomEventDefinitionProto$Type extends MessageType<CustomEventDefinitionP
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -26162,6 +28006,18 @@ class CustomEventDefinitionProto$Type extends MessageType<CustomEventDefinitionP
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -26221,6 +28077,10 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -26262,6 +28122,18 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -26317,6 +28189,18 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -26363,6 +28247,10 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -26430,6 +28318,18 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -26554,6 +28454,18 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -26751,6 +28663,10 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -26798,6 +28714,18 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -26881,6 +28809,18 @@ class CustomStructDefinitionProto$Type extends MessageType<CustomStructDefinitio
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -26943,6 +28883,10 @@ class CustomTraitDefinitionProto$Type extends MessageType<CustomTraitDefinitionP
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -26992,6 +28936,18 @@ class CustomTraitDefinitionProto$Type extends MessageType<CustomTraitDefinitionP
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -27078,6 +29034,18 @@ class CustomTraitDefinitionProto$Type extends MessageType<CustomTraitDefinitionP
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -27235,6 +29203,10 @@ class DatabaseProto$Type extends MessageType<DatabaseProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -27294,6 +29266,18 @@ class DatabaseProto$Type extends MessageType<DatabaseProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -27392,6 +29376,18 @@ class DatabaseProto$Type extends MessageType<DatabaseProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -28857,6 +30853,10 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -28912,6 +30912,18 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -29006,6 +31018,18 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -29091,6 +31115,10 @@ class EntitlementProto$Type extends MessageType<EntitlementProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -29130,6 +31158,18 @@ class EntitlementProto$Type extends MessageType<EntitlementProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -29182,6 +31222,18 @@ class EntitlementProto$Type extends MessageType<EntitlementProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -29709,6 +31761,10 @@ class EntityProto$Type extends MessageType<EntityProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -29740,6 +31796,18 @@ class EntityProto$Type extends MessageType<EntityProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -29777,6 +31845,18 @@ class EntityProto$Type extends MessageType<EntityProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -29901,6 +31981,10 @@ class EnvironmentProto$Type extends MessageType<EnvironmentProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -29939,6 +32023,18 @@ class EnvironmentProto$Type extends MessageType<EnvironmentProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -29988,6 +32084,18 @@ class EnvironmentProto$Type extends MessageType<EnvironmentProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30118,6 +32226,10 @@ class EventCursorProto$Type extends MessageType<EventCursorProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -30156,6 +32268,18 @@ class EventCursorProto$Type extends MessageType<EventCursorProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -30205,6 +32329,18 @@ class EventCursorProto$Type extends MessageType<EventCursorProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30337,6 +32473,10 @@ class FileProto$Type extends MessageType<FileProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -30404,6 +32544,18 @@ class FileProto$Type extends MessageType<FileProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -30532,6 +32684,18 @@ class FileProto$Type extends MessageType<FileProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30730,6 +32894,10 @@ class FillStyleProto$Type extends MessageType<FillStyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -30776,6 +32944,18 @@ class FillStyleProto$Type extends MessageType<FillStyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -30843,6 +33023,18 @@ class FillStyleProto$Type extends MessageType<FillStyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -31171,6 +33363,10 @@ class FolderProto$Type extends MessageType<FolderProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -31216,6 +33412,18 @@ class FolderProto$Type extends MessageType<FolderProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -31280,6 +33488,18 @@ class FolderProto$Type extends MessageType<FolderProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -31335,6 +33555,10 @@ class FollowProto$Type extends MessageType<FollowProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -31371,6 +33595,18 @@ class FollowProto$Type extends MessageType<FollowProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -31417,6 +33653,18 @@ class FollowProto$Type extends MessageType<FollowProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -31572,6 +33820,10 @@ class FontStyleProto$Type extends MessageType<FontStyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -31621,6 +33873,18 @@ class FontStyleProto$Type extends MessageType<FontStyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -31697,6 +33961,18 @@ class FontStyleProto$Type extends MessageType<FontStyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -31766,6 +34042,10 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -31840,6 +34120,18 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -31995,6 +34287,18 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -32122,6 +34426,10 @@ class FriendshipProto$Type extends MessageType<FriendshipProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -32155,6 +34463,18 @@ class FriendshipProto$Type extends MessageType<FriendshipProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -32198,6 +34518,18 @@ class FriendshipProto$Type extends MessageType<FriendshipProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -32234,6 +34566,10 @@ class FriendshipInviteProto$Type extends MessageType<FriendshipInviteProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -32266,6 +34602,18 @@ class FriendshipInviteProto$Type extends MessageType<FriendshipInviteProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -32306,6 +34654,18 @@ class FriendshipInviteProto$Type extends MessageType<FriendshipInviteProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -33027,6 +35387,10 @@ class GaugeMetricProto$Type extends MessageType<GaugeMetricProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -33067,6 +35431,18 @@ class GaugeMetricProto$Type extends MessageType<GaugeMetricProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -33119,6 +35495,18 @@ class GaugeMetricProto$Type extends MessageType<GaugeMetricProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -33308,6 +35696,10 @@ class GradientStyleProto$Type extends MessageType<GradientStyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -33354,6 +35746,18 @@ class GradientStyleProto$Type extends MessageType<GradientStyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -33418,6 +35822,18 @@ class GradientStyleProto$Type extends MessageType<GradientStyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -33619,6 +36035,10 @@ class HandleProto$Type extends MessageType<HandleProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -33652,6 +36072,18 @@ class HandleProto$Type extends MessageType<HandleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -33692,6 +36124,18 @@ class HandleProto$Type extends MessageType<HandleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -33894,6 +36338,10 @@ class HistogramMetricProto$Type extends MessageType<HistogramMetricProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -33934,6 +36382,18 @@ class HistogramMetricProto$Type extends MessageType<HistogramMetricProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -33986,6 +36446,18 @@ class HistogramMetricProto$Type extends MessageType<HistogramMetricProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -34218,6 +36690,10 @@ class InputViewProto$Type extends MessageType<InputViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -34275,6 +36751,18 @@ class InputViewProto$Type extends MessageType<InputViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -34379,6 +36867,18 @@ class InputViewProto$Type extends MessageType<InputViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -34540,6 +37040,10 @@ class InternalViewProto$Type extends MessageType<InternalViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -34595,6 +37099,18 @@ class InternalViewProto$Type extends MessageType<InternalViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -34693,6 +37209,18 @@ class InternalViewProto$Type extends MessageType<InternalViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -34764,6 +37292,10 @@ class InterruptionProto$Type extends MessageType<InterruptionProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -34808,6 +37340,18 @@ class InterruptionProto$Type extends MessageType<InterruptionProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -34872,6 +37416,18 @@ class InterruptionProto$Type extends MessageType<InterruptionProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -34927,6 +37483,10 @@ class InviteProto$Type extends MessageType<InviteProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -34966,6 +37526,18 @@ class InviteProto$Type extends MessageType<InviteProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -35021,6 +37593,18 @@ class InviteProto$Type extends MessageType<InviteProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -36287,6 +38871,10 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -36361,6 +38949,18 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -36516,6 +39116,18 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -36646,6 +39258,10 @@ class LayerProto$Type extends MessageType<LayerProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -36724,6 +39340,18 @@ class LayerProto$Type extends MessageType<LayerProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -36888,6 +39516,18 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -37305,6 +39945,10 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -37382,6 +40026,18 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -37543,6 +40199,18 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -37958,6 +40626,10 @@ class MachineProto$Type extends MessageType<MachineProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -38023,6 +40695,18 @@ class MachineProto$Type extends MessageType<MachineProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38133,6 +40817,18 @@ class MachineProto$Type extends MessageType<MachineProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38313,6 +41009,10 @@ class MembershipProto$Type extends MessageType<MembershipProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -38352,6 +41052,18 @@ class MembershipProto$Type extends MessageType<MembershipProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38407,6 +41119,18 @@ class MembershipProto$Type extends MessageType<MembershipProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38780,6 +41504,10 @@ class MessageProto$Type extends MessageType<MessageProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -38822,6 +41550,18 @@ class MessageProto$Type extends MessageType<MessageProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38886,6 +41626,18 @@ class MessageProto$Type extends MessageType<MessageProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38941,6 +41693,10 @@ class MetricProto$Type extends MessageType<MetricProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -38981,6 +41737,18 @@ class MetricProto$Type extends MessageType<MetricProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -39033,6 +41801,18 @@ class MetricProto$Type extends MessageType<MetricProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -39977,6 +42757,10 @@ class NotificationProto$Type extends MessageType<NotificationProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -40017,6 +42801,18 @@ class NotificationProto$Type extends MessageType<NotificationProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -40069,6 +42865,18 @@ class NotificationProto$Type extends MessageType<NotificationProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -40743,6 +43551,10 @@ class NumberInputViewProto$Type extends MessageType<NumberInputViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -40802,6 +43614,18 @@ class NumberInputViewProto$Type extends MessageType<NumberInputViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -40912,6 +43736,18 @@ class NumberInputViewProto$Type extends MessageType<NumberInputViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -41162,6 +43998,10 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -41199,6 +44039,18 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -41248,6 +44100,18 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -41367,6 +44231,10 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -41407,6 +44275,18 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -41459,6 +44339,18 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -41592,6 +44484,10 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -41632,6 +44528,18 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -41684,6 +44592,18 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -43723,6 +46643,10 @@ class ReactionProto$Type extends MessageType<ReactionProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -43761,6 +46685,18 @@ class ReactionProto$Type extends MessageType<ReactionProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -43810,6 +46746,18 @@ class ReactionProto$Type extends MessageType<ReactionProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -43852,6 +46800,10 @@ class RecordProto$Type extends MessageType<RecordProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -43897,6 +46849,18 @@ class RecordProto$Type extends MessageType<RecordProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -43971,6 +46935,18 @@ class RecordProto$Type extends MessageType<RecordProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -44019,6 +46995,10 @@ class ResourceProto$Type extends MessageType<ResourceProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -44061,6 +47041,18 @@ class ResourceProto$Type extends MessageType<ResourceProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -44129,6 +47121,18 @@ class ResourceProto$Type extends MessageType<ResourceProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -44326,6 +47330,10 @@ class RoleProto$Type extends MessageType<RoleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -44368,6 +47376,18 @@ class RoleProto$Type extends MessageType<RoleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -44423,6 +47443,18 @@ class RoleProto$Type extends MessageType<RoleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -44760,6 +47792,10 @@ class RouteProto$Type extends MessageType<RouteProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -44801,6 +47837,18 @@ class RouteProto$Type extends MessageType<RouteProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -44856,6 +47904,18 @@ class RouteProto$Type extends MessageType<RouteProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -44902,6 +47962,10 @@ class RunProto$Type extends MessageType<RunProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -44948,6 +48012,18 @@ class RunProto$Type extends MessageType<RunProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -45034,6 +48110,18 @@ class RunProto$Type extends MessageType<RunProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45972,6 +49060,10 @@ class SanctionProto$Type extends MessageType<SanctionProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -46011,6 +49103,18 @@ class SanctionProto$Type extends MessageType<SanctionProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -46063,6 +49167,18 @@ class SanctionProto$Type extends MessageType<SanctionProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -46593,6 +49709,10 @@ class SceneProto$Type extends MessageType<SceneProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -46669,6 +49789,18 @@ class SceneProto$Type extends MessageType<SceneProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -46830,6 +49962,18 @@ class SceneProto$Type extends MessageType<SceneProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -47485,6 +50629,10 @@ class ScreenCursorProto$Type extends MessageType<ScreenCursorProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -47524,6 +50672,18 @@ class ScreenCursorProto$Type extends MessageType<ScreenCursorProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -47576,6 +50736,18 @@ class ScreenCursorProto$Type extends MessageType<ScreenCursorProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -47619,6 +50791,10 @@ class ScriptProto$Type extends MessageType<ScriptProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -47661,6 +50837,18 @@ class ScriptProto$Type extends MessageType<ScriptProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -47732,6 +50920,18 @@ class ScriptProto$Type extends MessageType<ScriptProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -47886,6 +51086,10 @@ class ServiceProto$Type extends MessageType<ServiceProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -47937,6 +51141,18 @@ class ServiceProto$Type extends MessageType<ServiceProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -48023,6 +51239,18 @@ class ServiceProto$Type extends MessageType<ServiceProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -48187,6 +51415,10 @@ class ShadowStyleProto$Type extends MessageType<ShadowStyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -48235,6 +51467,18 @@ class ShadowStyleProto$Type extends MessageType<ShadowStyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -48305,6 +51549,18 @@ class ShadowStyleProto$Type extends MessageType<ShadowStyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -48368,6 +51624,10 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -48443,6 +51703,18 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -48601,6 +51873,18 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -48866,6 +52150,10 @@ class SliderInputViewProto$Type extends MessageType<SliderInputViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -48927,6 +52215,18 @@ class SliderInputViewProto$Type extends MessageType<SliderInputViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49043,6 +52343,18 @@ class SliderInputViewProto$Type extends MessageType<SliderInputViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49132,6 +52444,10 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -49171,6 +52487,18 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49223,6 +52551,18 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49335,6 +52675,10 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -49383,6 +52727,18 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49453,6 +52809,18 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49606,6 +52974,10 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -49680,6 +53052,18 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49835,6 +53219,18 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49963,6 +53359,10 @@ class StarProto$Type extends MessageType<StarProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -49999,6 +53399,18 @@ class StarProto$Type extends MessageType<StarProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -50045,6 +53457,18 @@ class StarProto$Type extends MessageType<StarProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50507,6 +53931,10 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -50560,6 +53988,18 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -50633,6 +54073,18 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50867,6 +54319,10 @@ class StyleProto$Type extends MessageType<StyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -50906,6 +54362,18 @@ class StyleProto$Type extends MessageType<StyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -50955,6 +54423,18 @@ class StyleProto$Type extends MessageType<StyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50995,6 +54475,10 @@ class TagProto$Type extends MessageType<TagProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -51035,6 +54519,18 @@ class TagProto$Type extends MessageType<TagProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -51087,6 +54583,18 @@ class TagProto$Type extends MessageType<TagProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -51130,6 +54638,10 @@ class TaggingProto$Type extends MessageType<TaggingProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -51168,6 +54680,18 @@ class TaggingProto$Type extends MessageType<TaggingProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -51217,6 +54741,18 @@ class TaggingProto$Type extends MessageType<TaggingProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -51256,6 +54792,10 @@ class TeamProto$Type extends MessageType<TeamProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -51291,6 +54831,18 @@ class TeamProto$Type extends MessageType<TeamProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -51334,6 +54886,18 @@ class TeamProto$Type extends MessageType<TeamProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -51574,6 +55138,10 @@ class TextViewProto$Type extends MessageType<TextViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -51635,6 +55203,18 @@ class TextViewProto$Type extends MessageType<TextViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -51751,6 +55331,18 @@ class TextViewProto$Type extends MessageType<TextViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -51840,6 +55432,10 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -51879,6 +55475,18 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -51928,6 +55536,18 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -51968,6 +55588,10 @@ class ThreadProto$Type extends MessageType<ThreadProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -52006,6 +55630,18 @@ class ThreadProto$Type extends MessageType<ThreadProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -52055,6 +55691,18 @@ class ThreadProto$Type extends MessageType<ThreadProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -52095,6 +55743,10 @@ class ThreadCursorProto$Type extends MessageType<ThreadCursorProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -52133,6 +55785,18 @@ class ThreadCursorProto$Type extends MessageType<ThreadCursorProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -52182,6 +55846,18 @@ class ThreadCursorProto$Type extends MessageType<ThreadCursorProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -52222,6 +55898,10 @@ class TimerProto$Type extends MessageType<TimerProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -52261,6 +55941,18 @@ class TimerProto$Type extends MessageType<TimerProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -52310,6 +56002,18 @@ class TimerProto$Type extends MessageType<TimerProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -52978,6 +56682,10 @@ class TransitionStyleProto$Type extends MessageType<TransitionStyleProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -53028,6 +56736,18 @@ class TransitionStyleProto$Type extends MessageType<TransitionStyleProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -53108,6 +56828,18 @@ class TransitionStyleProto$Type extends MessageType<TransitionStyleProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -53179,6 +56911,10 @@ class TriggerProto$Type extends MessageType<TriggerProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -53221,6 +56957,18 @@ class TriggerProto$Type extends MessageType<TriggerProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -53295,6 +57043,18 @@ class TriggerProto$Type extends MessageType<TriggerProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -53591,6 +57351,10 @@ class UserProto$Type extends MessageType<UserProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -53639,6 +57403,18 @@ class UserProto$Type extends MessageType<UserProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -53728,6 +57504,18 @@ class UserProto$Type extends MessageType<UserProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -53860,6 +57648,10 @@ class VariantProto$Type extends MessageType<VariantProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -53905,6 +57697,18 @@ class VariantProto$Type extends MessageType<VariantProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -53972,6 +57776,18 @@ class VariantProto$Type extends MessageType<VariantProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -54458,6 +58274,10 @@ class ViewProto$Type extends MessageType<ViewProto> {
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -54513,6 +58333,18 @@ class ViewProto$Type extends MessageType<ViewProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -54611,6 +58443,18 @@ class ViewProto$Type extends MessageType<ViewProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -54842,6 +58686,10 @@ class WindowProto$Type extends MessageType<WindowProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
@@ -54884,6 +58732,18 @@ class WindowProto$Type extends MessageType<WindowProto> {
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -54939,6 +58799,18 @@ class WindowProto$Type extends MessageType<WindowProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
