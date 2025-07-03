@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { ClientType, EnumType, StructType } from "@destack/language/core/builtin/common";
+import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
@@ -115,7 +116,7 @@ export class Edit extends StructFrozen {
   readonly type: EditType;
 
   /**
-   * The specific update operation.
+   * The specific Edit operation.
    */
   readonly operation: EditOperation | null;
 
@@ -135,9 +136,9 @@ export class Edit extends StructFrozen {
   readonly nodePtr: NodeReference;
 
   /**
-   * The Property of the Edit.
+   * The Property being edited.
    */
-  readonly propPtr: PropertyReference | null;
+  readonly attribute: PropertyReference | null;
 
   /**
    * Edit.key
@@ -150,19 +151,41 @@ export class Edit extends StructFrozen {
   readonly value: Value | null;
 
   /**
-   * The inverse Edit *if* it cannot be derived from the Edit itself).
+   * The inverse Edit *if* it cannot be unambiguously derived from the Edit).
    */
   readonly undo: Edit | null;
+
+  /**
+   * snapshot
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * Edit.ancestors
+   */
+  readonly ancestors: Array<string>;
 
   constructor(options: {
     id?: string;
     type: EditType;
     operation?: EditOperation | null;
     node: Node | NodeReference;
-    propPtr?: PropertyReference | null;
+    attribute?: PropertyReference | null;
     key?: Value | null;
     value?: Value | null;
     undo?: Edit | null;
+    snapshot?: Snapshot | NodeReference | null;
+    ancestors?: Array<string>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -201,14 +224,24 @@ export class Edit extends StructFrozen {
       throw new Error(`Edit.node is required`);
     }
     this.nodePtr = _node;
-    let _propPtr = options.propPtr ?? null;
-    this.propPtr = _propPtr;
+    let _attribute = options.attribute ?? null;
+    this.attribute = _attribute;
     let _key = options.key ?? null;
     this.key = _key;
     let _value = options.value ?? null;
     this.value = _value;
     let _undo = options.undo ?? null;
     this.undo = _undo;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
+    let _ancestors = options.ancestors ?? null;
+    if (_ancestors === null) {
+      _ancestors = [];
+    }
+    this.ancestors = _ancestors;
 
     // identity
     // @ts-expect-error(readonly)
@@ -238,8 +271,8 @@ export class Edit extends StructFrozen {
       return false;
     }
     if (
-      (this.propPtr == null) !== (other.propPtr == null) ||
-      (this.propPtr != null && !this.propPtr.equals(other.propPtr))
+      (this.attribute == null) !== (other.attribute == null) ||
+      (this.attribute != null && !this.attribute.equals(other.attribute))
     ) {
       return false;
     }
@@ -261,6 +294,17 @@ export class Edit extends StructFrozen {
     ) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (this.ancestors.length !== other.ancestors.length) {
+      return false;
+    }
+    for (let i = 0; i < this.ancestors.length; i++) {
+      if (!(this.ancestors[i] === other.ancestors[i])) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -273,8 +317,8 @@ export class Edit extends StructFrozen {
         propertyReprs.push(`operation=${EditOperation[this.operation]}`);
       }
       propertyReprs.push(`node=${this.node?.repr()}`);
-      if (this.propPtr !== null) {
-        propertyReprs.push(`propPtr=${this.propPtr.repr()}`);
+      if (this.attribute !== null) {
+        propertyReprs.push(`attribute=${this.attribute.repr()}`);
       }
       if (this.key !== null) {
         propertyReprs.push(`key=${this.key.repr()}`);
@@ -298,8 +342,8 @@ export class Edit extends StructFrozen {
       h = (h * 31 + this.operation) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    if (this.propPtr !== null) {
-      h = (h * 31 + this.propPtr.hash()) & 0xffffffff;
+    if (this.attribute !== null) {
+      h = (h * 31 + this.attribute.hash()) & 0xffffffff;
     }
     if (this.key !== null) {
       h = (h * 31 + this.key.hash()) & 0xffffffff;
@@ -309,6 +353,14 @@ export class Edit extends StructFrozen {
     }
     if (this.undo !== null) {
       h = (h * 31 + this.undo.hash()) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.ancestors && this.ancestors.length > 0) {
+      for (const _item of this.ancestors) {
+        h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
+      }
     }
 
     // @ts-expect-error(readonly)
@@ -337,8 +389,8 @@ export class Edit extends StructFrozen {
       objectValue["101"] = object.operation;
     }
     objectValue["102"] = object.nodePtr.toValue();
-    if (object.propPtr != null) {
-      objectValue["103"] = object.propPtr.toValue();
+    if (object.attribute != null) {
+      objectValue["103"] = object.attribute.toValue();
     }
     if (object.key != null) {
       objectValue["105"] = object.key.toValue();
@@ -348,6 +400,16 @@ export class Edit extends StructFrozen {
     }
     if (object.undo != null) {
       objectValue["120"] = object.undo.toValue();
+    }
+    if (object.snapshotPtr != null) {
+      objectValue["121"] = object.snapshotPtr.toValue();
+    }
+    if (object.ancestors.length > 0) {
+      const packedAncestors: any[] = [];
+      for (const item of object.ancestors) {
+        packedAncestors.push(String(item));
+      }
+      objectValue["122"] = packedAncestors;
     }
     return objectValue;
   }
@@ -367,10 +429,10 @@ export class Edit extends StructFrozen {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const operationValue = objectValue["101"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
-    const propPtrValue = objectValue["103"];
-    const unpackedPropPtr =
-      propPtrValue != undefined
-        ? _PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
+    const attributeValue = objectValue["103"];
+    const unpackedAttribute =
+      attributeValue != undefined
+        ? _PropertyReference.fromValue(attributeValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyValue = objectValue["105"];
     const unpackedKey =
@@ -387,6 +449,17 @@ export class Edit extends StructFrozen {
       undoValue != undefined
         ? _Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["121"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedAncestors: any[] = [];
+    if (objectValue["122"] != undefined) {
+      for (const item of objectValue["122"]) {
+        unpackedAncestors.push(String(item));
+      }
+    }
     return new Edit({
       id: String(objectValue["2"]),
       type: Number(objectValue["100"]),
@@ -398,10 +471,12 @@ export class Edit extends StructFrozen {
         _graph,
         _connection,
       ),
-      propPtr: unpackedPropPtr,
+      attribute: unpackedAttribute,
       key: unpackedKey,
       value: unpackedValue,
       undo: unpackedUndo,
+      snapshot: unpackedSnapshotPtr,
+      ancestors: unpackedAncestors,
       _value: objectValue,
       _supergraph,
     });
@@ -433,8 +508,8 @@ export class Edit extends StructFrozen {
       objectProto.operation = Number(object.operation) as EditOperationProto;
     }
     objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.propPtr != null) {
-      objectProto.propPtr = object.propPtr.toProto();
+    if (object.attribute != null) {
+      objectProto.attribute = object.attribute.toProto();
     }
     if (object.key != null) {
       objectProto.key = object.key.toProto();
@@ -444,6 +519,16 @@ export class Edit extends StructFrozen {
     }
     if (object.undo != null) {
       objectProto.undo = object.undo.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.ancestors) {
+      const packedAncestors: any[] = [];
+      for (const item of object.ancestors) {
+        packedAncestors.push(String(item));
+      }
+      objectProto.ancestors = packedAncestors;
     }
     return objectProto as EditProto;
   }
@@ -461,6 +546,12 @@ export class Edit extends StructFrozen {
     ] as typeof PropertyReference;
     const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedAncestors: any[] = [];
+    if (objectProto.ancestors) {
+      for (const item of objectProto.ancestors) {
+        unpackedAncestors.push(String(item));
+      }
+    }
     return new Edit({
       id: String(objectProto.id),
       type: Number(objectProto.type) as EditType,
@@ -475,10 +566,10 @@ export class Edit extends StructFrozen {
         _graph,
         _connection,
       ),
-      propPtr:
-        objectProto.propPtr != undefined
+      attribute:
+        objectProto.attribute != undefined
           ? _PropertyReference.fromProto(
-              objectProto.propPtr!,
+              objectProto.attribute!,
               _session,
               _supergraph,
               _graph,
@@ -497,6 +588,17 @@ export class Edit extends StructFrozen {
         objectProto.undo != undefined
           ? _Edit.fromProto(objectProto.undo!, _session, _supergraph, _graph, _connection)
           : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      ancestors: unpackedAncestors,
       _proto: objectProto,
       _supergraph,
     });

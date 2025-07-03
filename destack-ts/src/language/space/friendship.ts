@@ -76,7 +76,7 @@ export class Friendship extends Entity implements IsGlobal {
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): Friendship | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -88,7 +88,7 @@ export class Friendship extends Entity implements IsGlobal {
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -207,7 +207,7 @@ export class Friendship extends Entity implements IsGlobal {
     this.parentPtr = _parent;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`Friendship.materialization is required`);
@@ -2328,7 +2328,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): FriendshipInvite | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -2340,7 +2340,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -2449,7 +2449,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     this.parentPtr = _parent;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`FriendshipInvite.materialization is required`);

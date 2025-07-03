@@ -1,7 +1,7 @@
 import { NodeType, TraitType } from "@destack/language/core/builtin";
 
 export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
-  [TraitType.ARCHIVABLE]: [NodeType.RECORD, NodeType.CUSTOM_PROPERTY],
+  [TraitType.ARCHIVABLE]: [NodeType.RECORD, NodeType.SNAPSHOT, NodeType.CUSTOM_PROPERTY],
   [TraitType.DELETABLE]: [
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_TRAIT_DEFINITION,
@@ -340,6 +340,8 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.CUSTOM_EVENT_DEFINITION,
     NodeType.SIGNAL,
     NodeType.EDIT_EVENT,
+    NodeType.CHANGE_EVENT,
+    NodeType.QUERY_EVENT,
     NodeType.MEASUREMENT_EVENT,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.CUSTOM_OPTION,

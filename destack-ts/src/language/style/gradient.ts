@@ -119,7 +119,7 @@ export class GradientStyle extends Style {
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): GradientStyle | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -131,7 +131,7 @@ export class GradientStyle extends Style {
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -278,7 +278,7 @@ export class GradientStyle extends Style {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`GradientStyle.materialization is required`);

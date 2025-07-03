@@ -116,7 +116,7 @@ export class TextView extends ContentView {
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): TextView | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -128,7 +128,7 @@ export class TextView extends ContentView {
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -358,7 +358,7 @@ export class TextView extends ContentView {
     this.baseType = _baseType;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`TextView.materialization is required`);

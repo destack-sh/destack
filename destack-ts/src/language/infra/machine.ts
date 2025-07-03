@@ -139,7 +139,7 @@ export class Machine extends Resource implements IsSpatial {
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): Machine | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -151,7 +151,7 @@ export class Machine extends Resource implements IsSpatial {
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -369,7 +369,7 @@ export class Machine extends Resource implements IsSpatial {
     this.baseType = _baseType;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`Machine.materialization is required`);
@@ -420,7 +420,7 @@ export class Machine extends Resource implements IsSpatial {
     this.type = _type;
     let _version = options.version ?? null;
     if (_version === null) {
-      _version = "2025.07.03.0";
+      _version = "2025.07.03.1";
     }
     if (_version === null) {
       throw new Error(`Machine.version is required`);

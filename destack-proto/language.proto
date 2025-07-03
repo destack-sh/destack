@@ -338,19 +338,18 @@ enum EnumTypeProto {
   ENUM_TYPE_EDIT_OPERATION = 51;
   ENUM_TYPE_CHANGE_STATUS = 52;
   ENUM_TYPE_CHANGE_DEBOUNCE = 53;
-  ENUM_TYPE_NODE_PERMISSION = 100;
-  ENUM_TYPE_JOINABLE_PERMISSION = 101;
-  ENUM_TYPE_PRIMITIVE_TYPE = 500;
-  ENUM_TYPE_TYPE_CARDINALITY = 501;
-  ENUM_TYPE_SCALAR_TYPE = 502;
-  ENUM_TYPE_VALUE_FACTORY = 503;
-  ENUM_TYPE_STRING_FORMAT = 504;
-  ENUM_TYPE_NUMBER_FORMAT = 505;
-  ENUM_TYPE_CUSTOM_PROPERTY_TYPE = 506;
-  ENUM_TYPE_EDGE_TYPE = 507;
-  ENUM_TYPE_EDGE_DIRECTION = 508;
-  ENUM_TYPE_CASCADE_ACTION = 509;
-  ENUM_TYPE_RESOURCE_STATUS = 600;
+  ENUM_TYPE_PRIMITIVE_TYPE = 60;
+  ENUM_TYPE_TYPE_CARDINALITY = 61;
+  ENUM_TYPE_SCALAR_TYPE = 62;
+  ENUM_TYPE_VALUE_FACTORY = 63;
+  ENUM_TYPE_STRING_FORMAT = 64;
+  ENUM_TYPE_NUMBER_FORMAT = 65;
+  ENUM_TYPE_CUSTOM_PROPERTY_TYPE = 66;
+  ENUM_TYPE_EDGE_TYPE = 67;
+  ENUM_TYPE_EDGE_DIRECTION = 68;
+  ENUM_TYPE_CASCADE_ACTION = 69;
+  ENUM_TYPE_RESOURCE_STATUS = 1100;
+  ENUM_TYPE_SNAPSHOT_TYPE = 1300;
   ENUM_TYPE_CONDITIONAL_TYPE = 10103;
   ENUM_TYPE_AGGREGATION_TYPE = 10104;
   ENUM_TYPE_SORT_MODE = 10105;
@@ -364,6 +363,7 @@ enum EnumTypeProto {
   ENUM_TYPE_USER_STATUS = 10200;
   ENUM_TYPE_ORGANIZATION_STATUS = 10500;
   ENUM_TYPE_CLIENT_TYPE = 10700;
+  ENUM_TYPE_JOINABLE_PERMISSION = 20000;
   ENUM_TYPE_MEMBERSHIP_PERMISSION = 20001;
   ENUM_TYPE_ROLE_TYPE = 20200;
   ENUM_TYPE_PERMISSION_TYPE = 20300;
@@ -761,9 +761,9 @@ enum MachineTypeProto {
 // The materialization level of an Entity.
 enum MaterializationProto {
   MATERIALIZATION_UNSPECIFIED = 0;
-  MATERIALIZATION_FRAGMENT = 1;
-  MATERIALIZATION_SUBGRAPH = 2;
-  MATERIALIZATION_FULL = 3;
+  MATERIALIZATION_PARTIAL_NODE = 1;
+  MATERIALIZATION_PARTIAL_GRAPH = 2;
+  MATERIALIZATION_FULL_GRAPH = 3;
 }
 
 // A Permission for a Membership.
@@ -829,14 +829,6 @@ enum NodeDefinitionTypeProto {
   NODE_DEFINITION_TYPE_CUSTOM = 2;
 }
 
-enum NodePermissionProto {
-  NODE_PERMISSION_UNSPECIFIED = 0;
-  NODE_PERMISSION_READ = 1;
-  NODE_PERMISSION_ADD = 10;
-  NODE_PERMISSION_UPDATE = 11;
-  NODE_PERMISSION_REMOVE = 12;
-}
-
 enum NodeTypeProto {
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_NODE = 1;
@@ -855,7 +847,9 @@ enum NodeTypeProto {
   NODE_TYPE_SNAPSHOT = 1300;
   NODE_TYPE_SIGNAL = 2000;
   NODE_TYPE_EDIT_EVENT = 2001;
-  NODE_TYPE_MEASUREMENT_EVENT = 2002;
+  NODE_TYPE_CHANGE_EVENT = 2002;
+  NODE_TYPE_QUERY_EVENT = 2003;
+  NODE_TYPE_MEASUREMENT_EVENT = 2004;
   NODE_TYPE_SPACE = 10000;
   NODE_TYPE_HANDLE = 10100;
   NODE_TYPE_USER = 10200;
@@ -1276,6 +1270,14 @@ enum ShadowTypeProto {
   SHADOW_TYPE_UNSPECIFIED = 0;
   SHADOW_TYPE_BOX = 10;
   SHADOW_TYPE_REALISTIC = 11;
+}
+
+// The type of a Snapshot.
+enum SnapshotTypeProto {
+  SNAPSHOT_TYPE_UNSPECIFIED = 0;
+  SNAPSHOT_TYPE_PARTIAL_NODE = 1;
+  SNAPSHOT_TYPE_PARTIAL_GRAPH = 2;
+  SNAPSHOT_TYPE_FULL_GRAPH = 3;
 }
 
 enum SortModeProto {
@@ -1867,6 +1869,21 @@ message ChangeProto {
   optional OriginProto origin = 104;
   optional ChangeDebounceProto debounce = 105;
   repeated EditProto edits = 110;
+}
+
+// A recorded Change.
+message ChangeEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto node_ptr = 101;
+  optional string name = 102;
+  optional OriginProto origin = 103;
+  optional ChangeDebounceProto debounce = 104;
+  repeated string edits_ids = 120;
 }
 
 message ChangeResultProto {
@@ -2533,13 +2550,15 @@ message EditProto {
   EditTypeProto type = 100;
   optional EditOperationProto operation = 101;
   NodeReferenceProto node_ptr = 102;
-  optional PropertyReferenceProto prop_ptr = 103;
+  optional PropertyReferenceProto attribute = 103;
   optional ValueProto key = 105;
   optional ValueProto value = 110;
   optional EditProto undo = 120;
+  optional NodeReferenceProto snapshot_ptr = 121;
+  repeated string ancestors = 122;
 }
 
-// A Event of an Edit. Only EditEvents of Entities are allowed.
+// A recorded Edit of an Entity.
 message EditEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -2550,9 +2569,12 @@ message EditEventProto {
   EditTypeProto type = 100;
   NodeReferenceProto node_ptr = 101;
   optional EditOperationProto operation = 102;
-  optional PropertyReferenceProto prop_ptr = 103;
+  optional PropertyReferenceProto attribute = 103;
   optional ValueProto key = 104;
   optional ValueProto value = 110;
+  optional EditProto undo = 120;
+  optional NodeReferenceProto snapshot_ptr = 121;
+  repeated string ancestors_ids = 122;
 }
 
 message EffectProto {
@@ -4471,6 +4493,30 @@ message QueryProto {
   optional int64 offset = 121 [jstype = JS_NUMBER];
 }
 
+// A recorded Query.
+message QueryEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  QueryTypeProto type = 100;
+  optional NodeReferenceProto node_ptr = 101;
+  string name = 102;
+  NodeDefinitionReferenceProto definition = 103;
+  optional JoinProto join = 104;
+  optional SelectProto select = 105;
+  repeated QueryProto subqueries = 106;
+  optional ConditionProto where = 110;
+  optional ConditionProto having = 111;
+  repeated ExpressionProto group_by = 112;
+  optional AggregationProto aggregation = 113;
+  repeated SortProto sort = 114;
+  optional int64 limit = 120 [jstype = JS_NUMBER];
+  optional int64 offset = 121 [jstype = JS_NUMBER];
+}
+
 message QueryResultProto {
   StructTypeProto metatype = 1;
   string id = 2;
@@ -5218,10 +5264,11 @@ message SnapshotProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp archived_at = 24;
   optional google.protobuf.Timestamp deleted_at = 25;
   optional NodeReferenceProto owned_by_ptr = 28;
+  SnapshotTypeProto type = 100;
   string name = 101;
-  optional IconProto icon = 102;
 }
 
 message SortProto {
@@ -5986,6 +6033,8 @@ message SomeNodeProto {
     SnapshotProto snapshot = 1300;
     CustomEventDefinitionProto custom_event_definition = 102;
     EditEventProto edit_event = 2001;
+    ChangeEventProto change_event = 2002;
+    QueryEventProto query_event = 2003;
     CustomEnumDefinitionProto custom_enum_definition = 104;
     CustomOptionProto custom_option = 106;
     GaugeMetricProto gauge_metric = 92000;
@@ -6216,6 +6265,8 @@ message SomeEntityProto {
 message SomeEventProto {
   oneof node {
     EditEventProto edit_event = 2001;
+    ChangeEventProto change_event = 2002;
+    QueryEventProto query_event = 2003;
     GaugeMeasurementEventProto gauge_measurement_event = 92001;
     CounterMeasurementEventProto counter_measurement_event = 92101;
     HistogramMeasurementEventProto histogram_measurement_event = 92201;

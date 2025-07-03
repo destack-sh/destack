@@ -108,7 +108,7 @@ export abstract class ContentView extends View {
   declare readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): ContentView | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -120,7 +120,7 @@ export abstract class ContentView extends View {
   declare readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;

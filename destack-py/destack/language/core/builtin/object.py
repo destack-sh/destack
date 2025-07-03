@@ -261,12 +261,6 @@ if _supergraph is None:
 if {arg_name} is not None:
     {self_name} = {arg_name}.to_ref()""")
 
-        # check if node is passed if required and scalar
-        if prop.is_required and prop.scalar_type == ScalarType.NODE_REFERENCE:
-            method_body_lines.append(f"""\
-if {self_name} is None:
-    raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
-
         # init default factory
         if prop.default_factory is not None:
             if prop.default_factory == ValueFactory.UUID:
@@ -290,8 +284,19 @@ if {arg_name} is None:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = REGION""")
+            elif prop.default_factory == ValueFactory.SELF:
+                assert is_node, f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
+                method_body_lines.append(f"""\
+if {self_name} is None:
+    {self_name} = self.to_ref()""")
             else:
                 assert_never(prop.default_factory)
+
+        # check if node is passed if required and scalar
+        if prop.is_required and prop.cardinality == TypeCardinality.SCALAR:
+            method_body_lines.append(f"""\
+if {self_name} is None:
+    raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
 
         # init list/map if unset
         if prop.cardinality == TypeCardinality.LIST:

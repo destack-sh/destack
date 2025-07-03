@@ -22,7 +22,7 @@ from ..builtin import (
 from ..builtin.relation import NodeReference, PropertyReference
 
 if TYPE_CHECKING:
-    from destack.language import ClientType, IsSubject, Value
+    from destack.language import ClientType, IsSubject, Snapshot, Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -101,23 +101,24 @@ class Edit(StructFrozen):
     )
     type: EditType = builtin_property(100, is_repr=True, description="The type of Edit.")
     operation: EditOperation | None = builtin_property(
-        101, is_repr=True, description="The specific update operation."
+        101, is_repr=True, description="The specific Edit operation."
     )
     node: Node = builtin_property(102, is_repr=True, description="The Node being edited.")
-    prop_ptr: PropertyReference | None = builtin_property(
-        103, is_repr=True, description="The Property of the Edit."
+    attribute: PropertyReference | None = builtin_property(
+        103, is_repr=True, description="The Property being edited."
     )
     key: "Value | None" = builtin_property(105, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET
         field_ptr: NodeReference | None = None
-
     value: "Value | None" = builtin_property(110)
 
     undo: "Edit | None" = builtin_property(
         120,
-        description="The inverse Edit *if* it cannot be derived from the Edit itself).",
+        description="The inverse Edit *if* it cannot be unambiguously derived from the Edit).",
     )
+    snapshot: Optional["Snapshot"] = builtin_property(121)
+    ancestors: list[UUID] = builtin_property(122)
 
 
 @builtin_struct(StructType.ORIGIN, frozen=True)

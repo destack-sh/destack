@@ -19,6 +19,7 @@ from destack.language import (
     Reaction,
     Scene,
     Session,
+    Snapshot,
     Star,
     TextView,
     User,
@@ -318,3 +319,32 @@ async def test_benchmark_create_reactions(session: Session, async_benchmark: Asy
 
     result = await async_benchmark(_create_reactions, rounds=100, iterations=1)
     assert result["mean"] < 0.005  # <5ms
+
+
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
+async def test_create_snapshot(session: Session):
+    """Create a Snapshot and query it."""
+
+    # nocheckin: support Entity branching & variants (how to handle Snapshot, which is an Entity?)
+
+    user = User(
+        name="Alice", slug="alice", space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4())
+    )
+    session.create(user)
+    await session.commit()
+
+    snapshot = Snapshot(name="My Little Snapshot")
+    session.create(snapshot)
+    await session.commit()
+
+    with snapshot:
+        snapshot_user = user.into(snapshot)
+        assert snapshot_user.snapshot == snapshot
+        assert snapshot_user.predecessor is user
+        assert snapshot_user
+        snapshot_user.name = "Bob"
+        assert snapshot_user.snapshot == snapshot
+        assert snapshot_user.name == "Bob"
+
+    assert user.name == "Alice"
+    assert user.snapshot is None

@@ -15,8 +15,19 @@ import type {
   IsSpatial,
   IsSubject,
 } from "@destack/language/core/builtin/trait";
-import { EditOperation, EditType } from "@destack/language/core/common/edit";
+import type { Edit, Origin } from "@destack/language/core/common/edit";
+import { ChangeDebounce, EditOperation, EditType } from "@destack/language/core/common/edit";
 import type { Icon } from "@destack/language/core/common/icon";
+import type {
+  Aggregation,
+  Condition,
+  Expression,
+  Join,
+  Query,
+  Select,
+  Sort,
+} from "@destack/language/core/common/query";
+import { QueryType } from "@destack/language/core/common/query";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -25,14 +36,18 @@ import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
+  ChangeDebounceProto,
+  ChangeEventProto,
   CustomEventDefinitionProto,
   EditEventProto,
   EditOperationProto,
   EditTypeProto,
   MaterializationProto,
+  QueryEventProto,
+  QueryTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashBool, hashString } from "@destack/utils/hash";
+import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3 ==== */
@@ -173,7 +188,7 @@ export class CustomEventDefinition
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -185,7 +200,7 @@ export class CustomEventDefinition
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -339,7 +354,7 @@ export class CustomEventDefinition
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`CustomEventDefinition.materialization is required`);
@@ -1131,7 +1146,7 @@ registerNodeClass(NodeType.SIGNAL, Signal);
 
 /* ==== DESTACK_GENERATED_START:NODE:2001 ==== */
 /**
- * A Event of an Edit. Only EditEvents of Entities are allowed.
+ * A recorded Edit of an Entity.
  */
 export class EditEvent extends Event {
   static metatype: NodeType = NodeType.EDIT_EVENT;
@@ -1185,14 +1200,14 @@ export class EditEvent extends Event {
   /**
    * EditEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set node(node: Node) {
+  set node(node: Entity) {
     this.nodePtr = node.toRef();
   }
   nodePtr: NodeReference;
@@ -1203,9 +1218,9 @@ export class EditEvent extends Event {
   operation: EditOperation | null;
 
   /**
-   * EditEvent.propPtr
+   * EditEvent.attribute
    */
-  propPtr: PropertyReference | null;
+  attribute: PropertyReference | null;
 
   /**
    * EditEvent.key
@@ -1217,6 +1232,35 @@ export class EditEvent extends Event {
    */
   value: Value | null;
 
+  /**
+   * The inverse Edit *if* it cannot be unambiguously derived from the Edit).
+   */
+  undo: Edit | null;
+
+  /**
+   * EditEvent.snapshot
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  set snapshot(node: Snapshot | null) {
+    if (node === null) {
+      this.snapshotPtr = null;
+    } else {
+      this.snapshotPtr = node.toRef();
+    }
+  }
+  snapshotPtr: NodeReference | null;
+
+  /**
+   * EditEvent.ancestorsIds
+   */
+  ancestorsIds: Array<string>;
+
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -1224,11 +1268,14 @@ export class EditEvent extends Event {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     type: EditType;
-    node: Node | NodeReference;
+    node: Entity | NodeReference;
     operation?: EditOperation | null;
-    propPtr?: PropertyReference | null;
+    attribute?: PropertyReference | null;
     key?: Value | null;
     value?: Value | null;
+    undo?: Edit | null;
+    snapshot?: Snapshot | NodeReference | null;
+    ancestorsIds?: Array<string>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1283,12 +1330,24 @@ export class EditEvent extends Event {
     this.nodePtr = _node;
     let _operation = options.operation ?? null;
     this.operation = _operation;
-    let _propPtr = options.propPtr ?? null;
-    this.propPtr = _propPtr;
+    let _attribute = options.attribute ?? null;
+    this.attribute = _attribute;
     let _key = options.key ?? null;
     this.key = _key;
     let _value = options.value ?? null;
     this.value = _value;
+    let _undo = options.undo ?? null;
+    this.undo = _undo;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
+    let _ancestorsIds = options.ancestorsIds ?? null;
+    if (_ancestorsIds === null) {
+      _ancestorsIds = [];
+    }
+    this.ancestorsIds = _ancestorsIds;
 
     // identity
     if (options.id == null) {
@@ -1323,8 +1382,8 @@ export class EditEvent extends Event {
       return false;
     }
     if (
-      (this.propPtr == null) !== (other.propPtr == null) ||
-      (this.propPtr != null && !this.propPtr.equals(other.propPtr))
+      (this.attribute == null) !== (other.attribute == null) ||
+      (this.attribute != null && !this.attribute.equals(other.attribute))
     ) {
       return false;
     }
@@ -1340,6 +1399,23 @@ export class EditEvent extends Event {
     ) {
       return false;
     }
+    if (
+      (this.undo == null) !== (other.undo == null) ||
+      (this.undo != null && !this.undo.equals(other.undo))
+    ) {
+      return false;
+    }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (this.ancestorsIds.length !== other.ancestorsIds.length) {
+      return false;
+    }
+    for (let i = 0; i < this.ancestorsIds.length; i++) {
+      if (!(this.ancestorsIds[i] === other.ancestorsIds[i])) {
+        return false;
+      }
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1354,14 +1430,25 @@ export class EditEvent extends Event {
     if (this.operation !== null) {
       h = (h * 31 + this.operation) & 0xffffffff;
     }
-    if (this.propPtr !== null) {
-      h = (h * 31 + this.propPtr.hash()) & 0xffffffff;
+    if (this.attribute !== null) {
+      h = (h * 31 + this.attribute.hash()) & 0xffffffff;
     }
     if (this.key !== null) {
       h = (h * 31 + this.key.hash()) & 0xffffffff;
     }
     if (this.value !== null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
+    }
+    if (this.undo !== null) {
+      h = (h * 31 + this.undo.hash()) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.ancestorsIds && this.ancestorsIds.length > 0) {
+      for (const _item of this.ancestorsIds) {
+        h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
+      }
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -1417,8 +1504,8 @@ export class EditEvent extends Event {
     if (this.operation !== null) {
       propertyReprs.push(`operation=${EditOperation[this.operation]}`);
     }
-    if (this.propPtr !== null) {
-      propertyReprs.push(`propPtr=${this.propPtr.repr()}`);
+    if (this.attribute !== null) {
+      propertyReprs.push(`attribute=${this.attribute.repr()}`);
     }
     if (this.key !== null) {
       propertyReprs.push(`key=${this.key.repr()}`);
@@ -1449,14 +1536,27 @@ export class EditEvent extends Event {
     if (object.operation != null) {
       objectValue["102"] = object.operation;
     }
-    if (object.propPtr != null) {
-      objectValue["103"] = object.propPtr.toValue();
+    if (object.attribute != null) {
+      objectValue["103"] = object.attribute.toValue();
     }
     if (object.key != null) {
       objectValue["104"] = object.key.toValue();
     }
     if (object.value != null) {
       objectValue["110"] = object.value.toValue();
+    }
+    if (object.undo != null) {
+      objectValue["120"] = object.undo.toValue();
+    }
+    if (object.snapshotPtr != null) {
+      objectValue["121"] = object.snapshotPtr.toValue();
+    }
+    if (object.ancestorsIds.length > 0) {
+      const packedAncestorsIds: any[] = [];
+      for (const item of object.ancestorsIds) {
+        packedAncestorsIds.push(String(item));
+      }
+      objectValue["122"] = packedAncestorsIds;
     }
     return objectValue;
   }
@@ -1472,13 +1572,14 @@ export class EditEvent extends Event {
     const _PropertyReference = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_REFERENCE
     ] as typeof PropertyReference;
+    const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const operationValue = objectValue["102"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
-    const propPtrValue = objectValue["103"];
-    const unpackedPropPtr =
-      propPtrValue != undefined
-        ? _PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
+    const attributeValue = objectValue["103"];
+    const unpackedAttribute =
+      attributeValue != undefined
+        ? _PropertyReference.fromValue(attributeValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyValue = objectValue["104"];
     const unpackedKey =
@@ -1490,6 +1591,22 @@ export class EditEvent extends Event {
       valueValue != undefined
         ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
         : null;
+    const undoValue = objectValue["120"];
+    const unpackedUndo =
+      undoValue != undefined
+        ? _Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["121"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedAncestorsIds: any[] = [];
+    if (objectValue["122"] != undefined) {
+      for (const item of objectValue["122"]) {
+        unpackedAncestorsIds.push(String(item));
+      }
+    }
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1515,9 +1632,12 @@ export class EditEvent extends Event {
         _connection,
       ),
       operation: unpackedOperation,
-      propPtr: unpackedPropPtr,
+      attribute: unpackedAttribute,
       key: unpackedKey,
       value: unpackedValue,
+      undo: unpackedUndo,
+      snapshot: unpackedSnapshotPtr,
+      ancestorsIds: unpackedAncestorsIds,
       parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1561,14 +1681,27 @@ export class EditEvent extends Event {
     if (object.operation != null) {
       objectProto.operation = Number(object.operation) as EditOperationProto;
     }
-    if (object.propPtr != null) {
-      objectProto.propPtr = object.propPtr.toProto();
+    if (object.attribute != null) {
+      objectProto.attribute = object.attribute.toProto();
     }
     if (object.key != null) {
       objectProto.key = object.key.toProto();
     }
     if (object.value != null) {
       objectProto.value = object.value.toProto();
+    }
+    if (object.undo != null) {
+      objectProto.undo = object.undo.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.ancestorsIds) {
+      const packedAncestorsIds: any[] = [];
+      for (const item of object.ancestorsIds) {
+        packedAncestorsIds.push(String(item));
+      }
+      objectProto.ancestorsIds = packedAncestorsIds;
     }
     return objectProto as EditEventProto;
   }
@@ -1584,7 +1717,14 @@ export class EditEvent extends Event {
     const _PropertyReference = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_REFERENCE
     ] as typeof PropertyReference;
+    const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedAncestorsIds: any[] = [];
+    if (objectProto.ancestorsIds) {
+      for (const item of objectProto.ancestorsIds) {
+        unpackedAncestorsIds.push(String(item));
+      }
+    }
     return new EditEvent({
       type: Number(objectProto.type) as EditType,
       node: _NodeReference.fromProto(
@@ -1598,10 +1738,10 @@ export class EditEvent extends Event {
         objectProto.operation != undefined
           ? (Number(objectProto.operation) as EditOperation)
           : null,
-      propPtr:
-        objectProto.propPtr != undefined
+      attribute:
+        objectProto.attribute != undefined
           ? _PropertyReference.fromProto(
-              objectProto.propPtr!,
+              objectProto.attribute!,
               _session,
               _supergraph,
               _graph,
@@ -1616,6 +1756,21 @@ export class EditEvent extends Event {
         objectProto.value != undefined
           ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
           : null,
+      undo:
+        objectProto.undo != undefined
+          ? _Edit.fromProto(objectProto.undo!, _session, _supergraph, _graph, _connection)
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      ancestorsIds: unpackedAncestorsIds,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1678,6 +1833,1426 @@ registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
 /* ==== DESTACK_GENERATED_END:NODE:2001 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2002 ==== */
+/**
+ * A recorded Change.
+ */
+export class ChangeEvent extends Event {
+  static metatype: NodeType = NodeType.CHANGE_EVENT;
+
+  /**
+   * Event.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The Node this Event is about.
+   */
+  get node(): Node | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
+  }
+  set node(node: Node | null) {
+    if (node === null) {
+      this.nodePtr = null;
+    } else {
+      this.nodePtr = node.toRef();
+    }
+  }
+  nodePtr: NodeReference | null;
+
+  /**
+   * ChangeEvent.name
+   */
+  name: string | null;
+
+  /**
+   * ChangeEvent.origin
+   */
+  origin: Origin | null;
+
+  /**
+   * ChangeEvent.debounce
+   */
+  debounce: ChangeDebounce | null;
+
+  /**
+   * ChangeEvent.editsIds
+   */
+  editsIds: Array<string>;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    node?: Node | NodeReference | null;
+    name?: string | null;
+    origin?: Origin | null;
+    debounce?: ChangeDebounce | null;
+    editsIds?: Array<string>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
+    }
+    this.spacePtr = _space;
+    let _node = options.node ?? null;
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
+    }
+    this.nodePtr = _node;
+    let _name = options.name ?? null;
+    this.name = _name;
+    let _origin = options.origin ?? null;
+    this.origin = _origin;
+    let _debounce = options.debounce ?? null;
+    this.debounce = _debounce;
+    let _editsIds = options.editsIds ?? null;
+    if (_editsIds === null) {
+      _editsIds = [];
+    }
+    this.editsIds = _editsIds;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+    } else {
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.origin == null) !== (other.origin == null) ||
+      (this.origin != null && !this.origin.equals(other.origin))
+    ) {
+      return false;
+    }
+    if (!(this.debounce === other.debounce)) {
+      return false;
+    }
+    if (this.editsIds.length !== other.editsIds.length) {
+      return false;
+    }
+    for (let i = 0; i < this.editsIds.length; i++) {
+      if (!(this.editsIds[i] === other.editsIds[i])) {
+        return false;
+      }
+    }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.name !== null) {
+      h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    }
+    if (this.origin !== null) {
+      h = (h * 31 + this.origin.hash()) & 0xffffffff;
+    }
+    if (this.debounce !== null) {
+      h = (h * 31 + this.debounce) & 0xffffffff;
+    }
+    if (this.editsIds && this.editsIds.length > 0) {
+      for (const _item of this.editsIds) {
+        h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
+      }
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
+      type: NodeType.CHANGE_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return this.name;
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.name !== null) {
+      propertyReprs.push(`name=${this.name}`);
+    }
+    if (propertyReprs.length > 0) {
+      return `<ChangeEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    } else {
+      return `<ChangeEvent '${this.path}'>`;
+    }
+  }
+
+  toValue(): { [key: string]: any } {
+    return ChangeEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: ChangeEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2002;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    if (object.nodePtr != null) {
+      objectValue["101"] = object.nodePtr.toValue();
+    }
+    if (object.name != null) {
+      objectValue["102"] = object.name;
+    }
+    if (object.origin != null) {
+      objectValue["103"] = object.origin.toValue();
+    }
+    if (object.debounce != null) {
+      objectValue["104"] = object.debounce;
+    }
+    if (object.editsIds.length > 0) {
+      const packedEditsIds: any[] = [];
+      for (const item of object.editsIds) {
+        packedEditsIds.push(String(item));
+      }
+      objectValue["120"] = packedEditsIds;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ChangeEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Origin = STRUCT_CLASS_BY_TYPE[StructType.ORIGIN] as typeof Origin;
+    const nameValue = objectValue["102"];
+    const unpackedName = nameValue != undefined ? nameValue : null;
+    const originValue = objectValue["103"];
+    const unpackedOrigin =
+      originValue != undefined
+        ? _Origin.fromValue(originValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const debounceValue = objectValue["104"];
+    const unpackedDebounce = debounceValue != undefined ? Number(debounceValue) : null;
+    const unpackedEditsIds: any[] = [];
+    if (objectValue["120"] != undefined) {
+      for (const item of objectValue["120"]) {
+        unpackedEditsIds.push(String(item));
+      }
+    }
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["21"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new ChangeEvent({
+      name: unpackedName,
+      origin: unpackedOrigin,
+      debounce: unpackedDebounce,
+      editsIds: unpackedEditsIds,
+      parent: unpackedParentPtr,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      node: unpackedNodePtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ChangeEvent {
+    return ChangeEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ChangeEventProto {
+    return ChangeEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: ChangeEvent): ChangeEventProto {
+    const objectProto: Partial<ChangeEventProto> = { metatype: 2002 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
+    }
+    if (object.name != null) {
+      objectProto.name = object.name;
+    }
+    if (object.origin != null) {
+      objectProto.origin = object.origin.toProto();
+    }
+    if (object.debounce != null) {
+      objectProto.debounce = Number(object.debounce) as ChangeDebounceProto;
+    }
+    if (object.editsIds) {
+      const packedEditsIds: any[] = [];
+      for (const item of object.editsIds) {
+        packedEditsIds.push(String(item));
+      }
+      objectProto.editsIds = packedEditsIds;
+    }
+    return objectProto as ChangeEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ChangeEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ChangeEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Origin = STRUCT_CLASS_BY_TYPE[StructType.ORIGIN] as typeof Origin;
+    const unpackedEditsIds: any[] = [];
+    if (objectProto.editsIds) {
+      for (const item of objectProto.editsIds) {
+        unpackedEditsIds.push(String(item));
+      }
+    }
+    return new ChangeEvent({
+      name: objectProto.name != undefined ? objectProto.name : null,
+      origin:
+        objectProto.origin != undefined
+          ? _Origin.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
+          : null,
+      debounce:
+        objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
+      editsIds: unpackedEditsIds,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: ChangeEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ChangeEvent {
+    return ChangeEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): ChangeEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ChangeEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.CHANGE_EVENT, ChangeEvent);
+/* ==== DESTACK_GENERATED_END:NODE:2002 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:2003 ==== */
+/**
+ * A recorded Query.
+ */
+export class QueryEvent extends Event {
+  static metatype: NodeType = NodeType.QUERY_EVENT;
+
+  /**
+   * Event.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * QueryEvent.type
+   */
+  type: QueryType;
+
+  /**
+   * The Node this Event is about.
+   */
+  get node(): Node | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
+  }
+  set node(node: Node | null) {
+    if (node === null) {
+      this.nodePtr = null;
+    } else {
+      this.nodePtr = node.toRef();
+    }
+  }
+  nodePtr: NodeReference | null;
+
+  /**
+   * Name for this subquery. Must be unique within the parent Query.
+   */
+  name: string;
+
+  /**
+   * QueryEvent.definition
+   */
+  definition: NodeDefinitionReference;
+
+  /**
+   * Relative to parent Query.
+   */
+  join: Join | null;
+
+  /**
+   * QueryEvent.select
+   */
+  select: Select | null;
+
+  /**
+   * QueryEvent.subqueries
+   */
+  subqueries: Array<Query>;
+
+  /**
+   * QueryEvent.where
+   */
+  where: Condition | null;
+
+  /**
+   * QueryEvent.having
+   */
+  having: Condition | null;
+
+  /**
+   * QueryEvent.groupBy
+   */
+  groupBy: Array<Expression>;
+
+  /**
+   * QueryEvent.aggregation
+   */
+  aggregation: Aggregation | null;
+
+  /**
+   * QueryEvent.sort
+   */
+  sort: Array<Sort>;
+
+  /**
+   * QueryEvent.limit
+   */
+  limit: number | null;
+
+  /**
+   * QueryEvent.offset
+   */
+  offset: number | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    type: QueryType;
+    node?: Node | NodeReference | null;
+    name: string;
+    definition: NodeDefinitionReference;
+    join?: Join | null;
+    select?: Select | null;
+    subqueries?: Array<Query>;
+    where?: Condition | null;
+    having?: Condition | null;
+    groupBy?: Array<Expression>;
+    aggregation?: Aggregation | null;
+    sort?: Array<Sort>;
+    limit?: number | null;
+    offset?: number | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
+    }
+    this.spacePtr = _space;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`QueryEvent.type is required`);
+    }
+    this.type = _type;
+    let _node = options.node ?? null;
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
+    }
+    this.nodePtr = _node;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`QueryEvent.name is required`);
+    }
+    this.name = _name;
+    let _definition = options.definition;
+    if (_definition === null) {
+      throw new Error(`QueryEvent.definition is required`);
+    }
+    this.definition = _definition;
+    let _join = options.join ?? null;
+    this.join = _join;
+    let _select = options.select ?? null;
+    this.select = _select;
+    let _subqueries = options.subqueries ?? null;
+    if (_subqueries === null) {
+      _subqueries = [];
+    }
+    this.subqueries = _subqueries;
+    let _where = options.where ?? null;
+    this.where = _where;
+    let _having = options.having ?? null;
+    this.having = _having;
+    let _groupBy = options.groupBy ?? null;
+    if (_groupBy === null) {
+      _groupBy = [];
+    }
+    this.groupBy = _groupBy;
+    let _aggregation = options.aggregation ?? null;
+    this.aggregation = _aggregation;
+    let _sort = options.sort ?? null;
+    if (_sort === null) {
+      _sort = [];
+    }
+    this.sort = _sort;
+    let _limit = options.limit ?? null;
+    this.limit = _limit;
+    let _offset = options.offset ?? null;
+    this.offset = _offset;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+    } else {
+      if (options.createdAt == null) {
+        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!this.definition.equals(other.definition)) {
+      return false;
+    }
+    if (
+      (this.join == null) !== (other.join == null) ||
+      (this.join != null && !this.join.equals(other.join))
+    ) {
+      return false;
+    }
+    if (
+      (this.select == null) !== (other.select == null) ||
+      (this.select != null && !this.select.equals(other.select))
+    ) {
+      return false;
+    }
+    if (this.subqueries.length !== other.subqueries.length) {
+      return false;
+    }
+    for (let i = 0; i < this.subqueries.length; i++) {
+      if (!this.subqueries[i].equals(other.subqueries[i])) {
+        return false;
+      }
+    }
+    if (
+      (this.where == null) !== (other.where == null) ||
+      (this.where != null && !this.where.equals(other.where))
+    ) {
+      return false;
+    }
+    if (
+      (this.having == null) !== (other.having == null) ||
+      (this.having != null && !this.having.equals(other.having))
+    ) {
+      return false;
+    }
+    if (this.groupBy.length !== other.groupBy.length) {
+      return false;
+    }
+    for (let i = 0; i < this.groupBy.length; i++) {
+      if (!this.groupBy[i].equals(other.groupBy[i])) {
+        return false;
+      }
+    }
+    if (
+      (this.aggregation == null) !== (other.aggregation == null) ||
+      (this.aggregation != null && !this.aggregation.equals(other.aggregation))
+    ) {
+      return false;
+    }
+    if (this.sort.length !== other.sort.length) {
+      return false;
+    }
+    for (let i = 0; i < this.sort.length; i++) {
+      if (!this.sort[i].equals(other.sort[i])) {
+        return false;
+      }
+    }
+    if (!(this.limit === other.limit)) {
+      return false;
+    }
+    if (!(this.offset === other.offset)) {
+      return false;
+    }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + this.definition.hash()) & 0xffffffff;
+    if (this.join !== null) {
+      h = (h * 31 + this.join.hash()) & 0xffffffff;
+    }
+    if (this.select !== null) {
+      h = (h * 31 + this.select.hash()) & 0xffffffff;
+    }
+    if (this.subqueries && this.subqueries.length > 0) {
+      for (const _item of this.subqueries) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.where !== null) {
+      h = (h * 31 + this.where.hash()) & 0xffffffff;
+    }
+    if (this.having !== null) {
+      h = (h * 31 + this.having.hash()) & 0xffffffff;
+    }
+    if (this.groupBy && this.groupBy.length > 0) {
+      for (const _item of this.groupBy) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.aggregation !== null) {
+      h = (h * 31 + this.aggregation.hash()) & 0xffffffff;
+    }
+    if (this.sort && this.sort.length > 0) {
+      for (const _item of this.sort) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.limit !== null) {
+      h = (h * 31 + hashInt(this.limit)) & 0xffffffff;
+    }
+    if (this.offset !== null) {
+      h = (h * 31 + hashInt(this.offset)) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
+      type: NodeType.QUERY_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return this.name;
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${QueryType[this.type]}`);
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`definition=${this.definition.repr()}`);
+    if (this.join !== null) {
+      propertyReprs.push(`join=${this.join.repr()}`);
+    }
+    if (this.select !== null) {
+      propertyReprs.push(`select=${this.select.repr()}`);
+    }
+    if (this.subqueries.length > 0) {
+      propertyReprs.push(`subqueries=${this.subqueries.map((_item) => _item.repr()).join(", ")}`);
+    }
+    if (this.where !== null) {
+      propertyReprs.push(`where=${this.where.repr()}`);
+    }
+    if (this.having !== null) {
+      propertyReprs.push(`having=${this.having.repr()}`);
+    }
+    if (this.groupBy.length > 0) {
+      propertyReprs.push(`groupBy=${this.groupBy.map((_item) => _item.repr()).join(", ")}`);
+    }
+    if (this.aggregation !== null) {
+      propertyReprs.push(`aggregation=${this.aggregation.repr()}`);
+    }
+    if (this.sort.length > 0) {
+      propertyReprs.push(`sort=${this.sort.map((_item) => _item.repr()).join(", ")}`);
+    }
+    if (this.limit !== null) {
+      propertyReprs.push(`limit=${this.limit}`);
+    }
+    if (this.offset !== null) {
+      propertyReprs.push(`offset=${this.offset}`);
+    }
+    return `<QueryEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return QueryEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: QueryEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2003;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    objectValue["100"] = object.type;
+    if (object.nodePtr != null) {
+      objectValue["101"] = object.nodePtr.toValue();
+    }
+    objectValue["102"] = object.name;
+    objectValue["103"] = object.definition.toValue();
+    if (object.join != null) {
+      objectValue["104"] = object.join.toValue();
+    }
+    if (object.select != null) {
+      objectValue["105"] = object.select.toValue();
+    }
+    if (object.subqueries.length > 0) {
+      const packedSubqueries: any[] = [];
+      for (const item of object.subqueries) {
+        packedSubqueries.push(item.toValue());
+      }
+      objectValue["106"] = packedSubqueries;
+    }
+    if (object.where != null) {
+      objectValue["110"] = object.where.toValue();
+    }
+    if (object.having != null) {
+      objectValue["111"] = object.having.toValue();
+    }
+    if (object.groupBy.length > 0) {
+      const packedGroupBy: any[] = [];
+      for (const item of object.groupBy) {
+        packedGroupBy.push(item.toValue());
+      }
+      objectValue["112"] = packedGroupBy;
+    }
+    if (object.aggregation != null) {
+      objectValue["113"] = object.aggregation.toValue();
+    }
+    if (object.sort.length > 0) {
+      const packedSort: any[] = [];
+      for (const item of object.sort) {
+        packedSort.push(item.toValue());
+      }
+      objectValue["114"] = packedSort;
+    }
+    if (object.limit != null) {
+      objectValue["120"] = object.limit;
+    }
+    if (object.offset != null) {
+      objectValue["121"] = object.offset;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
+    const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
+    const _Sort = STRUCT_CLASS_BY_TYPE[StructType.SORT] as typeof Sort;
+    const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const joinValue = objectValue["104"];
+    const unpackedJoin =
+      joinValue != undefined
+        ? _Join.fromValue(joinValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const selectValue = objectValue["105"];
+    const unpackedSelect =
+      selectValue != undefined
+        ? _Select.fromValue(selectValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedSubqueries: any[] = [];
+    if (objectValue["106"] != undefined) {
+      for (const item of objectValue["106"]) {
+        unpackedSubqueries.push(_Query.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const whereValue = objectValue["110"];
+    const unpackedWhere =
+      whereValue != undefined
+        ? _Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const havingValue = objectValue["111"];
+    const unpackedHaving =
+      havingValue != undefined
+        ? _Condition.fromValue(havingValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedGroupBy: any[] = [];
+    if (objectValue["112"] != undefined) {
+      for (const item of objectValue["112"]) {
+        unpackedGroupBy.push(
+          _Expression.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const aggregationValue = objectValue["113"];
+    const unpackedAggregation =
+      aggregationValue != undefined
+        ? _Aggregation.fromValue(aggregationValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedSort: any[] = [];
+    if (objectValue["114"] != undefined) {
+      for (const item of objectValue["114"]) {
+        unpackedSort.push(_Sort.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const limitValue = objectValue["120"];
+    const unpackedLimit = limitValue != undefined ? Number(limitValue) : null;
+    const offsetValue = objectValue["121"];
+    const unpackedOffset = offsetValue != undefined ? Number(offsetValue) : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["21"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new QueryEvent({
+      type: Number(objectValue["100"]),
+      name: objectValue["102"],
+      definition: _NodeDefinitionReference.fromValue(
+        objectValue["103"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      join: unpackedJoin,
+      select: unpackedSelect,
+      subqueries: unpackedSubqueries,
+      where: unpackedWhere,
+      having: unpackedHaving,
+      groupBy: unpackedGroupBy,
+      aggregation: unpackedAggregation,
+      sort: unpackedSort,
+      limit: unpackedLimit,
+      offset: unpackedOffset,
+      parent: unpackedParentPtr,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      node: unpackedNodePtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryEvent {
+    return QueryEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): QueryEventProto {
+    return QueryEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: QueryEvent): QueryEventProto {
+    const objectProto: Partial<QueryEventProto> = { metatype: 2003 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.type = Number(object.type) as QueryTypeProto;
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
+    }
+    objectProto.name = object.name;
+    objectProto.definition = object.definition.toProto();
+    if (object.join != null) {
+      objectProto.join = object.join.toProto();
+    }
+    if (object.select != null) {
+      objectProto.select = object.select.toProto();
+    }
+    if (object.subqueries) {
+      const packedSubqueries: any[] = [];
+      for (const item of object.subqueries) {
+        packedSubqueries.push(item.toProto());
+      }
+      objectProto.subqueries = packedSubqueries;
+    }
+    if (object.where != null) {
+      objectProto.where = object.where.toProto();
+    }
+    if (object.having != null) {
+      objectProto.having = object.having.toProto();
+    }
+    if (object.groupBy) {
+      const packedGroupBy: any[] = [];
+      for (const item of object.groupBy) {
+        packedGroupBy.push(item.toProto());
+      }
+      objectProto.groupBy = packedGroupBy;
+    }
+    if (object.aggregation != null) {
+      objectProto.aggregation = object.aggregation.toProto();
+    }
+    if (object.sort) {
+      const packedSort: any[] = [];
+      for (const item of object.sort) {
+        packedSort.push(item.toProto());
+      }
+      objectProto.sort = packedSort;
+    }
+    if (object.limit != null) {
+      objectProto.limit = object.limit;
+    }
+    if (object.offset != null) {
+      objectProto.offset = object.offset;
+    }
+    return objectProto as QueryEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: QueryEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
+    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
+    const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
+    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
+    const _Sort = STRUCT_CLASS_BY_TYPE[StructType.SORT] as typeof Sort;
+    const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
+    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const unpackedSubqueries: any[] = [];
+    if (objectProto.subqueries) {
+      for (const item of objectProto.subqueries) {
+        unpackedSubqueries.push(
+          _Query.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedGroupBy: any[] = [];
+    if (objectProto.groupBy) {
+      for (const item of objectProto.groupBy) {
+        unpackedGroupBy.push(
+          _Expression.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedSort: any[] = [];
+    if (objectProto.sort) {
+      for (const item of objectProto.sort) {
+        unpackedSort.push(_Sort.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new QueryEvent({
+      type: Number(objectProto.type) as QueryType,
+      name: objectProto.name,
+      definition: _NodeDefinitionReference.fromProto(
+        objectProto.definition!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      join:
+        objectProto.join != undefined
+          ? _Join.fromProto(objectProto.join!, _session, _supergraph, _graph, _connection)
+          : null,
+      select:
+        objectProto.select != undefined
+          ? _Select.fromProto(objectProto.select!, _session, _supergraph, _graph, _connection)
+          : null,
+      subqueries: unpackedSubqueries,
+      where:
+        objectProto.where != undefined
+          ? _Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
+          : null,
+      having:
+        objectProto.having != undefined
+          ? _Condition.fromProto(objectProto.having!, _session, _supergraph, _graph, _connection)
+          : null,
+      groupBy: unpackedGroupBy,
+      aggregation:
+        objectProto.aggregation != undefined
+          ? _Aggregation.fromProto(
+              objectProto.aggregation!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      sort: unpackedSort,
+      limit: objectProto.limit != undefined ? Number(objectProto.limit) : null,
+      offset: objectProto.offset != undefined ? Number(objectProto.offset) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: QueryEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryEvent {
+    return QueryEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): QueryEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = QueryEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.QUERY_EVENT, QueryEvent);
+/* ==== DESTACK_GENERATED_END:NODE:2003 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:2004 ==== */
 /**
  * An Event that represents a Measurement.
  */
@@ -1761,4 +3336,4 @@ export abstract class MeasurementEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEASUREMENT_EVENT, MeasurementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:2002 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2004 ==== */

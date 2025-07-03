@@ -54,7 +54,6 @@ import type {
   EnvironmentType,
   Materialization,
   ModeType,
-  NodePermission,
   NodeType,
   OperatingSystem,
   PlatformType,
@@ -83,12 +82,15 @@ import type {
   Record,
   Resource,
   Snapshot,
+  SnapshotType,
 } from "@destack/language/core/builtin/entity";
 import type {
+  ChangeEvent,
   CustomEventDefinition,
   EditEvent,
   Event,
   MeasurementEvent,
+  QueryEvent,
   Signal,
 } from "@destack/language/core/builtin/event";
 import type {
@@ -445,6 +447,8 @@ export type NodeTypeMapping = {
   [NodeType.CUSTOM_EVENT_DEFINITION]: CustomEventDefinition;
   [NodeType.SIGNAL]: Signal;
   [NodeType.EDIT_EVENT]: EditEvent;
+  [NodeType.CHANGE_EVENT]: ChangeEvent;
+  [NodeType.QUERY_EVENT]: QueryEvent;
   [NodeType.MEASUREMENT_EVENT]: MeasurementEvent;
   [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
   [NodeType.CUSTOM_OPTION]: CustomOption;
@@ -724,7 +728,6 @@ export type EnumTypeMapping = {
   [EnumType.PLATFORM_TYPE]: PlatformType;
   [EnumType.OPERATING_SYSTEM]: OperatingSystem;
   [EnumType.ENVIRONMENT_TYPE]: EnvironmentType;
-  [EnumType.NODE_PERMISSION]: NodePermission;
   [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.MODE_TYPE]: ModeType;
   [EnumType.TOOL_TYPE]: ToolType;
@@ -748,6 +751,7 @@ export type EnumTypeMapping = {
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
   [EnumType.STRUCT_DEFINITION_TYPE]: StructDefinitionType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
+  [EnumType.SNAPSHOT_TYPE]: SnapshotType;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
   [EnumType.CHANGE_STATUS]: ChangeStatus;

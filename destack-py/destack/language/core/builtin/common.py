@@ -35,19 +35,18 @@ class EnumType(Enum):
     EDIT_OPERATION = 51
     CHANGE_STATUS = 52
     CHANGE_DEBOUNCE = 53
-    NODE_PERMISSION = 100
-    JOINABLE_PERMISSION = 101
-    PRIMITIVE_TYPE = 500
-    TYPE_CARDINALITY = 501
-    SCALAR_TYPE = 502
-    VALUE_FACTORY = 503
-    STRING_FORMAT = 504
-    NUMBER_FORMAT = 505
-    CUSTOM_PROPERTY_TYPE = 506
-    EDGE_TYPE = 507
-    EDGE_DIRECTION = 508
-    CASCADE_ACTION = 509
-    RESOURCE_STATUS = 600
+    PRIMITIVE_TYPE = 60
+    TYPE_CARDINALITY = 61
+    SCALAR_TYPE = 62
+    VALUE_FACTORY = 63
+    STRING_FORMAT = 64
+    NUMBER_FORMAT = 65
+    CUSTOM_PROPERTY_TYPE = 66
+    EDGE_TYPE = 67
+    EDGE_DIRECTION = 68
+    CASCADE_ACTION = 69
+    RESOURCE_STATUS = 1100
+    SNAPSHOT_TYPE = 1300
 
     # query
     CONDITIONAL_TYPE = 10_103
@@ -67,6 +66,7 @@ class EnumType(Enum):
     CLIENT_TYPE = 10_700
 
     # access [20_000-30_000]
+    JOINABLE_PERMISSION = 20_000
     MEMBERSHIP_PERMISSION = 20_001
     ROLE_TYPE = 20_200
     PERMISSION_TYPE = 20_300
@@ -508,14 +508,15 @@ class NodeType(Enum):
     CUSTOM_OPTION = 106, "Custom Option", None, "fas fa-circle"
     # entity
     RECORD = 1000, "Record", "Custom Entity", "fas fa-database"
-    RESOURCE = 1100, "Resource", "Is a Resource", "fas fa-dot"
+    RESOURCE = 1100, "Resource", "External asset outside of Destack", "fas fa-dot"
     METRIC = 1200, "Metric", None, "fas fa-gauge"
-    SNAPSHOT = 1300, "Snapshot", None, "fas fa-save"
+    SNAPSHOT = 1300, "Snapshot", "Point in Space-time", "fas fa-save"
     # event
     SIGNAL = 2000, "Signal", "Custom Event", "fas fa-signal"
     EDIT_EVENT = 2001, "Edit Event", None, "fas fa-file-lines"
-    MEASUREMENT_EVENT = 2002, "Measurement", None, "fas fa-gauge"
-    # CHANGE_EVENT, QUERY_EVENT, ...
+    CHANGE_EVENT = 2002, "Change Event", None, "fas fa-file-lines"
+    QUERY_EVENT = 2003, "Query Event", None, "fas fa-file-lines"
+    MEASUREMENT_EVENT = 2004, "Measurement", None, "fas fa-gauge"
 
     # space [10_000-20_000]
     SPACE = 10_000, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
@@ -888,23 +889,13 @@ class EnvironmentType(Enum):
     PRODUCTION = 10, "Production", "Active in production", "fas fa-globe"
 
 
-@builtin_enum(EnumType.NODE_PERMISSION)
-class NodePermission(Enum):
-    # read
-    READ = 1, "Read"
-    # write
-    ADD = 10, "Create, Upsert, Unarchive, Restore"
-    UPDATE = 11, "Update"
-    REMOVE = 12, "Archive, Delete, Erase"
-
-
 @builtin_enum(EnumType.MATERIALIZATION)
 class Materialization(Enum):
     """The materialization level of an Entity."""
 
-    FRAGMENT = 1, "Partial Node, Partial Graph"
-    SUBGRAPH = 2, "Full Node, Partial Graph"
-    FULL = 3, "Full Node, Full Graph"
+    PARTIAL_NODE = 1, "Partial Node, Partial Graph"
+    PARTIAL_GRAPH = 2, "Full Node, Partial Graph"
+    FULL_GRAPH = 3, "Full Node, Full Graph"
 
 
 @builtin_enum(EnumType.MODE_TYPE)
@@ -1216,11 +1207,12 @@ class ScalarType(Enum):
 
 @builtin_enum(EnumType.VALUE_FACTORY)
 class ValueFactory(Enum):
-    """The factory to use for default values."""
+    """The factory to use for generating values."""
 
     UUID = 1
     NOW = 2
     REGION = 3
+    SELF = 4
 
 
 @builtin_enum(EnumType.ROLE_TYPE)

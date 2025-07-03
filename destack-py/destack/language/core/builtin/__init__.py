@@ -15,7 +15,6 @@ from .common import (
     EnumType,
     EnvironmentType,
     Materialization,
-    NodePermission,
     NodeType,
     OperatingSystem,
     PlatformType,
@@ -37,6 +36,7 @@ from .common import (
 )
 from .const import (
     ACTIVE_SESSION,
+    ACTIVE_SNAPSHOT,
     BEGINNING_OF_TIME,
     CLOUD,
     DESTACK_ID,
@@ -52,7 +52,9 @@ from .const import (
     VERSION,
     DestackError,
     active_session,
+    active_snapshot,
     get_active_session,
+    get_active_snapshot,
 )
 from .constant import CONSTANT_DECLARATIONS, ConstantDeclaration, register_constant
 from .entity import (
@@ -63,9 +65,18 @@ from .entity import (
     Record,
     Resource,
     Snapshot,
+    SnapshotType,
 )
 from .enum import Enum, builtin_enum
-from .event import CustomEventDefinition, EditEvent, Event, MeasurementEvent, Signal
+from .event import (
+    ChangeEvent,
+    CustomEventDefinition,
+    EditEvent,
+    Event,
+    MeasurementEvent,
+    QueryEvent,
+    Signal,
+)
 from .node import IndexIn, Node, builtin_node
 from .object import (
     BuiltinObjectBase,
@@ -122,6 +133,7 @@ from .trait import (
 
 __all__ = [
     "ACTIVE_SESSION",
+    "ACTIVE_SNAPSHOT",
     "BEGINNING_OF_TIME",
     "CLOUD",
     "CONSTANT_DECLARATIONS",
@@ -149,6 +161,7 @@ __all__ = [
     "BuiltinObjectFrozen",
     "BuiltinObjectMutable",
     "CascadeAction",
+    "ChangeEvent",
     "ClientType",
     "Cloud",
     "ConstantDeclaration",
@@ -191,7 +204,6 @@ __all__ = [
     "NodeBase",
     "NodeDefinitionReference",
     "NodeDefinitionType",
-    "NodePermission",
     "NodeReference",
     "NodeType",
     "ObjectDefinitionReference",
@@ -202,6 +214,7 @@ __all__ = [
     "PropertyDeclaration",
     "PropertyReference",
     "PropertyReferenceType",
+    "QueryEvent",
     "Record",
     "Region",
     "RegionArea",
@@ -213,6 +226,7 @@ __all__ = [
     "ScalarType",
     "Signal",
     "Snapshot",
+    "SnapshotType",
     "StoreImplementation",
     "StoreType",
     "StructBase",
@@ -229,6 +243,7 @@ __all__ = [
     "ValueFactory",
     "_is_finalized",
     "active_session",
+    "active_snapshot",
     "builtin_enum",
     "builtin_node",
     "builtin_property",
@@ -237,6 +252,7 @@ __all__ = [
     "builtin_struct",
     "builtin_trait",
     "get_active_session",
+    "get_active_snapshot",
     "object_",
     "parse_type_annotation",
     "register_constant",

@@ -49,23 +49,6 @@ export const INTER_ORDER_TYPES = [
 
 /* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TYPES ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:101 ==== */
-/**
- * JoinablePermission
- */
-export enum JoinablePermission {
-  INVITE = 1,
-  REMOVE = 2,
-  KICK = 3,
-  BAN = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.JOINABLE_PERMISSION, JoinablePermission);
-/* ==== DESTACK_GENERATED_END:ENUM:101 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:101 ==== */
 /**
  * A Node that can be archived.
@@ -449,3 +432,20 @@ class IsOwner$Type extends TraitClass<IsOwner, TraitType.OWNER> {}
 export const IsOwner = new IsOwner$Type(TraitType.OWNER);
 registerTraitClass(TraitType.OWNER, IsOwner);
 /* ==== DESTACK_GENERATED_END:TRAIT:20001 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:20000 ==== */
+/**
+ * JoinablePermission
+ */
+export enum JoinablePermission {
+  INVITE = 1,
+  REMOVE = 2,
+  KICK = 3,
+  BAN = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.JOINABLE_PERMISSION, JoinablePermission);
+/* ==== DESTACK_GENERATED_END:ENUM:20000 ==== */

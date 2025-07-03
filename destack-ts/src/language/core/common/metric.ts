@@ -87,7 +87,7 @@ export class GaugeMetric extends Metric {
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): GaugeMetric | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -99,7 +99,7 @@ export class GaugeMetric extends Metric {
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -229,7 +229,7 @@ export class GaugeMetric extends Metric {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`GaugeMetric.materialization is required`);
@@ -1245,7 +1245,7 @@ export class CounterMetric extends Metric {
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): CounterMetric | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -1257,7 +1257,7 @@ export class CounterMetric extends Metric {
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -1387,7 +1387,7 @@ export class CounterMetric extends Metric {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`CounterMetric.materialization is required`);
@@ -2403,7 +2403,7 @@ export class HistogramMetric extends Metric {
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): HistogramMetric | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -2415,7 +2415,7 @@ export class HistogramMetric extends Metric {
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -2545,7 +2545,7 @@ export class HistogramMetric extends Metric {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`HistogramMetric.materialization is required`);
