@@ -401,11 +401,11 @@ export class GaugeMetric extends Metric {
       icon: unpackedIcon,
       space: unpackedSpacePtr,
       source: unpackedSourcePtr,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       orderKey: objectValue["27"],
@@ -493,6 +493,7 @@ export class GaugeMetric extends Metric {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -515,7 +516,6 @@ export class GaugeMetric extends Metric {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
@@ -1375,11 +1375,11 @@ export class CounterMetric extends Metric {
       icon: unpackedIcon,
       space: unpackedSpacePtr,
       source: unpackedSourcePtr,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       orderKey: objectValue["27"],
@@ -1467,6 +1467,7 @@ export class CounterMetric extends Metric {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1489,7 +1490,6 @@ export class CounterMetric extends Metric {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
@@ -2349,11 +2349,11 @@ export class HistogramMetric extends Metric {
       icon: unpackedIcon,
       space: unpackedSpacePtr,
       source: unpackedSourcePtr,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       orderKey: objectValue["27"],
@@ -2441,6 +2441,7 @@ export class HistogramMetric extends Metric {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -2463,7 +2464,6 @@ export class HistogramMetric extends Metric {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined

@@ -9255,17 +9255,13 @@ export interface PropertyDefinitionProto {
      */
     nodeIsExtensible: boolean;
     /**
-     * @generated from protobuf field: bool node_has_type = 141
+     * @generated from protobuf field: bool node_is_heterogenous = 141
      */
-    nodeHasType: boolean;
+    nodeIsHeterogenous: boolean;
     /**
-     * @generated from protobuf field: bool node_has_space = 142
+     * @generated from protobuf field: bool node_is_spatial = 142
      */
-    nodeHasSpace: boolean;
-    /**
-     * @generated from protobuf field: bool node_has_definition = 143
-     */
-    nodeHasDefinition: boolean;
+    nodeIsSpatial: boolean;
     /**
      * @generated from protobuf field: optional symbol.destack.EdgeTypeProto edge_type = 144
      */
@@ -42931,9 +42927,8 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
             { no: 132, name: "number_constraint", kind: "message", T: () => NumberConstraintProto },
             { no: 133, name: "node_constraint", kind: "message", T: () => NodeConstraintProto },
             { no: 140, name: "node_is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 141, name: "node_has_type", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 142, name: "node_has_space", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 143, name: "node_has_definition", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 141, name: "node_is_heterogenous", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 142, name: "node_is_spatial", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 144, name: "edge_type", kind: "enum", opt: true, T: () => ["symbol.destack.EdgeTypeProto", EdgeTypeProto] },
             { no: 145, name: "cascade", kind: "enum", opt: true, T: () => ["symbol.destack.CascadeActionProto", CascadeActionProto] },
             { no: 150, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -42957,9 +42952,8 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         message.cardinality = 0;
         message.scalarType = 0;
         message.nodeIsExtensible = false;
-        message.nodeHasType = false;
-        message.nodeHasSpace = false;
-        message.nodeHasDefinition = false;
+        message.nodeIsHeterogenous = false;
+        message.nodeIsSpatial = false;
         message.isRequired = false;
         message.isUnique = false;
         message.isComputed = false;
@@ -43043,14 +43037,11 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* bool node_is_extensible */ 140:
                     message.nodeIsExtensible = reader.bool();
                     break;
-                case /* bool node_has_type */ 141:
-                    message.nodeHasType = reader.bool();
+                case /* bool node_is_heterogenous */ 141:
+                    message.nodeIsHeterogenous = reader.bool();
                     break;
-                case /* bool node_has_space */ 142:
-                    message.nodeHasSpace = reader.bool();
-                    break;
-                case /* bool node_has_definition */ 143:
-                    message.nodeHasDefinition = reader.bool();
+                case /* bool node_is_spatial */ 142:
+                    message.nodeIsSpatial = reader.bool();
                     break;
                 case /* optional symbol.destack.EdgeTypeProto edge_type */ 144:
                     message.edgeType = reader.int32();
@@ -43166,15 +43157,12 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* bool node_is_extensible = 140; */
         if (message.nodeIsExtensible !== false)
             writer.tag(140, WireType.Varint).bool(message.nodeIsExtensible);
-        /* bool node_has_type = 141; */
-        if (message.nodeHasType !== false)
-            writer.tag(141, WireType.Varint).bool(message.nodeHasType);
-        /* bool node_has_space = 142; */
-        if (message.nodeHasSpace !== false)
-            writer.tag(142, WireType.Varint).bool(message.nodeHasSpace);
-        /* bool node_has_definition = 143; */
-        if (message.nodeHasDefinition !== false)
-            writer.tag(143, WireType.Varint).bool(message.nodeHasDefinition);
+        /* bool node_is_heterogenous = 141; */
+        if (message.nodeIsHeterogenous !== false)
+            writer.tag(141, WireType.Varint).bool(message.nodeIsHeterogenous);
+        /* bool node_is_spatial = 142; */
+        if (message.nodeIsSpatial !== false)
+            writer.tag(142, WireType.Varint).bool(message.nodeIsSpatial);
         /* optional symbol.destack.EdgeTypeProto edge_type = 144; */
         if (message.edgeType !== undefined)
             writer.tag(144, WireType.Varint).int32(message.edgeType);

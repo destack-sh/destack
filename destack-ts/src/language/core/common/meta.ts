@@ -164,19 +164,14 @@ export class PropertyDefinition extends StructFrozen {
   readonly nodeIsExtensible: boolean;
 
   /**
-   * PropertyDefinition.nodeHasType
+   * PropertyDefinition.nodeIsHeterogenous
    */
-  readonly nodeHasType: boolean;
+  readonly nodeIsHeterogenous: boolean;
 
   /**
-   * PropertyDefinition.nodeHasSpace
+   * PropertyDefinition.nodeIsSpatial
    */
-  readonly nodeHasSpace: boolean;
-
-  /**
-   * PropertyDefinition.nodeHasDefinition
-   */
-  readonly nodeHasDefinition: boolean;
+  readonly nodeIsSpatial: boolean;
 
   /**
    * PropertyDefinition.edgeType
@@ -264,9 +259,8 @@ export class PropertyDefinition extends StructFrozen {
     numberConstraint?: NumberConstraint | null;
     nodeConstraint?: NodeConstraint | null;
     nodeIsExtensible: boolean;
-    nodeHasType: boolean;
-    nodeHasSpace: boolean;
-    nodeHasDefinition: boolean;
+    nodeIsHeterogenous: boolean;
+    nodeIsSpatial: boolean;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
     isRequired: boolean;
@@ -359,21 +353,16 @@ export class PropertyDefinition extends StructFrozen {
       throw new Error(`PropertyDefinition.nodeIsExtensible is required`);
     }
     this.nodeIsExtensible = _nodeIsExtensible;
-    let _nodeHasType = options.nodeHasType;
-    if (_nodeHasType === null) {
-      throw new Error(`PropertyDefinition.nodeHasType is required`);
+    let _nodeIsHeterogenous = options.nodeIsHeterogenous;
+    if (_nodeIsHeterogenous === null) {
+      throw new Error(`PropertyDefinition.nodeIsHeterogenous is required`);
     }
-    this.nodeHasType = _nodeHasType;
-    let _nodeHasSpace = options.nodeHasSpace;
-    if (_nodeHasSpace === null) {
-      throw new Error(`PropertyDefinition.nodeHasSpace is required`);
+    this.nodeIsHeterogenous = _nodeIsHeterogenous;
+    let _nodeIsSpatial = options.nodeIsSpatial;
+    if (_nodeIsSpatial === null) {
+      throw new Error(`PropertyDefinition.nodeIsSpatial is required`);
     }
-    this.nodeHasSpace = _nodeHasSpace;
-    let _nodeHasDefinition = options.nodeHasDefinition;
-    if (_nodeHasDefinition === null) {
-      throw new Error(`PropertyDefinition.nodeHasDefinition is required`);
-    }
-    this.nodeHasDefinition = _nodeHasDefinition;
+    this.nodeIsSpatial = _nodeIsSpatial;
     let _edgeType = options.edgeType ?? null;
     this.edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
@@ -531,13 +520,10 @@ export class PropertyDefinition extends StructFrozen {
     if (!(this.nodeIsExtensible === other.nodeIsExtensible)) {
       return false;
     }
-    if (!(this.nodeHasType === other.nodeHasType)) {
+    if (!(this.nodeIsHeterogenous === other.nodeIsHeterogenous)) {
       return false;
     }
-    if (!(this.nodeHasSpace === other.nodeHasSpace)) {
-      return false;
-    }
-    if (!(this.nodeHasDefinition === other.nodeHasDefinition)) {
+    if (!(this.nodeIsSpatial === other.nodeIsSpatial)) {
       return false;
     }
     if (!(this.edgeType === other.edgeType)) {
@@ -674,9 +660,8 @@ export class PropertyDefinition extends StructFrozen {
       h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.nodeIsExtensible)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.nodeHasType)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.nodeHasSpace)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.nodeHasDefinition)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.nodeIsHeterogenous)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.nodeIsSpatial)) & 0xffffffff;
     if (this.edgeType !== null) {
       h = (h * 31 + this.edgeType) & 0xffffffff;
     }
@@ -761,9 +746,8 @@ export class PropertyDefinition extends StructFrozen {
       objectValue["133"] = object.nodeConstraint.toValue();
     }
     objectValue["140"] = object.nodeIsExtensible;
-    objectValue["141"] = object.nodeHasType;
-    objectValue["142"] = object.nodeHasSpace;
-    objectValue["143"] = object.nodeHasDefinition;
+    objectValue["141"] = object.nodeIsHeterogenous;
+    objectValue["142"] = object.nodeIsSpatial;
     if (object.edgeType != null) {
       objectValue["144"] = object.edgeType;
     }
@@ -912,9 +896,8 @@ export class PropertyDefinition extends StructFrozen {
       numberConstraint: unpackedNumberConstraint,
       nodeConstraint: unpackedNodeConstraint,
       nodeIsExtensible: objectValue["140"],
-      nodeHasType: objectValue["141"],
-      nodeHasSpace: objectValue["142"],
-      nodeHasDefinition: objectValue["143"],
+      nodeIsHeterogenous: objectValue["141"],
+      nodeIsSpatial: objectValue["142"],
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
       isRequired: objectValue["150"],
@@ -1005,9 +988,8 @@ export class PropertyDefinition extends StructFrozen {
       objectProto.nodeConstraint = object.nodeConstraint.toProto();
     }
     objectProto.nodeIsExtensible = object.nodeIsExtensible;
-    objectProto.nodeHasType = object.nodeHasType;
-    objectProto.nodeHasSpace = object.nodeHasSpace;
-    objectProto.nodeHasDefinition = object.nodeHasDefinition;
+    objectProto.nodeIsHeterogenous = object.nodeIsHeterogenous;
+    objectProto.nodeIsSpatial = object.nodeIsSpatial;
     if (object.edgeType != null) {
       objectProto.edgeType = Number(object.edgeType) as EdgeTypeProto;
     }
@@ -1140,9 +1122,8 @@ export class PropertyDefinition extends StructFrozen {
             )
           : null,
       nodeIsExtensible: objectProto.nodeIsExtensible,
-      nodeHasType: objectProto.nodeHasType,
-      nodeHasSpace: objectProto.nodeHasSpace,
-      nodeHasDefinition: objectProto.nodeHasDefinition,
+      nodeIsHeterogenous: objectProto.nodeIsHeterogenous,
+      nodeIsSpatial: objectProto.nodeIsSpatial,
       edgeType:
         objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
       cascade:

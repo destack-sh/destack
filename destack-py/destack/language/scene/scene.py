@@ -42,9 +42,7 @@ class SceneExitedEvent(SceneEvent):
 class Scene(IsOwnable, ContainerView):
     """A Scene is a container for a specific interaction point."""
 
-    parent: Union["Folder", "Scene", "Window", None] = builtin_property_parent(
-        node_is_extensible=True
-    )
+    parent: Union["Folder", "Scene", "Window", None] = builtin_property_parent()
     root_view: Optional["ContainerView"] = builtin_property(
         200, description="The root view of the Scene."
     )

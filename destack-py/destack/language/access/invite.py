@@ -64,7 +64,7 @@ class InviteRejectedEvent(InviteEvent):
 class Invite(IsGlobal, IsSpatial, IsOwnable, IsDeletable, Entity):
     """An Invite to a Joinable."""
 
-    parent: Optional["IsJoinable"] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional["IsJoinable"] = builtin_property_parent()
     member: "IsSubject" = builtin_property(110)
     role: Optional["Role"] = builtin_property(111)
     role_type: Optional["RoleType"] = builtin_property(112)

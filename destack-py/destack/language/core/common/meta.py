@@ -94,9 +94,8 @@ class PropertyDefinition(StructFrozen):
 
     # relationship
     node_is_extensible: bool = builtin_property(140)
-    node_has_type: bool = builtin_property(141)
-    node_has_space: bool = builtin_property(142)
-    node_has_definition: bool = builtin_property(143)
+    node_is_heterogenous: bool = builtin_property(141)
+    node_is_spatial: bool = builtin_property(142)
     edge_type: EdgeType | None = builtin_property(144)
     cascade: CascadeAction | None = builtin_property(145)
 
@@ -145,9 +144,8 @@ class PropertyDefinition(StructFrozen):
             node_constraint=type.node_constraint,
             # node
             node_is_extensible=prop.node_is_extensible,
-            node_has_type=prop.node_has_type,
-            node_has_space=prop.node_has_space,
-            node_has_definition=prop.node_has_definition,
+            node_is_heterogenous=prop.node_is_heterogenous,
+            node_is_spatial=prop.node_is_spatial,
             edge_type=prop.edge_type,
             cascade=prop.cascade,
             # flags

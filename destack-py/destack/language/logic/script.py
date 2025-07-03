@@ -31,9 +31,7 @@ class Script(
 ):
     """A Script."""
 
-    parent: Union["Folder", IsScriptable, "Script", None] = builtin_property_parent(
-        node_is_extensible=True
-    )
+    parent: Union["Folder", IsScriptable, "Script", None] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)
 
     code: str | None = builtin_property(110)

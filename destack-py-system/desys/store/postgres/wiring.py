@@ -144,15 +144,15 @@ def _generate_column_pack(prop: "PropertyDeclaration") -> str:
             pack_lines.append(
                 f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_ID_KEY}']))  # id"
             )
-            if prop.node_has_type:
+            if prop.node_is_heterogenous:
                 pack_lines.append(
                     f"row_values.append(_node_ref['{NODE_REFERENCE_TYPE_KEY}'])  # type"
                 )
-            if prop.node_has_space:
+            if prop.node_is_spatial:
                 pack_lines.append(
                     f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_SPACE_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_SPACE_ID_KEY}') else None)  # space_id"
                 )
-            if prop.node_has_definition:
+            if prop.node_is_extensible:
                 pack_lines.append(
                     f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_DEFINITION_ID_KEY}') else None)  # definition_id"
                 )
@@ -162,25 +162,25 @@ def _generate_column_pack(prop: "PropertyDeclaration") -> str:
             pack_lines.append(
                 f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_ID_KEY}']))  # id"
             )
-            if prop.node_has_type:
+            if prop.node_is_heterogenous:
                 pack_lines.append(
                     f"    row_values.append(_node_ref['{NODE_REFERENCE_TYPE_KEY}'])  # type"
                 )
-            if prop.node_has_space:
+            if prop.node_is_spatial:
                 pack_lines.append(
                     f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_SPACE_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_SPACE_ID_KEY}') else None)  # space_id"
                 )
-            if prop.node_has_definition:
+            if prop.node_is_extensible:
                 pack_lines.append(
                     f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_DEFINITION_ID_KEY}') else None)  # definition_id"
                 )
             pack_lines.append("else:")
             pack_lines.append("    row_values.append(None)  # id")
-            if prop.node_has_type:
+            if prop.node_is_heterogenous:
                 pack_lines.append("    row_values.append(None)  # type")
-            if prop.node_has_space:
+            if prop.node_is_spatial:
                 pack_lines.append("    row_values.append(None)  # space_id")
-            if prop.node_has_definition:
+            if prop.node_is_extensible:
                 pack_lines.append("    row_values.append(None)  # definition_id")
             return "\n".join(pack_lines)
     else:
@@ -223,7 +223,7 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
             "    }",
         ]
         # node_type
-        if prop.node_has_type:
+        if prop.node_is_heterogenous:
             unpack_lines.append(
                 f"    _node_ref['{NODE_REFERENCE_TYPE_KEY}'] = row['{prop.name}_type']"
             )
@@ -235,7 +235,7 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
             assert isinstance(node_type, NodeType), f"unexpected node type {prop!r}: {node_type!r}"
             unpack_lines.append(f"    _node_ref['{NODE_REFERENCE_TYPE_KEY}'] = {node_type.value}")
         # space_id
-        if prop.node_has_space:
+        if prop.node_is_spatial:
             unpack_lines.append(
                 f"    _node_ref['{NODE_REFERENCE_SPACE_ID_KEY}'] = str(row['{prop.name}_space_id']) if row.get('{prop.name}_space_id') else None"
             )
@@ -244,7 +244,7 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
                 f"    _node_ref['{NODE_REFERENCE_SPACE_ID_KEY}'] = str(row['space_id']) if row.get('space_id') else None"
             )
         # definition_id
-        if prop.node_has_definition:
+        if prop.node_is_extensible:
             unpack_lines.append(
                 f"    _node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}'] = str(row['{prop.name}_definition_id']) if row.get('{prop.name}_definition_id') else None"
             )

@@ -43,7 +43,7 @@ class Message(
     """
 
     # meta
-    parent: Union["Thread", None] = builtin_property_parent(node_is_extensible=True)
+    parent: Union["Thread", None] = builtin_property_parent()
     # platform? source?
     thread: Optional["Thread"] = builtin_property(35, node_space_from="self")
     if TYPE_CHECKING:

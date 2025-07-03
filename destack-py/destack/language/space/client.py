@@ -31,7 +31,7 @@ class Client(
     """A Client to connect with the system."""
 
     # meta
-    parent: Optional[IsSubject] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional[IsSubject] = builtin_property_parent()
     type: ClientType = builtin_property(100, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
 

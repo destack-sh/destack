@@ -32,7 +32,7 @@ class LayerType(Enum):
 class Layer(IsOwnable, ContainerView):
     """A Layer is a named container for Views."""
 
-    parent: Union["Scene", "Canvas", None] = builtin_property_parent(node_is_extensible=True)
+    parent: Union["Scene", "Canvas", None] = builtin_property_parent()
     type: LayerType = builtin_property(100, default=LayerType.GENERAL)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

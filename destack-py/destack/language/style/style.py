@@ -28,7 +28,5 @@ class Style(
 ):
     """A Style is a style definition."""
 
-    parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent(
-        node_is_extensible=True
-    )
+    parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)

@@ -33,5 +33,5 @@ class Follow(
 ):
     """A Follow is a relationship between a Subject and an IsFollowable Node."""
 
-    parent: Union["IsFollowable", None] = builtin_property_parent(node_is_extensible=True)
+    parent: Union["IsFollowable", None] = builtin_property_parent()
     owned_by: "IsSubject" = builtin_property(28)

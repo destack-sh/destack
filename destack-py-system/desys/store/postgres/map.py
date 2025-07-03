@@ -64,7 +64,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                 prop=prop,
             )
             columns.append(column)
-            if prop.node_has_type:
+            if prop.node_is_heterogenous:
                 node_type_column = PostgresColumn(
                     name=f"{prop.name}_type",
                     type=PrimitiveType.INT32,
@@ -72,7 +72,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                     prop=prop,
                 )
                 columns.append(node_type_column)
-            if prop.node_has_space:
+            if prop.node_is_spatial:
                 space_id_column = PostgresColumn(
                     name=f"{prop.name}_space_id",
                     type=PrimitiveType.UUID,
@@ -80,7 +80,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                     prop=prop,
                 )
                 columns.append(space_id_column)
-            if prop.node_has_definition:
+            if prop.node_is_extensible:
                 table_id_column = PostgresColumn(
                     name=f"{prop.name}_definition_id",
                     type=PrimitiveType.UUID,

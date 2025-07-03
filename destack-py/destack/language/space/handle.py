@@ -19,6 +19,6 @@ if TYPE_CHECKING:
 class Handle(IsGlobal, Entity):
     """A Destack @handle."""
 
-    parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional["Space"] = builtin_property_parent()
 
     slug: str = builtin_property(101, is_repr=True)

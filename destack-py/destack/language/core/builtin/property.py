@@ -352,9 +352,8 @@ class PropertyDeclaration(TypeDeclaration):
     # pointers
     node_space_from: Literal["self"] | None = None
     node_is_extensible: bool = False
-    node_has_type: bool = False
-    node_has_space: bool = False
-    node_has_definition: bool = False
+    node_is_heterogenous: bool = False
+    node_is_spatial: bool = False
     edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
 
@@ -519,12 +518,12 @@ class PropertyDeclaration(TypeDeclaration):
             from ..runtime.graph import expand_node_traits
 
             node_types = expand_node_traits(self.node_types or ())
-            self.node_has_type = len(node_types) > 1
-            self.node_has_definition = self.node_is_extensible and any(
+            self.node_is_heterogenous = len(node_types) > 1
+            self.node_is_extensible = any(
                 TraitType.EXTENSIBLE in NODE_CLASS_BY_TYPE[node_type].__traits__
                 for node_type in node_types
             )
-            self.node_has_space = self.node_space_from is None and any(
+            self.node_is_spatial = self.node_space_from is None and any(
                 TraitType.SPATIAL in NODE_CLASS_BY_TYPE[node_type].__traits__
                 for node_type in node_types
             )
@@ -628,7 +627,6 @@ def builtin_property(
     format: "Format | None" = None,
     constraint: "Constraint | None" = None,
     node_space_from: Literal["self"] | None = None,
-    node_is_extensible: bool = True,
     edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,
     is_managed: bool = False,
@@ -650,7 +648,6 @@ def builtin_property(
         format=format,
         constraint=constraint,
         node_space_from=node_space_from,
-        node_is_extensible=node_is_extensible,
         edge_type=edge_type,
         cascade=cascade,
         is_wired=True,
@@ -667,7 +664,7 @@ def builtin_property(
     )
 
 
-def builtin_property_parent(*, node_is_extensible: bool, is_readonly: bool = False) -> Any:
+def builtin_property_parent(*, is_readonly: bool = False) -> Any:
     """The parent of a node, must be of one of the given types."""
     return PropertyDeclaration(
         id=3,  # NOTE: never change this id!
@@ -680,7 +677,6 @@ def builtin_property_parent(*, node_is_extensible: bool, is_readonly: bool = Fal
         is_eq=False,
         is_readonly=is_readonly,
         node_space_from="self",
-        node_is_extensible=node_is_extensible,
         cascade=CascadeAction.CASCADE,
     )
 

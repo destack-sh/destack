@@ -35,7 +35,7 @@ class Reaction(
 ):
     """A Reaction is a relationship between a Subject and a Reaction Node."""
 
-    parent: Union["IsReactable", None] = builtin_property_parent(node_is_extensible=True)
+    parent: Union["IsReactable", None] = builtin_property_parent()
     owned_by: "IsSubject" = builtin_property(28)
 
     content: str = builtin_property(101, is_repr=True)

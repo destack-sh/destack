@@ -1005,11 +1005,11 @@ export class Database extends Resource implements IsSpatial {
       deletedAt: unpackedDeletedAt,
       definition: unpackedDefinitionPtr,
       baseType: unpackedBaseType,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -1165,6 +1165,7 @@ export class Database extends Resource implements IsSpatial {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1187,7 +1188,6 @@ export class Database extends Resource implements IsSpatial {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       customValues: unpackedCustomValues,
       _session,
       _graph,

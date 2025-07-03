@@ -4210,9 +4210,8 @@ message PropertyDefinitionProto {
   optional NumberConstraintProto number_constraint = 132;
   optional NodeConstraintProto node_constraint = 133;
   bool node_is_extensible = 140;
-  bool node_has_type = 141;
-  bool node_has_space = 142;
-  bool node_has_definition = 143;
+  bool node_is_heterogenous = 141;
+  bool node_is_spatial = 142;
   optional EdgeTypeProto edge_type = 144;
   optional CascadeActionProto cascade = 145;
   bool is_required = 150;
