@@ -27,7 +27,7 @@ class Line(StructFrozen[LineProto]):
     points: list[Vector2f] = builtin_property(210)
 
 
-@builtin_node(NodeType.LINE_SHAPE, pretend_frozen=True)
+@builtin_node(NodeType.LINE_SHAPE)
 class LineShape(Shape):
     """A LineShape is a shape that represents a line."""
 

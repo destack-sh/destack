@@ -25,28 +25,28 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SANCTION_EVENT, is_abstract=True)
+@builtin_node(NodeType.SANCTION_EVENT, frozen=True, is_abstract=True)
 class SanctionEvent(Event["Sanction"]):
     node: "Sanction" = builtin_property(101)
     target: "IsSubject" = builtin_property(110)
 
 
-@builtin_node(NodeType.SANCTION_REQUESTED_EVENT)
+@builtin_node(NodeType.SANCTION_REQUESTED_EVENT, frozen=True)
 class SanctionRequestedEvent(SanctionEvent):
     pass
 
 
-@builtin_node(NodeType.SANCTION_GRANTED_EVENT)
+@builtin_node(NodeType.SANCTION_GRANTED_EVENT, frozen=True)
 class SanctionGrantedEvent(SanctionEvent):
     pass
 
 
-@builtin_node(NodeType.SANCTION_REVOKED_EVENT)
+@builtin_node(NodeType.SANCTION_REVOKED_EVENT, frozen=True)
 class SanctionRevokedEvent(SanctionEvent):
     pass
 
 
-@builtin_node(NodeType.SANCTION_EXPIRED_EVENT)
+@builtin_node(NodeType.SANCTION_EXPIRED_EVENT, frozen=True)
 class SanctionExpiredEvent(SanctionEvent):
     pass
 

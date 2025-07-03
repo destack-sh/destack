@@ -40,10 +40,12 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.EVENT, pretend_frozen=True, is_abstract=True)
-class Event[N: Node = Node](
-    IsSpatial, Node
-):  # nocheckin: make Events real frozen (like StructFrozen)
+@builtin_node(
+    NodeType.EVENT,
+    frozen=True,  # type: ignore (frozen can't inherit from non-frozen, but it's fine)
+    is_abstract=True,
+)
+class Event[N: Node = Node](IsSpatial, Node):
     """
     An Event is an immutable datum of something happening to an Entity.
     """
@@ -102,7 +104,11 @@ class CustomEventDefinition(
     icon: "Icon | None" = builtin_property(102)
 
 
-@builtin_node(NodeType.SIGNAL, pretend_frozen=True, is_abstract=True)
+@builtin_node(
+    NodeType.SIGNAL,
+    frozen=True,  # type: ignore (frozen can't inherit from non-frozen, but it's fine)
+    is_abstract=True,
+)
 class Signal(Event, IsExtensible):
     """
     A generic Signal of a CustomEventDefinition.
@@ -119,7 +125,7 @@ class Signal(Event, IsExtensible):
         definition_ptr: Optional[NodeReference] = None
 
 
-@builtin_node(NodeType.EDIT_EVENT, pretend_frozen=True)
+@builtin_node(NodeType.EDIT_EVENT, frozen=True)
 class EditEvent(Event):
     """A recorded Edit of an Entity."""
 
@@ -140,7 +146,7 @@ class EditEvent(Event):
     ancestors_ids: list[UUID] = builtin_property(122)
 
 
-@builtin_node(NodeType.CHANGE_EVENT, pretend_frozen=True)
+@builtin_node(NodeType.CHANGE_EVENT, frozen=True)
 class ChangeEvent(Event):
     """A recorded Change."""
 
@@ -152,7 +158,7 @@ class ChangeEvent(Event):
     nodes_ids: list[UUID] = builtin_property(131)
 
 
-@builtin_node(NodeType.QUERY_EVENT, pretend_frozen=True)
+@builtin_node(NodeType.QUERY_EVENT, frozen=True)
 class QueryEvent(Event):
     """A recorded Query."""
 
@@ -182,7 +188,7 @@ class QueryEvent(Event):
     offset: Optional[int] = builtin_property(121, is_repr=True)
 
 
-@builtin_node(NodeType.MEASUREMENT_EVENT, is_abstract=True)
+@builtin_node(NodeType.MEASUREMENT_EVENT, frozen=True, is_abstract=True)
 class MeasurementEvent(Event):
     """An Event that represents a Measurement."""
 

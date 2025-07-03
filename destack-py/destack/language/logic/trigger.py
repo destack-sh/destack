@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.TRIGGER_EVENT, is_abstract=True)
+@builtin_node(NodeType.TRIGGER_EVENT, frozen=True, is_abstract=True)
 class TriggerEvent(Event["Trigger"]):
     """A TriggerEvent is an Event that corresponds to a Trigger."""
 

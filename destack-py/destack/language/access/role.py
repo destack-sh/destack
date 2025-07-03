@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.ROLE_EVENT, is_abstract=True)
+@builtin_node(NodeType.ROLE_EVENT, frozen=True, is_abstract=True)
 class RoleEvent(Event["Role"]):
     """A Event regarding a Role."""
 
@@ -31,14 +31,14 @@ class RoleEvent(Event["Role"]):
     subject: "IsSubject" = builtin_property(110)
 
 
-@builtin_node(NodeType.ROLE_ASSIGNED_EVENT)
+@builtin_node(NodeType.ROLE_ASSIGNED_EVENT, frozen=True)
 class RoleAssignedEvent(RoleEvent):
     """A Event regarding a Role."""
 
     pass
 
 
-@builtin_node(NodeType.ROLE_UNASSIGNED_EVENT)
+@builtin_node(NodeType.ROLE_UNASSIGNED_EVENT, frozen=True)
 class RoleUnassignedEvent(RoleEvent):
     """A Event regarding a Role."""
 

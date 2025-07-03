@@ -17,21 +17,21 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SCENE_EVENT, is_abstract=True)
+@builtin_node(NodeType.SCENE_EVENT, frozen=True, is_abstract=True)
 class SceneEvent(Event["Scene"]):
     """A Event regarding a Scene."""
 
     node: "Scene" = builtin_property(101)
 
 
-@builtin_node(NodeType.SCENE_ENTERED_EVENT)
+@builtin_node(NodeType.SCENE_ENTERED_EVENT, frozen=True)
 class SceneEnteredEvent(SceneEvent):
     """A Scene was entered."""
 
     pass
 
 
-@builtin_node(NodeType.SCENE_EXITED_EVENT)
+@builtin_node(NodeType.SCENE_EXITED_EVENT, frozen=True)
 class SceneExitedEvent(SceneEvent):
     """A Scene was exited."""
 

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SPAN_EVENT)
+@builtin_node(NodeType.SPAN_EVENT, frozen=True)
 class SpanEvent(Event["Run"]):
     """
     A Span is a trace inside a Run.

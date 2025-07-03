@@ -25,7 +25,7 @@ class CanvasType(Enum):
     # RASTER, ...
 
 
-@builtin_node(NodeType.CANVAS, pretend_frozen=True)
+@builtin_node(NodeType.CANVAS)
 class Canvas(ContainerView):
     """A Canvas is a container for only Shapes (other than that it's just a ContainerView)."""
 

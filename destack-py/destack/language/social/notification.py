@@ -30,42 +30,42 @@ class NotificationStatus(Enum):
     RESCINDED = 5, "Rescinded", "Rescinded", "fas fa-times"
 
 
-@builtin_node(NodeType.NOTIFICATION_EVENT, is_abstract=True)
+@builtin_node(NodeType.NOTIFICATION_EVENT, frozen=True, is_abstract=True)
 class NotificationEvent(Event["Notification"]):
     """A Event regarding a Notification."""
 
     node: "Notification" = builtin_property(101)
 
 
-@builtin_node(NodeType.NOTIFICATION_SENT_EVENT)
+@builtin_node(NodeType.NOTIFICATION_SENT_EVENT, frozen=True)
 class NotificationSentEvent(NotificationEvent):
     """A Notification was sent."""
 
     pass
 
 
-@builtin_node(NodeType.NOTIFICATION_RESCINDED_EVENT)
+@builtin_node(NodeType.NOTIFICATION_RESCINDED_EVENT, frozen=True)
 class NotificationRescindedEvent(NotificationEvent):
     """A Notification was rescinded."""
 
     pass
 
 
-@builtin_node(NodeType.NOTIFICATION_READ_EVENT)
+@builtin_node(NodeType.NOTIFICATION_READ_EVENT, frozen=True)
 class NotificationReadEvent(NotificationEvent):
     """A Notification was read."""
 
     pass
 
 
-@builtin_node(NodeType.NOTIFICATION_DISMISSED_EVENT)
+@builtin_node(NodeType.NOTIFICATION_DISMISSED_EVENT, frozen=True)
 class NotificationDismissedEvent(NotificationEvent):
     """A Notification was dismissed."""
 
     pass
 
 
-@builtin_node(NodeType.NOTIFICATION_EXPIRED_EVENT)
+@builtin_node(NodeType.NOTIFICATION_EXPIRED_EVENT, frozen=True)
 class NotificationExpiredEvent(NotificationEvent):
     """A Notification was expired."""
 
