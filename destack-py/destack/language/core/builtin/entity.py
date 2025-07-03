@@ -42,49 +42,9 @@ class Entity(Node):
     An Entity is a versioned, stateful Node.
     """
 
-    created_at: datetime = builtin_property(
-        20,
-        is_managed=True,
-        is_eq=False,
-        is_readonly=True,
-        can_write=RoleType.SYSTEM,
-    )
-    created_by: Optional["IsSubject"] = builtin_property(
-        21,
-        default=None,
-        is_managed=True,
-        is_eq=False,
-        is_readonly=True,
-        node_space_from="self",
-        node_is_extensible=False,
-        can_write=RoleType.SYSTEM,
-    )
-    updated_at: datetime = builtin_property(
-        22,
-        is_managed=True,
-        is_eq=False,
-        can_write=RoleType.SYSTEM,
-    )
-    updated_by: Optional["IsSubject"] = builtin_property(
-        23,
-        default=None,
-        is_managed=True,
-        is_eq=False,
-        node_space_from="self",
-        node_is_extensible=False,
-        can_write=RoleType.SYSTEM,
-    )
-    if TYPE_CHECKING:
-        created_by_ptr: Optional[NodeReference] = None
-        updated_by_ptr: Optional[NodeReference] = None
-
+    # 10-20: entity materialization
     # nocheckin: support Entity branching & variants (how to handle Snapshot, which is an Entity?)
     # primary key: (id, snapshot_id)
-    # two pairs of ids (root container, base pointer):
-    #  - time: (snapshot_id, base_id)
-    #  - space: (instance_id, template_id)
-    # when merging: time before space (id+snapshot_id over template)
-    # snapshot and template properties must be READ ONLY (no write)
     materialization: Materialization = builtin_property(
         10,
         is_managed=True,
@@ -100,34 +60,67 @@ class Entity(Node):
     #     node_space_from="self",
     #     description="The Snapshot this Entity is part of.",
     # )
-    # base: Optional["Snapshot"] = property_(
+    # predecessor: Optional["Snapshot"] = property_(
     #     12,
     #     is_readonly=True,
     #     is_managed=True,
-    #     node_is_extensible=False,
     #     node_space_from="self",
-    #     description="The Snapshot this Entity's snapshot is based on.",
+    #     description="The previous Entity this Entity is based on (from another Snapshot).",
     # )
-    # instance: Optional["Entity"] = property_(
+    # template: Optional["Entity"] = property_(
     #     13,
     #     is_readonly=True,
     #     is_managed=True,
-    #     node_is_extensible=False,
-    #     description="The (root) Entity in this Entity's instance tree.",
+    #     description="The template this Entity instance is based on.",
     # )
-    # template: Optional["Entity"] = property_(
+    # instance_root: Optional["Entity"] = property_(
     #     14,
     #     is_readonly=True,
     #     is_managed=True,
-    #     node_is_extensible=False,
-    #     description="The template this Entity instance is based on.",
+    #     description="The (root) Entity in this Entity's instance tree.",
     # )
-    # Entity.set_properties/set_fields: 12-13
+    # Entity.set_properties: 15
     if TYPE_CHECKING:
         snapshot_ptr: Optional["NodeReference"] = None
-        base_ptr: Optional["NodeReference"] = None
-        instance_ptr: Optional["NodeReference"] = None
+        predecessor_ptr: Optional["NodeReference"] = None
         template_ptr: Optional["NodeReference"] = None
+        instance_root_ptr: Optional["NodeReference"] = None
+
+    # 20-40: node tracking
+    created_at: datetime = builtin_property(
+        20,
+        is_managed=True,
+        is_eq=False,
+        is_readonly=True,
+        can_write=RoleType.SYSTEM,
+    )
+    created_by: Optional["IsSubject"] = builtin_property(
+        21,
+        default=None,
+        is_managed=True,
+        is_eq=False,
+        is_readonly=True,
+        node_space_from="self",
+        can_write=RoleType.SYSTEM,
+    )
+    updated_at: datetime = builtin_property(
+        22,
+        is_managed=True,
+        is_eq=False,
+        can_write=RoleType.SYSTEM,
+    )
+    updated_by: Optional["IsSubject"] = builtin_property(
+        23,
+        default=None,
+        is_managed=True,
+        is_eq=False,
+        node_space_from="self",
+        can_write=RoleType.SYSTEM,
+    )
+    if TYPE_CHECKING:
+        created_by_ptr: Optional[NodeReference] = None
+        updated_by_ptr: Optional[NodeReference] = None
+    # revision? epoch?
 
 
 @builtin_node(NodeType.CUSTOM_ENTITY_DEFINITION)
@@ -148,7 +141,7 @@ class CustomEntityDefinition(
      2) plain CustomEntity instance (default if not extending any other type)
     """
 
-    parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional["Folder"] = builtin_property_parent()
 
     base_type: "NodeDefinitionReference" = builtin_property(40)
     base_traits: list["NodeDefinitionReference"] = builtin_property(41)
@@ -176,7 +169,7 @@ class CustomTraitDefinition(
     A CustomTraitDefinition defines a kind of CustomTrait.
     """
 
-    parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional["Folder"] = builtin_property_parent()
     base_type: Optional["NodeDefinitionReference"] = builtin_property(40)
     base_traits: list["NodeDefinitionReference"] = builtin_property(41)
     is_abstract: bool = builtin_property(45, default=False)
@@ -238,7 +231,7 @@ class Snapshot(
 ):
     """A Snapshot is a point in Space time."""
 
-    parent: Union["Space", None] = builtin_property_parent(node_is_extensible=False)
+    parent: Union["Space", None] = builtin_property_parent()
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

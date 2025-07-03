@@ -35,7 +35,7 @@ class Permission(
 ):
     """A Permission for something."""
 
-    parent: Union["IsJoinable", "Folder", None] = builtin_property_parent(node_is_extensible=False)
+    parent: Union["IsJoinable", "Folder", None] = builtin_property_parent()
     type: PermissionType = builtin_property(100, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

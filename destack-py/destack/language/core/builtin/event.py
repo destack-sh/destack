@@ -32,7 +32,6 @@ class Event[N: Node = Node](IsSpatial, Node):
     """
 
     parent: Optional["Space"] = builtin_property_parent(
-        node_is_extensible=False,
         is_readonly=True,
     )
     created_at: datetime = builtin_property(
@@ -49,7 +48,6 @@ class Event[N: Node = Node](IsSpatial, Node):
         is_eq=False,
         is_readonly=True,
         node_space_from="self",
-        node_is_extensible=False,
         can_write=RoleType.SYSTEM,
     )
 

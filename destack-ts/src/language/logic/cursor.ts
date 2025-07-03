@@ -533,11 +533,11 @@ export class EventCursor extends Cursor {
       activeAt: unpackedActiveAt,
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       _session,
@@ -620,6 +620,7 @@ export class EventCursor extends Cursor {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -642,7 +643,6 @@ export class EventCursor extends Cursor {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
@@ -1079,11 +1079,11 @@ export class ScreenCursor extends Cursor {
       activeAt: unpackedActiveAt,
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       _session,
@@ -1174,6 +1174,7 @@ export class ScreenCursor extends Cursor {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1196,7 +1197,6 @@ export class ScreenCursor extends Cursor {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
@@ -1606,11 +1606,11 @@ export class ThreadCursor extends Cursor {
       activeAt: unpackedActiveAt,
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       _session,
@@ -1693,6 +1693,7 @@ export class ThreadCursor extends Cursor {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1715,7 +1716,6 @@ export class ThreadCursor extends Cursor {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined

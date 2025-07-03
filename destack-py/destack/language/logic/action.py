@@ -49,7 +49,7 @@ class Action(
     May defer to a builtin or some other service in a separate system.
     """
 
-    parent: Union["IsScriptable", None] = builtin_property_parent(node_is_extensible=True)
+    parent: Union["IsScriptable", None] = builtin_property_parent()
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

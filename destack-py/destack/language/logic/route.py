@@ -30,7 +30,7 @@ class Route(
 ):
     """A Route is a path to a Scene."""
 
-    parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional["Folder"] = builtin_property_parent()
 
     name: str = builtin_property(101, description="The name of the Route.")
 

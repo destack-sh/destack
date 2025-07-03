@@ -63,9 +63,7 @@ class EntitlementType(Enum):
 class Entitlement(IsSpatial, IsDeletable, Entity):
     """A Entitlement to some Subject."""
 
-    parent: Union["IsSubject", "IsJoinable", None] = builtin_property_parent(
-        node_is_extensible=True
-    )
+    parent: Union["IsSubject", "IsJoinable", None] = builtin_property_parent()
     type: EntitlementType = builtin_property(100)
     expires_at: Optional[datetime] = builtin_property(110)
     target: IsSubject = builtin_property(111)

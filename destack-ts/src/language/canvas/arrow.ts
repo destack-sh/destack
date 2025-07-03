@@ -1530,11 +1530,11 @@ export class ArrowShape extends Shape {
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       orderKey: objectValue["27"],
       script: unpackedScriptPtr,
       definition: unpackedDefinitionPtr,
@@ -1831,6 +1831,7 @@ export class ArrowShape extends Shape {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1853,7 +1854,6 @@ export class ArrowShape extends Shape {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined

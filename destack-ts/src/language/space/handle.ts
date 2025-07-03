@@ -283,11 +283,11 @@ export class Handle extends Entity implements IsGlobal {
     return new Handle({
       parent: unpackedParentPtr,
       slug: objectValue["101"],
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       _session,
       _graph,
@@ -348,6 +348,7 @@ export class Handle extends Entity implements IsGlobal {
             )
           : null,
       slug: objectProto.slug,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -370,7 +371,6 @@ export class Handle extends Entity implements IsGlobal {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       _session,
       _graph,

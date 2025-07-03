@@ -44,5 +44,5 @@ class Thread(
     """
 
     # meta
-    parent: Union["Folder", "Thread", None] = builtin_property_parent(node_is_extensible=True)
+    parent: Union["Folder", "Thread", None] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)

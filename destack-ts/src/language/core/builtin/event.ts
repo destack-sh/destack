@@ -628,11 +628,11 @@ export class CustomEventDefinition
       space: unpackedSpacePtr,
       source: unpackedSourcePtr,
       customValues: unpackedCustomValues,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       orderKey: objectValue["27"],
@@ -777,6 +777,7 @@ export class CustomEventDefinition
             )
           : null,
       customValues: unpackedCustomValues,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -799,7 +800,6 @@ export class CustomEventDefinition
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined

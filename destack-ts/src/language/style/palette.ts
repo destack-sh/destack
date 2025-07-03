@@ -384,11 +384,11 @@ export class Palette extends Entity implements IsSpatial, IsOrdered, IsTaggable,
       space: unpackedSpacePtr,
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       _session,
@@ -468,6 +468,7 @@ export class Palette extends Entity implements IsSpatial, IsOrdered, IsTaggable,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -490,7 +491,6 @@ export class Palette extends Entity implements IsSpatial, IsOrdered, IsTaggable,
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined

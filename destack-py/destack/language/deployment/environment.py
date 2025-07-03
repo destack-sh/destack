@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class Environment(IsSpatial, IsDeletable, Entity):
     """An Environment is a deployment of a Space."""
 
-    parent: Optional["Space"] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional["Space"] = builtin_property_parent()
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

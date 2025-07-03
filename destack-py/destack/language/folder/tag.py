@@ -27,7 +27,7 @@ class Tag(
 ):
     """A Tag to tag something."""
 
-    parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional["Folder"] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
@@ -42,5 +42,5 @@ class Tagging(
 ):
     """A Tagging of a Node by a Tag."""
 
-    parent: Optional["IsTaggable"] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional["IsTaggable"] = builtin_property_parent()
     tag: Optional["Tag"] = builtin_property(110)

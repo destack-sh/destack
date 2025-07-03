@@ -147,7 +147,7 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
     # 1-20: node identity
     # Node.metatype: 1
     id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    parent: Optional["Node"] = builtin_property_parent(node_is_extensible=True)
+    parent: Optional["Node"] = builtin_property_parent()
     # Node.store: 4
     # Spatial.space: 5
     # IsExtensible.definition: 6

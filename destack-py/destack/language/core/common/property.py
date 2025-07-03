@@ -69,7 +69,7 @@ class CustomProperty(
     """
 
     parent: Union["IsCustomizable", "IsExtensible", "CustomProperty", None] = (
-        builtin_property_parent(node_is_extensible=True)
+        builtin_property_parent()
     )
     type: CustomPropertyType = builtin_property(100, default=CustomPropertyType.MEMBER)
     name: str = builtin_property(101, is_repr=True)

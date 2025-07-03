@@ -30,7 +30,7 @@ class Agent(
 ):
     """An Agent is an identity for a bot."""
 
-    parent: Optional["Folder"] = builtin_property_parent(node_is_extensible=False)
+    parent: Optional["Folder"] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)
     slug: str = builtin_property(102, is_repr=True)
 

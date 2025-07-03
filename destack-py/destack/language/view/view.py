@@ -42,7 +42,7 @@ class View(
     """A View is a graphical interface."""
 
     parent: Union["Window", "Scene", "Layer", "ContainerView", "Folder", None] = (
-        builtin_property_parent(node_is_extensible=True)
+        builtin_property_parent()
     )
     name: str = builtin_property(101, is_repr=True)
 

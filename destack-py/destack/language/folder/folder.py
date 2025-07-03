@@ -53,7 +53,7 @@ class Folder(
 ):
     """A Folder is a sub-space of a Space."""
 
-    parent: Union["Space", "Folder", None] = builtin_property_parent(node_is_extensible=False)
+    parent: Union["Space", "Folder", None] = builtin_property_parent()
     type: FolderType = builtin_property(100, is_repr=True, default=FolderType.GENERAL)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

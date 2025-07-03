@@ -386,11 +386,11 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
       space: unpackedSpacePtr,
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       _session,
       _graph,
@@ -479,6 +479,7 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -501,7 +502,6 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       _session,
       _graph,
@@ -891,11 +891,11 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       space: unpackedSpacePtr,
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
+      materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       _session,
       _graph,
@@ -987,6 +987,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1009,7 +1010,6 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       _session,
       _graph,

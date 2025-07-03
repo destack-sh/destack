@@ -115,9 +115,7 @@ class Color(StructFrozen):
 class ColorStyle(Style):
     """A color style, with an optional dark variant."""
 
-    parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent(
-        node_is_extensible=True
-    )
+    parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent()
     type: ColorType = builtin_property(100, is_repr=True)
     hue: Optional[ColorHue] = builtin_property(200, is_repr=True)
     shade: Optional[ColorShade] = builtin_property(201, is_repr=True)
