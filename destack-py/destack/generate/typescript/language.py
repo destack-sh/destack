@@ -40,7 +40,6 @@ from destack.language.registry import (
     ENUM_DEFINITION_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
-    NODE_TYPES_BY_TRAIT_TYPE,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
     TRAIT_CLASS_BY_TYPE,
@@ -109,7 +108,7 @@ def _generate_property_scalar_type(prop: TypeDeclaration, as_ptr: bool = True) -
         if as_ptr:
             return "NodeReference"
         else:
-            resolved_node_types = expand_node_types(prop.node_types)
+            resolved_node_types = expand_node_types(prop.node_types, expand_inheritance=False)
             if not resolved_node_types or len(resolved_node_types) == len(NodeType):
                 return "Node"
             node_classes: list[str] = []
@@ -423,6 +422,11 @@ if (_{ts_name_in} === null) {{
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = Temporal.Now.zonedDateTimeISO("UTC");
 }}""")
+            elif prop.default_factory == ValueFactory.SELF:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = this.toRef();
+}}""")
             else:
                 raise ValueError(
                     f"unsupported default factory for {prop!r}: {prop.default_factory!r}"
@@ -646,13 +650,17 @@ def _generate_path(cls: type[Node]) -> str:
     # Node._path_key
     if "slug" in cls.__properties__:
         if "name" in cls.__properties__:
-            path_key_str = "this.slug ?? this.name"
+            if cls.__properties__["name"].is_required:
+                path_key_str = "this.slug ?? this.name"
+            else:
+                path_key_str = f"this.slug ?? this.name ?? '{cls.__name__}[id={{this.id}}]'"
         else:
             path_key_str = f'this.slug ?? "{cls.__name__}[id={{this.id}}]"'
     elif "name" in cls.__properties__:
-        path_key_str = "this.name"
-    elif "title" in cls.__properties__:
-        path_key_str = "this.title"
+        if cls.__properties__["name"].is_required:
+            path_key_str = "this.name"
+        else:
+            path_key_str = f"this.name ?? '{cls.__name__}[id={{this.id}}]'"
     else:
         path_key_str = f'"{cls.__name__}[id={{this.id}}]"'
 
@@ -1733,8 +1741,8 @@ def _generate_file(
     return new_str
 
 
-def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> tuple[str, str]:
-    """Generate the global mapping and lookup files."""
+def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> str:
+    """Generate the global mapping file."""
 
     # mappings
     mapping_str_parts: list[str] = []
@@ -1791,21 +1799,7 @@ def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> tu
 
     mapping_str = "\n\n".join(mapping_str_parts)
 
-    # lookup
-    node_type_by_trait_str_parts: list[str] = [
-        "import { NodeType, TraitType } from '@destack/language/core/builtin';",
-        "",
-        "export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {",
-    ]
-    for trait_type, _ in TRAIT_CLASS_BY_TYPE.items():
-        node_types = NODE_TYPES_BY_TRAIT_TYPE.get(trait_type, ())
-        node_type_by_trait_str_parts.append(
-            f"  [TraitType.{trait_type.name}]: [{', '.join(f'NodeType.{node_type.name}' for node_type in node_types)}],"
-        )
-    node_type_by_trait_str_parts.append("};")
-    lookup_str = "\n".join(node_type_by_trait_str_parts)
-
-    return mapping_str, lookup_str
+    return mapping_str
 
 
 def generate():
@@ -1887,12 +1881,10 @@ def generate():
         file.path.parent.mkdir(parents=True, exist_ok=True)
         file.path.write_text(file.new_str)
 
-    # update mapping/lookup files
+    # update mapping files
     mapping_path = Path(GENERATION_PATH) / "mapping.ts"
-    lookup_path = Path(GENERATION_PATH) / "lookup.ts"
-    mapping_str, lookup_str = _generate_global(definitions_by_name)
+    mapping_str = _generate_global(definitions_by_name)
     mapping_path.write_text(mapping_str)
-    lookup_path.write_text(lookup_str)
 
     # write index files
     module_paths = list({file.path.parent for file in files_by_module.values()})

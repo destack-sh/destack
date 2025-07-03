@@ -854,6 +854,7 @@ export enum ValueFactory {
   UUID = 1,
   NOW = 2,
   REGION = 3,
+  SELF = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

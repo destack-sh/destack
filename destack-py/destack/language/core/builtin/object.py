@@ -792,12 +792,6 @@ def _path_key(self) -> str:
 def _path_key(self) -> str:
     return self.name
 """
-    elif "title" in cls.__properties__:
-        path_key_str = """\
-@property
-def _path_key(self) -> str:
-    return self.title
-"""
     else:
         path_key_str = f"""\
 @property

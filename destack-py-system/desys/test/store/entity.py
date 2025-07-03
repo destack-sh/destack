@@ -337,14 +337,29 @@ async def test_create_snapshot(session: Session):
     session.create(snapshot)
     await session.commit()
 
+    # edit in snapshot
     with snapshot:
         snapshot_user = user.into(snapshot)
+        assert snapshot_user.id == user.id
         assert snapshot_user.snapshot == snapshot
         assert snapshot_user.predecessor is user
         assert snapshot_user
+
         snapshot_user.name = "Bob"
         assert snapshot_user.snapshot == snapshot
         assert snapshot_user.name == "Bob"
 
+    # should still be the same in original user
     assert user.name == "Alice"
     assert user.snapshot is None
+
+    # change original user
+    user.name = "Charlie"
+    user.slug = "charlie"
+    assert user.slug == "charlie"
+
+    # should also be updated in snapshot
+    with snapshot:
+        assert snapshot_user.name == "Charlie"
+        # except for override
+        assert snapshot_user.slug == "bob"

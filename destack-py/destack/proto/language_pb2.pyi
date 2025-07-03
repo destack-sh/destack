@@ -1246,9 +1246,8 @@ class ShadowTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class SnapshotTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SNAPSHOT_TYPE_UNSPECIFIED: _ClassVar[SnapshotTypeProto]
-    SNAPSHOT_TYPE_PARTIAL_NODE: _ClassVar[SnapshotTypeProto]
-    SNAPSHOT_TYPE_PARTIAL_GRAPH: _ClassVar[SnapshotTypeProto]
-    SNAPSHOT_TYPE_FULL_GRAPH: _ClassVar[SnapshotTypeProto]
+    SNAPSHOT_TYPE_PARTIAL: _ClassVar[SnapshotTypeProto]
+    SNAPSHOT_TYPE_FULL: _ClassVar[SnapshotTypeProto]
 
 class SortModeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1515,6 +1514,7 @@ class ValueFactoryProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VALUE_FACTORY_UUID: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_NOW: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_REGION: _ClassVar[ValueFactoryProto]
+    VALUE_FACTORY_SELF: _ClassVar[ValueFactoryProto]
 
 class VariantStateTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2477,9 +2477,8 @@ SHADOW_TYPE_UNSPECIFIED: ShadowTypeProto
 SHADOW_TYPE_BOX: ShadowTypeProto
 SHADOW_TYPE_REALISTIC: ShadowTypeProto
 SNAPSHOT_TYPE_UNSPECIFIED: SnapshotTypeProto
-SNAPSHOT_TYPE_PARTIAL_NODE: SnapshotTypeProto
-SNAPSHOT_TYPE_PARTIAL_GRAPH: SnapshotTypeProto
-SNAPSHOT_TYPE_FULL_GRAPH: SnapshotTypeProto
+SNAPSHOT_TYPE_PARTIAL: SnapshotTypeProto
+SNAPSHOT_TYPE_FULL: SnapshotTypeProto
 SORT_MODE_UNSPECIFIED: SortModeProto
 SORT_MODE_MAX: SortModeProto
 SORT_MODE_MIN: SortModeProto
@@ -2671,6 +2670,7 @@ VALUE_FACTORY_UNSPECIFIED: ValueFactoryProto
 VALUE_FACTORY_UUID: ValueFactoryProto
 VALUE_FACTORY_NOW: ValueFactoryProto
 VALUE_FACTORY_REGION: ValueFactoryProto
+VALUE_FACTORY_SELF: ValueFactoryProto
 VARIANT_STATE_TYPE_UNSPECIFIED: VariantStateTypeProto
 VARIANT_STATE_TYPE_LOADING: VariantStateTypeProto
 VARIANT_STATE_TYPE_ERROR: VariantStateTypeProto
@@ -7310,18 +7310,20 @@ class NodeDefinitionReferenceProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeDefinitionTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class NodeReferenceProto(_message.Message):
-    __slots__ = ("metatype", "type", "id", "space_id", "definition_id")
+    __slots__ = ("metatype", "type", "id", "snapshot_id", "definition_id", "space_id")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
-    SPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    SPACE_ID_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     type: NodeTypeProto
     id: str
-    space_id: str
+    snapshot_id: str
     definition_id: str
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., space_id: _Optional[str] = ..., definition_id: _Optional[str] = ...) -> None: ...
+    space_id: str
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., definition_id: _Optional[str] = ..., space_id: _Optional[str] = ...) -> None: ...
 
 class NotificationProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "template_ptr", "instance_root_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "status", "title", "text")

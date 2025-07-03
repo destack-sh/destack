@@ -2453,7 +2453,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   }
 
   get _pathKey(): string {
-    return this.title;
+    return "Notification[id={this.id}]";
   }
 
   get path(): string {

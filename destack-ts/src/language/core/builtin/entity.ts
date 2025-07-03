@@ -2343,10 +2343,10 @@ export abstract class Record
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): Node | null {
+  get predecessor(): Record | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Record | null;
     }
     return null;
   }
@@ -2355,10 +2355,10 @@ export abstract class Record
   /**
    * The template this Entity instance is based on (from the template tree).
    */
-  get template(): Node | null {
+  get template(): Record | null {
     const nodePtr: NodeReference | null = this.templatePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Record | null;
     }
     return null;
   }
@@ -2755,6 +2755,7 @@ registerNodeClass(NodeType.METRIC, Metric);
 /* ==== DESTACK_GENERATED_START:NODE:1300 ==== */
 /**
  * A Snapshot is a point in Space time.
+ * Snapshots cannot be instanced or become part of any other Snapshot themselves.
  */
 export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivable, IsDeletable {
   static metatype: NodeType = NodeType.SNAPSHOT;
@@ -2789,7 +2790,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   readonly materialization: Materialization;
 
   /**
-   * The Snapshot this Entity is part of.
+   * The Snapshot itself. Cannot be any other Snapshot than this Snapshot
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
@@ -2798,10 +2799,10 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Snapshot this Snapshot is based on.
    */
   get predecessor(): Snapshot | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
@@ -2914,7 +2915,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     parent?: Space | Snapshot | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
-    snapshot?: Snapshot | NodeReference | null;
+    snapshot?: Snapshot | NodeReference;
     predecessor?: Snapshot | NodeReference | null;
     template?: Snapshot | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
@@ -2925,7 +2926,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
-    type: SnapshotType;
+    type?: SnapshotType;
     name: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2978,6 +2979,12 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
     }
+    if (_snapshot === null) {
+      _snapshot = this.toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`Snapshot.snapshot is required`);
+    }
     this.snapshotPtr = _snapshot;
     let _predecessor = options.predecessor ?? null;
     if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
@@ -3003,7 +3010,10 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this.ownedByPtr = _ownedBy;
-    let _type = options.type;
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = 1 /* SnapshotType.PARTIAL */;
+    }
     if (_type === null) {
       throw new Error(`Snapshot.type is required`);
     }
@@ -3048,6 +3058,12 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
+      return false;
+    }
+    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -3058,12 +3074,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       return false;
     }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
-      return false;
-    }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
-      return false;
-    }
-    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
@@ -3081,6 +3091,10 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    if (this.predecessorPtr !== null) {
+      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.spacePtr !== null) {
@@ -3094,12 +3108,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
-    if (this.predecessorPtr !== null) {
-      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
@@ -3176,9 +3184,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["10"] = object.materialization;
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
     }
@@ -3223,6 +3229,11 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const predecessorPtrValue = objectValue["12"];
+    const unpackedPredecessorPtr =
+      predecessorPtrValue != undefined
+        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -3242,16 +3253,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const predecessorPtrValue = objectValue["12"];
-    const unpackedPredecessorPtr =
-      predecessorPtrValue != undefined
-        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const templatePtrValue = objectValue["13"];
     const unpackedTemplatePtr =
@@ -3275,6 +3276,14 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
         : null;
     return new Snapshot({
       parent: unpackedParentPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      predecessor: unpackedPredecessorPtr,
       type: Number(objectValue["100"]),
       name: objectValue["101"],
       space: unpackedSpacePtr,
@@ -3282,8 +3291,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
-      snapshot: unpackedSnapshotPtr,
-      predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
       instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -3321,9 +3328,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
     }
@@ -3374,6 +3379,23 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
               _connection,
             )
           : null,
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      predecessor:
+        objectProto.predecessorPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.predecessorPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       type: Number(objectProto.type) as SnapshotType,
       name: objectProto.name,
       space:
@@ -3401,26 +3423,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       materialization: Number(objectProto.materialization) as Materialization,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      predecessor:
-        objectProto.predecessorPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.predecessorPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       template:
         objectProto.templatePtr != undefined
           ? _NodeReference.fromProto(
@@ -3498,9 +3500,8 @@ registerNodeClass(NodeType.SNAPSHOT, Snapshot);
  * SnapshotType
  */
 export enum SnapshotType {
-  PARTIAL_NODE = 1,
-  PARTIAL_GRAPH = 2,
-  FULL_GRAPH = 3,
+  PARTIAL = 1,
+  FULL = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

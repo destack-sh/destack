@@ -126,7 +126,12 @@ class Entity(Node):
         updated_by_ptr: Optional[NodeReference] = None
     # revision? epoch?
 
-    def into(self, snapshot: "Snapshot") -> "Self":
+    def into(
+        self,
+        snapshot: "Snapshot",
+        *,
+        materialization: Materialization = Materialization.PARTIAL_NODE,
+    ) -> "Self":
         """
         Turn this Entity into its corresponding Entity in the given Snapshot.
         """
@@ -241,9 +246,8 @@ class Metric(IsSpatial, IsSourceable, Entity):
 class SnapshotType(Enum):
     """The type of a Snapshot."""
 
-    PARTIAL_NODE = 1, "Fragment", "A partial Snapshot"
-    PARTIAL_GRAPH = 2, "Subgraph", "A full Snapshot"
-    FULL_GRAPH = 3, "Full", "A full Snapshot"
+    PARTIAL = 1, "Partial", "A partial Snapshot (partial/full Nodes, partial Graph)"
+    FULL = 2, "Full", "A full Snapshot (full Nodes, full Graph)"
 
 
 @builtin_node(NodeType.SNAPSHOT)
@@ -280,13 +284,18 @@ class Snapshot(
     type: SnapshotType = builtin_property(
         100,
         is_readonly=True,
-        default=SnapshotType.PARTIAL_NODE,
+        default=SnapshotType.PARTIAL,
     )
     name: str = builtin_property(101, is_repr=True)
 
     _token: Any | None = builtin_property_runtime()
 
-    def into(self, snapshot: "Snapshot") -> "Self":
+    def into(
+        self,
+        snapshot: "Snapshot",
+        *,
+        materialization: Materialization = Materialization.FULL_GRAPH,
+    ) -> "Self":
         if snapshot.id == self.id:
             return self
         else:
