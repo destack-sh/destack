@@ -17,10 +17,11 @@ import type {
   NodeDefinitionReference,
   NodeReference,
   Position,
+  Snapshot,
   Value,
   Vector2,
 } from "@destack/language/core";
-import { Node, NodeType } from "@destack/language/core";
+import { Entity, Node, NodeType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
@@ -91,6 +92,54 @@ export abstract class ContainerView extends View {
    * Entity.materialization
    */
   declare readonly materialization: Materialization;
+
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  declare readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
+  get predecessor(): ContainerView | null {
+    const nodePtr: NodeReference | null = this.predecessorPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as ContainerView | null;
+    }
+    return null;
+  }
+  declare readonly predecessorPtr: NodeReference | null;
+
+  /**
+   * The template this Entity instance is based on.
+   */
+  get template(): ContainerView | null {
+    const nodePtr: NodeReference | null = this.templatePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as ContainerView | null;
+    }
+    return null;
+  }
+  declare readonly templatePtr: NodeReference | null;
+
+  /**
+   * The (root) Entity in this Entity's instance tree.
+   */
+  get instanceRoot(): Entity | null {
+    const nodePtr: NodeReference | null = this.instanceRootPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  declare readonly instanceRootPtr: NodeReference | null;
 
   /**
    * Entity.createdAt

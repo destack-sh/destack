@@ -5,10 +5,12 @@ import type {
   NodeReference,
   QueryConnection,
   Session,
+  Snapshot,
   Supergraph,
   Vector2,
 } from "@destack/language/core";
 import {
+  Entity,
   EnumType,
   Materialization,
   Node,
@@ -96,6 +98,54 @@ export class StrokeStyle extends Style {
    * Entity.materialization
    */
   readonly materialization: Materialization;
+
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
+  get predecessor(): StrokeStyle | null {
+    const nodePtr: NodeReference | null = this.predecessorPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as StrokeStyle | null;
+    }
+    return null;
+  }
+  readonly predecessorPtr: NodeReference | null;
+
+  /**
+   * The template this Entity instance is based on.
+   */
+  get template(): StrokeStyle | null {
+    const nodePtr: NodeReference | null = this.templatePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as StrokeStyle | null;
+    }
+    return null;
+  }
+  readonly templatePtr: NodeReference | null;
+
+  /**
+   * The (root) Entity in this Entity's instance tree.
+   */
+  get instanceRoot(): Entity | null {
+    const nodePtr: NodeReference | null = this.instanceRootPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * Entity.createdAt
@@ -191,6 +241,10 @@ export class StrokeStyle extends Style {
     parent?: Scene | View | Theme | Palette | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
+    snapshot?: Snapshot | NodeReference | null;
+    predecessor?: StrokeStyle | NodeReference | null;
+    template?: StrokeStyle | NodeReference | null;
+    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -253,6 +307,26 @@ export class StrokeStyle extends Style {
       throw new Error(`StrokeStyle.materialization is required`);
     }
     this.materialization = _materialization;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
+    let _predecessor = options.predecessor ?? null;
+    if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
+      _predecessor = (_predecessor as Node).toRef();
+    }
+    this.predecessorPtr = _predecessor;
+    let _template = options.template ?? null;
+    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
+      _template = (_template as Node).toRef();
+    }
+    this.templatePtr = _template;
+    let _instanceRoot = options.instanceRoot ?? null;
+    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
+      _instanceRoot = (_instanceRoot as Node).toRef();
+    }
+    this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -379,6 +453,18 @@ export class StrokeStyle extends Style {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
+      return false;
+    }
+    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+      return false;
+    }
     return true;
   }
 
@@ -403,6 +489,18 @@ export class StrokeStyle extends Style {
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.predecessorPtr !== null) {
+      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    }
+    if (this.templatePtr !== null) {
+      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
+    }
+    if (this.instanceRootPtr !== null) {
+      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -474,6 +572,18 @@ export class StrokeStyle extends Style {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["10"] = object.materialization;
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
+    if (object.predecessorPtr != null) {
+      objectValue["12"] = object.predecessorPtr.toValue();
+    }
+    if (object.templatePtr != null) {
+      objectValue["13"] = object.templatePtr.toValue();
+    }
+    if (object.instanceRootPtr != null) {
+      objectValue["14"] = object.instanceRootPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -531,6 +641,26 @@ export class StrokeStyle extends Style {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const predecessorPtrValue = objectValue["12"];
+    const unpackedPredecessorPtr =
+      predecessorPtrValue != undefined
+        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const templatePtrValue = objectValue["13"];
+    const unpackedTemplatePtr =
+      templatePtrValue != undefined
+        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const instanceRootPtrValue = objectValue["14"];
+    const unpackedInstanceRootPtr =
+      instanceRootPtrValue != undefined
+        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -559,6 +689,10 @@ export class StrokeStyle extends Style {
       name: objectValue["101"],
       space: unpackedSpacePtr,
       materialization: Number(objectValue["10"]),
+      snapshot: unpackedSnapshotPtr,
+      predecessor: unpackedPredecessorPtr,
+      template: unpackedTemplatePtr,
+      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -596,6 +730,18 @@ export class StrokeStyle extends Style {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.predecessorPtr != null) {
+      objectProto.predecessorPtr = object.predecessorPtr.toProto();
+    }
+    if (object.templatePtr != null) {
+      objectProto.templatePtr = object.templatePtr.toProto();
+    }
+    if (object.instanceRootPtr != null) {
+      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -670,6 +816,46 @@ export class StrokeStyle extends Style {
             )
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      predecessor:
+        objectProto.predecessorPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.predecessorPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      template:
+        objectProto.templatePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.templatePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      instanceRoot:
+        objectProto.instanceRootPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.instanceRootPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
