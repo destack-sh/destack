@@ -1,4 +1,10 @@
-import { EnumType, NodeType, StructType, TraitType } from "@destack/language/core/builtin/common";
+import {
+  EnumType,
+  NodeType,
+  StoreType,
+  StructType,
+  TraitType,
+} from "@destack/language/core/builtin/common";
 import type {
   CustomEntityDefinition,
   CustomTraitDefinition,
@@ -25,6 +31,7 @@ import {
   ObjectDefinitionTypeProto,
   PropertyReferenceProto,
   PropertyReferenceTypeProto,
+  StoreTypeProto,
   StructDefinitionReferenceProto,
   StructDefinitionTypeProto,
   StructTypeProto,
@@ -1402,26 +1409,32 @@ export class NodeReference extends StructFrozen {
   readonly id: string;
 
   /**
-   * NodeReference.snapshotId
-   */
-  readonly snapshotId: string | null;
-
-  /**
    * NodeReference.definitionId
    */
   readonly definitionId: string | null;
+
+  /**
+   * NodeReference.snapshotId
+   */
+  readonly snapshotId: string | null;
 
   /**
    * NodeReference.spaceId
    */
   readonly spaceId: string | null;
 
+  /**
+   * NodeReference.storeType
+   */
+  readonly storeType: StoreType | null;
+
   constructor(options: {
     type: NodeType;
     id: string;
-    snapshotId?: string | null;
     definitionId?: string | null;
+    snapshotId?: string | null;
     spaceId?: string | null;
+    storeType?: StoreType | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1447,12 +1460,14 @@ export class NodeReference extends StructFrozen {
       throw new Error(`NodeReference.id is required`);
     }
     this.id = _id;
-    let _snapshotId = options.snapshotId ?? null;
-    this.snapshotId = _snapshotId;
     let _definitionId = options.definitionId ?? null;
     this.definitionId = _definitionId;
+    let _snapshotId = options.snapshotId ?? null;
+    this.snapshotId = _snapshotId;
     let _spaceId = options.spaceId ?? null;
     this.spaceId = _spaceId;
+    let _storeType = options.storeType ?? null;
+    this.storeType = _storeType;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1475,13 +1490,16 @@ export class NodeReference extends StructFrozen {
     if (!(this.id === other.id)) {
       return false;
     }
-    if (!(this.snapshotId === other.snapshotId)) {
-      return false;
-    }
     if (!(this.definitionId === other.definitionId)) {
       return false;
     }
+    if (!(this.snapshotId === other.snapshotId)) {
+      return false;
+    }
     if (!(this.spaceId === other.spaceId)) {
+      return false;
+    }
+    if (!(this.storeType === other.storeType)) {
       return false;
     }
     return true;
@@ -1492,14 +1510,17 @@ export class NodeReference extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${NodeType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
-      if (this.snapshotId !== null) {
-        propertyReprs.push(`snapshotId=${this.snapshotId}`);
-      }
       if (this.definitionId !== null) {
         propertyReprs.push(`definitionId=${this.definitionId}`);
       }
+      if (this.snapshotId !== null) {
+        propertyReprs.push(`snapshotId=${this.snapshotId}`);
+      }
       if (this.spaceId !== null) {
         propertyReprs.push(`spaceId=${this.spaceId}`);
+      }
+      if (this.storeType !== null) {
+        propertyReprs.push(`storeType=${StoreType[this.storeType]}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<NodeReference ${propertyReprs.join(" ")}>`;
@@ -1516,14 +1537,17 @@ export class NodeReference extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.snapshotId !== null) {
-      h = (h * 31 + hashString(this.snapshotId.toString())) & 0xffffffff;
-    }
     if (this.definitionId !== null) {
       h = (h * 31 + hashString(this.definitionId.toString())) & 0xffffffff;
     }
+    if (this.snapshotId !== null) {
+      h = (h * 31 + hashString(this.snapshotId.toString())) & 0xffffffff;
+    }
     if (this.spaceId !== null) {
       h = (h * 31 + hashString(this.spaceId.toString())) & 0xffffffff;
+    }
+    if (this.storeType !== null) {
+      h = (h * 31 + this.storeType) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -1548,14 +1572,17 @@ export class NodeReference extends StructFrozen {
     objectValue["1"] = 100;
     objectValue["100"] = object.type;
     objectValue["101"] = String(object.id);
-    if (object.snapshotId != null) {
-      objectValue["102"] = String(object.snapshotId);
-    }
     if (object.definitionId != null) {
-      objectValue["103"] = String(object.definitionId);
+      objectValue["102"] = String(object.definitionId);
+    }
+    if (object.snapshotId != null) {
+      objectValue["103"] = String(object.snapshotId);
     }
     if (object.spaceId != null) {
       objectValue["104"] = String(object.spaceId);
+    }
+    if (object.storeType != null) {
+      objectValue["105"] = object.storeType;
     }
     return objectValue;
   }
@@ -1567,18 +1594,21 @@ export class NodeReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): NodeReference {
-    const snapshotIdValue = objectValue["102"];
-    const unpackedSnapshotId = snapshotIdValue != undefined ? String(snapshotIdValue) : null;
-    const definitionIdValue = objectValue["103"];
+    const definitionIdValue = objectValue["102"];
     const unpackedDefinitionId = definitionIdValue != undefined ? String(definitionIdValue) : null;
+    const snapshotIdValue = objectValue["103"];
+    const unpackedSnapshotId = snapshotIdValue != undefined ? String(snapshotIdValue) : null;
     const spaceIdValue = objectValue["104"];
     const unpackedSpaceId = spaceIdValue != undefined ? String(spaceIdValue) : null;
+    const storeTypeValue = objectValue["105"];
+    const unpackedStoreType = storeTypeValue != undefined ? Number(storeTypeValue) : null;
     return new NodeReference({
       type: Number(objectValue["100"]),
       id: String(objectValue["101"]),
-      snapshotId: unpackedSnapshotId,
       definitionId: unpackedDefinitionId,
+      snapshotId: unpackedSnapshotId,
       spaceId: unpackedSpaceId,
+      storeType: unpackedStoreType,
       _value: objectValue,
       _supergraph,
     });
@@ -1606,14 +1636,17 @@ export class NodeReference extends StructFrozen {
     const objectProto: Partial<NodeReferenceProto> = { metatype: 100 };
     objectProto.type = Number(object.type) as NodeTypeProto;
     objectProto.id = String(object.id);
-    if (object.snapshotId != null) {
-      objectProto.snapshotId = String(object.snapshotId);
-    }
     if (object.definitionId != null) {
       objectProto.definitionId = String(object.definitionId);
     }
+    if (object.snapshotId != null) {
+      objectProto.snapshotId = String(object.snapshotId);
+    }
     if (object.spaceId != null) {
       objectProto.spaceId = String(object.spaceId);
+    }
+    if (object.storeType != null) {
+      objectProto.storeType = Number(object.storeType) as StoreTypeProto;
     }
     return objectProto as NodeReferenceProto;
   }
@@ -1628,9 +1661,11 @@ export class NodeReference extends StructFrozen {
     return new NodeReference({
       type: Number(objectProto.type) as NodeType,
       id: String(objectProto.id),
-      snapshotId: objectProto.snapshotId != undefined ? String(objectProto.snapshotId) : null,
       definitionId: objectProto.definitionId != undefined ? String(objectProto.definitionId) : null,
+      snapshotId: objectProto.snapshotId != undefined ? String(objectProto.snapshotId) : null,
       spaceId: objectProto.spaceId != undefined ? String(objectProto.spaceId) : null,
+      storeType:
+        objectProto.storeType != undefined ? (Number(objectProto.storeType) as StoreType) : null,
       _proto: objectProto,
       _supergraph,
     });

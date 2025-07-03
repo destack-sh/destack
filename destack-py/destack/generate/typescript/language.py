@@ -927,7 +927,7 @@ validate(): void {
     return validate_str.strip()
 
 
-def _generate_to_ref(cls: type["Node"]) -> str:
+def _generate_ref(cls: type["Node"]) -> str:
     """Generate a Typescript toRef method."""
 
     node_type = cls.metatype
@@ -939,6 +939,7 @@ __toRef__(): NodeReference {{
     type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.id,
+    snapshotId: this.snapshotPtr?.id ?? null,
     _session: this._session,
     _supergraph: this._supergraph,
   }});
@@ -952,6 +953,7 @@ __toRef__(): NodeReference {{
     type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
+    snapshotId: this.snapshotPtr?.id ?? null,
     definitionId: this.definitionPtr?.id ?? null,
     _session: this._session,
     _supergraph: this._supergraph,
@@ -966,6 +968,7 @@ __toRef__(): NodeReference {{
     type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
+    snapshotId: this.snapshotPtr?.id ?? null,
     _session: this._session,
     _supergraph: this._supergraph,
   }});
@@ -978,6 +981,7 @@ __toRef__(): NodeReference {{
   return new _NodeReference({{
     type: NodeType.{node_type.name},
     id: this.id,
+    snapshotId: this.snapshotPtr?.id ?? null,
     _session: this._session,
     _supergraph: this._supergraph,
   }});
@@ -1162,7 +1166,7 @@ def _generate_node(definition: NodeDefinition) -> str:
         node_parts.append(hash_str)
         validate_str = _generate_validate(node_cls)
         node_parts.append(validate_str)
-        to_ref_str = _generate_to_ref(node_cls)
+        to_ref_str = _generate_ref(node_cls)
         node_parts.append(to_ref_str)
         path_str = _generate_path(node_cls)
         node_parts.append(path_str)

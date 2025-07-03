@@ -1318,6 +1318,8 @@ enum StoreImplementationProto {
 
 enum StoreTypeProto {
   STORE_TYPE_UNSPECIFIED = 0;
+  STORE_TYPE_LOCAL_ENTITY = 1;
+  STORE_TYPE_LOCAL_EVENT = 2;
   STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000;
   STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100;
   STORE_TYPE_SPATIAL_EVENT_PRIMARY = 2100;
@@ -1883,7 +1885,8 @@ message ChangeEventProto {
   optional string name = 102;
   optional OriginProto origin = 103;
   optional ChangeDebounceProto debounce = 104;
-  repeated string edits_ids = 120;
+  repeated string edits_ids = 130;
+  repeated string nodes_ids = 131;
 }
 
 message ChangeResultProto {
@@ -2571,6 +2574,7 @@ message EditEventProto {
   optional EditOperationProto operation = 102;
   optional PropertyReferenceProto attribute = 103;
   optional ValueProto key = 104;
+  optional google.protobuf.Value key_unpacked = 105;
   optional ValueProto value = 110;
   optional EditProto undo = 120;
   optional NodeReferenceProto snapshot_ptr = 121;
@@ -4047,9 +4051,10 @@ message NodeReferenceProto {
   StructTypeProto metatype = 1;
   NodeTypeProto type = 100;
   string id = 101;
-  optional string snapshot_id = 102;
-  optional string definition_id = 103;
+  optional string definition_id = 102;
+  optional string snapshot_id = 103;
   optional string space_id = 104;
+  optional StoreTypeProto store_type = 105;
 }
 
 // A Notification is a message about something.

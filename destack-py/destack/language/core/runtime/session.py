@@ -180,15 +180,6 @@ class Session:
         self.edits.append(edit)
         self.dirty[node.id] = node
 
-    def erase(self, node: Node):
-        """Erases a Node."""
-        assert self.closed_at is None, f"{self!r} is closed"
-        self._flush_node(node)
-        undo_edit = Edit(type=EditType.CREATE, node=node, value=to_value(node, node_as_value=True))
-        edit = Edit(type=EditType.ERASE, node=node, undo=undo_edit)
-        self.edits.append(edit)
-        self.dirty[node.id] = node
-
     def _flush_node(self, node: Node):
         """Turn a dirty Node into Edits."""
         if node._is_new:
