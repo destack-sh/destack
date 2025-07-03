@@ -62,7 +62,7 @@ type_ = type
 def builtin_node(
     node_type: NodeType | None,
     root_type: NodeType | None = NodeType.SPACE,
-    pretend_frozen: bool = False,  # :PretendFrozen
+    frozen: bool = False,
     index: tuple[IndexIn, ...] = (),
     is_abstract: bool = False,
 ):
@@ -73,7 +73,7 @@ def builtin_node(
         index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
     def decorate(cls: type) -> type:
-        nonlocal pretend_frozen
+        nonlocal frozen
         assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
 
         # bases
@@ -104,7 +104,7 @@ def builtin_node(
                 f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
             )
         if NodeType.EVENT in inherits:
-            pretend_frozen = True  # Events are frozen by default
+            frozen = True  # Events are frozen by default
 
         cls, _ = _process_object_cls(
             cls=cast(type["Node"], cls),
@@ -112,7 +112,7 @@ def builtin_node(
             is_concrete=node_type is not None,
             is_node=True,
             is_root_node=root_type is None,
-            is_frozen=pretend_frozen,
+            is_frozen=frozen,
             is_abstract=is_abstract,
             traits=cls.__traits__,
             inherits=cls.__inherits__,

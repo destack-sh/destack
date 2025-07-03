@@ -63,7 +63,7 @@ class RunStatus(Enum):
         return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
 
 
-@builtin_node(NodeType.RUN_EVENT, is_abstract=True)
+@builtin_node(NodeType.RUN_EVENT, frozen=True, is_abstract=True)
 class RunEvent(Event["Run"]):
     """An Event regarding a Run."""
 
@@ -73,7 +73,7 @@ class RunEvent(Event["Run"]):
         target_ptr: Optional[NodeReference] = None
 
 
-@builtin_node(NodeType.RUN_STARTED_EVENT)
+@builtin_node(NodeType.RUN_STARTED_EVENT, frozen=True)
 class RunStartedEvent(
     RunEvent,
 ):
@@ -82,49 +82,49 @@ class RunStartedEvent(
     pass
 
 
-@builtin_node(NodeType.RUN_PAUSE_REQUESTED_EVENT)
+@builtin_node(NodeType.RUN_PAUSE_REQUESTED_EVENT, frozen=True)
 class RunPauseRequestedEvent(RunEvent):
     """A Run was paused."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_PAUSED_EVENT)
+@builtin_node(NodeType.RUN_PAUSED_EVENT, frozen=True)
 class RunPausedEvent(RunEvent):
     """A Run was paused."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_RESUME_REQUESTED_EVENT)
+@builtin_node(NodeType.RUN_RESUME_REQUESTED_EVENT, frozen=True)
 class RunResumeRequestedEvent(RunEvent):
     """A Run was resumed."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_RESUMED_EVENT)
+@builtin_node(NodeType.RUN_RESUMED_EVENT, frozen=True)
 class RunResumedEvent(RunEvent):
     """A Run was resumed."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_STOP_REQUESTED_EVENT)
+@builtin_node(NodeType.RUN_STOP_REQUESTED_EVENT, frozen=True)
 class RunStopRequestedEvent(RunEvent):
     """A Run was stopped."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_FAILED_EVENT)
+@builtin_node(NodeType.RUN_FAILED_EVENT, frozen=True)
 class RunFailedEvent(RunEvent):
     """A Run failed."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_COMPLETED_EVENT)
+@builtin_node(NodeType.RUN_COMPLETED_EVENT, frozen=True)
 class RunCompletedEvent(RunEvent):
     """A Run completed."""
 

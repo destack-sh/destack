@@ -5,7 +5,7 @@ from .shape import Shape
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.ANNOTATION_SHAPE, pretend_frozen=True)
+@builtin_node(NodeType.ANNOTATION_SHAPE)
 class AnnotationShape(Shape):
     """An AnnotationShape is a shape that represents an annotation."""
 

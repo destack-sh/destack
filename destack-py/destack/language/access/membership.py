@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.MEMBERSHIP_EVENT, is_abstract=True)
+@builtin_node(NodeType.MEMBERSHIP_EVENT, frozen=True, is_abstract=True)
 class MembershipEvent(Event["Membership"]):
     """A Event regarding a Membership."""
 
@@ -33,7 +33,7 @@ class MembershipEvent(Event["Membership"]):
     member: "IsSubject" = builtin_property(103)
 
 
-@builtin_node(NodeType.MEMBERSHIP_JOINED_EVENT)
+@builtin_node(NodeType.MEMBERSHIP_JOINED_EVENT, frozen=True)
 class MembershipJoinedEvent(MembershipEvent):
     """A Event regarding a Membership Join."""
 
@@ -41,7 +41,7 @@ class MembershipJoinedEvent(MembershipEvent):
     role_type: "RoleType" = builtin_property(111)
 
 
-@builtin_node(NodeType.MEMBERSHIP_LEFT_EVENT)
+@builtin_node(NodeType.MEMBERSHIP_LEFT_EVENT, frozen=True)
 class MembershipLeftEvent(MembershipEvent):
     """A Event regarding a Membership Leave."""
 

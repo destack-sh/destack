@@ -33,7 +33,7 @@ class Arrow(StructFrozen):
     end: Vector2f = builtin_property(211)
 
 
-@builtin_node(NodeType.ARROW_SHAPE, pretend_frozen=True)
+@builtin_node(NodeType.ARROW_SHAPE)
 class ArrowShape(Shape):
     """An ArrowShape is a shape that represents an arrow."""
 

@@ -28,7 +28,7 @@ class LogLevel(Enum):
     PANIC = 6
 
 
-@builtin_node(NodeType.LOG_EVENT, pretend_frozen=True)
+@builtin_node(NodeType.LOG_EVENT, frozen=True)
 class LogEvent(Event):
     """A Log message."""
 
