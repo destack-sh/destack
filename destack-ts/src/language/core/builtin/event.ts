@@ -52,7 +52,7 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3 ==== */
 /**
- * An Event is an immutable record of something happening to an Entity.
+ * An Event is an immutable datum of something happening to an Entity.
  */
 export abstract class Event extends Node implements IsSpatial {
   static metatype: NodeType = NodeType.EVENT;
@@ -2089,7 +2089,7 @@ export class ChangeEvent extends Event {
   }
 
   get _pathKey(): string {
-    return this.name;
+    return this.name ?? "ChangeEvent[id={this.id}]";
   }
 
   get path(): string {

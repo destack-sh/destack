@@ -4238,7 +4238,7 @@ export interface EnvironmentProto {
     icon?: IconProto;
 }
 /**
- * An Event is an immutable record of something happening to an Entity.
+ * An Event is an immutable datum of something happening to an Entity.
  *
  * @generated from protobuf message symbol.destack.EventProto
  */
@@ -8804,13 +8804,17 @@ export interface NodeReferenceProto {
      */
     id: string;
     /**
-     * @generated from protobuf field: optional string space_id = 102
+     * @generated from protobuf field: optional string snapshot_id = 102
      */
-    spaceId?: string;
+    snapshotId?: string;
     /**
      * @generated from protobuf field: optional string definition_id = 103
      */
     definitionId?: string;
+    /**
+     * @generated from protobuf field: optional string space_id = 104
+     */
+    spaceId?: string;
 }
 /**
  * A Notification is a message about something.
@@ -13005,6 +13009,7 @@ export interface SliderInputViewProto {
 }
 /**
  * A Snapshot is a point in Space time.
+ * Snapshots cannot be instanced or become part of any other Snapshot themselves.
  *
  * @generated from protobuf message symbol.destack.SnapshotProto
  */
@@ -13030,7 +13035,7 @@ export interface SnapshotProto {
      */
     materialization: MaterializationProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
      */
     snapshotPtr?: NodeReferenceProto;
     /**
@@ -21879,17 +21884,13 @@ export enum SnapshotTypeProto {
      */
     SNAPSHOT_TYPE_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: SNAPSHOT_TYPE_PARTIAL_NODE = 1;
+     * @generated from protobuf enum value: SNAPSHOT_TYPE_PARTIAL = 1;
      */
-    SNAPSHOT_TYPE_PARTIAL_NODE = 1,
+    SNAPSHOT_TYPE_PARTIAL = 1,
     /**
-     * @generated from protobuf enum value: SNAPSHOT_TYPE_PARTIAL_GRAPH = 2;
+     * @generated from protobuf enum value: SNAPSHOT_TYPE_FULL = 2;
      */
-    SNAPSHOT_TYPE_PARTIAL_GRAPH = 2,
-    /**
-     * @generated from protobuf enum value: SNAPSHOT_TYPE_FULL_GRAPH = 3;
-     */
-    SNAPSHOT_TYPE_FULL_GRAPH = 3
+    SNAPSHOT_TYPE_FULL = 2
 }
 /**
  * @generated from protobuf enum symbol.destack.SortModeProto
@@ -22770,7 +22771,7 @@ export enum UserStatusProto {
     USER_STATUS_ACTIVE = 10
 }
 /**
- * The factory to use for default values.
+ * The factory to use for generating values.
  *
  * @generated from protobuf enum symbol.destack.ValueFactoryProto
  */
@@ -22790,7 +22791,11 @@ export enum ValueFactoryProto {
     /**
      * @generated from protobuf enum value: VALUE_FACTORY_REGION = 3;
      */
-    VALUE_FACTORY_REGION = 3
+    VALUE_FACTORY_REGION = 3,
+    /**
+     * @generated from protobuf enum value: VALUE_FACTORY_SELF = 4;
+     */
+    VALUE_FACTORY_SELF = 4
 }
 /**
  * @generated from protobuf enum symbol.destack.VariantStateTypeProto
@@ -43026,8 +43031,9 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 101, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "space_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 103, name: "definition_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 102, name: "snapshot_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 103, name: "definition_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 104, name: "space_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<NodeReferenceProto>): NodeReferenceProto {
@@ -43053,11 +43059,14 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
                 case /* string id */ 101:
                     message.id = reader.string();
                     break;
-                case /* optional string space_id */ 102:
-                    message.spaceId = reader.string();
+                case /* optional string snapshot_id */ 102:
+                    message.snapshotId = reader.string();
                     break;
                 case /* optional string definition_id */ 103:
                     message.definitionId = reader.string();
+                    break;
+                case /* optional string space_id */ 104:
+                    message.spaceId = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -43080,12 +43089,15 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
         /* string id = 101; */
         if (message.id !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.id);
-        /* optional string space_id = 102; */
-        if (message.spaceId !== undefined)
-            writer.tag(102, WireType.LengthDelimited).string(message.spaceId);
+        /* optional string snapshot_id = 102; */
+        if (message.snapshotId !== undefined)
+            writer.tag(102, WireType.LengthDelimited).string(message.snapshotId);
         /* optional string definition_id = 103; */
         if (message.definitionId !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.definitionId);
+        /* optional string space_id = 104; */
+        if (message.spaceId !== undefined)
+            writer.tag(104, WireType.LengthDelimited).string(message.spaceId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -53024,7 +53036,7 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
                     break;
-                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
@@ -53090,7 +53102,7 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
-        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
         if (message.snapshotPtr)
             NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */

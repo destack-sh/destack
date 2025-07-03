@@ -497,7 +497,7 @@ class NodeType(Enum):
     # root
     NODE = 1, "Node", "Root of all Nodes", "fas fa-dot"
     ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
-    EVENT = 3, "Event", "Immutable record of something happening", "fas fa-dot"
+    EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
     # custom
     CUSTOM_ENTITY_DEFINITION = 100, "Custom Entity Definition", None, "fas fa-table"
     CUSTOM_TRAIT_DEFINITION = 101, "Custom Trait Definition", None, "fas fa-table"

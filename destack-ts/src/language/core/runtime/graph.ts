@@ -3,9 +3,8 @@ import { NodeType, TraitType } from "@destack/language/core/builtin/common";
 import { hasTrait } from "@destack/language/core/builtin/node";
 import { TraitClass } from "@destack/language/core/builtin/trait";
 import type { Session } from "@destack/language/core/runtime/session";
-import { NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/lookup";
 import type { TraitTypeMapping } from "@destack/language/mapping";
-import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
+import { NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/registry";
 import { INTEGER_ZERO } from "@destack/utils/fractional";
 
 /** A Graph is a collection of Nodes. */

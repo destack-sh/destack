@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.EVENT, pretend_frozen=True, is_abstract=True)
 class Event[N: Node = Node](IsSpatial, Node):
     """
-    An Event is an immutable record of something happening to an Entity.
+    An Event is an immutable datum of something happening to an Entity.
     """
 
     parent: Optional["Space"] = builtin_property_parent(

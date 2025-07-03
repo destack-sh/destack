@@ -1275,9 +1275,8 @@ enum ShadowTypeProto {
 // The type of a Snapshot.
 enum SnapshotTypeProto {
   SNAPSHOT_TYPE_UNSPECIFIED = 0;
-  SNAPSHOT_TYPE_PARTIAL_NODE = 1;
-  SNAPSHOT_TYPE_PARTIAL_GRAPH = 2;
-  SNAPSHOT_TYPE_FULL_GRAPH = 3;
+  SNAPSHOT_TYPE_PARTIAL = 1;
+  SNAPSHOT_TYPE_FULL = 2;
 }
 
 enum SortModeProto {
@@ -1544,12 +1543,13 @@ enum UserStatusProto {
   USER_STATUS_ACTIVE = 10;
 }
 
-// The factory to use for default values.
+// The factory to use for generating values.
 enum ValueFactoryProto {
   VALUE_FACTORY_UNSPECIFIED = 0;
   VALUE_FACTORY_UUID = 1;
   VALUE_FACTORY_NOW = 2;
   VALUE_FACTORY_REGION = 3;
+  VALUE_FACTORY_SELF = 4;
 }
 
 enum VariantStateTypeProto {
@@ -2754,7 +2754,7 @@ message EnvironmentProto {
   optional IconProto icon = 102;
 }
 
-// An Event is an immutable record of something happening to an Entity.
+// An Event is an immutable datum of something happening to an Entity.
 message EventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -4047,8 +4047,9 @@ message NodeReferenceProto {
   StructTypeProto metatype = 1;
   NodeTypeProto type = 100;
   string id = 101;
-  optional string space_id = 102;
+  optional string snapshot_id = 102;
   optional string definition_id = 103;
+  optional string space_id = 104;
 }
 
 // A Notification is a message about something.
@@ -5250,13 +5251,14 @@ message SliderInputViewProto {
 }
 
 // A Snapshot is a point in Space time.
+// Snapshots cannot be instanced or become part of any other Snapshot themselves.
 message SnapshotProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
   optional NodeReferenceProto template_ptr = 13;
   optional NodeReferenceProto instance_root_ptr = 14;
