@@ -224,57 +224,63 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 class StructType(Enum):
     # meta [1-10_000]
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
-    CUSTOM_STRUCT = 10
-    PROPERTY_DEFINITION = 102
+    CUSTOM_STRUCT = 2
+    # definitions
+    BUILTIN_DEFINITION = 100
+    BUILTIN_OBJECT_DEFINITION = 101
+    NODE_DEFINITION = 102
     TRAIT_DEFINITION = 103
-    NODE_DEFINITION = 104
-    STRUCT_DEFINITION = 105
+    STRUCT_DEFINITION = 104
+    PROPERTY_DEFINITION = 105
     ENUM_DEFINITION = 106
     OPTION_DEFINITION = 107
     PERMISSION_DEFINITION = 108
     CONSTANT_DEFINITION = 109
     # FUNCTION_DEFINITION, ACTION_DEFINITION, ...?
-    NODE_REFERENCE = 100
-    PROPERTY_REFERENCE = 101
-
-    NODE_DEFINITION_REFERENCE = 150
-    OBJECT_DEFINITION_REFERENCE = 151
-    STRUCT_DEFINITION_REFERENCE = 152
-
-    EDIT = 200
-    CHANGE = 201
-    CHANGE_RESULT = 202
-
-    ORIGIN = 203
-
-    EXPRESSION = 300
-    FUNCTION = 301
-    JOIN = 302
-    AGGREGATION = 303
-    CONDITION = 304
-    SORT = 305
-    SELECT = 306
-    QUERY = 307
-    QUERY_RESULT = 308
-    QUERY_RESULT_GROUP = 309
-    QUERY_UPDATE = 310
-    HISTOGRAM = 311
-    SELECTION = 312
-
-    VALUE = 400
-    TYPE = 401
-
-    NUMBER_CONSTRAINT = 410
-    STRING_CONSTRAINT = 411
-    COLLECTION_CONSTRAINT = 412
-    NODE_CONSTRAINT = 413
+    # definition reference
+    NODE_DEFINITION_REFERENCE = 200
+    OBJECT_DEFINITION_REFERENCE = 201
+    STRUCT_DEFINITION_REFERENCE = 202
+    # references
+    NODE_REFERENCE = 250
+    PROPERTY_REFERENCE = 251
+    # edits
+    EDIT = 300
+    CHANGE = 301
+    CHANGE_RESULT = 302
+    ORIGIN = 303
+    # expressions
+    EXPRESSION = 500
+    FUNCTION = 501
+    JOIN = 502
+    AGGREGATION = 503
+    CONDITION = 504
+    SORT = 505
+    SELECT = 506
+    QUERY = 550
+    QUERY_RESULT = 551
+    QUERY_RESULT_GROUP = 552
+    QUERY_UPDATE = 553
+    HISTOGRAM = 554
+    SELECTION = 555
+    # values
+    VALUE = 600
+    TYPE = 601
+    # constraints
+    NUMBER_CONSTRAINT = 650
+    STRING_CONSTRAINT = 651
+    COLLECTION_CONSTRAINT = 652
+    NODE_CONSTRAINT = 653
     # geometry
-    VECTOR2 = 500, None, None, "fas fa-vector-square"
-    VECTOR3 = 501, None, None, "fas fa-vector-square"
-    VECTOR4 = 502, None, None, "fas fa-vector-square"
-    VECTOR2I = 503, None, None, "fas fa-vector-square"
-    VECTOR3I = 504, None, None, "fas fa-vector-square"
-    VECTOR4I = 505, None, None, "fas fa-vector-square"
+    VECTOR = 700, None, None, "fas fa-vector-square"
+    VECTORF = 710
+    VECTOR2F = 711, None, None, "fas fa-vector-square"
+    VECTOR3F = 712, None, None, "fas fa-vector-square"
+    VECTOR4F = 713, None, None, "fas fa-vector-square"
+    VECTORI = 720
+    VECTOR2I = 721, None, None, "fas fa-vector-square"
+    VECTOR3I = 722, None, None, "fas fa-vector-square"
+    VECTOR4I = 723, None, None, "fas fa-vector-square"
 
     # space [10_000-20_000]
     # ...

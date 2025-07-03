@@ -40,7 +40,7 @@ import {
 import { assertNever, base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:150 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:200 ==== */
 /**
  * Reference to a Node definition.
  */
@@ -184,7 +184,7 @@ export class NodeDefinitionReference extends StructFrozen {
 
   static __packValue__(object: NodeDefinitionReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 150;
+    objectValue["1"] = 200;
     objectValue["100"] = object.type;
     objectValue["101"] = object.nodeType;
     if (object.definitionPtr != null) {
@@ -240,7 +240,7 @@ export class NodeDefinitionReference extends StructFrozen {
   }
 
   static __packProto__(object: NodeDefinitionReference): NodeDefinitionReferenceProto {
-    const objectProto: Partial<NodeDefinitionReferenceProto> = { metatype: 150 };
+    const objectProto: Partial<NodeDefinitionReferenceProto> = { metatype: 200 };
     objectProto.type = Number(object.type) as NodeDefinitionTypeProto;
     objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
     if (object.definitionPtr != null) {
@@ -322,9 +322,9 @@ export class NodeDefinitionReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_DEFINITION_REFERENCE, NodeDefinitionReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:150 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:200 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:151 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:201 ==== */
 /**
  * Reference to an object "type" (builtin, custom or trait).
  */
@@ -516,7 +516,7 @@ export class ObjectDefinitionReference extends StructFrozen {
 
   static __packValue__(object: ObjectDefinitionReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 151;
+    objectValue["1"] = 201;
     objectValue["100"] = object.type;
     if (object.nodeType != null) {
       objectValue["101"] = object.nodeType;
@@ -588,7 +588,7 @@ export class ObjectDefinitionReference extends StructFrozen {
   }
 
   static __packProto__(object: ObjectDefinitionReference): ObjectDefinitionReferenceProto {
-    const objectProto: Partial<ObjectDefinitionReferenceProto> = { metatype: 151 };
+    const objectProto: Partial<ObjectDefinitionReferenceProto> = { metatype: 201 };
     objectProto.type = Number(object.type) as ObjectDefinitionTypeProto;
     if (object.nodeType != null) {
       objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
@@ -685,9 +685,9 @@ export class ObjectDefinitionReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.OBJECT_DEFINITION_REFERENCE, ObjectDefinitionReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:151 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:201 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:251 ==== */
 /**
  * A reference to a builtin object's Property.
  */
@@ -880,7 +880,7 @@ export class PropertyReference extends StructFrozen {
 
   static __packValue__(object: PropertyReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 101;
+    objectValue["1"] = 251;
     objectValue["100"] = object.type;
     if (object.nodeType != null) {
       objectValue["101"] = object.nodeType;
@@ -964,7 +964,7 @@ export class PropertyReference extends StructFrozen {
   }
 
   static __packProto__(object: PropertyReference): PropertyReferenceProto {
-    const objectProto: Partial<PropertyReferenceProto> = { metatype: 101 };
+    const objectProto: Partial<PropertyReferenceProto> = { metatype: 251 };
     objectProto.type = Number(object.type) as PropertyReferenceTypeProto;
     if (object.nodeType != null) {
       objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
@@ -1060,7 +1060,7 @@ export class PropertyReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:251 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:10 ==== */
 /**
@@ -1128,7 +1128,7 @@ export enum PropertyReferenceType {
 registerEnumClass(EnumType.PROPERTY_REFERENCE_TYPE, PropertyReferenceType);
 /* ==== DESTACK_GENERATED_END:ENUM:13 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:152 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:202 ==== */
 /**
  * Reference to a Struct definition (builtin, custom or by trait).
  */
@@ -1269,7 +1269,7 @@ export class StructDefinitionReference extends StructFrozen {
 
   static __packValue__(object: StructDefinitionReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 152;
+    objectValue["1"] = 202;
     objectValue["100"] = object.type;
     if (object.structType != null) {
       objectValue["101"] = object.structType;
@@ -1328,7 +1328,7 @@ export class StructDefinitionReference extends StructFrozen {
   }
 
   static __packProto__(object: StructDefinitionReference): StructDefinitionReferenceProto {
-    const objectProto: Partial<StructDefinitionReferenceProto> = { metatype: 152 };
+    const objectProto: Partial<StructDefinitionReferenceProto> = { metatype: 202 };
     objectProto.type = Number(object.type) as StructDefinitionTypeProto;
     if (object.structType != null) {
       objectProto.structType = Number(object.structType) as StructTypeProto;
@@ -1388,9 +1388,9 @@ export class StructDefinitionReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRUCT_DEFINITION_REFERENCE, StructDefinitionReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:152 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:202 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:250 ==== */
 /**
  * A reference to a Node (builtin or custom).
  */
@@ -1569,7 +1569,7 @@ export class NodeReference extends StructFrozen {
 
   static __packValue__(object: NodeReference): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 100;
+    objectValue["1"] = 250;
     objectValue["100"] = object.type;
     objectValue["101"] = String(object.id);
     if (object.definitionId != null) {
@@ -1633,7 +1633,7 @@ export class NodeReference extends StructFrozen {
   }
 
   static __packProto__(object: NodeReference): NodeReferenceProto {
-    const objectProto: Partial<NodeReferenceProto> = { metatype: 100 };
+    const objectProto: Partial<NodeReferenceProto> = { metatype: 250 };
     objectProto.type = Number(object.type) as NodeTypeProto;
     objectProto.id = String(object.id);
     if (object.definitionId != null) {
@@ -1692,4 +1692,4 @@ export class NodeReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_REFERENCE, NodeReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:100 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:250 ==== */

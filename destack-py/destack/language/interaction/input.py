@@ -5,7 +5,7 @@ from destack.language.core import (
     EnumType,
     Event,
     NodeType,
-    Vector2,
+    Vector2f,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -33,7 +33,7 @@ class InputEvent[NodeT: View = View](Event[NodeT]):
 class PointerEvent(InputEvent):
     """A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer."""
 
-    position: Vector2 = builtin_property(110)
+    position: Vector2f = builtin_property(110)
     pressure: float = builtin_property(111)
 
     shift_key: bool = builtin_property(120)
@@ -152,7 +152,7 @@ class DoubleClickEvent(ClickEvent):
 class WheelEvent(MouseEvent):
     """A WheelEvent is a MouseEvent when a wheel is scrolled."""
 
-    delta: Vector2 = builtin_property(140)
+    delta: Vector2f = builtin_property(140)
 
 
 #
@@ -204,7 +204,7 @@ class KeyPressEvent(KeyboardEvent):
 class DragEvent(InputEvent):
     """A DragEvent is an InputEvent that corresponds to some direct user input with a drag."""
 
-    position: Vector2 = builtin_property(110)
+    position: Vector2f = builtin_property(110)
 
 
 @builtin_node(NodeType.DRAG_START_EVENT)

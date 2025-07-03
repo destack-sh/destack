@@ -4,31 +4,34 @@ import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerStructClass } from "@destack/language/registry";
 import {
-  Vector2Proto,
+  Vector2fProto,
   Vector2iProto,
-  Vector3Proto,
+  Vector3fProto,
   Vector3iProto,
-  Vector4Proto,
+  Vector4fProto,
   Vector4iProto,
+  VectorProto,
+  VectorfProto,
+  VectoriProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashFloat, hashInt } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:500 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:711 ==== */
 /**
  * A 2D float vector.
  */
-export class Vector2 extends StructFrozen {
-  static metatype: StructType = StructType.VECTOR2;
+export class Vector2f extends StructFrozen {
+  static metatype: StructType = StructType.VECTOR2F;
   static __isFrozen__: boolean = true;
 
   /**
-   * Vector2.x
+   * Vector2f.x
    */
   readonly x: number;
 
   /**
-   * Vector2.y
+   * Vector2f.y
    */
   readonly y: number;
 
@@ -52,12 +55,12 @@ export class Vector2 extends StructFrozen {
     // properties
     let _x = options.x;
     if (_x === null) {
-      throw new Error(`Vector2.x is required`);
+      throw new Error(`Vector2f.x is required`);
     }
     this.x = _x;
     let _y = options.y;
     if (_y === null) {
-      throw new Error(`Vector2.y is required`);
+      throw new Error(`Vector2f.y is required`);
     }
     this.y = _y;
 
@@ -91,7 +94,7 @@ export class Vector2 extends StructFrozen {
       propertyReprs.push(`x=${this.x}`);
       propertyReprs.push(`y=${this.y}`);
       // @ts-expect-error(readonly)
-      this._repr = `<Vector2 ${propertyReprs.join(" ")}>`;
+      this._repr = `<Vector2f ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -118,14 +121,14 @@ export class Vector2 extends StructFrozen {
   toValue(): { [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
-      this._value = Vector2.__packValue__(this);
+      this._value = Vector2f.__packValue__(this);
     }
     return this._value;
   }
 
-  static __packValue__(object: Vector2): { [key: string]: any } {
+  static __packValue__(object: Vector2f): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 500;
+    objectValue["1"] = 711;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     return objectValue;
@@ -137,8 +140,8 @@ export class Vector2 extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector2 {
-    return new Vector2({
+  ): Vector2f {
+    return new Vector2f({
       x: objectValue["101"],
       y: objectValue["102"],
       _value: objectValue,
@@ -152,33 +155,33 @@ export class Vector2 extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector2 {
-    return Vector2.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Vector2f {
+    return Vector2f.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): Vector2Proto {
+  toProto(): Vector2fProto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Vector2.__packProto__(this);
+      this._proto = Vector2f.__packProto__(this);
     }
-    return this._proto as Vector2Proto;
+    return this._proto as Vector2fProto;
   }
 
-  static __packProto__(object: Vector2): Vector2Proto {
-    const objectProto: Partial<Vector2Proto> = { metatype: 500 };
+  static __packProto__(object: Vector2f): Vector2fProto {
+    const objectProto: Partial<Vector2fProto> = { metatype: 711 };
     objectProto.x = object.x;
     objectProto.y = object.y;
-    return objectProto as Vector2Proto;
+    return objectProto as Vector2fProto;
   }
 
   static __unpackProto__(
-    objectProto: Vector2Proto,
+    objectProto: Vector2fProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector2 {
-    return new Vector2({
+  ): Vector2f {
+    return new Vector2f({
       x: objectProto.x,
       y: objectProto.y,
       _proto: objectProto,
@@ -187,32 +190,32 @@ export class Vector2 extends StructFrozen {
   }
 
   static fromProto(
-    objectProto: Vector2Proto,
+    objectProto: Vector2fProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector2 {
-    return Vector2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Vector2f {
+    return Vector2f.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Vector2 {
+  static fromProtoString(packedProtoString: string): Vector2f {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector2Proto.fromBinary(packedProtoBytes);
+    const packedProto = Vector2fProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Add two vectors or a vector and a scalar. */
-  add(other: Vector2 | number): Vector2 {
+  add(other: Vector2f | number): Vector2f {
     if (typeof other === "number") {
-      return new Vector2({
+      return new Vector2f({
         x: this.x + other,
         y: this.y + other,
       });
     } else {
-      return new Vector2({
+      return new Vector2f({
         x: this.x + other.x,
         y: this.y + other.y,
       });
@@ -220,14 +223,14 @@ export class Vector2 extends StructFrozen {
   }
 
   /** Subtract two vectors or a vector and a scalar. */
-  sub(other: Vector2 | number): Vector2 {
+  sub(other: Vector2f | number): Vector2f {
     if (typeof other === "number") {
-      return new Vector2({
+      return new Vector2f({
         x: this.x - other,
         y: this.y - other,
       });
     } else {
-      return new Vector2({
+      return new Vector2f({
         x: this.x - other.x,
         y: this.y - other.y,
       });
@@ -235,14 +238,14 @@ export class Vector2 extends StructFrozen {
   }
 
   /** Multiply two vectors or a vector and a scalar. */
-  mul(other: Vector2 | number): Vector2 {
+  mul(other: Vector2f | number): Vector2f {
     if (typeof other === "number") {
-      return new Vector2({
+      return new Vector2f({
         x: this.x * other,
         y: this.y * other,
       });
     } else {
-      return new Vector2({
+      return new Vector2f({
         x: this.x * other.x,
         y: this.y * other.y,
       });
@@ -250,14 +253,14 @@ export class Vector2 extends StructFrozen {
   }
 
   /** Divide two vectors or a vector and a scalar. */
-  div(other: Vector2 | number): Vector2 {
+  div(other: Vector2f | number): Vector2f {
     if (typeof other === "number") {
-      return new Vector2({
+      return new Vector2f({
         x: this.x / other,
         y: this.y / other,
       });
     } else {
-      return new Vector2({
+      return new Vector2f({
         x: this.x / other.x,
         y: this.y / other.y,
       });
@@ -265,8 +268,8 @@ export class Vector2 extends StructFrozen {
   }
 
   /** Negate a vector. */
-  neg(): Vector2 {
-    return new Vector2({
+  neg(): Vector2f {
+    return new Vector2f({
       x: -this.x,
       y: -this.y,
     });
@@ -275,19 +278,19 @@ export class Vector2 extends StructFrozen {
   /**
    * Get the perpendicular vector (rotated 90 degrees counterclockwise).
    */
-  per(): Vector2 {
-    return new Vector2({
+  per(): Vector2f {
+    return new Vector2f({
       x: this.y,
       y: -this.x,
     });
   }
 
   /** Get the absolute value of a vector. */
-  abs(): Vector2 {
+  abs(): Vector2f {
     if (this.x >= 0 && this.y >= 0) {
       return this;
     } else {
-      return new Vector2({
+      return new Vector2f({
         x: Math.abs(this.x),
         y: Math.abs(this.y),
       });
@@ -297,15 +300,15 @@ export class Vector2 extends StructFrozen {
   /**
    * Calculate the dot product with another vector.
    */
-  dot(other: Vector2): number {
+  dot(other: Vector2f): number {
     return this.x * other.x + this.y * other.y;
   }
 
   /**
    * Calculate the linear interpolation between two vectors.
    */
-  lerp(other: Vector2, t: number): Vector2 {
-    return new Vector2({
+  lerp(other: Vector2f, t: number): Vector2f {
+    return new Vector2f({
       x: this.x + (other.x - this.x) * t,
       y: this.y + (other.y - this.y) * t,
     });
@@ -321,12 +324,12 @@ export class Vector2 extends StructFrozen {
   /**
    * Return a normalized (unit) vector.
    */
-  normalize(): Vector2 {
+  normalize(): Vector2f {
     const mag = this.magnitude();
     if (mag === 0) {
-      return new Vector2({ x: 0.0, y: 0.0 });
+      return new Vector2f({ x: 0.0, y: 0.0 });
     }
-    return new Vector2({
+    return new Vector2f({
       x: this.x / mag,
       y: this.y / mag,
     });
@@ -335,7 +338,7 @@ export class Vector2 extends StructFrozen {
   /**
    * Calculate the squared distance to another vector.
    */
-  distance2(other: Vector2): number {
+  distance2(other: Vector2f): number {
     const dx = this.x - other.x;
     const dy = this.y - other.y;
     return dx * dx + dy * dy;
@@ -344,19 +347,19 @@ export class Vector2 extends StructFrozen {
   /**
    * Calculate the distance to another vector.
    */
-  distance(other: Vector2): number {
+  distance(other: Vector2f): number {
     return Math.sqrt(this.distance2(other));
   }
 
   /**
    * Rotate this vector around another point by the given angle.
    */
-  rotWith(center: Vector2, angle: number): Vector2 {
+  rotWith(center: Vector2f, angle: number): Vector2f {
     const x = this.x - center.x;
     const y = this.y - center.y;
     const s = Math.sin(angle);
     const c = Math.cos(angle);
-    return new Vector2({
+    return new Vector2f({
       x: center.x + (x * c - y * s),
       y: center.y + (x * s + y * c),
     });
@@ -364,29 +367,29 @@ export class Vector2 extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.VECTOR2, Vector2);
-/* ==== DESTACK_GENERATED_END:STRUCT:500 ==== */
+registerStructClass(StructType.VECTOR2F, Vector2f);
+/* ==== DESTACK_GENERATED_END:STRUCT:711 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:501 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:712 ==== */
 /**
  * A 3D float vector.
  */
-export class Vector3 extends StructFrozen {
-  static metatype: StructType = StructType.VECTOR3;
+export class Vector3f extends StructFrozen {
+  static metatype: StructType = StructType.VECTOR3F;
   static __isFrozen__: boolean = true;
 
   /**
-   * Vector3.x
+   * Vector3f.x
    */
   readonly x: number;
 
   /**
-   * Vector3.y
+   * Vector3f.y
    */
   readonly y: number;
 
   /**
-   * Vector3.z
+   * Vector3f.z
    */
   readonly z: number;
 
@@ -411,17 +414,17 @@ export class Vector3 extends StructFrozen {
     // properties
     let _x = options.x;
     if (_x === null) {
-      throw new Error(`Vector3.x is required`);
+      throw new Error(`Vector3f.x is required`);
     }
     this.x = _x;
     let _y = options.y;
     if (_y === null) {
-      throw new Error(`Vector3.y is required`);
+      throw new Error(`Vector3f.y is required`);
     }
     this.y = _y;
     let _z = options.z;
     if (_z === null) {
-      throw new Error(`Vector3.z is required`);
+      throw new Error(`Vector3f.z is required`);
     }
     this.z = _z;
 
@@ -459,7 +462,7 @@ export class Vector3 extends StructFrozen {
       propertyReprs.push(`y=${this.y}`);
       propertyReprs.push(`z=${this.z}`);
       // @ts-expect-error(readonly)
-      this._repr = `<Vector3 ${propertyReprs.join(" ")}>`;
+      this._repr = `<Vector3f ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -487,14 +490,14 @@ export class Vector3 extends StructFrozen {
   toValue(): { [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
-      this._value = Vector3.__packValue__(this);
+      this._value = Vector3f.__packValue__(this);
     }
     return this._value;
   }
 
-  static __packValue__(object: Vector3): { [key: string]: any } {
+  static __packValue__(object: Vector3f): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 501;
+    objectValue["1"] = 712;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     objectValue["103"] = object.z;
@@ -507,8 +510,8 @@ export class Vector3 extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector3 {
-    return new Vector3({
+  ): Vector3f {
+    return new Vector3f({
       x: objectValue["101"],
       y: objectValue["102"],
       z: objectValue["103"],
@@ -523,34 +526,34 @@ export class Vector3 extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector3 {
-    return Vector3.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Vector3f {
+    return Vector3f.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): Vector3Proto {
+  toProto(): Vector3fProto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Vector3.__packProto__(this);
+      this._proto = Vector3f.__packProto__(this);
     }
-    return this._proto as Vector3Proto;
+    return this._proto as Vector3fProto;
   }
 
-  static __packProto__(object: Vector3): Vector3Proto {
-    const objectProto: Partial<Vector3Proto> = { metatype: 501 };
+  static __packProto__(object: Vector3f): Vector3fProto {
+    const objectProto: Partial<Vector3fProto> = { metatype: 712 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
-    return objectProto as Vector3Proto;
+    return objectProto as Vector3fProto;
   }
 
   static __unpackProto__(
-    objectProto: Vector3Proto,
+    objectProto: Vector3fProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector3 {
-    return new Vector3({
+  ): Vector3f {
+    return new Vector3f({
       x: objectProto.x,
       y: objectProto.y,
       z: objectProto.z,
@@ -560,33 +563,33 @@ export class Vector3 extends StructFrozen {
   }
 
   static fromProto(
-    objectProto: Vector3Proto,
+    objectProto: Vector3fProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector3 {
-    return Vector3.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Vector3f {
+    return Vector3f.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Vector3 {
+  static fromProtoString(packedProtoString: string): Vector3f {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector3Proto.fromBinary(packedProtoBytes);
+    const packedProto = Vector3fProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Add two vectors or a vector and a scalar. */
-  add(other: Vector3 | number): Vector3 {
+  add(other: Vector3f | number): Vector3f {
     if (typeof other === "number") {
-      return new Vector3({
+      return new Vector3f({
         x: this.x + other,
         y: this.y + other,
         z: this.z + other,
       });
     } else {
-      return new Vector3({
+      return new Vector3f({
         x: this.x + other.x,
         y: this.y + other.y,
         z: this.z + other.z,
@@ -595,15 +598,15 @@ export class Vector3 extends StructFrozen {
   }
 
   /** Subtract two vectors or a vector and a scalar. */
-  sub(other: Vector3 | number): Vector3 {
+  sub(other: Vector3f | number): Vector3f {
     if (typeof other === "number") {
-      return new Vector3({
+      return new Vector3f({
         x: this.x - other,
         y: this.y - other,
         z: this.z - other,
       });
     } else {
-      return new Vector3({
+      return new Vector3f({
         x: this.x - other.x,
         y: this.y - other.y,
         z: this.z - other.z,
@@ -612,15 +615,15 @@ export class Vector3 extends StructFrozen {
   }
 
   /** Multiply two vectors or a vector and a scalar. */
-  mul(other: Vector3 | number): Vector3 {
+  mul(other: Vector3f | number): Vector3f {
     if (typeof other === "number") {
-      return new Vector3({
+      return new Vector3f({
         x: this.x * other,
         y: this.y * other,
         z: this.z * other,
       });
     } else {
-      return new Vector3({
+      return new Vector3f({
         x: this.x * other.x,
         y: this.y * other.y,
         z: this.z * other.z,
@@ -629,15 +632,15 @@ export class Vector3 extends StructFrozen {
   }
 
   /** Divide two vectors or a vector and a scalar. */
-  div(other: Vector3 | number): Vector3 {
+  div(other: Vector3f | number): Vector3f {
     if (typeof other === "number") {
-      return new Vector3({
+      return new Vector3f({
         x: this.x / other,
         y: this.y / other,
         z: this.z / other,
       });
     } else {
-      return new Vector3({
+      return new Vector3f({
         x: this.x / other.x,
         y: this.y / other.y,
         z: this.z / other.z,
@@ -646,8 +649,8 @@ export class Vector3 extends StructFrozen {
   }
 
   /** Negate a vector. */
-  neg(): Vector3 {
-    return new Vector3({
+  neg(): Vector3f {
+    return new Vector3f({
       x: -this.x,
       y: -this.y,
       z: -this.z,
@@ -657,8 +660,8 @@ export class Vector3 extends StructFrozen {
   /**
    * Get the perpendicular vector (rotated 90 degrees counterclockwise).
    */
-  per(): Vector3 {
-    return new Vector3({
+  per(): Vector3f {
+    return new Vector3f({
       x: this.y,
       y: -this.x,
       z: 0,
@@ -666,11 +669,11 @@ export class Vector3 extends StructFrozen {
   }
 
   /** Get the absolute value of a vector. */
-  abs(): Vector3 {
+  abs(): Vector3f {
     if (this.x >= 0 && this.y >= 0 && this.z >= 0) {
       return this;
     } else {
-      return new Vector3({
+      return new Vector3f({
         x: Math.abs(this.x),
         y: Math.abs(this.y),
         z: Math.abs(this.z),
@@ -681,15 +684,15 @@ export class Vector3 extends StructFrozen {
   /**
    * Calculate the dot product with another vector.
    */
-  dot(other: Vector3): number {
+  dot(other: Vector3f): number {
     return this.x * other.x + this.y * other.y + this.z * other.z;
   }
 
   /**
    * Calculate the cross product with another vector.
    */
-  cross(other: Vector3): Vector3 {
-    return new Vector3({
+  cross(other: Vector3f): Vector3f {
+    return new Vector3f({
       x: this.y * other.z - this.z * other.y,
       y: this.z * other.x - this.x * other.z,
       z: this.x * other.y - this.y * other.x,
@@ -699,8 +702,8 @@ export class Vector3 extends StructFrozen {
   /**
    * Calculate the linear interpolation between two vectors.
    */
-  lerp(other: Vector3, t: number): Vector3 {
-    return new Vector3({
+  lerp(other: Vector3f, t: number): Vector3f {
+    return new Vector3f({
       x: this.x + (other.x - this.x) * t,
       y: this.y + (other.y - this.y) * t,
       z: this.z + (other.z - this.z) * t,
@@ -717,12 +720,12 @@ export class Vector3 extends StructFrozen {
   /**
    * Return a normalized (unit) vector.
    */
-  normalize(): Vector3 {
+  normalize(): Vector3f {
     const mag = this.magnitude();
     if (mag === 0) {
-      return new Vector3({ x: 0.0, y: 0.0, z: 0.0 });
+      return new Vector3f({ x: 0.0, y: 0.0, z: 0.0 });
     }
-    return new Vector3({
+    return new Vector3f({
       x: this.x / mag,
       y: this.y / mag,
       z: this.z / mag,
@@ -732,7 +735,7 @@ export class Vector3 extends StructFrozen {
   /**
    * Calculate the squared distance to another vector.
    */
-  distance2(other: Vector3): number {
+  distance2(other: Vector3f): number {
     const dx = this.x - other.x;
     const dy = this.y - other.y;
     const dz = this.z - other.z;
@@ -742,19 +745,19 @@ export class Vector3 extends StructFrozen {
   /**
    * Calculate the distance to another vector.
    */
-  distance(other: Vector3): number {
+  distance(other: Vector3f): number {
     return Math.sqrt(this.distance2(other));
   }
 
   /**
    * Rotate this vector around another point by the given angle.
    */
-  rotWith(center: Vector3, angle: number): Vector3 {
+  rotWith(center: Vector3f, angle: number): Vector3f {
     const x = this.x - center.x;
     const y = this.y - center.y;
     const s = Math.sin(angle);
     const c = Math.cos(angle);
-    return new Vector3({
+    return new Vector3f({
       x: center.x + (x * c - y * s),
       y: center.y + (x * s + y * c),
       z: this.z,
@@ -763,34 +766,34 @@ export class Vector3 extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.VECTOR3, Vector3);
-/* ==== DESTACK_GENERATED_END:STRUCT:501 ==== */
+registerStructClass(StructType.VECTOR3F, Vector3f);
+/* ==== DESTACK_GENERATED_END:STRUCT:712 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:502 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:713 ==== */
 /**
  * A 4D float vector.
  */
-export class Vector4 extends StructFrozen {
-  static metatype: StructType = StructType.VECTOR4;
+export class Vector4f extends StructFrozen {
+  static metatype: StructType = StructType.VECTOR4F;
   static __isFrozen__: boolean = true;
 
   /**
-   * Vector4.x
+   * Vector4f.x
    */
   readonly x: number;
 
   /**
-   * Vector4.y
+   * Vector4f.y
    */
   readonly y: number;
 
   /**
-   * Vector4.z
+   * Vector4f.z
    */
   readonly z: number;
 
   /**
-   * Vector4.w
+   * Vector4f.w
    */
   readonly w: number;
 
@@ -816,22 +819,22 @@ export class Vector4 extends StructFrozen {
     // properties
     let _x = options.x;
     if (_x === null) {
-      throw new Error(`Vector4.x is required`);
+      throw new Error(`Vector4f.x is required`);
     }
     this.x = _x;
     let _y = options.y;
     if (_y === null) {
-      throw new Error(`Vector4.y is required`);
+      throw new Error(`Vector4f.y is required`);
     }
     this.y = _y;
     let _z = options.z;
     if (_z === null) {
-      throw new Error(`Vector4.z is required`);
+      throw new Error(`Vector4f.z is required`);
     }
     this.z = _z;
     let _w = options.w;
     if (_w === null) {
-      throw new Error(`Vector4.w is required`);
+      throw new Error(`Vector4f.w is required`);
     }
     this.w = _w;
 
@@ -873,7 +876,7 @@ export class Vector4 extends StructFrozen {
       propertyReprs.push(`z=${this.z}`);
       propertyReprs.push(`w=${this.w}`);
       // @ts-expect-error(readonly)
-      this._repr = `<Vector4 ${propertyReprs.join(" ")}>`;
+      this._repr = `<Vector4f ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -902,14 +905,14 @@ export class Vector4 extends StructFrozen {
   toValue(): { [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
-      this._value = Vector4.__packValue__(this);
+      this._value = Vector4f.__packValue__(this);
     }
     return this._value;
   }
 
-  static __packValue__(object: Vector4): { [key: string]: any } {
+  static __packValue__(object: Vector4f): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 502;
+    objectValue["1"] = 713;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     objectValue["103"] = object.z;
@@ -923,8 +926,8 @@ export class Vector4 extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector4 {
-    return new Vector4({
+  ): Vector4f {
+    return new Vector4f({
       x: objectValue["101"],
       y: objectValue["102"],
       z: objectValue["103"],
@@ -940,35 +943,35 @@ export class Vector4 extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector4 {
-    return Vector4.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Vector4f {
+    return Vector4f.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): Vector4Proto {
+  toProto(): Vector4fProto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Vector4.__packProto__(this);
+      this._proto = Vector4f.__packProto__(this);
     }
-    return this._proto as Vector4Proto;
+    return this._proto as Vector4fProto;
   }
 
-  static __packProto__(object: Vector4): Vector4Proto {
-    const objectProto: Partial<Vector4Proto> = { metatype: 502 };
+  static __packProto__(object: Vector4f): Vector4fProto {
+    const objectProto: Partial<Vector4fProto> = { metatype: 713 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
     objectProto.w = object.w;
-    return objectProto as Vector4Proto;
+    return objectProto as Vector4fProto;
   }
 
   static __unpackProto__(
-    objectProto: Vector4Proto,
+    objectProto: Vector4fProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector4 {
-    return new Vector4({
+  ): Vector4f {
+    return new Vector4f({
       x: objectProto.x,
       y: objectProto.y,
       z: objectProto.z,
@@ -979,34 +982,34 @@ export class Vector4 extends StructFrozen {
   }
 
   static fromProto(
-    objectProto: Vector4Proto,
+    objectProto: Vector4fProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector4 {
-    return Vector4.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Vector4f {
+    return Vector4f.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Vector4 {
+  static fromProtoString(packedProtoString: string): Vector4f {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector4Proto.fromBinary(packedProtoBytes);
+    const packedProto = Vector4fProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Add two vectors or a vector and a scalar. */
-  add(other: Vector4 | number): Vector4 {
+  add(other: Vector4f | number): Vector4f {
     if (typeof other === "number") {
-      return new Vector4({
+      return new Vector4f({
         x: this.x + other,
         y: this.y + other,
         z: this.z + other,
         w: this.w + other,
       });
     } else {
-      return new Vector4({
+      return new Vector4f({
         x: this.x + other.x,
         y: this.y + other.y,
         z: this.z + other.z,
@@ -1016,16 +1019,16 @@ export class Vector4 extends StructFrozen {
   }
 
   /** Subtract two vectors or a vector and a scalar. */
-  sub(other: Vector4 | number): Vector4 {
+  sub(other: Vector4f | number): Vector4f {
     if (typeof other === "number") {
-      return new Vector4({
+      return new Vector4f({
         x: this.x - other,
         y: this.y - other,
         z: this.z - other,
         w: this.w - other,
       });
     } else {
-      return new Vector4({
+      return new Vector4f({
         x: this.x - other.x,
         y: this.y - other.y,
         z: this.z - other.z,
@@ -1035,16 +1038,16 @@ export class Vector4 extends StructFrozen {
   }
 
   /** Multiply two vectors or a vector and a scalar. */
-  mul(other: Vector4 | number): Vector4 {
+  mul(other: Vector4f | number): Vector4f {
     if (typeof other === "number") {
-      return new Vector4({
+      return new Vector4f({
         x: this.x * other,
         y: this.y * other,
         z: this.z * other,
         w: this.w * other,
       });
     } else {
-      return new Vector4({
+      return new Vector4f({
         x: this.x * other.x,
         y: this.y * other.y,
         z: this.z * other.z,
@@ -1054,16 +1057,16 @@ export class Vector4 extends StructFrozen {
   }
 
   /** Divide two vectors or a vector and a scalar. */
-  div(other: Vector4 | number): Vector4 {
+  div(other: Vector4f | number): Vector4f {
     if (typeof other === "number") {
-      return new Vector4({
+      return new Vector4f({
         x: this.x / other,
         y: this.y / other,
         z: this.z / other,
         w: this.w / other,
       });
     } else {
-      return new Vector4({
+      return new Vector4f({
         x: this.x / other.x,
         y: this.y / other.y,
         z: this.z / other.z,
@@ -1073,8 +1076,8 @@ export class Vector4 extends StructFrozen {
   }
 
   /** Negate a vector. */
-  neg(): Vector4 {
-    return new Vector4({
+  neg(): Vector4f {
+    return new Vector4f({
       x: -this.x,
       y: -this.y,
       z: -this.z,
@@ -1085,8 +1088,8 @@ export class Vector4 extends StructFrozen {
   /**
    * Get the perpendicular vector (rotated 90 degrees counterclockwise).
    */
-  per(): Vector4 {
-    return new Vector4({
+  per(): Vector4f {
+    return new Vector4f({
       x: this.y,
       y: -this.x,
       z: 0,
@@ -1095,11 +1098,11 @@ export class Vector4 extends StructFrozen {
   }
 
   /** Get the absolute value of a vector. */
-  abs(): Vector4 {
+  abs(): Vector4f {
     if (this.x >= 0 && this.y >= 0 && this.z >= 0 && this.w >= 0) {
       return this;
     } else {
-      return new Vector4({
+      return new Vector4f({
         x: Math.abs(this.x),
         y: Math.abs(this.y),
         z: Math.abs(this.z),
@@ -1111,15 +1114,15 @@ export class Vector4 extends StructFrozen {
   /**
    * Calculate the dot product with another vector.
    */
-  dot(other: Vector4): number {
+  dot(other: Vector4f): number {
     return this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w;
   }
 
   /**
    * Calculate the cross product with another vector.
    */
-  cross(other: Vector4): Vector4 {
-    return new Vector4({
+  cross(other: Vector4f): Vector4f {
+    return new Vector4f({
       x: this.y * other.z - this.z * other.y,
       y: this.z * other.x - this.x * other.z,
       z: this.x * other.y - this.y * other.x,
@@ -1130,8 +1133,8 @@ export class Vector4 extends StructFrozen {
   /**
    * Calculate the linear interpolation between two vectors.
    */
-  lerp(other: Vector4, t: number): Vector4 {
-    return new Vector4({
+  lerp(other: Vector4f, t: number): Vector4f {
+    return new Vector4f({
       x: this.x + (other.x - this.x) * t,
       y: this.y + (other.y - this.y) * t,
       z: this.z + (other.z - this.z) * t,
@@ -1149,12 +1152,12 @@ export class Vector4 extends StructFrozen {
   /**
    * Return a normalized (unit) vector.
    */
-  normalize(): Vector4 {
+  normalize(): Vector4f {
     const mag = this.magnitude();
     if (mag === 0) {
-      return new Vector4({ x: 0.0, y: 0.0, z: 0.0, w: 0.0 });
+      return new Vector4f({ x: 0.0, y: 0.0, z: 0.0, w: 0.0 });
     }
-    return new Vector4({
+    return new Vector4f({
       x: this.x / mag,
       y: this.y / mag,
       z: this.z / mag,
@@ -1165,7 +1168,7 @@ export class Vector4 extends StructFrozen {
   /**
    * Calculate the squared distance to another vector.
    */
-  distance2(other: Vector4): number {
+  distance2(other: Vector4f): number {
     const dx = this.x - other.x;
     const dy = this.y - other.y;
     const dz = this.z - other.z;
@@ -1176,19 +1179,19 @@ export class Vector4 extends StructFrozen {
   /**
    * Calculate the distance to another vector.
    */
-  distance(other: Vector4): number {
+  distance(other: Vector4f): number {
     return Math.sqrt(this.distance2(other));
   }
 
   /**
    * Rotate this vector around another point by the given angle.
    */
-  rotWith(center: Vector4, angle: number): Vector4 {
+  rotWith(center: Vector4f, angle: number): Vector4f {
     const x = this.x - center.x;
     const y = this.y - center.y;
     const s = Math.sin(angle);
     const c = Math.cos(angle);
-    return new Vector4({
+    return new Vector4f({
       x: center.x + (x * c - y * s),
       y: center.y + (x * s + y * c),
       z: this.z,
@@ -1198,10 +1201,10 @@ export class Vector4 extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.VECTOR4, Vector4);
-/* ==== DESTACK_GENERATED_END:STRUCT:502 ==== */
+registerStructClass(StructType.VECTOR4F, Vector4f);
+/* ==== DESTACK_GENERATED_END:STRUCT:713 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:503 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:721 ==== */
 /**
  * A 2D integer vector.
  */
@@ -1312,7 +1315,7 @@ export class Vector2i extends StructFrozen {
 
   static __packValue__(object: Vector2i): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 503;
+    objectValue["1"] = 721;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     return objectValue;
@@ -1352,7 +1355,7 @@ export class Vector2i extends StructFrozen {
   }
 
   static __packProto__(object: Vector2i): Vector2iProto {
-    const objectProto: Partial<Vector2iProto> = { metatype: 503 };
+    const objectProto: Partial<Vector2iProto> = { metatype: 721 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     return objectProto as Vector2iProto;
@@ -1552,9 +1555,9 @@ export class Vector2i extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR2I, Vector2i);
-/* ==== DESTACK_GENERATED_END:STRUCT:503 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:721 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:504 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:722 ==== */
 /**
  * A 3D integer vector.
  */
@@ -1681,7 +1684,7 @@ export class Vector3i extends StructFrozen {
 
   static __packValue__(object: Vector3i): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 504;
+    objectValue["1"] = 722;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     objectValue["103"] = object.z;
@@ -1723,7 +1726,7 @@ export class Vector3i extends StructFrozen {
   }
 
   static __packProto__(object: Vector3i): Vector3iProto {
-    const objectProto: Partial<Vector3iProto> = { metatype: 504 };
+    const objectProto: Partial<Vector3iProto> = { metatype: 722 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
@@ -1941,9 +1944,9 @@ export class Vector3i extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR3I, Vector3i);
-/* ==== DESTACK_GENERATED_END:STRUCT:504 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:722 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:505 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:723 ==== */
 /**
  * A 4D integer vector.
  */
@@ -2086,7 +2089,7 @@ export class Vector4i extends StructFrozen {
 
   static __packValue__(object: Vector4i): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 505;
+    objectValue["1"] = 723;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     objectValue["103"] = object.z;
@@ -2130,7 +2133,7 @@ export class Vector4i extends StructFrozen {
   }
 
   static __packProto__(object: Vector4i): Vector4iProto {
-    const objectProto: Partial<Vector4iProto> = { metatype: 505 };
+    const objectProto: Partial<Vector4iProto> = { metatype: 723 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
@@ -2348,8 +2351,439 @@ export class Vector4i extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR4I, Vector4i);
-/* ==== DESTACK_GENERATED_END:STRUCT:505 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:723 ==== */
 
-export type Vectorf = Vector2 | Vector3 | Vector4;
-export type Vectori = Vector2i | Vector3i | Vector4i;
-export type Vector = Vectorf | Vectori;
+/* ==== DESTACK_GENERATED_START:STRUCT:700 ==== */
+/**
+ * A vector.
+ */
+export class Vector extends StructFrozen {
+  static metatype: StructType = StructType.VECTOR;
+  static __isFrozen__: boolean = true;
+
+  constructor(options: {
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Vector>`;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Vector.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Vector): { [key: string]: any } {
+    throw new Error("cannot pack abstract Vector");
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector {
+    throw new Error("cannot unpack abstract Vector");
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector {
+    return Vector.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): VectorProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Vector.__packProto__(this);
+    }
+    return this._proto as VectorProto;
+  }
+
+  static __packProto__(object: Vector): VectorProto {
+    const objectProto: Partial<VectorProto> = { metatype: 700 };
+    return objectProto as VectorProto;
+  }
+
+  static __unpackProto__(
+    objectProto: VectorProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector {
+    return new Vector({
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: VectorProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector {
+    return Vector.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Vector {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = VectorProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.VECTOR, Vector);
+/* ==== DESTACK_GENERATED_END:STRUCT:700 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:710 ==== */
+/**
+ * A floating point vector.
+ */
+export class Vectorf extends StructFrozen {
+  static metatype: StructType = StructType.VECTORF;
+  static __isFrozen__: boolean = true;
+
+  constructor(options: {
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Vectorf>`;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Vectorf.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Vectorf): { [key: string]: any } {
+    throw new Error("cannot pack abstract Vectorf");
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vectorf {
+    throw new Error("cannot unpack abstract Vectorf");
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vectorf {
+    return Vectorf.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): VectorfProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Vectorf.__packProto__(this);
+    }
+    return this._proto as VectorfProto;
+  }
+
+  static __packProto__(object: Vectorf): VectorfProto {
+    const objectProto: Partial<VectorfProto> = { metatype: 710 };
+    return objectProto as VectorfProto;
+  }
+
+  static __unpackProto__(
+    objectProto: VectorfProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vectorf {
+    return new Vectorf({
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: VectorfProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vectorf {
+    return Vectorf.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Vectorf {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = VectorfProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.VECTORF, Vectorf);
+/* ==== DESTACK_GENERATED_END:STRUCT:710 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:720 ==== */
+/**
+ * An integer vector.
+ */
+export class Vectori extends StructFrozen {
+  static metatype: StructType = StructType.VECTORI;
+  static __isFrozen__: boolean = true;
+
+  constructor(options: {
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Vectori>`;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Vectori.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Vectori): { [key: string]: any } {
+    throw new Error("cannot pack abstract Vectori");
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vectori {
+    throw new Error("cannot unpack abstract Vectori");
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vectori {
+    return Vectori.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): VectoriProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Vectori.__packProto__(this);
+    }
+    return this._proto as VectoriProto;
+  }
+
+  static __packProto__(object: Vectori): VectoriProto {
+    const objectProto: Partial<VectoriProto> = { metatype: 720 };
+    return objectProto as VectoriProto;
+  }
+
+  static __unpackProto__(
+    objectProto: VectoriProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vectori {
+    return new Vectori({
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: VectoriProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vectori {
+    return Vectori.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Vectori {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = VectoriProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.VECTORI, Vectori);
+/* ==== DESTACK_GENERATED_END:STRUCT:720 ==== */

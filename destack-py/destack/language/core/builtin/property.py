@@ -451,7 +451,7 @@ class PropertyDeclaration(TypeDeclaration):
     @property
     def definition(self) -> "PropertyDefinition":
         if self._definition is None:
-            from ..common.meta import PropertyDefinition
+            from ..common.definition import PropertyDefinition
 
             self._definition = PropertyDefinition.from_property(self)
         return self._definition

@@ -1356,49 +1356,55 @@ enum StructDefinitionTypeProto {
 
 enum StructTypeProto {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_NODE_REFERENCE = 100;
-  STRUCT_TYPE_PROPERTY_REFERENCE = 101;
-  STRUCT_TYPE_PROPERTY_DEFINITION = 102;
+  STRUCT_TYPE_STRUCT = 1;
+  STRUCT_TYPE_CUSTOM_STRUCT = 2;
+  STRUCT_TYPE_BUILTIN_DEFINITION = 100;
+  STRUCT_TYPE_BUILTIN_OBJECT_DEFINITION = 101;
+  STRUCT_TYPE_NODE_DEFINITION = 102;
   STRUCT_TYPE_TRAIT_DEFINITION = 103;
-  STRUCT_TYPE_NODE_DEFINITION = 104;
-  STRUCT_TYPE_STRUCT_DEFINITION = 105;
+  STRUCT_TYPE_STRUCT_DEFINITION = 104;
+  STRUCT_TYPE_PROPERTY_DEFINITION = 105;
   STRUCT_TYPE_ENUM_DEFINITION = 106;
   STRUCT_TYPE_OPTION_DEFINITION = 107;
   STRUCT_TYPE_PERMISSION_DEFINITION = 108;
   STRUCT_TYPE_CONSTANT_DEFINITION = 109;
-  STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 150;
-  STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 151;
-  STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 152;
-  STRUCT_TYPE_CUSTOM_STRUCT = 153;
-  STRUCT_TYPE_EDIT = 200;
-  STRUCT_TYPE_CHANGE = 201;
-  STRUCT_TYPE_CHANGE_RESULT = 202;
-  STRUCT_TYPE_ORIGIN = 203;
-  STRUCT_TYPE_EXPRESSION = 300;
-  STRUCT_TYPE_FUNCTION = 301;
-  STRUCT_TYPE_JOIN = 302;
-  STRUCT_TYPE_AGGREGATION = 303;
-  STRUCT_TYPE_CONDITION = 304;
-  STRUCT_TYPE_SORT = 305;
-  STRUCT_TYPE_SELECT = 306;
-  STRUCT_TYPE_QUERY = 307;
-  STRUCT_TYPE_QUERY_RESULT = 308;
-  STRUCT_TYPE_QUERY_RESULT_GROUP = 309;
-  STRUCT_TYPE_QUERY_UPDATE = 310;
-  STRUCT_TYPE_HISTOGRAM = 311;
-  STRUCT_TYPE_SELECTION = 312;
-  STRUCT_TYPE_VALUE = 400;
-  STRUCT_TYPE_TYPE = 401;
-  STRUCT_TYPE_NUMBER_CONSTRAINT = 410;
-  STRUCT_TYPE_STRING_CONSTRAINT = 411;
-  STRUCT_TYPE_COLLECTION_CONSTRAINT = 412;
-  STRUCT_TYPE_NODE_CONSTRAINT = 413;
-  STRUCT_TYPE_VECTOR2 = 500;
-  STRUCT_TYPE_VECTOR3 = 501;
-  STRUCT_TYPE_VECTOR4 = 502;
-  STRUCT_TYPE_VECTOR2I = 503;
-  STRUCT_TYPE_VECTOR3I = 504;
-  STRUCT_TYPE_VECTOR4I = 505;
+  STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 200;
+  STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 201;
+  STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 202;
+  STRUCT_TYPE_NODE_REFERENCE = 250;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 251;
+  STRUCT_TYPE_EDIT = 300;
+  STRUCT_TYPE_CHANGE = 301;
+  STRUCT_TYPE_CHANGE_RESULT = 302;
+  STRUCT_TYPE_ORIGIN = 303;
+  STRUCT_TYPE_EXPRESSION = 500;
+  STRUCT_TYPE_FUNCTION = 501;
+  STRUCT_TYPE_JOIN = 502;
+  STRUCT_TYPE_AGGREGATION = 503;
+  STRUCT_TYPE_CONDITION = 504;
+  STRUCT_TYPE_SORT = 505;
+  STRUCT_TYPE_SELECT = 506;
+  STRUCT_TYPE_QUERY = 550;
+  STRUCT_TYPE_QUERY_RESULT = 551;
+  STRUCT_TYPE_QUERY_RESULT_GROUP = 552;
+  STRUCT_TYPE_QUERY_UPDATE = 553;
+  STRUCT_TYPE_HISTOGRAM = 554;
+  STRUCT_TYPE_SELECTION = 555;
+  STRUCT_TYPE_VALUE = 600;
+  STRUCT_TYPE_TYPE = 601;
+  STRUCT_TYPE_NUMBER_CONSTRAINT = 650;
+  STRUCT_TYPE_STRING_CONSTRAINT = 651;
+  STRUCT_TYPE_COLLECTION_CONSTRAINT = 652;
+  STRUCT_TYPE_NODE_CONSTRAINT = 653;
+  STRUCT_TYPE_VECTOR = 700;
+  STRUCT_TYPE_VECTORF = 710;
+  STRUCT_TYPE_VECTOR2F = 711;
+  STRUCT_TYPE_VECTOR3F = 712;
+  STRUCT_TYPE_VECTOR4F = 713;
+  STRUCT_TYPE_VECTORI = 720;
+  STRUCT_TYPE_VECTOR2I = 721;
+  STRUCT_TYPE_VECTOR3I = 722;
+  STRUCT_TYPE_VECTOR4I = 723;
   STRUCT_TYPE_TEXT = 60020;
   STRUCT_TYPE_TEXT_SPAN = 60021;
   STRUCT_TYPE_ICON = 60031;
@@ -1670,7 +1676,7 @@ message AnnotationShapeProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -1682,9 +1688,9 @@ message AnnotationShapeProto {
 message ArrowProto {
   StructTypeProto metatype = 1;
   ArrowHeadTypeProto start_type = 200;
-  Vector2Proto start = 201;
+  Vector2fProto start = 201;
   ArrowHeadTypeProto end_type = 210;
-  Vector2Proto end = 211;
+  Vector2fProto end = 211;
 }
 
 // An ArrowShape is a shape that represents an arrow.
@@ -1730,16 +1736,16 @@ message ArrowShapeProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
   optional CornersProto radius = 148;
   optional StrokeProto stroke = 180;
   ArrowHeadTypeProto start_type = 200;
-  Vector2Proto start = 201;
+  Vector2fProto start = 201;
   ArrowHeadTypeProto end_type = 210;
-  Vector2Proto end = 211;
+  Vector2fProto end = 211;
 }
 
 message Axis2Proto {
@@ -1811,6 +1817,23 @@ message BranchProto {
   optional NodeReferenceProto head_ptr = 110;
 }
 
+message BuiltinDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+}
+
+message BuiltinObjectDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+  repeated PropertyDefinitionProto properties = 105;
+}
+
 // A Canvas is a container for only Shapes (other than that it's just a ContainerView).
 message CanvasProto {
   NodeTypeProto metatype = 1;
@@ -1855,7 +1878,7 @@ message CanvasProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -1879,6 +1902,7 @@ message ChangeEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -1905,10 +1929,11 @@ message ClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -1954,6 +1979,7 @@ message ClipboardEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -2065,7 +2091,7 @@ message ContainerViewProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -2112,6 +2138,7 @@ message CopyEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -2133,6 +2160,7 @@ message CounterMeasurementEventProto {
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -2390,6 +2418,7 @@ message CutEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -2450,10 +2479,11 @@ message DoubleClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -2469,10 +2499,11 @@ message DragEndEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
 }
 
 // A DragEnterEvent is a DragEvent when a drag enters an element.
@@ -2481,10 +2512,11 @@ message DragEnterEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
 }
 
 // A DragEvent is an InputEvent that corresponds to some direct user input with a drag.
@@ -2493,10 +2525,11 @@ message DragEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
 }
 
 // A DragLeaveEvent is a DragEvent when a drag leaves an element.
@@ -2505,10 +2538,11 @@ message DragLeaveEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
 }
 
 // A DragOverEvent is a DragEvent when a drag is over an element.
@@ -2517,10 +2551,11 @@ message DragOverEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
 }
 
 // A DragStartEvent is a DragEvent when a drag starts.
@@ -2529,10 +2564,11 @@ message DragStartEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
 }
 
 // A DropEvent is a DragEvent when a drag is dropped on an element.
@@ -2541,10 +2577,11 @@ message DropEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
 }
 
 message EditProto {
@@ -2567,6 +2604,7 @@ message EditEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   EditTypeProto type = 100;
@@ -2577,7 +2615,6 @@ message EditEventProto {
   optional google.protobuf.Value key_unpacked = 105;
   optional ValueProto value = 110;
   optional EditProto undo = 120;
-  optional NodeReferenceProto snapshot_ptr = 121;
   repeated string ancestors_ids = 122;
 }
 
@@ -2586,10 +2623,10 @@ message EffectProto {
   EffectTypeProto type = 100;
   optional NodeReferenceProto style_ptr = 101;
   optional double opacity = 102;
-  optional Vector2Proto offset = 103;
+  optional Vector2fProto offset = 103;
   optional double scale = 104;
   optional Axis3Proto rotate = 105;
-  optional Vector2Proto skew = 106;
+  optional Vector2fProto skew = 106;
   optional double perspective = 107;
   optional google.protobuf.Duration delay = 108;
   optional double duration = 109;
@@ -2621,10 +2658,10 @@ message EffectStyleProto {
   EffectTypeProto type = 100;
   string name = 101;
   optional double opacity = 200;
-  optional Vector2Proto offset = 201;
+  optional Vector2fProto offset = 201;
   optional double scale = 202;
   optional Axis3Proto rotate = 203;
-  optional Vector2Proto skew = 204;
+  optional Vector2fProto skew = 204;
   optional double perspective = 205;
   optional google.protobuf.Duration delay = 206;
   optional double duration = 207;
@@ -2662,6 +2699,7 @@ message EntitlementEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -2673,6 +2711,7 @@ message EntitlementExpiredEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -2684,6 +2723,7 @@ message EntitlementGrantedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -2695,6 +2735,7 @@ message EntitlementRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -2706,6 +2747,7 @@ message EntitlementRevokedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -2764,6 +2806,7 @@ message EventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -2883,6 +2926,7 @@ message FocusEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -2894,6 +2938,7 @@ message FocusInEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -2905,6 +2950,7 @@ message FocusOutEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3040,7 +3086,7 @@ message FrameViewProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -3088,6 +3134,7 @@ message FriendshipInviteAcceptedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3099,6 +3146,7 @@ message FriendshipInviteEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3110,6 +3158,7 @@ message FriendshipInviteRejectedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3121,6 +3170,7 @@ message FriendshipInviteRescindedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3132,6 +3182,7 @@ message FriendshipInviteSentEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3158,6 +3209,7 @@ message GaugeMeasurementEventProto {
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3269,6 +3321,7 @@ message HistogramMeasurementEventProto {
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3312,6 +3365,7 @@ message InputEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3443,6 +3497,7 @@ message InviteAcceptedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3458,6 +3513,7 @@ message InviteEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3471,6 +3527,7 @@ message InviteRejectedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3484,6 +3541,7 @@ message InviteRescindedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3497,6 +3555,7 @@ message InviteSentEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3521,6 +3580,7 @@ message KeyDownEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3539,6 +3599,7 @@ message KeyPressEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3557,6 +3618,7 @@ message KeyUpEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3575,6 +3637,7 @@ message KeyboardEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3630,7 +3693,7 @@ message LabelViewProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -3683,7 +3746,7 @@ message LayerProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -3696,10 +3759,11 @@ message LeftClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -3718,7 +3782,7 @@ message LengthProto {
 message LineProto {
   StructTypeProto metatype = 1;
   optional StrokeProto stroke = 200;
-  repeated Vector2Proto points = 210;
+  repeated Vector2fProto points = 210;
 }
 
 // A LineShape is a shape that represents a line.
@@ -3764,13 +3828,13 @@ message LineShapeProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
   optional CornersProto radius = 148;
   optional StrokeProto stroke = 180;
-  repeated Vector2Proto points = 200;
+  repeated Vector2fProto points = 200;
 }
 
 // A Log message.
@@ -3779,6 +3843,7 @@ message LogEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3793,10 +3858,11 @@ message LongPressEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -3848,6 +3914,7 @@ message MeasurementEventProto {
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -3881,6 +3948,7 @@ message MembershipEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3894,6 +3962,7 @@ message MembershipJoinedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3909,6 +3978,7 @@ message MembershipLeftEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -3968,10 +4038,11 @@ message MiddleClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -3987,10 +4058,11 @@ message MouseEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4053,8 +4125,8 @@ message NodeReferenceProto {
   string id = 101;
   optional string definition_id = 102;
   optional string snapshot_id = 103;
-  optional string space_id = 104;
-  optional StoreTypeProto store_type = 105;
+  optional string space_id = 110;
+  optional StoreTypeProto store_type = 111;
 }
 
 // A Notification is a message about something.
@@ -4084,6 +4156,7 @@ message NotificationDismissedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4095,6 +4168,7 @@ message NotificationEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4106,6 +4180,7 @@ message NotificationExpiredEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4117,6 +4192,7 @@ message NotificationReadEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4128,6 +4204,7 @@ message NotificationRescindedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4139,6 +4216,7 @@ message NotificationSentEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4262,6 +4340,7 @@ message PasteEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
@@ -4293,8 +4372,9 @@ message PermissionDefinitionProto {
   int64 id = 2 [jstype = JS_NUMBER];
   EnumTypeProto type = 100;
   string name = 101;
-  NodeTypeProto node_type = 102;
-  optional IconProto icon = 103;
+  optional IconProto icon = 102;
+  optional string description = 103;
+  NodeTypeProto node_type = 110;
 }
 
 // A PointerDownEvent is a PointerEvent when a pointer is pressed down.
@@ -4303,10 +4383,11 @@ message PointerDownEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4321,10 +4402,11 @@ message PointerEnterEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4339,10 +4421,11 @@ message PointerEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4357,10 +4440,11 @@ message PointerLeaveEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4375,10 +4459,11 @@ message PointerMoveEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4393,10 +4478,11 @@ message PointerOverEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4411,10 +4497,11 @@ message PointerUpEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4505,6 +4592,7 @@ message QueryEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   QueryTypeProto type = 100;
@@ -4625,10 +4713,11 @@ message RightClickEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4666,6 +4755,7 @@ message RoleAssignedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4678,6 +4768,7 @@ message RoleEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4690,6 +4781,7 @@ message RoleUnassignedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4751,6 +4843,7 @@ message RunCompletedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4763,6 +4856,7 @@ message RunEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4775,6 +4869,7 @@ message RunFailedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4787,6 +4882,7 @@ message RunPauseRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4799,6 +4895,7 @@ message RunPausedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4811,6 +4908,7 @@ message RunResumeRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4823,6 +4921,7 @@ message RunResumedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4835,6 +4934,7 @@ message RunStartedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4847,6 +4947,7 @@ message RunStopRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4879,6 +4980,7 @@ message SanctionEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4890,6 +4992,7 @@ message SanctionExpiredEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4901,6 +5004,7 @@ message SanctionGrantedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4912,6 +5016,7 @@ message SanctionRequestedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4923,6 +5028,7 @@ message SanctionRevokedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4973,7 +5079,7 @@ message SceneProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -4987,6 +5093,7 @@ message SceneEnteredEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -4998,6 +5105,7 @@ message SceneEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -5009,6 +5117,7 @@ message SceneExitedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -5195,7 +5304,7 @@ message ShapeProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -5212,6 +5321,7 @@ message SignalProto {
   optional NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
   optional NodeDefinitionReferenceProto base_type = 7;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   map<string, ValueProto> custom_values = 26;
@@ -5318,6 +5428,7 @@ message SpanEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -5366,7 +5477,7 @@ message SplitViewProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
+  optional Vector2fProto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -5428,10 +5539,10 @@ message StrokePathProto {
 
 message StrokePointProto {
   StructTypeProto metatype = 1;
-  Vector2Proto point = 101;
-  Vector2Proto original_point = 102;
+  Vector2fProto point = 101;
+  Vector2fProto original_point = 102;
   double pressure = 103;
-  Vector2Proto direction = 104;
+  Vector2fProto direction = 104;
   double distance = 105;
   double running_length = 106;
   double radius = 107;
@@ -5465,6 +5576,10 @@ message StrokeStyleProto {
   optional StrokeCapProto end = 206;
 }
 
+message StructProto {
+  StructTypeProto metatype = 1;
+}
+
 message StructDefinitionProto {
   StructTypeProto metatype = 1;
   int64 id = 2 [jstype = JS_NUMBER];
@@ -5472,7 +5587,7 @@ message StructDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-  repeated PropertyDefinitionProto properties = 104;
+  repeated PropertyDefinitionProto properties = 105;
   bool is_frozen = 110;
 }
 
@@ -5710,6 +5825,7 @@ message TimerCancelledEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -5721,6 +5837,7 @@ message TimerCompletedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -5732,6 +5849,7 @@ message TimerEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -5743,6 +5861,7 @@ message TimerStartedEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -5753,11 +5872,11 @@ message TraitDefinitionProto {
   int64 id = 2 [jstype = JS_NUMBER];
   TraitTypeProto type = 100;
   string name = 101;
-  string alias = 102;
-  optional IconProto icon = 103;
-  optional string description = 104;
+  optional IconProto icon = 102;
+  optional string description = 103;
   repeated PropertyDefinitionProto properties = 105;
-  bool is_extensible = 110;
+  string alias = 110;
+  bool is_extensible = 111;
   repeated TraitTypeProto traits = 120;
   repeated TraitTypeProto base_traits = 121;
 }
@@ -5834,6 +5953,7 @@ message TriggerEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   NodeReferenceProto node_ptr = 101;
@@ -5889,7 +6009,7 @@ message UserProto {
 message ValueProto {
   StructTypeProto metatype = 1;
   TypeProto type = 100;
-  google.protobuf.Value value = 110;
+  optional google.protobuf.Value value = 110;
 }
 
 // A Variant is an alternative presentation of a visual.
@@ -5918,7 +6038,11 @@ message VariantProto {
   optional LengthProto min_height = 113;
 }
 
-message Vector2Proto {
+message VectorProto {
+  StructTypeProto metatype = 1;
+}
+
+message Vector2fProto {
   StructTypeProto metatype = 1;
   double x = 101;
   double y = 102;
@@ -5930,7 +6054,7 @@ message Vector2iProto {
   int64 y = 102 [jstype = JS_NUMBER];
 }
 
-message Vector3Proto {
+message Vector3fProto {
   StructTypeProto metatype = 1;
   double x = 101;
   double y = 102;
@@ -5944,7 +6068,7 @@ message Vector3iProto {
   int64 z = 103 [jstype = JS_NUMBER];
 }
 
-message Vector4Proto {
+message Vector4fProto {
   StructTypeProto metatype = 1;
   double x = 101;
   double y = 102;
@@ -5958,6 +6082,14 @@ message Vector4iProto {
   int64 y = 102 [jstype = JS_NUMBER];
   int64 z = 103 [jstype = JS_NUMBER];
   int64 w = 104 [jstype = JS_NUMBER];
+}
+
+message VectorfProto {
+  StructTypeProto metatype = 1;
+}
+
+message VectoriProto {
+  StructTypeProto metatype = 1;
 }
 
 // A View is a graphical interface.
@@ -5997,10 +6129,11 @@ message WheelEventProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2Proto position = 110;
+  Vector2fProto position = 110;
   double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -6008,7 +6141,7 @@ message WheelEventProto {
   bool meta_key = 123;
   bool accel_key = 124;
   MouseButtonProto button = 130;
-  Vector2Proto delta = 140;
+  Vector2fProto delta = 140;
 }
 
 // A Window for someone to interact with a Space via Scenes.

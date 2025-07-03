@@ -6,7 +6,7 @@ import type {
   NodeDefinitionReference,
   NodeReference,
 } from "@destack/language/core/builtin/relation";
-import type { PropertyDefinition, TraitDefinition } from "@destack/language/core/common/meta";
+import type { PropertyDefinition, TraitDefinition } from "@destack/language/core/common/definition";
 import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
 import { registerEnumClass, registerTraitClass } from "@destack/language/registry";

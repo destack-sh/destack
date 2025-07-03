@@ -97,7 +97,7 @@ export enum ChangeDebounce {
 registerEnumClass(EnumType.CHANGE_DEBOUNCE, ChangeDebounce);
 /* ==== DESTACK_GENERATED_END:ENUM:53 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:200 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:300 ==== */
 /**
  * An Edit to a Node.
  */
@@ -382,7 +382,7 @@ export class Edit extends StructFrozen {
 
   static __packValue__(object: Edit): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 200;
+    objectValue["1"] = 300;
     objectValue["2"] = String(object.id);
     objectValue["100"] = object.type;
     if (object.operation != null) {
@@ -501,7 +501,7 @@ export class Edit extends StructFrozen {
   }
 
   static __packProto__(object: Edit): EditProto {
-    const objectProto: Partial<EditProto> = { metatype: 200 };
+    const objectProto: Partial<EditProto> = { metatype: 300 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as EditTypeProto;
     if (object.operation != null) {
@@ -625,9 +625,250 @@ export class Edit extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EDIT, Edit);
-/* ==== DESTACK_GENERATED_END:STRUCT:200 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:300 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:201 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:303 ==== */
+/**
+ * Origin of something.
+ */
+export class Origin extends StructFrozen {
+  static metatype: StructType = StructType.ORIGIN;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Origin.type
+   */
+  readonly type: ClientType;
+
+  /**
+   * Origin.id
+   */
+  readonly id: string | null;
+
+  /**
+   * Origin.ck
+   */
+  readonly ck: string | null;
+
+  /**
+   * Origin.nonce
+   */
+  readonly nonce: string | null;
+
+  constructor(options: {
+    type: ClientType;
+    id?: string | null;
+    ck?: string | null;
+    nonce?: string | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Origin.type is required`);
+    }
+    this.type = _type;
+    let _id = options.id ?? null;
+    this.id = _id;
+    let _ck = options.ck ?? null;
+    this.ck = _ck;
+    let _nonce = options.nonce ?? null;
+    this.nonce = _nonce;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.ck === other.ck)) {
+      return false;
+    }
+    if (!(this.nonce === other.nonce)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Origin>`;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.id !== null) {
+      h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    }
+    if (this.ck !== null) {
+      h = (h * 31 + hashString(this.ck.toString())) & 0xffffffff;
+    }
+    if (this.nonce !== null) {
+      h = (h * 31 + hashString(this.nonce.toString())) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Origin.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Origin): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 303;
+    objectValue["100"] = object.type;
+    if (object.id != null) {
+      objectValue["101"] = String(object.id);
+    }
+    if (object.ck != null) {
+      objectValue["102"] = String(object.ck);
+    }
+    if (object.nonce != null) {
+      objectValue["103"] = String(object.nonce);
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Origin {
+    const idValue = objectValue["101"];
+    const unpackedId = idValue != undefined ? String(idValue) : null;
+    const ckValue = objectValue["102"];
+    const unpackedCk = ckValue != undefined ? String(ckValue) : null;
+    const nonceValue = objectValue["103"];
+    const unpackedNonce = nonceValue != undefined ? String(nonceValue) : null;
+    return new Origin({
+      type: Number(objectValue["100"]),
+      id: unpackedId,
+      ck: unpackedCk,
+      nonce: unpackedNonce,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Origin {
+    return Origin.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): OriginProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Origin.__packProto__(this);
+    }
+    return this._proto as OriginProto;
+  }
+
+  static __packProto__(object: Origin): OriginProto {
+    const objectProto: Partial<OriginProto> = { metatype: 303 };
+    objectProto.type = Number(object.type) as ClientTypeProto;
+    if (object.id != null) {
+      objectProto.id = String(object.id);
+    }
+    if (object.ck != null) {
+      objectProto.ck = String(object.ck);
+    }
+    if (object.nonce != null) {
+      objectProto.nonce = String(object.nonce);
+    }
+    return objectProto as OriginProto;
+  }
+
+  static __unpackProto__(
+    objectProto: OriginProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Origin {
+    return new Origin({
+      type: Number(objectProto.type) as ClientType,
+      id: objectProto.id != undefined ? String(objectProto.id) : null,
+      ck: objectProto.ck != undefined ? String(objectProto.ck) : null,
+      nonce: objectProto.nonce != undefined ? String(objectProto.nonce) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: OriginProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Origin {
+    return Origin.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Origin {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = OriginProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.ORIGIN, Origin);
+/* ==== DESTACK_GENERATED_END:STRUCT:303 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:301 ==== */
 /**
  * A Change is an atomic sequence of Edits.
  */
@@ -852,7 +1093,7 @@ export class Change extends StructFrozen {
 
   static __packValue__(object: Change): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 201;
+    objectValue["1"] = 301;
     objectValue["2"] = String(object.id);
     if (object.name != null) {
       objectValue["101"] = object.name;
@@ -939,7 +1180,7 @@ export class Change extends StructFrozen {
   }
 
   static __packProto__(object: Change): ChangeProto {
-    const objectProto: Partial<ChangeProto> = { metatype: 201 };
+    const objectProto: Partial<ChangeProto> = { metatype: 301 };
     objectProto.id = String(object.id);
     if (object.name != null) {
       objectProto.name = object.name;
@@ -1027,9 +1268,9 @@ export class Change extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CHANGE, Change);
-/* ==== DESTACK_GENERATED_END:STRUCT:201 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:301 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:202 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:302 ==== */
 /**
  * The result of a Change. If rejected, edits/cascaded_edits are empty.
  */
@@ -1227,7 +1468,7 @@ export class ChangeResult extends StructFrozen {
 
   static __packValue__(object: ChangeResult): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 202;
+    objectValue["1"] = 302;
     objectValue["2"] = String(object.id);
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.debounce != null) {
@@ -1306,7 +1547,7 @@ export class ChangeResult extends StructFrozen {
   }
 
   static __packProto__(object: ChangeResult): ChangeResultProto {
-    const objectProto: Partial<ChangeResultProto> = { metatype: 202 };
+    const objectProto: Partial<ChangeResultProto> = { metatype: 302 };
     objectProto.id = String(object.id);
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.debounce != null) {
@@ -1386,245 +1627,4 @@ export class ChangeResult extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CHANGE_RESULT, ChangeResult);
-/* ==== DESTACK_GENERATED_END:STRUCT:202 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:203 ==== */
-/**
- * Origin of something.
- */
-export class Origin extends StructFrozen {
-  static metatype: StructType = StructType.ORIGIN;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Origin.type
-   */
-  readonly type: ClientType;
-
-  /**
-   * Origin.id
-   */
-  readonly id: string | null;
-
-  /**
-   * Origin.ck
-   */
-  readonly ck: string | null;
-
-  /**
-   * Origin.nonce
-   */
-  readonly nonce: string | null;
-
-  constructor(options: {
-    type: ClientType;
-    id?: string | null;
-    ck?: string | null;
-    nonce?: string | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`Origin.type is required`);
-    }
-    this.type = _type;
-    let _id = options.id ?? null;
-    this.id = _id;
-    let _ck = options.ck ?? null;
-    this.ck = _ck;
-    let _nonce = options.nonce ?? null;
-    this.nonce = _nonce;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.ck === other.ck)) {
-      return false;
-    }
-    if (!(this.nonce === other.nonce)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    return `<Origin>`;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.id !== null) {
-      h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    }
-    if (this.ck !== null) {
-      h = (h * 31 + hashString(this.ck.toString())) & 0xffffffff;
-    }
-    if (this.nonce !== null) {
-      h = (h * 31 + hashString(this.nonce.toString())) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Origin.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Origin): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 203;
-    objectValue["100"] = object.type;
-    if (object.id != null) {
-      objectValue["101"] = String(object.id);
-    }
-    if (object.ck != null) {
-      objectValue["102"] = String(object.ck);
-    }
-    if (object.nonce != null) {
-      objectValue["103"] = String(object.nonce);
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Origin {
-    const idValue = objectValue["101"];
-    const unpackedId = idValue != undefined ? String(idValue) : null;
-    const ckValue = objectValue["102"];
-    const unpackedCk = ckValue != undefined ? String(ckValue) : null;
-    const nonceValue = objectValue["103"];
-    const unpackedNonce = nonceValue != undefined ? String(nonceValue) : null;
-    return new Origin({
-      type: Number(objectValue["100"]),
-      id: unpackedId,
-      ck: unpackedCk,
-      nonce: unpackedNonce,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Origin {
-    return Origin.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): OriginProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Origin.__packProto__(this);
-    }
-    return this._proto as OriginProto;
-  }
-
-  static __packProto__(object: Origin): OriginProto {
-    const objectProto: Partial<OriginProto> = { metatype: 203 };
-    objectProto.type = Number(object.type) as ClientTypeProto;
-    if (object.id != null) {
-      objectProto.id = String(object.id);
-    }
-    if (object.ck != null) {
-      objectProto.ck = String(object.ck);
-    }
-    if (object.nonce != null) {
-      objectProto.nonce = String(object.nonce);
-    }
-    return objectProto as OriginProto;
-  }
-
-  static __unpackProto__(
-    objectProto: OriginProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Origin {
-    return new Origin({
-      type: Number(objectProto.type) as ClientType,
-      id: objectProto.id != undefined ? String(objectProto.id) : null,
-      ck: objectProto.ck != undefined ? String(objectProto.ck) : null,
-      nonce: objectProto.nonce != undefined ? String(objectProto.nonce) : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: OriginProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Origin {
-    return Origin.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Origin {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = OriginProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.ORIGIN, Origin);
-/* ==== DESTACK_GENERATED_END:STRUCT:203 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:302 ==== */

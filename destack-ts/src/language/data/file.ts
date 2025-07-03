@@ -1035,10 +1035,10 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     _graph?: any | null,
     _connection?: any | null,
   ): File {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const mimeTypeValue = objectValue["111"];
     const unpackedMimeType = mimeTypeValue != undefined ? mimeTypeValue : null;
@@ -1309,10 +1309,10 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     _graph?: any | null,
     _connection?: any | null,
   ): File {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedCustomValues = new Map();
     if (objectProto.customValues) {

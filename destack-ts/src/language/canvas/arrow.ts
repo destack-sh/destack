@@ -20,7 +20,7 @@ import type {
   Snapshot,
   Supergraph,
   Value,
-  Vector2,
+  Vector2f,
 } from "@destack/language/core";
 import {
   Align,
@@ -77,7 +77,7 @@ export class Arrow extends StructFrozen {
   /**
    * Arrow.start
    */
-  readonly start: Vector2;
+  readonly start: Vector2f;
 
   /**
    * Arrow.endType
@@ -87,13 +87,13 @@ export class Arrow extends StructFrozen {
   /**
    * Arrow.end
    */
-  readonly end: Vector2;
+  readonly end: Vector2f;
 
   constructor(options: {
     startType: ArrowHeadType;
-    start: Vector2;
+    start: Vector2f;
     endType: ArrowHeadType;
-    end: Vector2;
+    end: Vector2f;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -210,12 +210,12 @@ export class Arrow extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Arrow {
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new Arrow({
       startType: Number(objectValue["200"]),
-      start: _Vector2.fromValue(objectValue["201"], _session, _supergraph, _graph, _connection),
+      start: _Vector2f.fromValue(objectValue["201"], _session, _supergraph, _graph, _connection),
       endType: Number(objectValue["210"]),
-      end: _Vector2.fromValue(objectValue["211"], _session, _supergraph, _graph, _connection),
+      end: _Vector2f.fromValue(objectValue["211"], _session, _supergraph, _graph, _connection),
       _value: objectValue,
       _supergraph,
     });
@@ -255,12 +255,12 @@ export class Arrow extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Arrow {
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new Arrow({
       startType: Number(objectProto.startType) as ArrowHeadType,
-      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
+      start: _Vector2f.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
       endType: Number(objectProto.endType) as ArrowHeadType,
-      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      end: _Vector2f.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
       _proto: objectProto,
       _supergraph,
     });
@@ -580,7 +580,7 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.skew
    */
-  skew: Vector2 | null;
+  skew: Vector2f | null;
 
   /**
    * ContainerView.scale
@@ -615,7 +615,7 @@ export class ArrowShape extends Shape {
   /**
    * ArrowShape.start
    */
-  start: Vector2;
+  start: Vector2f;
 
   /**
    * ArrowShape.endType
@@ -625,7 +625,7 @@ export class ArrowShape extends Shape {
   /**
    * ArrowShape.end
    */
-  end: Vector2;
+  end: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -668,16 +668,16 @@ export class ArrowShape extends Shape {
     opacity?: number | null;
     fill?: Fill | null;
     rotation?: Axis3 | null;
-    skew?: Vector2 | null;
+    skew?: Vector2f | null;
     scale?: number | null;
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
     stroke?: Stroke | null;
     startType: ArrowHeadType;
-    start: Vector2;
+    start: Vector2f;
     endType: ArrowHeadType;
-    end: Vector2;
+    end: Vector2f;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1425,12 +1425,12 @@ export class ArrowShape extends Shape {
     _graph?: any | null,
     _connection?: any | null,
   ): ArrowShape {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -1497,7 +1497,7 @@ export class ArrowShape extends Shape {
     const skewValue = objectValue["144"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2f.fromValue(skewValue, _session, _supergraph, _graph, _connection)
         : null;
     const scaleValue = objectValue["145"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
@@ -1628,9 +1628,9 @@ export class ArrowShape extends Shape {
     }
     return new ArrowShape({
       startType: Number(objectValue["200"]),
-      start: _Vector2.fromValue(objectValue["201"], _session, _supergraph, _graph, _connection),
+      start: _Vector2f.fromValue(objectValue["201"], _session, _supergraph, _graph, _connection),
       endType: Number(objectValue["210"]),
-      end: _Vector2.fromValue(objectValue["211"], _session, _supergraph, _graph, _connection),
+      end: _Vector2f.fromValue(objectValue["211"], _session, _supergraph, _graph, _connection),
       stroke: unpackedStroke,
       layout: unpackedLayout,
       direction: unpackedDirection,
@@ -1842,12 +1842,12 @@ export class ArrowShape extends Shape {
     _graph?: any | null,
     _connection?: any | null,
   ): ArrowShape {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -1871,9 +1871,9 @@ export class ArrowShape extends Shape {
     }
     return new ArrowShape({
       startType: Number(objectProto.startType) as ArrowHeadType,
-      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
+      start: _Vector2f.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
       endType: Number(objectProto.endType) as ArrowHeadType,
-      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      end: _Vector2f.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
       stroke:
         objectProto.stroke != undefined
           ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
@@ -1914,7 +1914,7 @@ export class ArrowShape extends Shape {
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       scale: objectProto.scale != undefined ? objectProto.scale : null,
       shadow:

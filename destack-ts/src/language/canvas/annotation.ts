@@ -21,7 +21,7 @@ import type {
   Supergraph,
   Text,
   Value,
-  Vector2,
+  Vector2f,
 } from "@destack/language/core";
 import {
   Align,
@@ -344,7 +344,7 @@ export class AnnotationShape extends Shape {
   /**
    * ContainerView.skew
    */
-  skew: Vector2 | null;
+  skew: Vector2f | null;
 
   /**
    * ContainerView.scale
@@ -417,7 +417,7 @@ export class AnnotationShape extends Shape {
     opacity?: number | null;
     fill?: Fill | null;
     rotation?: Axis3 | null;
-    skew?: Vector2 | null;
+    skew?: Vector2f | null;
     scale?: number | null;
     shadow?: Shadow | null;
     border?: Border | null;
@@ -1145,12 +1145,12 @@ export class AnnotationShape extends Shape {
     _graph?: any | null,
     _connection?: any | null,
   ): AnnotationShape {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
@@ -1223,7 +1223,7 @@ export class AnnotationShape extends Shape {
     const skewValue = objectValue["144"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2f.fromValue(skewValue, _session, _supergraph, _graph, _connection)
         : null;
     const scaleValue = objectValue["145"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
@@ -1564,12 +1564,12 @@ export class AnnotationShape extends Shape {
     _graph?: any | null,
     _connection?: any | null,
   ): AnnotationShape {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
@@ -1637,7 +1637,7 @@ export class AnnotationShape extends Shape {
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       scale: objectProto.scale != undefined ? objectProto.scale : null,
       shadow:

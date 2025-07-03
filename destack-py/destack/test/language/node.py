@@ -16,6 +16,7 @@ def test_node_inheritance(session: Session):
     """Test the Node inheritance hierarchy."""
     assert Node.metatype == NodeType.NODE
     assert Node.__is_abstract__
+    assert Cursor.metatype == NodeType.CURSOR
     assert Cursor.__is_abstract__
     assert EventCursor.__base_type__ == Cursor.metatype
     assert Cursor.__inherits__ == (NodeType.NODE, NodeType.ENTITY)

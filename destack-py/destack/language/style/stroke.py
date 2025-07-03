@@ -6,7 +6,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    Vector2,
+    Vector2f,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -83,12 +83,14 @@ class StrokeStyle(Style):
 class StrokePoint(StructFrozen):
     """A computed point in a stroke."""
 
-    point: Vector2 = builtin_property(101, is_repr=True, description="The adjusted point position.")
-    original_point: Vector2 = builtin_property(
+    point: Vector2f = builtin_property(
+        101, is_repr=True, description="The adjusted point position."
+    )
+    original_point: Vector2f = builtin_property(
         102, is_repr=True, description="The original input point."
     )
     pressure: float = builtin_property(103, description="The pressure value at this point (0-1).")
-    direction: Vector2 = builtin_property(
+    direction: Vector2f = builtin_property(
         104, description="The normalized direction vector from previous point."
     )
     distance: float = builtin_property(105, description="Distance from the previous point.")

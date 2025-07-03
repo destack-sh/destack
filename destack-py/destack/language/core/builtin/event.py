@@ -41,7 +41,9 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.EVENT, pretend_frozen=True, is_abstract=True)
-class Event[N: Node = Node](IsSpatial, Node):
+class Event[N: Node = Node](
+    IsSpatial, Node
+):  # nocheckin: make Events real frozen (like StructFrozen)
     """
     An Event is an immutable datum of something happening to an Entity.
     """

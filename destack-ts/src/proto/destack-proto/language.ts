@@ -373,9 +373,9 @@ export interface AnnotationShapeProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -414,17 +414,17 @@ export interface ArrowProto {
      */
     startType: ArrowHeadTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto start = 201
+     * @generated from protobuf field: symbol.destack.Vector2fProto start = 201
      */
-    start?: Vector2Proto;
+    start?: Vector2fProto;
     /**
      * @generated from protobuf field: symbol.destack.ArrowHeadTypeProto end_type = 210
      */
     endType: ArrowHeadTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto end = 211
+     * @generated from protobuf field: symbol.destack.Vector2fProto end = 211
      */
-    end?: Vector2Proto;
+    end?: Vector2fProto;
 }
 /**
  * An ArrowShape is a shape that represents an arrow.
@@ -599,9 +599,9 @@ export interface ArrowShapeProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -627,17 +627,17 @@ export interface ArrowShapeProto {
      */
     startType: ArrowHeadTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto start = 201
+     * @generated from protobuf field: symbol.destack.Vector2fProto start = 201
      */
-    start?: Vector2Proto;
+    start?: Vector2fProto;
     /**
      * @generated from protobuf field: symbol.destack.ArrowHeadTypeProto end_type = 210
      */
     endType: ArrowHeadTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto end = 211
+     * @generated from protobuf field: symbol.destack.Vector2fProto end = 211
      */
-    end?: Vector2Proto;
+    end?: Vector2fProto;
 }
 /**
  * @generated from protobuf message symbol.destack.Axis2Proto
@@ -877,6 +877,60 @@ export interface BranchProto {
     headPtr?: NodeReferenceProto;
 }
 /**
+ * @generated from protobuf message symbol.destack.BuiltinDefinitionProto
+ */
+export interface BuiltinDefinitionProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional string description = 103
+     */
+    description?: string;
+}
+/**
+ * @generated from protobuf message symbol.destack.BuiltinObjectDefinitionProto
+ */
+export interface BuiltinObjectDefinitionProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional string description = 103
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
+     */
+    properties: PropertyDefinitionProto[];
+}
+/**
  * A Canvas is a container for only Shapes (other than that it's just a ContainerView).
  *
  * @generated from protobuf message symbol.destack.CanvasProto
@@ -1053,9 +1107,9 @@ export interface CanvasProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -1132,6 +1186,10 @@ export interface ChangeEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -1221,6 +1279,10 @@ export interface ClickEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -1233,9 +1295,9 @@ export interface ClickEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -1398,6 +1460,10 @@ export interface ClipboardEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -1799,9 +1865,9 @@ export interface ContainerViewProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -1971,6 +2037,10 @@ export interface CopyEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -2038,6 +2108,10 @@ export interface CounterMeasurementEventProto {
      * @generated from protobuf field: symbol.destack.NodeReferenceProto definition_ptr = 6
      */
     definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -2975,6 +3049,10 @@ export interface CutEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3185,6 +3263,10 @@ export interface DoubleClickEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3197,9 +3279,9 @@ export interface DoubleClickEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -3252,6 +3334,10 @@ export interface DragEndEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3264,9 +3350,9 @@ export interface DragEndEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
 }
 /**
  * A DragEnterEvent is a DragEvent when a drag enters an element.
@@ -3291,6 +3377,10 @@ export interface DragEnterEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3303,9 +3393,9 @@ export interface DragEnterEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
 }
 /**
  * A DragEvent is an InputEvent that corresponds to some direct user input with a drag.
@@ -3330,6 +3420,10 @@ export interface DragEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3342,9 +3436,9 @@ export interface DragEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
 }
 /**
  * A DragLeaveEvent is a DragEvent when a drag leaves an element.
@@ -3369,6 +3463,10 @@ export interface DragLeaveEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3381,9 +3479,9 @@ export interface DragLeaveEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
 }
 /**
  * A DragOverEvent is a DragEvent when a drag is over an element.
@@ -3408,6 +3506,10 @@ export interface DragOverEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3420,9 +3522,9 @@ export interface DragOverEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
 }
 /**
  * A DragStartEvent is a DragEvent when a drag starts.
@@ -3447,6 +3549,10 @@ export interface DragStartEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3459,9 +3565,9 @@ export interface DragStartEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
 }
 /**
  * A DropEvent is a DragEvent when a drag is dropped on an element.
@@ -3486,6 +3592,10 @@ export interface DropEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3498,9 +3608,9 @@ export interface DropEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
 }
 /**
  * @generated from protobuf message symbol.destack.EditProto
@@ -3574,6 +3684,10 @@ export interface EditEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3614,10 +3728,6 @@ export interface EditEventProto {
      */
     undo?: EditProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 121
-     */
-    snapshotPtr?: NodeReferenceProto;
-    /**
      * @generated from protobuf field: repeated string ancestors_ids = 122
      */
     ancestorsIds: string[];
@@ -3643,9 +3753,9 @@ export interface EffectProto {
      */
     opacity?: number;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto offset = 103
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto offset = 103
      */
-    offset?: Vector2Proto;
+    offset?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 104
      */
@@ -3655,9 +3765,9 @@ export interface EffectProto {
      */
     rotate?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 106
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 106
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double perspective = 107
      */
@@ -3774,9 +3884,9 @@ export interface EffectStyleProto {
      */
     opacity?: number;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto offset = 201
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto offset = 201
      */
-    offset?: Vector2Proto;
+    offset?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 202
      */
@@ -3786,9 +3896,9 @@ export interface EffectStyleProto {
      */
     rotate?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 204
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 204
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double perspective = 205
      */
@@ -3922,6 +4032,10 @@ export interface EntitlementEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -3958,6 +4072,10 @@ export interface EntitlementExpiredEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -3996,6 +4114,10 @@ export interface EntitlementGrantedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -4033,6 +4155,10 @@ export interface EntitlementRequestedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -4069,6 +4195,10 @@ export interface EntitlementRevokedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -4267,6 +4397,10 @@ export interface EventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -4696,6 +4830,10 @@ export interface FocusEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -4731,6 +4869,10 @@ export interface FocusInEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -4765,6 +4907,10 @@ export interface FocusOutEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -5265,9 +5411,9 @@ export interface FrameViewProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -5430,6 +5576,10 @@ export interface FriendshipInviteAcceptedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -5464,6 +5614,10 @@ export interface FriendshipInviteEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -5500,6 +5654,10 @@ export interface FriendshipInviteRejectedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -5535,6 +5693,10 @@ export interface FriendshipInviteRescindedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -5569,6 +5731,10 @@ export interface FriendshipInviteSentEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -5650,6 +5816,10 @@ export interface GaugeMeasurementEventProto {
      * @generated from protobuf field: symbol.destack.NodeReferenceProto definition_ptr = 6
      */
     definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -6024,6 +6194,10 @@ export interface HistogramMeasurementEventProto {
      */
     definitionPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -6170,6 +6344,10 @@ export interface InputEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -6647,6 +6825,10 @@ export interface InviteAcceptedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -6698,6 +6880,10 @@ export interface InviteEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -6740,6 +6926,10 @@ export interface InviteRejectedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -6784,6 +6974,10 @@ export interface InviteRescindedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -6826,6 +7020,10 @@ export interface InviteSentEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -6907,6 +7105,10 @@ export interface KeyDownEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -6969,6 +7171,10 @@ export interface KeyPressEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -7033,6 +7239,10 @@ export interface KeyUpEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -7095,6 +7305,10 @@ export interface KeyboardEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -7309,9 +7523,9 @@ export interface LabelViewProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -7514,9 +7728,9 @@ export interface LayerProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -7557,6 +7771,10 @@ export interface LeftClickEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -7569,9 +7787,9 @@ export interface LeftClickEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -7631,9 +7849,9 @@ export interface LineProto {
      */
     stroke?: StrokeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 210
+     * @generated from protobuf field: repeated symbol.destack.Vector2fProto points = 210
      */
-    points: Vector2Proto[];
+    points: Vector2fProto[];
 }
 /**
  * A LineShape is a shape that represents a line.
@@ -7808,9 +8026,9 @@ export interface LineShapeProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -7832,9 +8050,9 @@ export interface LineShapeProto {
      */
     stroke?: StrokeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 200
+     * @generated from protobuf field: repeated symbol.destack.Vector2fProto points = 200
      */
-    points: Vector2Proto[];
+    points: Vector2fProto[];
 }
 /**
  * A Log message.
@@ -7858,6 +8076,10 @@ export interface LogEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -7908,6 +8130,10 @@ export interface LongPressEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -7920,9 +8146,9 @@ export interface LongPressEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -8109,6 +8335,10 @@ export interface MeasurementEventProto {
      */
     definitionPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -8223,6 +8453,10 @@ export interface MembershipEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -8265,6 +8499,10 @@ export interface MembershipJoinedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -8316,6 +8554,10 @@ export interface MembershipLeftEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -8526,6 +8768,10 @@ export interface MiddleClickEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -8538,9 +8784,9 @@ export interface MiddleClickEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -8593,6 +8839,10 @@ export interface MouseEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -8605,9 +8855,9 @@ export interface MouseEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -8820,11 +9070,11 @@ export interface NodeReferenceProto {
      */
     snapshotId?: string;
     /**
-     * @generated from protobuf field: optional string space_id = 104
+     * @generated from protobuf field: optional string space_id = 110
      */
     spaceId?: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.StoreTypeProto store_type = 105
+     * @generated from protobuf field: optional symbol.destack.StoreTypeProto store_type = 111
      */
     storeType?: StoreTypeProto;
 }
@@ -8926,6 +9176,10 @@ export interface NotificationDismissedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -8960,6 +9214,10 @@ export interface NotificationEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -8996,6 +9254,10 @@ export interface NotificationExpiredEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9030,6 +9292,10 @@ export interface NotificationReadEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -9066,6 +9332,10 @@ export interface NotificationRescindedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9100,6 +9370,10 @@ export interface NotificationSentEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -9531,6 +9805,10 @@ export interface PasteEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9639,13 +9917,17 @@ export interface PermissionDefinitionProto {
      */
     name: string;
     /**
-     * @generated from protobuf field: symbol.destack.NodeTypeProto node_type = 102
-     */
-    nodeType: NodeTypeProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.IconProto icon = 103
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
      */
     icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional string description = 103
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto node_type = 110
+     */
+    nodeType: NodeTypeProto;
 }
 /**
  * A PointerDownEvent is a PointerEvent when a pointer is pressed down.
@@ -9670,6 +9952,10 @@ export interface PointerDownEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9682,9 +9968,9 @@ export interface PointerDownEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -9733,6 +10019,10 @@ export interface PointerEnterEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9745,9 +10035,9 @@ export interface PointerEnterEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -9796,6 +10086,10 @@ export interface PointerEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9808,9 +10102,9 @@ export interface PointerEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -9859,6 +10153,10 @@ export interface PointerLeaveEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9871,9 +10169,9 @@ export interface PointerLeaveEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -9922,6 +10220,10 @@ export interface PointerMoveEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9934,9 +10236,9 @@ export interface PointerMoveEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -9985,6 +10287,10 @@ export interface PointerOverEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -9997,9 +10303,9 @@ export interface PointerOverEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -10048,6 +10354,10 @@ export interface PointerUpEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -10060,9 +10370,9 @@ export interface PointerUpEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -10386,6 +10696,10 @@ export interface QueryEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -10802,6 +11116,10 @@ export interface RightClickEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -10814,9 +11132,9 @@ export interface RightClickEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -10948,6 +11266,10 @@ export interface RoleAssignedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -10987,6 +11309,10 @@ export interface RoleEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11025,6 +11351,10 @@ export interface RoleUnassignedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11245,6 +11575,10 @@ export interface RunCompletedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11283,6 +11617,10 @@ export interface RunEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11323,6 +11661,10 @@ export interface RunFailedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11361,6 +11703,10 @@ export interface RunPauseRequestedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11401,6 +11747,10 @@ export interface RunPausedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11439,6 +11789,10 @@ export interface RunResumeRequestedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11479,6 +11833,10 @@ export interface RunResumedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11518,6 +11876,10 @@ export interface RunStartedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11556,6 +11918,10 @@ export interface RunStopRequestedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11669,6 +12035,10 @@ export interface SanctionEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11705,6 +12075,10 @@ export interface SanctionExpiredEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -11743,6 +12117,10 @@ export interface SanctionGrantedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11780,6 +12158,10 @@ export interface SanctionRequestedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -11816,6 +12198,10 @@ export interface SanctionRevokedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -12010,9 +12396,9 @@ export interface SceneProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -12057,6 +12443,10 @@ export interface SceneEnteredEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -12092,6 +12482,10 @@ export interface SceneEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -12126,6 +12520,10 @@ export interface SceneExitedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -12804,9 +13202,9 @@ export interface ShapeProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -12859,6 +13257,10 @@ export interface SignalProto {
      * @generated from protobuf field: optional symbol.destack.NodeDefinitionReferenceProto base_type = 7
      */
     baseType?: NodeDefinitionReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -13242,6 +13644,10 @@ export interface SpanEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -13427,9 +13833,9 @@ export interface SplitViewProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
      */
-    skew?: Vector2Proto;
+    skew?: Vector2fProto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -13631,21 +14037,21 @@ export interface StrokePointProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto point = 101
+     * @generated from protobuf field: symbol.destack.Vector2fProto point = 101
      */
-    point?: Vector2Proto;
+    point?: Vector2fProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto original_point = 102
+     * @generated from protobuf field: symbol.destack.Vector2fProto original_point = 102
      */
-    originalPoint?: Vector2Proto;
+    originalPoint?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 103
      */
     pressure: number;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto direction = 104
+     * @generated from protobuf field: symbol.destack.Vector2fProto direction = 104
      */
-    direction?: Vector2Proto;
+    direction?: Vector2fProto;
     /**
      * @generated from protobuf field: double distance = 105
      */
@@ -13763,6 +14169,15 @@ export interface StrokeStyleProto {
     end?: StrokeCapProto;
 }
 /**
+ * @generated from protobuf message symbol.destack.StructProto
+ */
+export interface StructProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+}
+/**
  * @generated from protobuf message symbol.destack.StructDefinitionProto
  */
 export interface StructDefinitionProto {
@@ -13791,7 +14206,7 @@ export interface StructDefinitionProto {
      */
     description?: string;
     /**
-     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 104
+     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
      */
     properties: PropertyDefinitionProto[];
     /**
@@ -14628,6 +15043,10 @@ export interface TimerCancelledEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -14662,6 +15081,10 @@ export interface TimerCompletedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
@@ -14698,6 +15121,10 @@ export interface TimerEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -14733,6 +15160,10 @@ export interface TimerStartedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -14766,15 +15197,11 @@ export interface TraitDefinitionProto {
      */
     name: string;
     /**
-     * @generated from protobuf field: string alias = 102
-     */
-    alias: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.IconProto icon = 103
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
      */
     icon?: IconProto;
     /**
-     * @generated from protobuf field: optional string description = 104
+     * @generated from protobuf field: optional string description = 103
      */
     description?: string;
     /**
@@ -14782,7 +15209,11 @@ export interface TraitDefinitionProto {
      */
     properties: PropertyDefinitionProto[];
     /**
-     * @generated from protobuf field: bool is_extensible = 110
+     * @generated from protobuf field: string alias = 110
+     */
+    alias: string;
+    /**
+     * @generated from protobuf field: bool is_extensible = 111
      */
     isExtensible: boolean;
     /**
@@ -15058,6 +15489,10 @@ export interface TriggerEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -15257,7 +15692,7 @@ export interface ValueProto {
      */
     type?: TypeProto;
     /**
-     * @generated from protobuf field: google.protobuf.Value value = 110
+     * @generated from protobuf field: optional google.protobuf.Value value = 110
      */
     value?: Value;
 }
@@ -15357,9 +15792,18 @@ export interface VariantProto {
     minHeight?: LengthProto;
 }
 /**
- * @generated from protobuf message symbol.destack.Vector2Proto
+ * @generated from protobuf message symbol.destack.VectorProto
  */
-export interface Vector2Proto {
+export interface VectorProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+}
+/**
+ * @generated from protobuf message symbol.destack.Vector2fProto
+ */
+export interface Vector2fProto {
     /**
      * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
      */
@@ -15391,9 +15835,9 @@ export interface Vector2iProto {
     y: number;
 }
 /**
- * @generated from protobuf message symbol.destack.Vector3Proto
+ * @generated from protobuf message symbol.destack.Vector3fProto
  */
-export interface Vector3Proto {
+export interface Vector3fProto {
     /**
      * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
      */
@@ -15433,9 +15877,9 @@ export interface Vector3iProto {
     z: number;
 }
 /**
- * @generated from protobuf message symbol.destack.Vector4Proto
+ * @generated from protobuf message symbol.destack.Vector4fProto
  */
-export interface Vector4Proto {
+export interface Vector4fProto {
     /**
      * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
      */
@@ -15481,6 +15925,24 @@ export interface Vector4iProto {
      * @generated from protobuf field: int64 w = 104 [jstype = JS_NUMBER]
      */
     w: number;
+}
+/**
+ * @generated from protobuf message symbol.destack.VectorfProto
+ */
+export interface VectorfProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+}
+/**
+ * @generated from protobuf message symbol.destack.VectoriProto
+ */
+export interface VectoriProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
 }
 /**
  * A View is a graphical interface.
@@ -15622,6 +16084,10 @@ export interface WheelEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
      */
     createdAt?: Timestamp;
@@ -15634,9 +16100,9 @@ export interface WheelEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
      */
-    position?: Vector2Proto;
+    position?: Vector2fProto;
     /**
      * @generated from protobuf field: double pressure = 111
      */
@@ -15666,9 +16132,9 @@ export interface WheelEventProto {
      */
     button: MouseButtonProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto delta = 140
+     * @generated from protobuf field: symbol.destack.Vector2fProto delta = 140
      */
-    delta?: Vector2Proto;
+    delta?: Vector2fProto;
 }
 /**
  * A Window for someone to interact with a Space via Scenes.
@@ -22144,29 +22610,37 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 100;
+     * @generated from protobuf enum value: STRUCT_TYPE_STRUCT = 1;
      */
-    STRUCT_TYPE_NODE_REFERENCE = 100,
+    STRUCT_TYPE_STRUCT = 1,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 101;
+     * @generated from protobuf enum value: STRUCT_TYPE_CUSTOM_STRUCT = 2;
      */
-    STRUCT_TYPE_PROPERTY_REFERENCE = 101,
+    STRUCT_TYPE_CUSTOM_STRUCT = 2,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_DEFINITION = 102;
+     * @generated from protobuf enum value: STRUCT_TYPE_BUILTIN_DEFINITION = 100;
      */
-    STRUCT_TYPE_PROPERTY_DEFINITION = 102,
+    STRUCT_TYPE_BUILTIN_DEFINITION = 100,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_BUILTIN_OBJECT_DEFINITION = 101;
+     */
+    STRUCT_TYPE_BUILTIN_OBJECT_DEFINITION = 101,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_DEFINITION = 102;
+     */
+    STRUCT_TYPE_NODE_DEFINITION = 102,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_TRAIT_DEFINITION = 103;
      */
     STRUCT_TYPE_TRAIT_DEFINITION = 103,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_DEFINITION = 104;
+     * @generated from protobuf enum value: STRUCT_TYPE_STRUCT_DEFINITION = 104;
      */
-    STRUCT_TYPE_NODE_DEFINITION = 104,
+    STRUCT_TYPE_STRUCT_DEFINITION = 104,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STRUCT_DEFINITION = 105;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_DEFINITION = 105;
      */
-    STRUCT_TYPE_STRUCT_DEFINITION = 105,
+    STRUCT_TYPE_PROPERTY_DEFINITION = 105,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_ENUM_DEFINITION = 106;
      */
@@ -22184,137 +22658,153 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_CONSTANT_DEFINITION = 109,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 150;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 200;
      */
-    STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 150,
+    STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 151;
+     * @generated from protobuf enum value: STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 201;
      */
-    STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 151,
+    STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 201,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 152;
+     * @generated from protobuf enum value: STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 202;
      */
-    STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 152,
+    STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 202,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CUSTOM_STRUCT = 153;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 250;
      */
-    STRUCT_TYPE_CUSTOM_STRUCT = 153,
+    STRUCT_TYPE_NODE_REFERENCE = 250,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 200;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 251;
      */
-    STRUCT_TYPE_EDIT = 200,
+    STRUCT_TYPE_PROPERTY_REFERENCE = 251,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 201;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 300;
      */
-    STRUCT_TYPE_CHANGE = 201,
+    STRUCT_TYPE_EDIT = 300,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_RESULT = 202;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 301;
      */
-    STRUCT_TYPE_CHANGE_RESULT = 202,
+    STRUCT_TYPE_CHANGE = 301,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ORIGIN = 203;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_RESULT = 302;
      */
-    STRUCT_TYPE_ORIGIN = 203,
+    STRUCT_TYPE_CHANGE_RESULT = 302,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 300;
+     * @generated from protobuf enum value: STRUCT_TYPE_ORIGIN = 303;
      */
-    STRUCT_TYPE_EXPRESSION = 300,
+    STRUCT_TYPE_ORIGIN = 303,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FUNCTION = 301;
+     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 500;
      */
-    STRUCT_TYPE_FUNCTION = 301,
+    STRUCT_TYPE_EXPRESSION = 500,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_JOIN = 302;
+     * @generated from protobuf enum value: STRUCT_TYPE_FUNCTION = 501;
      */
-    STRUCT_TYPE_JOIN = 302,
+    STRUCT_TYPE_FUNCTION = 501,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION = 303;
+     * @generated from protobuf enum value: STRUCT_TYPE_JOIN = 502;
      */
-    STRUCT_TYPE_AGGREGATION = 303,
+    STRUCT_TYPE_JOIN = 502,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CONDITION = 304;
+     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION = 503;
      */
-    STRUCT_TYPE_CONDITION = 304,
+    STRUCT_TYPE_AGGREGATION = 503,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SORT = 305;
+     * @generated from protobuf enum value: STRUCT_TYPE_CONDITION = 504;
      */
-    STRUCT_TYPE_SORT = 305,
+    STRUCT_TYPE_CONDITION = 504,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECT = 306;
+     * @generated from protobuf enum value: STRUCT_TYPE_SORT = 505;
      */
-    STRUCT_TYPE_SELECT = 306,
+    STRUCT_TYPE_SORT = 505,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 307;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECT = 506;
      */
-    STRUCT_TYPE_QUERY = 307,
+    STRUCT_TYPE_SELECT = 506,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT = 308;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 550;
      */
-    STRUCT_TYPE_QUERY_RESULT = 308,
+    STRUCT_TYPE_QUERY = 550,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT_GROUP = 309;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT = 551;
      */
-    STRUCT_TYPE_QUERY_RESULT_GROUP = 309,
+    STRUCT_TYPE_QUERY_RESULT = 551,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 310;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT_GROUP = 552;
      */
-    STRUCT_TYPE_QUERY_UPDATE = 310,
+    STRUCT_TYPE_QUERY_RESULT_GROUP = 552,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_HISTOGRAM = 311;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 553;
      */
-    STRUCT_TYPE_HISTOGRAM = 311,
+    STRUCT_TYPE_QUERY_UPDATE = 553,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 312;
+     * @generated from protobuf enum value: STRUCT_TYPE_HISTOGRAM = 554;
      */
-    STRUCT_TYPE_SELECTION = 312,
+    STRUCT_TYPE_HISTOGRAM = 554,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 400;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 555;
      */
-    STRUCT_TYPE_VALUE = 400,
+    STRUCT_TYPE_SELECTION = 555,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 401;
+     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 600;
      */
-    STRUCT_TYPE_TYPE = 401,
+    STRUCT_TYPE_VALUE = 600,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NUMBER_CONSTRAINT = 410;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 601;
      */
-    STRUCT_TYPE_NUMBER_CONSTRAINT = 410,
+    STRUCT_TYPE_TYPE = 601,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STRING_CONSTRAINT = 411;
+     * @generated from protobuf enum value: STRUCT_TYPE_NUMBER_CONSTRAINT = 650;
      */
-    STRUCT_TYPE_STRING_CONSTRAINT = 411,
+    STRUCT_TYPE_NUMBER_CONSTRAINT = 650,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLLECTION_CONSTRAINT = 412;
+     * @generated from protobuf enum value: STRUCT_TYPE_STRING_CONSTRAINT = 651;
      */
-    STRUCT_TYPE_COLLECTION_CONSTRAINT = 412,
+    STRUCT_TYPE_STRING_CONSTRAINT = 651,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_CONSTRAINT = 413;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLLECTION_CONSTRAINT = 652;
      */
-    STRUCT_TYPE_NODE_CONSTRAINT = 413,
+    STRUCT_TYPE_COLLECTION_CONSTRAINT = 652,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 500;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_CONSTRAINT = 653;
      */
-    STRUCT_TYPE_VECTOR2 = 500,
+    STRUCT_TYPE_NODE_CONSTRAINT = 653,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 501;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR = 700;
      */
-    STRUCT_TYPE_VECTOR3 = 501,
+    STRUCT_TYPE_VECTOR = 700,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 502;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTORF = 710;
      */
-    STRUCT_TYPE_VECTOR4 = 502,
+    STRUCT_TYPE_VECTORF = 710,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2I = 503;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2F = 711;
      */
-    STRUCT_TYPE_VECTOR2I = 503,
+    STRUCT_TYPE_VECTOR2F = 711,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3I = 504;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3F = 712;
      */
-    STRUCT_TYPE_VECTOR3I = 504,
+    STRUCT_TYPE_VECTOR3F = 712,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4I = 505;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4F = 713;
      */
-    STRUCT_TYPE_VECTOR4I = 505,
+    STRUCT_TYPE_VECTOR4F = 713,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTORI = 720;
+     */
+    STRUCT_TYPE_VECTORI = 720,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2I = 721;
+     */
+    STRUCT_TYPE_VECTOR2I = 721,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3I = 722;
+     */
+    STRUCT_TYPE_VECTOR3I = 722,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4I = 723;
+     */
+    STRUCT_TYPE_VECTOR4I = 723,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 60020;
      */
@@ -23359,7 +23849,7 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -23508,8 +23998,8 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -23684,9 +24174,9 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -23721,9 +24211,9 @@ class ArrowProto$Type extends MessageType<ArrowProto> {
         super("symbol.destack.ArrowProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 200, name: "start_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
-            { no: 201, name: "start", kind: "message", T: () => Vector2Proto },
+            { no: 201, name: "start", kind: "message", T: () => Vector2fProto },
             { no: 210, name: "end_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
-            { no: 211, name: "end", kind: "message", T: () => Vector2Proto }
+            { no: 211, name: "end", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<ArrowProto>): ArrowProto {
@@ -23746,14 +24236,14 @@ class ArrowProto$Type extends MessageType<ArrowProto> {
                 case /* symbol.destack.ArrowHeadTypeProto start_type */ 200:
                     message.startType = reader.int32();
                     break;
-                case /* symbol.destack.Vector2Proto start */ 201:
-                    message.start = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.start);
+                case /* symbol.destack.Vector2fProto start */ 201:
+                    message.start = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.start);
                     break;
                 case /* symbol.destack.ArrowHeadTypeProto end_type */ 210:
                     message.endType = reader.int32();
                     break;
-                case /* symbol.destack.Vector2Proto end */ 211:
-                    message.end = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.end);
+                case /* symbol.destack.Vector2fProto end */ 211:
+                    message.end = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.end);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -23773,15 +24263,15 @@ class ArrowProto$Type extends MessageType<ArrowProto> {
         /* symbol.destack.ArrowHeadTypeProto start_type = 200; */
         if (message.startType !== 0)
             writer.tag(200, WireType.Varint).int32(message.startType);
-        /* symbol.destack.Vector2Proto start = 201; */
+        /* symbol.destack.Vector2fProto start = 201; */
         if (message.start)
-            Vector2Proto.internalBinaryWrite(message.start, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.start, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.ArrowHeadTypeProto end_type = 210; */
         if (message.endType !== 0)
             writer.tag(210, WireType.Varint).int32(message.endType);
-        /* symbol.destack.Vector2Proto end = 211; */
+        /* symbol.destack.Vector2fProto end = 211; */
         if (message.end)
-            Vector2Proto.internalBinaryWrite(message.end, writer.tag(211, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.end, writer.tag(211, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23837,16 +24327,16 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
             { no: 148, name: "radius", kind: "message", T: () => CornersProto },
             { no: 180, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 200, name: "start_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
-            { no: 201, name: "start", kind: "message", T: () => Vector2Proto },
+            { no: 201, name: "start", kind: "message", T: () => Vector2fProto },
             { no: 210, name: "end_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
-            { no: 211, name: "end", kind: "message", T: () => Vector2Proto }
+            { no: 211, name: "end", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<ArrowShapeProto>): ArrowShapeProto {
@@ -23991,8 +24481,8 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -24012,14 +24502,14 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
                 case /* symbol.destack.ArrowHeadTypeProto start_type */ 200:
                     message.startType = reader.int32();
                     break;
-                case /* symbol.destack.Vector2Proto start */ 201:
-                    message.start = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.start);
+                case /* symbol.destack.Vector2fProto start */ 201:
+                    message.start = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.start);
                     break;
                 case /* symbol.destack.ArrowHeadTypeProto end_type */ 210:
                     message.endType = reader.int32();
                     break;
-                case /* symbol.destack.Vector2Proto end */ 211:
-                    message.end = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.end);
+                case /* symbol.destack.Vector2fProto end */ 211:
+                    message.end = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.end);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -24176,9 +24666,9 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -24197,15 +24687,15 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         /* symbol.destack.ArrowHeadTypeProto start_type = 200; */
         if (message.startType !== 0)
             writer.tag(200, WireType.Varint).int32(message.startType);
-        /* symbol.destack.Vector2Proto start = 201; */
+        /* symbol.destack.Vector2fProto start = 201; */
         if (message.start)
-            Vector2Proto.internalBinaryWrite(message.start, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.start, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.ArrowHeadTypeProto end_type = 210; */
         if (message.endType !== 0)
             writer.tag(210, WireType.Varint).int32(message.endType);
-        /* symbol.destack.Vector2Proto end = 211; */
+        /* symbol.destack.Vector2fProto end = 211; */
         if (message.end)
-            Vector2Proto.internalBinaryWrite(message.end, writer.tag(211, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.end, writer.tag(211, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24790,6 +25280,168 @@ class BranchProto$Type extends MessageType<BranchProto> {
  */
 export const BranchProto = new BranchProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class BuiltinDefinitionProto$Type extends MessageType<BuiltinDefinitionProto> {
+    constructor() {
+        super("symbol.destack.BuiltinDefinitionProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<BuiltinDefinitionProto>): BuiltinDefinitionProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<BuiltinDefinitionProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BuiltinDefinitionProto): BuiltinDefinitionProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 103:
+                    message.description = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: BuiltinDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 103; */
+        if (message.description !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.description);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.BuiltinDefinitionProto
+ */
+export const BuiltinDefinitionProto = new BuiltinDefinitionProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class BuiltinObjectDefinitionProto$Type extends MessageType<BuiltinObjectDefinitionProto> {
+    constructor() {
+        super("symbol.destack.BuiltinObjectDefinitionProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+        ]);
+    }
+    create(value?: PartialMessage<BuiltinObjectDefinitionProto>): BuiltinObjectDefinitionProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.name = "";
+        message.properties = [];
+        if (value !== undefined)
+            reflectionMergePartial<BuiltinObjectDefinitionProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BuiltinObjectDefinitionProto): BuiltinObjectDefinitionProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 103:
+                    message.description = reader.string();
+                    break;
+                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
+                    message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: BuiltinObjectDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 103; */
+        if (message.description !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
+        for (let i = 0; i < message.properties.length; i++)
+            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.BuiltinObjectDefinitionProto
+ */
+export const BuiltinObjectDefinitionProto = new BuiltinObjectDefinitionProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class CanvasProto$Type extends MessageType<CanvasProto> {
     constructor() {
         super("symbol.destack.CanvasProto", [
@@ -24835,7 +25487,7 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -24986,8 +25638,8 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -25159,9 +25811,9 @@ class CanvasProto$Type extends MessageType<CanvasProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -25290,6 +25942,7 @@ class ChangeEventProto$Type extends MessageType<ChangeEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -25326,6 +25979,9 @@ class ChangeEventProto$Type extends MessageType<ChangeEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -25375,6 +26031,9 @@ class ChangeEventProto$Type extends MessageType<ChangeEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -25510,10 +26169,11 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -25555,6 +26215,9 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -25564,8 +26227,8 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -25612,6 +26275,9 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -25621,9 +26287,9 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -25889,6 +26555,7 @@ class ClipboardEventProto$Type extends MessageType<ClipboardEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -25918,6 +26585,9 @@ class ClipboardEventProto$Type extends MessageType<ClipboardEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -25952,6 +26622,9 @@ class ClipboardEventProto$Type extends MessageType<ClipboardEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -26554,7 +27227,7 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -26701,8 +27374,8 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -26871,9 +27544,9 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -27179,6 +27852,7 @@ class CopyEventProto$Type extends MessageType<CopyEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -27208,6 +27882,9 @@ class CopyEventProto$Type extends MessageType<CopyEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -27242,6 +27919,9 @@ class CopyEventProto$Type extends MessageType<CopyEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -27352,6 +28032,7 @@ class CounterMeasurementEventProto$Type extends MessageType<CounterMeasurementEv
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -27384,6 +28065,9 @@ class CounterMeasurementEventProto$Type extends MessageType<CounterMeasurementEv
                     break;
                 case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
                     message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -27421,6 +28105,9 @@ class CounterMeasurementEventProto$Type extends MessageType<CounterMeasurementEv
         /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
         if (message.definitionPtr)
             NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -29454,6 +30141,7 @@ class CutEventProto$Type extends MessageType<CutEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -29483,6 +30171,9 @@ class CutEventProto$Type extends MessageType<CutEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -29517,6 +30208,9 @@ class CutEventProto$Type extends MessageType<CutEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -29973,10 +30667,11 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -30018,6 +30713,9 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -30027,8 +30725,8 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -30075,6 +30773,9 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30084,9 +30785,9 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -30126,10 +30827,11 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<DragEndEventProto>): DragEndEventProto {
@@ -30157,6 +30859,9 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -30166,8 +30871,8 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30193,6 +30898,9 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30202,9 +30910,9 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30223,10 +30931,11 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<DragEnterEventProto>): DragEnterEventProto {
@@ -30254,6 +30963,9 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -30263,8 +30975,8 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30290,6 +31002,9 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30299,9 +31014,9 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30320,10 +31035,11 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<DragEventProto>): DragEventProto {
@@ -30351,6 +31067,9 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -30360,8 +31079,8 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30387,6 +31106,9 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30396,9 +31118,9 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30417,10 +31139,11 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<DragLeaveEventProto>): DragLeaveEventProto {
@@ -30448,6 +31171,9 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -30457,8 +31183,8 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30484,6 +31210,9 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30493,9 +31222,9 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30514,10 +31243,11 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<DragOverEventProto>): DragOverEventProto {
@@ -30545,6 +31275,9 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -30554,8 +31287,8 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30581,6 +31314,9 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30590,9 +31326,9 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30611,10 +31347,11 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<DragStartEventProto>): DragStartEventProto {
@@ -30642,6 +31379,9 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -30651,8 +31391,8 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30678,6 +31418,9 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30687,9 +31430,9 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30708,10 +31451,11 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<DropEventProto>): DropEventProto {
@@ -30739,6 +31483,9 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -30748,8 +31495,8 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30775,6 +31522,9 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30784,9 +31534,9 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30925,6 +31675,7 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EditTypeProto", EditTypeProto] },
@@ -30935,7 +31686,6 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
             { no: 105, name: "key_unpacked", kind: "message", T: () => Value },
             { no: 110, name: "value", kind: "message", T: () => ValueProto },
             { no: 120, name: "undo", kind: "message", T: () => EditProto },
-            { no: 121, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 122, name: "ancestors_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -30965,6 +31715,9 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -30996,9 +31749,6 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
                 case /* optional symbol.destack.EditProto undo */ 120:
                     message.undo = EditProto.internalBinaryRead(reader, reader.uint32(), options, message.undo);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 121:
-                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
-                    break;
                 case /* repeated string ancestors_ids */ 122:
                     message.ancestorsIds.push(reader.string());
                     break;
@@ -31026,6 +31776,9 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -31056,9 +31809,6 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
         /* optional symbol.destack.EditProto undo = 120; */
         if (message.undo)
             EditProto.internalBinaryWrite(message.undo, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 121; */
-        if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
         /* repeated string ancestors_ids = 122; */
         for (let i = 0; i < message.ancestorsIds.length; i++)
             writer.tag(122, WireType.LengthDelimited).string(message.ancestorsIds[i]);
@@ -31080,10 +31830,10 @@ class EffectProto$Type extends MessageType<EffectProto> {
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EffectTypeProto", EffectTypeProto] },
             { no: 101, name: "style_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 103, name: "offset", kind: "message", T: () => Vector2Proto },
+            { no: 103, name: "offset", kind: "message", T: () => Vector2fProto },
             { no: 104, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 105, name: "rotate", kind: "message", T: () => Axis3Proto },
-            { no: 106, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 106, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 107, name: "perspective", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 108, name: "delay", kind: "message", T: () => Duration },
             { no: 109, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
@@ -31120,8 +31870,8 @@ class EffectProto$Type extends MessageType<EffectProto> {
                 case /* optional double opacity */ 102:
                     message.opacity = reader.double();
                     break;
-                case /* optional symbol.destack.Vector2Proto offset */ 103:
-                    message.offset = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
+                case /* optional symbol.destack.Vector2fProto offset */ 103:
+                    message.offset = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
                 case /* optional double scale */ 104:
                     message.scale = reader.double();
@@ -31129,8 +31879,8 @@ class EffectProto$Type extends MessageType<EffectProto> {
                 case /* optional symbol.destack.Axis3Proto rotate */ 105:
                     message.rotate = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 106:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 106:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double perspective */ 107:
                     message.perspective = reader.double();
@@ -31183,18 +31933,18 @@ class EffectProto$Type extends MessageType<EffectProto> {
         /* optional double opacity = 102; */
         if (message.opacity !== undefined)
             writer.tag(102, WireType.Bit64).double(message.opacity);
-        /* optional symbol.destack.Vector2Proto offset = 103; */
+        /* optional symbol.destack.Vector2fProto offset = 103; */
         if (message.offset)
-            Vector2Proto.internalBinaryWrite(message.offset, writer.tag(103, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.offset, writer.tag(103, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 104; */
         if (message.scale !== undefined)
             writer.tag(104, WireType.Bit64).double(message.scale);
         /* optional symbol.destack.Axis3Proto rotate = 105; */
         if (message.rotate)
             Axis3Proto.internalBinaryWrite(message.rotate, writer.tag(105, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 106; */
+        /* optional symbol.destack.Vector2fProto skew = 106; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(106, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(106, WireType.LengthDelimited).fork(), options).join();
         /* optional double perspective = 107; */
         if (message.perspective !== undefined)
             writer.tag(107, WireType.Bit64).double(message.perspective);
@@ -31254,10 +32004,10 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EffectTypeProto", EffectTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 200, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 201, name: "offset", kind: "message", T: () => Vector2Proto },
+            { no: 201, name: "offset", kind: "message", T: () => Vector2fProto },
             { no: 202, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 203, name: "rotate", kind: "message", T: () => Axis3Proto },
-            { no: 204, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 204, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 205, name: "perspective", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 206, name: "delay", kind: "message", T: () => Duration },
             { no: 207, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
@@ -31340,8 +32090,8 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
                 case /* optional double opacity */ 200:
                     message.opacity = reader.double();
                     break;
-                case /* optional symbol.destack.Vector2Proto offset */ 201:
-                    message.offset = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
+                case /* optional symbol.destack.Vector2fProto offset */ 201:
+                    message.offset = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
                 case /* optional double scale */ 202:
                     message.scale = reader.double();
@@ -31349,8 +32099,8 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
                 case /* optional symbol.destack.Axis3Proto rotate */ 203:
                     message.rotate = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 204:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 204:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double perspective */ 205:
                     message.perspective = reader.double();
@@ -31445,18 +32195,18 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
         /* optional double opacity = 200; */
         if (message.opacity !== undefined)
             writer.tag(200, WireType.Bit64).double(message.opacity);
-        /* optional symbol.destack.Vector2Proto offset = 201; */
+        /* optional symbol.destack.Vector2fProto offset = 201; */
         if (message.offset)
-            Vector2Proto.internalBinaryWrite(message.offset, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.offset, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 202; */
         if (message.scale !== undefined)
             writer.tag(202, WireType.Bit64).double(message.scale);
         /* optional symbol.destack.Axis3Proto rotate = 203; */
         if (message.rotate)
             Axis3Proto.internalBinaryWrite(message.rotate, writer.tag(203, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 204; */
+        /* optional symbol.destack.Vector2fProto skew = 204; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(204, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(204, WireType.LengthDelimited).fork(), options).join();
         /* optional double perspective = 205; */
         if (message.perspective !== undefined)
             writer.tag(205, WireType.Bit64).double(message.perspective);
@@ -31664,6 +32414,7 @@ class EntitlementEventProto$Type extends MessageType<EntitlementEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -31694,6 +32445,9 @@ class EntitlementEventProto$Type extends MessageType<EntitlementEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -31731,6 +32485,9 @@ class EntitlementEventProto$Type extends MessageType<EntitlementEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -31761,6 +32518,7 @@ class EntitlementExpiredEventProto$Type extends MessageType<EntitlementExpiredEv
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -31791,6 +32549,9 @@ class EntitlementExpiredEventProto$Type extends MessageType<EntitlementExpiredEv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -31828,6 +32589,9 @@ class EntitlementExpiredEventProto$Type extends MessageType<EntitlementExpiredEv
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -31858,6 +32622,7 @@ class EntitlementGrantedEventProto$Type extends MessageType<EntitlementGrantedEv
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -31888,6 +32653,9 @@ class EntitlementGrantedEventProto$Type extends MessageType<EntitlementGrantedEv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -31925,6 +32693,9 @@ class EntitlementGrantedEventProto$Type extends MessageType<EntitlementGrantedEv
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -31955,6 +32726,7 @@ class EntitlementRequestedEventProto$Type extends MessageType<EntitlementRequest
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -31985,6 +32757,9 @@ class EntitlementRequestedEventProto$Type extends MessageType<EntitlementRequest
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -32022,6 +32797,9 @@ class EntitlementRequestedEventProto$Type extends MessageType<EntitlementRequest
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -32052,6 +32830,7 @@ class EntitlementRevokedEventProto$Type extends MessageType<EntitlementRevokedEv
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -32082,6 +32861,9 @@ class EntitlementRevokedEventProto$Type extends MessageType<EntitlementRevokedEv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -32119,6 +32901,9 @@ class EntitlementRevokedEventProto$Type extends MessageType<EntitlementRevokedEv
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -32523,6 +33308,7 @@ class EventProto$Type extends MessageType<EventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -32552,6 +33338,9 @@ class EventProto$Type extends MessageType<EventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -32586,6 +33375,9 @@ class EventProto$Type extends MessageType<EventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -33480,6 +34272,7 @@ class FocusEventProto$Type extends MessageType<FocusEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -33509,6 +34302,9 @@ class FocusEventProto$Type extends MessageType<FocusEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -33543,6 +34339,9 @@ class FocusEventProto$Type extends MessageType<FocusEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -33570,6 +34369,7 @@ class FocusInEventProto$Type extends MessageType<FocusInEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -33599,6 +34399,9 @@ class FocusInEventProto$Type extends MessageType<FocusInEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -33633,6 +34436,9 @@ class FocusInEventProto$Type extends MessageType<FocusInEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -33660,6 +34466,7 @@ class FocusOutEventProto$Type extends MessageType<FocusOutEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -33689,6 +34496,9 @@ class FocusOutEventProto$Type extends MessageType<FocusOutEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -33723,6 +34533,9 @@ class FocusOutEventProto$Type extends MessageType<FocusOutEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -34464,7 +35277,7 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -34611,8 +35424,8 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -34781,9 +35594,9 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -35087,6 +35900,7 @@ class FriendshipInviteAcceptedEventProto$Type extends MessageType<FriendshipInvi
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -35116,6 +35930,9 @@ class FriendshipInviteAcceptedEventProto$Type extends MessageType<FriendshipInvi
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -35150,6 +35967,9 @@ class FriendshipInviteAcceptedEventProto$Type extends MessageType<FriendshipInvi
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -35177,6 +35997,7 @@ class FriendshipInviteEventProto$Type extends MessageType<FriendshipInviteEventP
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -35206,6 +36027,9 @@ class FriendshipInviteEventProto$Type extends MessageType<FriendshipInviteEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -35240,6 +36064,9 @@ class FriendshipInviteEventProto$Type extends MessageType<FriendshipInviteEventP
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -35267,6 +36094,7 @@ class FriendshipInviteRejectedEventProto$Type extends MessageType<FriendshipInvi
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -35296,6 +36124,9 @@ class FriendshipInviteRejectedEventProto$Type extends MessageType<FriendshipInvi
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -35330,6 +36161,9 @@ class FriendshipInviteRejectedEventProto$Type extends MessageType<FriendshipInvi
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -35357,6 +36191,7 @@ class FriendshipInviteRescindedEventProto$Type extends MessageType<FriendshipInv
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -35386,6 +36221,9 @@ class FriendshipInviteRescindedEventProto$Type extends MessageType<FriendshipInv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -35420,6 +36258,9 @@ class FriendshipInviteRescindedEventProto$Type extends MessageType<FriendshipInv
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -35447,6 +36288,7 @@ class FriendshipInviteSentEventProto$Type extends MessageType<FriendshipInviteSe
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -35476,6 +36318,9 @@ class FriendshipInviteSentEventProto$Type extends MessageType<FriendshipInviteSe
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -35510,6 +36355,9 @@ class FriendshipInviteSentEventProto$Type extends MessageType<FriendshipInviteSe
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -35678,6 +36526,7 @@ class GaugeMeasurementEventProto$Type extends MessageType<GaugeMeasurementEventP
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -35710,6 +36559,9 @@ class GaugeMeasurementEventProto$Type extends MessageType<GaugeMeasurementEventP
                     break;
                 case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
                     message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -35747,6 +36599,9 @@ class GaugeMeasurementEventProto$Type extends MessageType<GaugeMeasurementEventP
         /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
         if (message.definitionPtr)
             NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -36629,6 +37484,7 @@ class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasureme
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -36661,6 +37517,9 @@ class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasureme
                     break;
                 case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
                     message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -36698,6 +37557,9 @@ class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasureme
         /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
         if (message.definitionPtr)
             NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -36985,6 +37847,7 @@ class InputEventProto$Type extends MessageType<InputEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -37014,6 +37877,9 @@ class InputEventProto$Type extends MessageType<InputEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -37048,6 +37914,9 @@ class InputEventProto$Type extends MessageType<InputEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38038,6 +38907,7 @@ class InviteAcceptedEventProto$Type extends MessageType<InviteAcceptedEventProto
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38072,6 +38942,9 @@ class InviteAcceptedEventProto$Type extends MessageType<InviteAcceptedEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38118,6 +38991,9 @@ class InviteAcceptedEventProto$Type extends MessageType<InviteAcceptedEventProto
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38157,6 +39033,7 @@ class InviteEventProto$Type extends MessageType<InviteEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38188,6 +39065,9 @@ class InviteEventProto$Type extends MessageType<InviteEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38228,6 +39108,9 @@ class InviteEventProto$Type extends MessageType<InviteEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38261,6 +39144,7 @@ class InviteRejectedEventProto$Type extends MessageType<InviteRejectedEventProto
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38292,6 +39176,9 @@ class InviteRejectedEventProto$Type extends MessageType<InviteRejectedEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38332,6 +39219,9 @@ class InviteRejectedEventProto$Type extends MessageType<InviteRejectedEventProto
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38365,6 +39255,7 @@ class InviteRescindedEventProto$Type extends MessageType<InviteRescindedEventPro
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38396,6 +39287,9 @@ class InviteRescindedEventProto$Type extends MessageType<InviteRescindedEventPro
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38436,6 +39330,9 @@ class InviteRescindedEventProto$Type extends MessageType<InviteRescindedEventPro
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38469,6 +39366,7 @@ class InviteSentEventProto$Type extends MessageType<InviteSentEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38503,6 +39401,9 @@ class InviteSentEventProto$Type extends MessageType<InviteSentEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38549,6 +39450,9 @@ class InviteSentEventProto$Type extends MessageType<InviteSentEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38672,6 +39576,7 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38715,6 +39620,9 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38770,6 +39678,9 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38818,6 +39729,7 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38861,6 +39773,9 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -38916,6 +39831,9 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38964,6 +39882,7 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -39007,6 +39926,9 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -39062,6 +39984,9 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -39110,6 +40035,7 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -39153,6 +40079,9 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -39208,6 +40137,9 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -39293,7 +40225,7 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -39440,8 +40372,8 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -39610,9 +40542,9 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -39683,7 +40615,7 @@ class LayerProto$Type extends MessageType<LayerProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -39840,8 +40772,8 @@ class LayerProto$Type extends MessageType<LayerProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -40019,9 +40951,9 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -40052,10 +40984,11 @@ class LeftClickEventProto$Type extends MessageType<LeftClickEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -40097,6 +41030,9 @@ class LeftClickEventProto$Type extends MessageType<LeftClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -40106,8 +41042,8 @@ class LeftClickEventProto$Type extends MessageType<LeftClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -40154,6 +41090,9 @@ class LeftClickEventProto$Type extends MessageType<LeftClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -40163,9 +41102,9 @@ class LeftClickEventProto$Type extends MessageType<LeftClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -40266,7 +41205,7 @@ class LineProto$Type extends MessageType<LineProto> {
         super("symbol.destack.LineProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 200, name: "stroke", kind: "message", T: () => StrokeProto },
-            { no: 210, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto }
+            { no: 210, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<LineProto>): LineProto {
@@ -40288,8 +41227,8 @@ class LineProto$Type extends MessageType<LineProto> {
                 case /* optional symbol.destack.StrokeProto stroke */ 200:
                     message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
                     break;
-                case /* repeated symbol.destack.Vector2Proto points */ 210:
-                    message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.Vector2fProto points */ 210:
+                    message.points.push(Vector2fProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -40309,9 +41248,9 @@ class LineProto$Type extends MessageType<LineProto> {
         /* optional symbol.destack.StrokeProto stroke = 200; */
         if (message.stroke)
             StrokeProto.internalBinaryWrite(message.stroke, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.Vector2Proto points = 210; */
+        /* repeated symbol.destack.Vector2fProto points = 210; */
         for (let i = 0; i < message.points.length; i++)
-            Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(210, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.points[i], writer.tag(210, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -40367,13 +41306,13 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
             { no: 148, name: "radius", kind: "message", T: () => CornersProto },
             { no: 180, name: "stroke", kind: "message", T: () => StrokeProto },
-            { no: 200, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto }
+            { no: 200, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<LineShapeProto>): LineShapeProto {
@@ -40517,8 +41456,8 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -40535,8 +41474,8 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
                 case /* optional symbol.destack.StrokeProto stroke */ 180:
                     message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
                     break;
-                case /* repeated symbol.destack.Vector2Proto points */ 200:
-                    message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.Vector2fProto points */ 200:
+                    message.points.push(Vector2fProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -40693,9 +41632,9 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -40711,9 +41650,9 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         /* optional symbol.destack.StrokeProto stroke = 180; */
         if (message.stroke)
             StrokeProto.internalBinaryWrite(message.stroke, writer.tag(180, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.Vector2Proto points = 200; */
+        /* repeated symbol.destack.Vector2fProto points = 200; */
         for (let i = 0; i < message.points.length; i++)
-            Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(200, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.points[i], writer.tag(200, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -40732,6 +41671,7 @@ class LogEventProto$Type extends MessageType<LogEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -40767,6 +41707,9 @@ class LogEventProto$Type extends MessageType<LogEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -40826,6 +41769,9 @@ class LogEventProto$Type extends MessageType<LogEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -40866,10 +41812,11 @@ class LongPressEventProto$Type extends MessageType<LongPressEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -40909,6 +41856,9 @@ class LongPressEventProto$Type extends MessageType<LongPressEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -40918,8 +41868,8 @@ class LongPressEventProto$Type extends MessageType<LongPressEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -40963,6 +41913,9 @@ class LongPressEventProto$Type extends MessageType<LongPressEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -40972,9 +41925,9 @@ class LongPressEventProto$Type extends MessageType<LongPressEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -41300,6 +42253,7 @@ class MeasurementEventProto$Type extends MessageType<MeasurementEventProto> {
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -41332,6 +42286,9 @@ class MeasurementEventProto$Type extends MessageType<MeasurementEventProto> {
                     break;
                 case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
                     message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -41369,6 +42326,9 @@ class MeasurementEventProto$Type extends MessageType<MeasurementEventProto> {
         /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
         if (message.definitionPtr)
             NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -41564,6 +42524,7 @@ class MembershipEventProto$Type extends MessageType<MembershipEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -41595,6 +42556,9 @@ class MembershipEventProto$Type extends MessageType<MembershipEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -41635,6 +42599,9 @@ class MembershipEventProto$Type extends MessageType<MembershipEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -41668,6 +42635,7 @@ class MembershipJoinedEventProto$Type extends MessageType<MembershipJoinedEventP
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -41702,6 +42670,9 @@ class MembershipJoinedEventProto$Type extends MessageType<MembershipJoinedEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -41748,6 +42719,9 @@ class MembershipJoinedEventProto$Type extends MessageType<MembershipJoinedEventP
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -41787,6 +42761,7 @@ class MembershipLeftEventProto$Type extends MessageType<MembershipLeftEventProto
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -41818,6 +42793,9 @@ class MembershipLeftEventProto$Type extends MessageType<MembershipLeftEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -41858,6 +42836,9 @@ class MembershipLeftEventProto$Type extends MessageType<MembershipLeftEventProto
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -42243,10 +43224,11 @@ class MiddleClickEventProto$Type extends MessageType<MiddleClickEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -42288,6 +43270,9 @@ class MiddleClickEventProto$Type extends MessageType<MiddleClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -42297,8 +43282,8 @@ class MiddleClickEventProto$Type extends MessageType<MiddleClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -42345,6 +43330,9 @@ class MiddleClickEventProto$Type extends MessageType<MiddleClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -42354,9 +43342,9 @@ class MiddleClickEventProto$Type extends MessageType<MiddleClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -42396,10 +43384,11 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -42441,6 +43430,9 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -42450,8 +43442,8 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -42498,6 +43490,9 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -42507,9 +43502,9 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -43068,8 +44063,8 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
             { no: 101, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "definition_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 103, name: "snapshot_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 104, name: "space_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 105, name: "store_type", kind: "enum", opt: true, T: () => ["symbol.destack.StoreTypeProto", StoreTypeProto] }
+            { no: 110, name: "space_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "store_type", kind: "enum", opt: true, T: () => ["symbol.destack.StoreTypeProto", StoreTypeProto] }
         ]);
     }
     create(value?: PartialMessage<NodeReferenceProto>): NodeReferenceProto {
@@ -43101,10 +44096,10 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
                 case /* optional string snapshot_id */ 103:
                     message.snapshotId = reader.string();
                     break;
-                case /* optional string space_id */ 104:
+                case /* optional string space_id */ 110:
                     message.spaceId = reader.string();
                     break;
-                case /* optional symbol.destack.StoreTypeProto store_type */ 105:
+                case /* optional symbol.destack.StoreTypeProto store_type */ 111:
                     message.storeType = reader.int32();
                     break;
                 default:
@@ -43134,12 +44129,12 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
         /* optional string snapshot_id = 103; */
         if (message.snapshotId !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.snapshotId);
-        /* optional string space_id = 104; */
+        /* optional string space_id = 110; */
         if (message.spaceId !== undefined)
-            writer.tag(104, WireType.LengthDelimited).string(message.spaceId);
-        /* optional symbol.destack.StoreTypeProto store_type = 105; */
+            writer.tag(110, WireType.LengthDelimited).string(message.spaceId);
+        /* optional symbol.destack.StoreTypeProto store_type = 111; */
         if (message.storeType !== undefined)
-            writer.tag(105, WireType.Varint).int32(message.storeType);
+            writer.tag(111, WireType.Varint).int32(message.storeType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -43321,6 +44316,7 @@ class NotificationDismissedEventProto$Type extends MessageType<NotificationDismi
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -43350,6 +44346,9 @@ class NotificationDismissedEventProto$Type extends MessageType<NotificationDismi
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -43384,6 +44383,9 @@ class NotificationDismissedEventProto$Type extends MessageType<NotificationDismi
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -43411,6 +44413,7 @@ class NotificationEventProto$Type extends MessageType<NotificationEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -43440,6 +44443,9 @@ class NotificationEventProto$Type extends MessageType<NotificationEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -43474,6 +44480,9 @@ class NotificationEventProto$Type extends MessageType<NotificationEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -43501,6 +44510,7 @@ class NotificationExpiredEventProto$Type extends MessageType<NotificationExpired
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -43530,6 +44540,9 @@ class NotificationExpiredEventProto$Type extends MessageType<NotificationExpired
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -43564,6 +44577,9 @@ class NotificationExpiredEventProto$Type extends MessageType<NotificationExpired
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -43591,6 +44607,7 @@ class NotificationReadEventProto$Type extends MessageType<NotificationReadEventP
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -43620,6 +44637,9 @@ class NotificationReadEventProto$Type extends MessageType<NotificationReadEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -43654,6 +44674,9 @@ class NotificationReadEventProto$Type extends MessageType<NotificationReadEventP
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -43681,6 +44704,7 @@ class NotificationRescindedEventProto$Type extends MessageType<NotificationResci
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -43710,6 +44734,9 @@ class NotificationRescindedEventProto$Type extends MessageType<NotificationResci
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -43744,6 +44771,9 @@ class NotificationRescindedEventProto$Type extends MessageType<NotificationResci
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -43771,6 +44801,7 @@ class NotificationSentEventProto$Type extends MessageType<NotificationSentEventP
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -43800,6 +44831,9 @@ class NotificationSentEventProto$Type extends MessageType<NotificationSentEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -43834,6 +44868,9 @@ class NotificationSentEventProto$Type extends MessageType<NotificationSentEventP
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -44795,6 +45832,7 @@ class PasteEventProto$Type extends MessageType<PasteEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -44824,6 +45862,9 @@ class PasteEventProto$Type extends MessageType<PasteEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -44858,6 +45899,9 @@ class PasteEventProto$Type extends MessageType<PasteEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45048,8 +46092,9 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
             { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EnumTypeProto", EnumTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "node_type", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 103, name: "icon", kind: "message", T: () => IconProto }
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 110, name: "node_type", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] }
         ]);
     }
     create(value?: PartialMessage<PermissionDefinitionProto>): PermissionDefinitionProto {
@@ -45080,11 +46125,14 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
                 case /* string name */ 101:
                     message.name = reader.string();
                     break;
-                case /* symbol.destack.NodeTypeProto node_type */ 102:
-                    message.nodeType = reader.int32();
-                    break;
-                case /* optional symbol.destack.IconProto icon */ 103:
+                case /* optional symbol.destack.IconProto icon */ 102:
                     message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 103:
+                    message.description = reader.string();
+                    break;
+                case /* symbol.destack.NodeTypeProto node_type */ 110:
+                    message.nodeType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -45110,12 +46158,15 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
         /* string name = 101; */
         if (message.name !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.name);
-        /* symbol.destack.NodeTypeProto node_type = 102; */
-        if (message.nodeType !== 0)
-            writer.tag(102, WireType.Varint).int32(message.nodeType);
-        /* optional symbol.destack.IconProto icon = 103; */
+        /* optional symbol.destack.IconProto icon = 102; */
         if (message.icon)
-            IconProto.internalBinaryWrite(message.icon, writer.tag(103, WireType.LengthDelimited).fork(), options).join();
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 103; */
+        if (message.description !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* symbol.destack.NodeTypeProto node_type = 110; */
+        if (message.nodeType !== 0)
+            writer.tag(110, WireType.Varint).int32(message.nodeType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -45134,10 +46185,11 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -45177,6 +46229,9 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -45186,8 +46241,8 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -45231,6 +46286,9 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45240,9 +46298,9 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -45279,10 +46337,11 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -45322,6 +46381,9 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -45331,8 +46393,8 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -45376,6 +46438,9 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45385,9 +46450,9 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -45424,10 +46489,11 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -45467,6 +46533,9 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -45476,8 +46545,8 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -45521,6 +46590,9 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45530,9 +46602,9 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -45569,10 +46641,11 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -45612,6 +46685,9 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -45621,8 +46697,8 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -45666,6 +46742,9 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45675,9 +46754,9 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -45714,10 +46793,11 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -45757,6 +46837,9 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -45766,8 +46849,8 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -45811,6 +46894,9 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45820,9 +46906,9 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -45859,10 +46945,11 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -45902,6 +46989,9 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -45911,8 +47001,8 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -45956,6 +47046,9 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45965,9 +47058,9 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -46004,10 +47097,11 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -46047,6 +47141,9 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -46056,8 +47153,8 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -46101,6 +47198,9 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -46110,9 +47210,9 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -46783,6 +47883,7 @@ class QueryEventProto$Type extends MessageType<QueryEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.QueryTypeProto", QueryTypeProto] },
@@ -46830,6 +47931,9 @@ class QueryEventProto$Type extends MessageType<QueryEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -46903,6 +48007,9 @@ class QueryEventProto$Type extends MessageType<QueryEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -47764,10 +48871,11 @@ class RightClickEventProto$Type extends MessageType<RightClickEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -47809,6 +48917,9 @@ class RightClickEventProto$Type extends MessageType<RightClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -47818,8 +48929,8 @@ class RightClickEventProto$Type extends MessageType<RightClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -47866,6 +48977,9 @@ class RightClickEventProto$Type extends MessageType<RightClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -47875,9 +48989,9 @@ class RightClickEventProto$Type extends MessageType<RightClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -48088,6 +49202,7 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -48118,6 +49233,9 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -48155,6 +49273,9 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -48185,6 +49306,7 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -48215,6 +49337,9 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -48252,6 +49377,9 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -48282,6 +49410,7 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -48312,6 +49441,9 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -48349,6 +49481,9 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -48774,6 +49909,7 @@ class RunCompletedEventProto$Type extends MessageType<RunCompletedEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -48804,6 +49940,9 @@ class RunCompletedEventProto$Type extends MessageType<RunCompletedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -48841,6 +49980,9 @@ class RunCompletedEventProto$Type extends MessageType<RunCompletedEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -48871,6 +50013,7 @@ class RunEventProto$Type extends MessageType<RunEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -48901,6 +50044,9 @@ class RunEventProto$Type extends MessageType<RunEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -48938,6 +50084,9 @@ class RunEventProto$Type extends MessageType<RunEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -48968,6 +50117,7 @@ class RunFailedEventProto$Type extends MessageType<RunFailedEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -48998,6 +50148,9 @@ class RunFailedEventProto$Type extends MessageType<RunFailedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49035,6 +50188,9 @@ class RunFailedEventProto$Type extends MessageType<RunFailedEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49065,6 +50221,7 @@ class RunPauseRequestedEventProto$Type extends MessageType<RunPauseRequestedEven
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49095,6 +50252,9 @@ class RunPauseRequestedEventProto$Type extends MessageType<RunPauseRequestedEven
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49132,6 +50292,9 @@ class RunPauseRequestedEventProto$Type extends MessageType<RunPauseRequestedEven
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49162,6 +50325,7 @@ class RunPausedEventProto$Type extends MessageType<RunPausedEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49192,6 +50356,9 @@ class RunPausedEventProto$Type extends MessageType<RunPausedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49229,6 +50396,9 @@ class RunPausedEventProto$Type extends MessageType<RunPausedEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49259,6 +50429,7 @@ class RunResumeRequestedEventProto$Type extends MessageType<RunResumeRequestedEv
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49289,6 +50460,9 @@ class RunResumeRequestedEventProto$Type extends MessageType<RunResumeRequestedEv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49326,6 +50500,9 @@ class RunResumeRequestedEventProto$Type extends MessageType<RunResumeRequestedEv
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49356,6 +50533,7 @@ class RunResumedEventProto$Type extends MessageType<RunResumedEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49386,6 +50564,9 @@ class RunResumedEventProto$Type extends MessageType<RunResumedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49423,6 +50604,9 @@ class RunResumedEventProto$Type extends MessageType<RunResumedEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49453,6 +50637,7 @@ class RunStartedEventProto$Type extends MessageType<RunStartedEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49483,6 +50668,9 @@ class RunStartedEventProto$Type extends MessageType<RunStartedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49520,6 +50708,9 @@ class RunStartedEventProto$Type extends MessageType<RunStartedEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49550,6 +50741,7 @@ class RunStopRequestedEventProto$Type extends MessageType<RunStopRequestedEventP
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49580,6 +50772,9 @@ class RunStopRequestedEventProto$Type extends MessageType<RunStopRequestedEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49617,6 +50812,9 @@ class RunStopRequestedEventProto$Type extends MessageType<RunStopRequestedEventP
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49809,6 +51007,7 @@ class SanctionEventProto$Type extends MessageType<SanctionEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49839,6 +51038,9 @@ class SanctionEventProto$Type extends MessageType<SanctionEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49876,6 +51078,9 @@ class SanctionEventProto$Type extends MessageType<SanctionEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49906,6 +51111,7 @@ class SanctionExpiredEventProto$Type extends MessageType<SanctionExpiredEventPro
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49936,6 +51142,9 @@ class SanctionExpiredEventProto$Type extends MessageType<SanctionExpiredEventPro
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -49973,6 +51182,9 @@ class SanctionExpiredEventProto$Type extends MessageType<SanctionExpiredEventPro
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50003,6 +51215,7 @@ class SanctionGrantedEventProto$Type extends MessageType<SanctionGrantedEventPro
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -50033,6 +51246,9 @@ class SanctionGrantedEventProto$Type extends MessageType<SanctionGrantedEventPro
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -50070,6 +51286,9 @@ class SanctionGrantedEventProto$Type extends MessageType<SanctionGrantedEventPro
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50100,6 +51319,7 @@ class SanctionRequestedEventProto$Type extends MessageType<SanctionRequestedEven
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -50130,6 +51350,9 @@ class SanctionRequestedEventProto$Type extends MessageType<SanctionRequestedEven
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -50167,6 +51390,9 @@ class SanctionRequestedEventProto$Type extends MessageType<SanctionRequestedEven
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50197,6 +51423,7 @@ class SanctionRevokedEventProto$Type extends MessageType<SanctionRevokedEventPro
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -50227,6 +51454,9 @@ class SanctionRevokedEventProto$Type extends MessageType<SanctionRevokedEventPro
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -50264,6 +51494,9 @@ class SanctionRevokedEventProto$Type extends MessageType<SanctionRevokedEventPro
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50332,7 +51565,7 @@ class SceneProto$Type extends MessageType<SceneProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -50483,8 +51716,8 @@ class SceneProto$Type extends MessageType<SceneProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -50659,9 +51892,9 @@ class SceneProto$Type extends MessageType<SceneProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -50695,6 +51928,7 @@ class SceneEnteredEventProto$Type extends MessageType<SceneEnteredEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -50724,6 +51958,9 @@ class SceneEnteredEventProto$Type extends MessageType<SceneEnteredEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -50758,6 +51995,9 @@ class SceneEnteredEventProto$Type extends MessageType<SceneEnteredEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50785,6 +52025,7 @@ class SceneEventProto$Type extends MessageType<SceneEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -50814,6 +52055,9 @@ class SceneEventProto$Type extends MessageType<SceneEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -50848,6 +52092,9 @@ class SceneEventProto$Type extends MessageType<SceneEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50875,6 +52122,7 @@ class SceneExitedEventProto$Type extends MessageType<SceneExitedEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -50904,6 +52152,9 @@ class SceneExitedEventProto$Type extends MessageType<SceneExitedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -50938,6 +52189,9 @@ class SceneExitedEventProto$Type extends MessageType<SceneExitedEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -52246,7 +53500,7 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -52394,8 +53648,8 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -52567,9 +53821,9 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -52605,6 +53859,7 @@ class SignalProto$Type extends MessageType<SignalProto> {
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
@@ -52642,6 +53897,9 @@ class SignalProto$Type extends MessageType<SignalProto> {
                     break;
                 case /* optional symbol.destack.NodeDefinitionReferenceProto base_type */ 7:
                     message.baseType = NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseType);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -52701,6 +53959,9 @@ class SignalProto$Type extends MessageType<SignalProto> {
         /* optional symbol.destack.NodeDefinitionReferenceProto base_type = 7; */
         if (message.baseType)
             NodeDefinitionReferenceProto.internalBinaryWrite(message.baseType, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -53477,6 +54738,7 @@ class SpanEventProto$Type extends MessageType<SpanEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -53506,6 +54768,9 @@ class SpanEventProto$Type extends MessageType<SpanEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -53540,6 +54805,9 @@ class SpanEventProto$Type extends MessageType<SpanEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -53604,7 +54872,7 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -53751,8 +55019,8 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2Proto skew */ 144:
-                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2fProto skew */ 144:
+                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -53921,9 +55189,9 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2Proto skew = 144; */
+        /* optional symbol.destack.Vector2fProto skew = 144; */
         if (message.skew)
-            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -54423,10 +55691,10 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
     constructor() {
         super("symbol.destack.StrokePointProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 101, name: "point", kind: "message", T: () => Vector2Proto },
-            { no: 102, name: "original_point", kind: "message", T: () => Vector2Proto },
+            { no: 101, name: "point", kind: "message", T: () => Vector2fProto },
+            { no: 102, name: "original_point", kind: "message", T: () => Vector2fProto },
             { no: 103, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 104, name: "direction", kind: "message", T: () => Vector2Proto },
+            { no: 104, name: "direction", kind: "message", T: () => Vector2fProto },
             { no: 105, name: "distance", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 106, name: "running_length", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 107, name: "radius", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
@@ -54451,17 +55719,17 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbol.destack.Vector2Proto point */ 101:
-                    message.point = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.point);
+                case /* symbol.destack.Vector2fProto point */ 101:
+                    message.point = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.point);
                     break;
-                case /* symbol.destack.Vector2Proto original_point */ 102:
-                    message.originalPoint = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.originalPoint);
+                case /* symbol.destack.Vector2fProto original_point */ 102:
+                    message.originalPoint = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.originalPoint);
                     break;
                 case /* double pressure */ 103:
                     message.pressure = reader.double();
                     break;
-                case /* symbol.destack.Vector2Proto direction */ 104:
-                    message.direction = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.direction);
+                case /* symbol.destack.Vector2fProto direction */ 104:
+                    message.direction = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.direction);
                     break;
                 case /* double distance */ 105:
                     message.distance = reader.double();
@@ -54487,18 +55755,18 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.destack.Vector2Proto point = 101; */
+        /* symbol.destack.Vector2fProto point = 101; */
         if (message.point)
-            Vector2Proto.internalBinaryWrite(message.point, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto original_point = 102; */
+            Vector2fProto.internalBinaryWrite(message.point, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.Vector2fProto original_point = 102; */
         if (message.originalPoint)
-            Vector2Proto.internalBinaryWrite(message.originalPoint, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.originalPoint, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 103; */
         if (message.pressure !== 0)
             writer.tag(103, WireType.Bit64).double(message.pressure);
-        /* symbol.destack.Vector2Proto direction = 104; */
+        /* symbol.destack.Vector2fProto direction = 104; */
         if (message.direction)
-            Vector2Proto.internalBinaryWrite(message.direction, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.direction, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
         /* double distance = 105; */
         if (message.distance !== 0)
             writer.tag(105, WireType.Bit64).double(message.distance);
@@ -54737,6 +56005,53 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
  */
 export const StrokeStyleProto = new StrokeStyleProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class StructProto$Type extends MessageType<StructProto> {
+    constructor() {
+        super("symbol.destack.StructProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] }
+        ]);
+    }
+    create(value?: PartialMessage<StructProto>): StructProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<StructProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StructProto): StructProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StructProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.StructProto
+ */
+export const StructProto = new StructProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
     constructor() {
         super("symbol.destack.StructDefinitionProto", [
@@ -54746,7 +56061,7 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
             { no: 110, name: "is_frozen", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -54785,7 +56100,7 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
                 case /* optional string description */ 103:
                     message.description = reader.string();
                     break;
-                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 104:
+                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* bool is_frozen */ 110:
@@ -54821,9 +56136,9 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
-        /* repeated symbol.destack.PropertyDefinitionProto properties = 104; */
+        /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
-            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
         /* bool is_frozen = 110; */
         if (message.isFrozen !== false)
             writer.tag(110, WireType.Varint).bool(message.isFrozen);
@@ -56649,6 +57964,7 @@ class TimerCancelledEventProto$Type extends MessageType<TimerCancelledEventProto
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -56678,6 +57994,9 @@ class TimerCancelledEventProto$Type extends MessageType<TimerCancelledEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -56712,6 +58031,9 @@ class TimerCancelledEventProto$Type extends MessageType<TimerCancelledEventProto
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -56739,6 +58061,7 @@ class TimerCompletedEventProto$Type extends MessageType<TimerCompletedEventProto
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -56768,6 +58091,9 @@ class TimerCompletedEventProto$Type extends MessageType<TimerCompletedEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -56802,6 +58128,9 @@ class TimerCompletedEventProto$Type extends MessageType<TimerCompletedEventProto
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -56829,6 +58158,7 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -56858,6 +58188,9 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -56892,6 +58225,9 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -56919,6 +58255,7 @@ class TimerStartedEventProto$Type extends MessageType<TimerStartedEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -56948,6 +58285,9 @@ class TimerStartedEventProto$Type extends MessageType<TimerStartedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -56982,6 +58322,9 @@ class TimerStartedEventProto$Type extends MessageType<TimerStartedEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -57009,11 +58352,11 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
             { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "alias", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 103, name: "icon", kind: "message", T: () => IconProto },
-            { no: 104, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
-            { no: 110, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 110, name: "alias", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
             { no: 121, name: "base_traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] }
         ]);
@@ -57024,8 +58367,8 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         message.id = 0;
         message.type = 0;
         message.name = "";
-        message.alias = "";
         message.properties = [];
+        message.alias = "";
         message.isExtensible = false;
         message.traits = [];
         message.baseTraits = [];
@@ -57050,19 +58393,19 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
                 case /* string name */ 101:
                     message.name = reader.string();
                     break;
-                case /* string alias */ 102:
-                    message.alias = reader.string();
-                    break;
-                case /* optional symbol.destack.IconProto icon */ 103:
+                case /* optional symbol.destack.IconProto icon */ 102:
                     message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional string description */ 104:
+                case /* optional string description */ 103:
                     message.description = reader.string();
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* bool is_extensible */ 110:
+                case /* string alias */ 110:
+                    message.alias = reader.string();
+                    break;
+                case /* bool is_extensible */ 111:
                     message.isExtensible = reader.bool();
                     break;
                 case /* repeated symbol.destack.TraitTypeProto traits */ 120:
@@ -57103,21 +58446,21 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         /* string name = 101; */
         if (message.name !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.name);
-        /* string alias = 102; */
-        if (message.alias !== "")
-            writer.tag(102, WireType.LengthDelimited).string(message.alias);
-        /* optional symbol.destack.IconProto icon = 103; */
+        /* optional symbol.destack.IconProto icon = 102; */
         if (message.icon)
-            IconProto.internalBinaryWrite(message.icon, writer.tag(103, WireType.LengthDelimited).fork(), options).join();
-        /* optional string description = 104; */
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 103; */
         if (message.description !== undefined)
-            writer.tag(104, WireType.LengthDelimited).string(message.description);
+            writer.tag(103, WireType.LengthDelimited).string(message.description);
         /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_extensible = 110; */
+        /* string alias = 110; */
+        if (message.alias !== "")
+            writer.tag(110, WireType.LengthDelimited).string(message.alias);
+        /* bool is_extensible = 111; */
         if (message.isExtensible !== false)
-            writer.tag(110, WireType.Varint).bool(message.isExtensible);
+            writer.tag(111, WireType.Varint).bool(message.isExtensible);
         /* repeated symbol.destack.TraitTypeProto traits = 120; */
         if (message.traits.length) {
             writer.tag(120, WireType.LengthDelimited).fork();
@@ -57703,6 +59046,7 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -57732,6 +59076,9 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
@@ -57766,6 +59113,9 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -58201,7 +59551,7 @@ class ValueProto$Type extends MessageType<ValueProto> {
                 case /* symbol.destack.TypeProto type */ 100:
                     message.type = TypeProto.internalBinaryRead(reader, reader.uint32(), options, message.type);
                     break;
-                case /* google.protobuf.Value value */ 110:
+                case /* optional google.protobuf.Value value */ 110:
                     message.value = Value.internalBinaryRead(reader, reader.uint32(), options, message.value);
                     break;
                 default:
@@ -58222,7 +59572,7 @@ class ValueProto$Type extends MessageType<ValueProto> {
         /* symbol.destack.TypeProto type = 100; */
         if (message.type)
             TypeProto.internalBinaryWrite(message.type, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Value value = 110; */
+        /* optional google.protobuf.Value value = 110; */
         if (message.value)
             Value.internalBinaryWrite(message.value, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
@@ -58434,24 +59784,71 @@ class VariantProto$Type extends MessageType<VariantProto> {
  */
 export const VariantProto = new VariantProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector2Proto$Type extends MessageType<Vector2Proto> {
+class VectorProto$Type extends MessageType<VectorProto> {
     constructor() {
-        super("symbol.destack.Vector2Proto", [
+        super("symbol.destack.VectorProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] }
+        ]);
+    }
+    create(value?: PartialMessage<VectorProto>): VectorProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VectorProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VectorProto): VectorProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VectorProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.VectorProto
+ */
+export const VectorProto = new VectorProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Vector2fProto$Type extends MessageType<Vector2fProto> {
+    constructor() {
+        super("symbol.destack.Vector2fProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 101, name: "x", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 102, name: "y", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
-    create(value?: PartialMessage<Vector2Proto>): Vector2Proto {
+    create(value?: PartialMessage<Vector2fProto>): Vector2fProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.x = 0;
         message.y = 0;
         if (value !== undefined)
-            reflectionMergePartial<Vector2Proto>(this, message, value);
+            reflectionMergePartial<Vector2fProto>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector2Proto): Vector2Proto {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector2fProto): Vector2fProto {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -58476,7 +59873,7 @@ class Vector2Proto$Type extends MessageType<Vector2Proto> {
         }
         return message;
     }
-    internalBinaryWrite(message: Vector2Proto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: Vector2fProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -58493,9 +59890,9 @@ class Vector2Proto$Type extends MessageType<Vector2Proto> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.Vector2Proto
+ * @generated MessageType for protobuf message symbol.destack.Vector2fProto
  */
-export const Vector2Proto = new Vector2Proto$Type();
+export const Vector2fProto = new Vector2fProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Vector2iProto$Type extends MessageType<Vector2iProto> {
     constructor() {
@@ -58560,26 +59957,26 @@ class Vector2iProto$Type extends MessageType<Vector2iProto> {
  */
 export const Vector2iProto = new Vector2iProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector3Proto$Type extends MessageType<Vector3Proto> {
+class Vector3fProto$Type extends MessageType<Vector3fProto> {
     constructor() {
-        super("symbol.destack.Vector3Proto", [
+        super("symbol.destack.Vector3fProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 101, name: "x", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 102, name: "y", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 103, name: "z", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
-    create(value?: PartialMessage<Vector3Proto>): Vector3Proto {
+    create(value?: PartialMessage<Vector3fProto>): Vector3fProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.x = 0;
         message.y = 0;
         message.z = 0;
         if (value !== undefined)
-            reflectionMergePartial<Vector3Proto>(this, message, value);
+            reflectionMergePartial<Vector3fProto>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector3Proto): Vector3Proto {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector3fProto): Vector3fProto {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -58607,7 +60004,7 @@ class Vector3Proto$Type extends MessageType<Vector3Proto> {
         }
         return message;
     }
-    internalBinaryWrite(message: Vector3Proto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: Vector3fProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -58627,9 +60024,9 @@ class Vector3Proto$Type extends MessageType<Vector3Proto> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.Vector3Proto
+ * @generated MessageType for protobuf message symbol.destack.Vector3fProto
  */
-export const Vector3Proto = new Vector3Proto$Type();
+export const Vector3fProto = new Vector3fProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Vector3iProto$Type extends MessageType<Vector3iProto> {
     constructor() {
@@ -58702,9 +60099,9 @@ class Vector3iProto$Type extends MessageType<Vector3iProto> {
  */
 export const Vector3iProto = new Vector3iProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector4Proto$Type extends MessageType<Vector4Proto> {
+class Vector4fProto$Type extends MessageType<Vector4fProto> {
     constructor() {
-        super("symbol.destack.Vector4Proto", [
+        super("symbol.destack.Vector4fProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 101, name: "x", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 102, name: "y", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
@@ -58712,7 +60109,7 @@ class Vector4Proto$Type extends MessageType<Vector4Proto> {
             { no: 104, name: "w", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
-    create(value?: PartialMessage<Vector4Proto>): Vector4Proto {
+    create(value?: PartialMessage<Vector4fProto>): Vector4fProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.x = 0;
@@ -58720,10 +60117,10 @@ class Vector4Proto$Type extends MessageType<Vector4Proto> {
         message.z = 0;
         message.w = 0;
         if (value !== undefined)
-            reflectionMergePartial<Vector4Proto>(this, message, value);
+            reflectionMergePartial<Vector4fProto>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector4Proto): Vector4Proto {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector4fProto): Vector4fProto {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -58754,7 +60151,7 @@ class Vector4Proto$Type extends MessageType<Vector4Proto> {
         }
         return message;
     }
-    internalBinaryWrite(message: Vector4Proto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: Vector4fProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -58777,9 +60174,9 @@ class Vector4Proto$Type extends MessageType<Vector4Proto> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.Vector4Proto
+ * @generated MessageType for protobuf message symbol.destack.Vector4fProto
  */
-export const Vector4Proto = new Vector4Proto$Type();
+export const Vector4fProto = new Vector4fProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Vector4iProto$Type extends MessageType<Vector4iProto> {
     constructor() {
@@ -58859,6 +60256,100 @@ class Vector4iProto$Type extends MessageType<Vector4iProto> {
  * @generated MessageType for protobuf message symbol.destack.Vector4iProto
  */
 export const Vector4iProto = new Vector4iProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class VectorfProto$Type extends MessageType<VectorfProto> {
+    constructor() {
+        super("symbol.destack.VectorfProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] }
+        ]);
+    }
+    create(value?: PartialMessage<VectorfProto>): VectorfProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VectorfProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VectorfProto): VectorfProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VectorfProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.VectorfProto
+ */
+export const VectorfProto = new VectorfProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class VectoriProto$Type extends MessageType<VectoriProto> {
+    constructor() {
+        super("symbol.destack.VectoriProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] }
+        ]);
+    }
+    create(value?: PartialMessage<VectoriProto>): VectoriProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VectoriProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VectoriProto): VectoriProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VectoriProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.VectoriProto
+ */
+export const VectoriProto = new VectoriProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ViewProto$Type extends MessageType<ViewProto> {
     constructor() {
@@ -59121,10 +60612,11 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
             { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -59132,7 +60624,7 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
             { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] },
-            { no: 140, name: "delta", kind: "message", T: () => Vector2Proto }
+            { no: 140, name: "delta", kind: "message", T: () => Vector2fProto }
         ]);
     }
     create(value?: PartialMessage<WheelEventProto>): WheelEventProto {
@@ -59167,6 +60659,9 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
                 case /* google.protobuf.Timestamp created_at */ 20:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
@@ -59176,8 +60671,8 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2Proto position */ 110:
-                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* double pressure */ 111:
                     message.pressure = reader.double();
@@ -59200,8 +60695,8 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
                 case /* symbol.destack.MouseButtonProto button */ 130:
                     message.button = reader.int32();
                     break;
-                case /* symbol.destack.Vector2Proto delta */ 140:
-                    message.delta = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.delta);
+                case /* symbol.destack.Vector2fProto delta */ 140:
+                    message.delta = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.delta);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -59227,6 +60722,9 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -59236,9 +60734,9 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2Proto position = 110; */
+        /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
-            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 111; */
         if (message.pressure !== 0)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -59260,9 +60758,9 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         /* symbol.destack.MouseButtonProto button = 130; */
         if (message.button !== 0)
             writer.tag(130, WireType.Varint).int32(message.button);
-        /* symbol.destack.Vector2Proto delta = 140; */
+        /* symbol.destack.Vector2fProto delta = 140; */
         if (message.delta)
-            Vector2Proto.internalBinaryWrite(message.delta, writer.tag(140, WireType.LengthDelimited).fork(), options).join();
+            Vector2fProto.internalBinaryWrite(message.delta, writer.tag(140, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -62553,6 +64051,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 // Any...
 export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | MetricProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | ChangeEventProto | QueryEventProto | MeasurementEventProto | CustomEnumDefinitionProto | CustomOptionProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomPropertyProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | BranchProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
-export type AnyStructProto = NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | OriginProto | ChangeProto | ChangeResultProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
+export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | PropertyDefinitionProto | BuiltinObjectDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | EditProto | OriginProto | ChangeProto | ChangeResultProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

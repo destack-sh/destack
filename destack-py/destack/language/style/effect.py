@@ -8,7 +8,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    Vector2,
+    Vector2f,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -69,10 +69,10 @@ class Effect(StructFrozen):
     type: EffectType = builtin_property(100, is_repr=True)
     style: Optional["EffectStyle"] = builtin_property(101, is_repr=True)
     opacity: Optional[float] = builtin_property(102, is_repr=True)
-    offset: Optional[Vector2] = builtin_property(103, is_repr=True)
+    offset: Optional[Vector2f] = builtin_property(103, is_repr=True)
     scale: Optional[float] = builtin_property(104, is_repr=True)
     rotate: Optional[Axis3] = builtin_property(105, is_repr=True)
-    skew: Optional[Vector2] = builtin_property(106, is_repr=True)
+    skew: Optional[Vector2f] = builtin_property(106, is_repr=True)
     perspective: Optional[float] = builtin_property(107, is_repr=True)
     delay: Optional[timedelta] = builtin_property(108, is_repr=True)
     duration: Optional[float] = builtin_property(109, is_repr=True)
@@ -90,10 +90,10 @@ class EffectStyle(Style):
 
     type: EffectType = builtin_property(100, is_repr=True)
     opacity: Optional[float] = builtin_property(200, is_repr=True)
-    offset: Optional[Vector2] = builtin_property(201, is_repr=True)
+    offset: Optional[Vector2f] = builtin_property(201, is_repr=True)
     scale: Optional[float] = builtin_property(202, is_repr=True)
     rotate: Optional[Axis3] = builtin_property(203, is_repr=True)
-    skew: Optional[Vector2] = builtin_property(204, is_repr=True)
+    skew: Optional[Vector2f] = builtin_property(204, is_repr=True)
     perspective: Optional[float] = builtin_property(205, is_repr=True)
     delay: Optional[timedelta] = builtin_property(206, is_repr=True)
     duration: Optional[float] = builtin_property(207, is_repr=True)

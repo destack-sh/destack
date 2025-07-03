@@ -11,6 +11,7 @@ from .core.builtin.common import (
     ENUM_TYPES,
     NodeType,
     StoreType,
+    StructType,
     TraitType,
 )
 from .core.builtin.const import UNSET
@@ -81,27 +82,47 @@ def finalize():
         if trait_type not in NODE_TYPES_BY_TRAIT_TYPE:
             NODE_TYPES_BY_TRAIT_TYPE[trait_type] = ()
 
-    # index extended_by (direct) / inherited_by (direct and indirect)
-    extended_by_by_type: dict[NodeType, list[NodeType]] = defaultdict(list)
+    # index Node extended_by (direct) / inherited_by (direct and indirect)
+    node_type_extended_by: dict[NodeType, list[NodeType]] = defaultdict(list)
     for node_cls in NODE_CLASS_BY_TYPE.values():
         if node_cls.__base_type__ is not None:
-            extended_by_by_type[node_cls.__base_type__].append(node_cls.metatype)
+            node_type_extended_by[node_cls.__base_type__].append(node_cls.metatype)
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        node_cls.__extended_by__ = tuple(extended_by_by_type[node_cls.metatype])
+        node_cls.__extended_by__ = tuple(node_type_extended_by[node_cls.metatype])
 
-    # index inherited_by (recursive)
+    # index Node inherited_by (recursive)
     for node_cls in NODE_CLASS_BY_TYPE.values():
         # collect all types that inherit from this node recursively
-        inherited_by: list[NodeType] = []
+        inherited_by_nodes: list[NodeType] = []
         to_visit = list(reversed(node_cls.__extended_by__))
         while to_visit:
             inheriting_type = to_visit.pop()
-            if inheriting_type not in inherited_by:
-                inherited_by.append(inheriting_type)
+            if inheriting_type not in inherited_by_nodes:
+                inherited_by_nodes.append(inheriting_type)
                 inheriting_cls = NODE_CLASS_BY_TYPE[inheriting_type]
                 to_visit.extend(reversed(inheriting_cls.__extended_by__))
+        node_cls.__inherited_by__ = tuple(inherited_by_nodes)
 
-        node_cls.__inherited_by__ = tuple(inherited_by)
+    # index Struct extended_by (direct) / inherited_by (direct and indirect)
+    struct_type_extended_by: dict[StructType, list[StructType]] = defaultdict(list)
+    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
+        if struct_cls.__base_type__ is not None:
+            struct_type_extended_by[struct_cls.__base_type__].append(struct_cls.metatype)
+    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
+        struct_cls.__extended_by__ = tuple(struct_type_extended_by[struct_cls.metatype])
+
+    # index Struct inherited_by (recursive)
+    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
+        # collect all types that inherit from this struct recursively
+        inherited_by_structs: list[StructType] = []
+        to_visit = list(reversed(struct_cls.__extended_by__))
+        while to_visit:
+            inheriting_type = to_visit.pop()
+            if inheriting_type not in inherited_by_structs:
+                inherited_by_structs.append(inheriting_type)
+                inheriting_cls = STRUCT_CLASS_BY_TYPE[inheriting_type]
+                to_visit.extend(reversed(inheriting_cls.__extended_by__))
+        struct_cls.__inherited_by__ = tuple(inherited_by_structs)
 
     from destack.language.core import expand_node_inheritance, expand_node_traits
 
