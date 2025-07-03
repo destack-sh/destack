@@ -1029,35 +1029,41 @@ def _generate_struct(definition: StructDefinition) -> str:
             is_readonly=definition.is_frozen,
             is_node=False,
             is_interface=False,
-            is_abstract=False,
+            is_abstract=struct_cls.__is_abstract__,
         )
         prop_parts.append(prop_str)
     struct_parts.append("\n\n".join(prop_parts))
 
     # body
-    init_str = _generate_init(struct_cls)
-    struct_parts.append(init_str)
-    equals_str = _generate_equals(struct_cls)
-    struct_parts.append(equals_str)
-    repr_str = _generate_repr(struct_cls)
-    struct_parts.append(repr_str)
-    hash_str = _generate_hash(struct_cls)
-    struct_parts.append(hash_str)
-    validate_str = _generate_validate(struct_cls)
-    struct_parts.append(validate_str)
-    value_str = generate_object_value(struct_cls)
-    struct_parts.append(value_str)
-    proto_str = generate_object_proto(struct_cls)
-    struct_parts.append(proto_str)
+    if not struct_cls.__is_abstract__:
+        init_str = _generate_init(struct_cls)
+        struct_parts.append(init_str)
+        equals_str = _generate_equals(struct_cls)
+        struct_parts.append(equals_str)
+        repr_str = _generate_repr(struct_cls)
+        struct_parts.append(repr_str)
+        hash_str = _generate_hash(struct_cls)
+        struct_parts.append(hash_str)
+        validate_str = _generate_validate(struct_cls)
+        struct_parts.append(validate_str)
+        value_str = generate_object_value(struct_cls)
+        struct_parts.append(value_str)
+        proto_str = generate_object_proto(struct_cls)
+        struct_parts.append(proto_str)
 
-    base_cls_name = (
-        STRUCT_CLASS_BY_TYPE[definition.base_type].__name__ if definition.base_type else "Struct"
-    )
+    if definition.base_type is None or definition.base_type == StructType.STRUCT:
+        base_cls_name = "Struct" if not definition.is_frozen else "StructFrozen"
+    else:
+        base_cls_name = (
+            STRUCT_CLASS_BY_TYPE[definition.base_type].__name__
+            if definition.base_type
+            else "Struct"
+        )
     extends_str = f" extends {base_cls_name}"
     generic_str = " <T extends Node = Node>" if definition.name == "Query" else ""
     struct_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
-export class {definition.name}{generic_str}{extends_str} {{
+export {"abstract " if struct_cls.__is_abstract__ else ""}class {definition.name}{generic_str}{extends_str} {{
 {textwrap.indent("\n\n".join(struct_parts), "  ")}
 
   {MARKER_CUSTOM_START}

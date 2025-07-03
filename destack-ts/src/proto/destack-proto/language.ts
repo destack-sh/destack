@@ -14213,6 +14213,30 @@ export interface StructDefinitionProto {
      * @generated from protobuf field: bool is_frozen = 110
      */
     isFrozen: boolean;
+    /**
+     * @generated from protobuf field: bool is_abstract = 111
+     */
+    isAbstract: boolean;
+    /**
+     * @generated from protobuf field: bool is_extensible = 112
+     */
+    isExtensible: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.destack.StructTypeProto base_type = 120
+     */
+    baseType?: StructTypeProto;
+    /**
+     * @generated from protobuf field: repeated symbol.destack.StructTypeProto extended_by = 121
+     */
+    extendedBy: StructTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.StructTypeProto inherits = 122
+     */
+    inherits: StructTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.StructTypeProto inherited_by = 123
+     */
+    inheritedBy: StructTypeProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.StructDefinitionReferenceProto
@@ -56062,7 +56086,13 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
-            { no: 110, name: "is_frozen", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 110, name: "is_frozen", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 111, name: "is_abstract", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 112, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 120, name: "base_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 121, name: "extended_by", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 122, name: "inherits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 123, name: "inherited_by", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] }
         ]);
     }
     create(value?: PartialMessage<StructDefinitionProto>): StructDefinitionProto {
@@ -56073,6 +56103,11 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
         message.name = "";
         message.properties = [];
         message.isFrozen = false;
+        message.isAbstract = false;
+        message.isExtensible = false;
+        message.extendedBy = [];
+        message.inherits = [];
+        message.inheritedBy = [];
         if (value !== undefined)
             reflectionMergePartial<StructDefinitionProto>(this, message, value);
         return message;
@@ -56105,6 +56140,36 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
                     break;
                 case /* bool is_frozen */ 110:
                     message.isFrozen = reader.bool();
+                    break;
+                case /* bool is_abstract */ 111:
+                    message.isAbstract = reader.bool();
+                    break;
+                case /* bool is_extensible */ 112:
+                    message.isExtensible = reader.bool();
+                    break;
+                case /* optional symbol.destack.StructTypeProto base_type */ 120:
+                    message.baseType = reader.int32();
+                    break;
+                case /* repeated symbol.destack.StructTypeProto extended_by */ 121:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.extendedBy.push(reader.int32());
+                    else
+                        message.extendedBy.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.StructTypeProto inherits */ 122:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.inherits.push(reader.int32());
+                    else
+                        message.inherits.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.StructTypeProto inherited_by */ 123:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.inheritedBy.push(reader.int32());
+                    else
+                        message.inheritedBy.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -56142,6 +56207,36 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
         /* bool is_frozen = 110; */
         if (message.isFrozen !== false)
             writer.tag(110, WireType.Varint).bool(message.isFrozen);
+        /* bool is_abstract = 111; */
+        if (message.isAbstract !== false)
+            writer.tag(111, WireType.Varint).bool(message.isAbstract);
+        /* bool is_extensible = 112; */
+        if (message.isExtensible !== false)
+            writer.tag(112, WireType.Varint).bool(message.isExtensible);
+        /* optional symbol.destack.StructTypeProto base_type = 120; */
+        if (message.baseType !== undefined)
+            writer.tag(120, WireType.Varint).int32(message.baseType);
+        /* repeated symbol.destack.StructTypeProto extended_by = 121; */
+        if (message.extendedBy.length) {
+            writer.tag(121, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.extendedBy.length; i++)
+                writer.int32(message.extendedBy[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.StructTypeProto inherits = 122; */
+        if (message.inherits.length) {
+            writer.tag(122, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.inherits.length; i++)
+                writer.int32(message.inherits[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.StructTypeProto inherited_by = 123; */
+        if (message.inheritedBy.length) {
+            writer.tag(123, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.inheritedBy.length; i++)
+                writer.int32(message.inheritedBy[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

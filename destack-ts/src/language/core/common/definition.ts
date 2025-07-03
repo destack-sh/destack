@@ -32,8 +32,6 @@ import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { STRUCT_CLASS_BY_TYPE, registerStructClass } from "@destack/language/registry";
 import {
-  BuiltinDefinitionProto,
-  BuiltinObjectDefinitionProto,
   CascadeActionProto,
   ConstantDefinitionProto,
   EdgeTypeProto,
@@ -57,11 +55,86 @@ import {
 import { assertNever, base64Decode } from "@destack/utils";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 
+/* ==== DESTACK_GENERATED_START:STRUCT:100 ==== */
+/**
+ * Definition of a builtin object.
+ */
+export abstract class BuiltinDefinition extends StructFrozen {
+  static metatype: StructType = StructType.BUILTIN_DEFINITION;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * BuiltinDefinition.id
+   */
+  declare readonly id: number;
+
+  /**
+   * BuiltinDefinition.name
+   */
+  declare readonly name: string;
+
+  /**
+   * BuiltinDefinition.icon
+   */
+  declare readonly icon: Icon | null;
+
+  /**
+   * BuiltinDefinition.description
+   */
+  declare readonly description: string | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.BUILTIN_DEFINITION, BuiltinDefinition);
+/* ==== DESTACK_GENERATED_END:STRUCT:100 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
+/**
+ * Definition of a builtin Object.
+ */
+export abstract class BuiltinObjectDefinition extends BuiltinDefinition {
+  static metatype: StructType = StructType.BUILTIN_OBJECT_DEFINITION;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * BuiltinDefinition.id
+   */
+  declare readonly id: number;
+
+  /**
+   * BuiltinDefinition.name
+   */
+  declare readonly name: string;
+
+  /**
+   * BuiltinDefinition.icon
+   */
+  declare readonly icon: Icon | null;
+
+  /**
+   * BuiltinDefinition.description
+   */
+  declare readonly description: string | null;
+
+  /**
+   * BuiltinObjectDefinition.properties
+   */
+  declare readonly properties: Array<PropertyDefinition>;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.BUILTIN_OBJECT_DEFINITION, BuiltinObjectDefinition);
+/* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */
+
 /* ==== DESTACK_GENERATED_START:STRUCT:102 ==== */
 /**
  * Definition of a builtin Node.
  */
-export class NodeDefinition extends StructFrozen {
+export class NodeDefinition extends BuiltinObjectDefinition {
   static metatype: StructType = StructType.NODE_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -1070,7 +1143,7 @@ registerStructClass(StructType.NODE_DEFINITION, NodeDefinition);
 /**
  * Definition of a builtin Trait.
  */
-export class TraitDefinition extends StructFrozen {
+export class TraitDefinition extends BuiltinObjectDefinition {
   static metatype: StructType = StructType.TRAIT_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -1553,7 +1626,7 @@ registerStructClass(StructType.TRAIT_DEFINITION, TraitDefinition);
 /**
  * Definition of a builtin Struct.
  */
-export class StructDefinition extends StructFrozen {
+export class StructDefinition extends BuiltinObjectDefinition {
   static metatype: StructType = StructType.STRUCT_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -1588,9 +1661,39 @@ export class StructDefinition extends StructFrozen {
   readonly properties: Array<PropertyDefinition>;
 
   /**
-   * StructDefinition.isFrozen
+   * Whether this Struct cannot be modified.
    */
   readonly isFrozen: boolean;
+
+  /**
+   * Whether this Struct cannot be instantiated directly.
+   */
+  readonly isAbstract: boolean;
+
+  /**
+   * Whether this Struct can be extended by custom Structs.
+   */
+  readonly isExtensible: boolean;
+
+  /**
+   * The base type this Struct extends (directly).
+   */
+  readonly baseType: StructType | null;
+
+  /**
+   * Structs that extend this Struct type (directly).
+   */
+  readonly extendedBy: Array<StructType>;
+
+  /**
+   * Structs that this Struct inherits (directly and indirectly).
+   */
+  readonly inherits: Array<StructType>;
+
+  /**
+   * Structs that inherit this Struct type (directly and indirectly).
+   */
+  readonly inheritedBy: Array<StructType>;
 
   constructor(options: {
     id: number;
@@ -1600,6 +1703,12 @@ export class StructDefinition extends StructFrozen {
     description?: string | null;
     properties?: Array<PropertyDefinition>;
     isFrozen: boolean;
+    isAbstract: boolean;
+    isExtensible: boolean;
+    baseType?: StructType | null;
+    extendedBy?: Array<StructType>;
+    inherits?: Array<StructType>;
+    inheritedBy?: Array<StructType>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1644,6 +1753,33 @@ export class StructDefinition extends StructFrozen {
       throw new Error(`StructDefinition.isFrozen is required`);
     }
     this.isFrozen = _isFrozen;
+    let _isAbstract = options.isAbstract;
+    if (_isAbstract === null) {
+      throw new Error(`StructDefinition.isAbstract is required`);
+    }
+    this.isAbstract = _isAbstract;
+    let _isExtensible = options.isExtensible;
+    if (_isExtensible === null) {
+      throw new Error(`StructDefinition.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
+    let _extendedBy = options.extendedBy ?? null;
+    if (_extendedBy === null) {
+      _extendedBy = [];
+    }
+    this.extendedBy = _extendedBy;
+    let _inherits = options.inherits ?? null;
+    if (_inherits === null) {
+      _inherits = [];
+    }
+    this.inherits = _inherits;
+    let _inheritedBy = options.inheritedBy ?? null;
+    if (_inheritedBy === null) {
+      _inheritedBy = [];
+    }
+    this.inheritedBy = _inheritedBy;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1665,6 +1801,39 @@ export class StructDefinition extends StructFrozen {
     }
     if (!(this.isFrozen === other.isFrozen)) {
       return false;
+    }
+    if (!(this.isAbstract === other.isAbstract)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.baseType === other.baseType)) {
+      return false;
+    }
+    if (this.extendedBy.length !== other.extendedBy.length) {
+      return false;
+    }
+    for (let i = 0; i < this.extendedBy.length; i++) {
+      if (!(this.extendedBy[i] === other.extendedBy[i])) {
+        return false;
+      }
+    }
+    if (this.inherits.length !== other.inherits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.inherits.length; i++) {
+      if (!(this.inherits[i] === other.inherits[i])) {
+        return false;
+      }
+    }
+    if (this.inheritedBy.length !== other.inheritedBy.length) {
+      return false;
+    }
+    for (let i = 0; i < this.inheritedBy.length; i++) {
+      if (!(this.inheritedBy[i] === other.inheritedBy[i])) {
+        return false;
+      }
     }
     if (this.properties.length !== other.properties.length) {
       return false;
@@ -1716,6 +1885,26 @@ export class StructDefinition extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType) & 0xffffffff;
+    }
+    if (this.extendedBy && this.extendedBy.length > 0) {
+      for (const _item of this.extendedBy) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.inherits && this.inherits.length > 0) {
+      for (const _item of this.inherits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.inheritedBy && this.inheritedBy.length > 0) {
+      for (const _item of this.inheritedBy) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -1767,6 +1956,32 @@ export class StructDefinition extends StructFrozen {
       objectValue["105"] = packedProperties;
     }
     objectValue["110"] = object.isFrozen;
+    objectValue["111"] = object.isAbstract;
+    objectValue["112"] = object.isExtensible;
+    if (object.baseType != null) {
+      objectValue["120"] = object.baseType;
+    }
+    if (object.extendedBy.length > 0) {
+      const packedExtendedBy: any[] = [];
+      for (const item of object.extendedBy) {
+        packedExtendedBy.push(item);
+      }
+      objectValue["121"] = packedExtendedBy;
+    }
+    if (object.inherits.length > 0) {
+      const packedInherits: any[] = [];
+      for (const item of object.inherits) {
+        packedInherits.push(item);
+      }
+      objectValue["122"] = packedInherits;
+    }
+    if (object.inheritedBy.length > 0) {
+      const packedInheritedBy: any[] = [];
+      for (const item of object.inheritedBy) {
+        packedInheritedBy.push(item);
+      }
+      objectValue["123"] = packedInheritedBy;
+    }
     return objectValue;
   }
 
@@ -1781,6 +1996,26 @@ export class StructDefinition extends StructFrozen {
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const baseTypeValue = objectValue["120"];
+    const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
+    const unpackedExtendedBy: any[] = [];
+    if (objectValue["121"] != undefined) {
+      for (const item of objectValue["121"]) {
+        unpackedExtendedBy.push(Number(item));
+      }
+    }
+    const unpackedInherits: any[] = [];
+    if (objectValue["122"] != undefined) {
+      for (const item of objectValue["122"]) {
+        unpackedInherits.push(Number(item));
+      }
+    }
+    const unpackedInheritedBy: any[] = [];
+    if (objectValue["123"] != undefined) {
+      for (const item of objectValue["123"]) {
+        unpackedInheritedBy.push(Number(item));
+      }
+    }
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
@@ -1799,6 +2034,12 @@ export class StructDefinition extends StructFrozen {
     return new StructDefinition({
       type: Number(objectValue["100"]),
       isFrozen: objectValue["110"],
+      isAbstract: objectValue["111"],
+      isExtensible: objectValue["112"],
+      baseType: unpackedBaseType,
+      extendedBy: unpackedExtendedBy,
+      inherits: unpackedInherits,
+      inheritedBy: unpackedInheritedBy,
       properties: unpackedProperties,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
@@ -1852,6 +2093,32 @@ export class StructDefinition extends StructFrozen {
       objectProto.properties = packedProperties;
     }
     objectProto.isFrozen = object.isFrozen;
+    objectProto.isAbstract = object.isAbstract;
+    objectProto.isExtensible = object.isExtensible;
+    if (object.baseType != null) {
+      objectProto.baseType = Number(object.baseType) as StructTypeProto;
+    }
+    if (object.extendedBy) {
+      const packedExtendedBy: any[] = [];
+      for (const item of object.extendedBy) {
+        packedExtendedBy.push(Number(item) as StructTypeProto);
+      }
+      objectProto.extendedBy = packedExtendedBy;
+    }
+    if (object.inherits) {
+      const packedInherits: any[] = [];
+      for (const item of object.inherits) {
+        packedInherits.push(Number(item) as StructTypeProto);
+      }
+      objectProto.inherits = packedInherits;
+    }
+    if (object.inheritedBy) {
+      const packedInheritedBy: any[] = [];
+      for (const item of object.inheritedBy) {
+        packedInheritedBy.push(Number(item) as StructTypeProto);
+      }
+      objectProto.inheritedBy = packedInheritedBy;
+    }
     return objectProto as StructDefinitionProto;
   }
 
@@ -1866,6 +2133,24 @@ export class StructDefinition extends StructFrozen {
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedExtendedBy: any[] = [];
+    if (objectProto.extendedBy) {
+      for (const item of objectProto.extendedBy) {
+        unpackedExtendedBy.push(Number(item) as StructType);
+      }
+    }
+    const unpackedInherits: any[] = [];
+    if (objectProto.inherits) {
+      for (const item of objectProto.inherits) {
+        unpackedInherits.push(Number(item) as StructType);
+      }
+    }
+    const unpackedInheritedBy: any[] = [];
+    if (objectProto.inheritedBy) {
+      for (const item of objectProto.inheritedBy) {
+        unpackedInheritedBy.push(Number(item) as StructType);
+      }
+    }
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
@@ -1877,6 +2162,13 @@ export class StructDefinition extends StructFrozen {
     return new StructDefinition({
       type: Number(objectProto.type) as StructType,
       isFrozen: objectProto.isFrozen,
+      isAbstract: objectProto.isAbstract,
+      isExtensible: objectProto.isExtensible,
+      baseType:
+        objectProto.baseType != undefined ? (Number(objectProto.baseType) as StructType) : null,
+      extendedBy: unpackedExtendedBy,
+      inherits: unpackedInherits,
+      inheritedBy: unpackedInheritedBy,
       properties: unpackedProperties,
       id: Number(objectProto.id),
       name: objectProto.name,
@@ -1923,7 +2215,7 @@ registerStructClass(StructType.STRUCT_DEFINITION, StructDefinition);
 /**
  * Definition of a builtin Property.
  */
-export class PropertyDefinition extends StructFrozen {
+export class PropertyDefinition extends BuiltinDefinition {
   static metatype: StructType = StructType.PROPERTY_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -3166,7 +3458,7 @@ registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);
 /**
  * Definition of a builtin Enum.
  */
-export class EnumDefinition extends StructFrozen {
+export class EnumDefinition extends BuiltinDefinition {
   static metatype: StructType = StructType.ENUM_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -3505,7 +3797,7 @@ registerStructClass(StructType.ENUM_DEFINITION, EnumDefinition);
 /**
  * Definition of a builtin Enum Option.
  */
-export class OptionDefinition extends StructFrozen {
+export class OptionDefinition extends BuiltinDefinition {
   static metatype: StructType = StructType.OPTION_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -3794,7 +4086,7 @@ registerStructClass(StructType.OPTION_DEFINITION, OptionDefinition);
 /**
  * Definition of a builtin Permission for a builtin Node.
  */
-export class PermissionDefinition extends StructFrozen {
+export class PermissionDefinition extends BuiltinDefinition {
   static metatype: StructType = StructType.PERMISSION_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -4352,534 +4644,3 @@ export class ConstantDefinition extends StructFrozen {
 }
 registerStructClass(StructType.CONSTANT_DEFINITION, ConstantDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:109 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:100 ==== */
-/**
- * Definition of a builtin object.
- */
-export class BuiltinDefinition extends StructFrozen {
-  static metatype: StructType = StructType.BUILTIN_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  constructor(options: {
-    id: number;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`BuiltinDefinition.id is required`);
-    }
-    this.id = _id;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`BuiltinDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
-      if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<BuiltinDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description !== null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = BuiltinDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: BuiltinDefinition): { [key: string]: any } {
-    throw new Error("cannot pack abstract BuiltinDefinition");
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): BuiltinDefinition {
-    throw new Error("cannot unpack abstract BuiltinDefinition");
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): BuiltinDefinition {
-    return BuiltinDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): BuiltinDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = BuiltinDefinition.__packProto__(this);
-    }
-    return this._proto as BuiltinDefinitionProto;
-  }
-
-  static __packProto__(object: BuiltinDefinition): BuiltinDefinitionProto {
-    const objectProto: Partial<BuiltinDefinitionProto> = { metatype: 100 };
-    objectProto.id = object.id;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    return objectProto as BuiltinDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: BuiltinDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): BuiltinDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new BuiltinDefinition({
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: BuiltinDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): BuiltinDefinition {
-    return BuiltinDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): BuiltinDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = BuiltinDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.BUILTIN_DEFINITION, BuiltinDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:100 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
-/**
- * Definition of a builtin Object.
- */
-export class BuiltinObjectDefinition extends StructFrozen {
-  static metatype: StructType = StructType.BUILTIN_OBJECT_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  /**
-   * BuiltinObjectDefinition.properties
-   */
-  readonly properties: Array<PropertyDefinition>;
-
-  constructor(options: {
-    id: number;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    properties?: Array<PropertyDefinition>;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`BuiltinObjectDefinition.id is required`);
-    }
-    this.id = _id;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`BuiltinObjectDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
-    }
-    this.properties = _properties;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (this.properties.length !== other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
-      if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<BuiltinObjectDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description !== null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = BuiltinObjectDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: BuiltinObjectDefinition): { [key: string]: any } {
-    throw new Error("cannot pack abstract BuiltinObjectDefinition");
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): BuiltinObjectDefinition {
-    throw new Error("cannot unpack abstract BuiltinObjectDefinition");
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): BuiltinObjectDefinition {
-    return BuiltinObjectDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): BuiltinObjectDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = BuiltinObjectDefinition.__packProto__(this);
-    }
-    return this._proto as BuiltinObjectDefinitionProto;
-  }
-
-  static __packProto__(object: BuiltinObjectDefinition): BuiltinObjectDefinitionProto {
-    const objectProto: Partial<BuiltinObjectDefinitionProto> = { metatype: 101 };
-    objectProto.id = object.id;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    if (object.properties) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toProto());
-      }
-      objectProto.properties = packedProperties;
-    }
-    return objectProto as BuiltinObjectDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: BuiltinObjectDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): BuiltinObjectDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectProto.properties) {
-      for (const item of objectProto.properties) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    return new BuiltinObjectDefinition({
-      properties: unpackedProperties,
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: BuiltinObjectDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): BuiltinObjectDefinition {
-    return BuiltinObjectDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): BuiltinObjectDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = BuiltinObjectDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.BUILTIN_OBJECT_DEFINITION, BuiltinObjectDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */

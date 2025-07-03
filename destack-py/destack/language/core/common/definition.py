@@ -436,7 +436,14 @@ class StructDefinition(BuiltinObjectDefinition):
 
     type: StructType = builtin_property(100, is_repr=True)
 
-    is_frozen: bool = builtin_property(110)
+    is_frozen: bool = builtin_property(110, description="Whether this Struct cannot be modified.")
+    is_abstract: bool = builtin_property(
+        111, description="Whether this Struct cannot be instantiated directly."
+    )
+    is_extensible: bool = builtin_property(
+        112,
+        description="Whether this Struct can be extended by custom Structs.",
+    )
 
     base_type: StructType | None = builtin_property(
         120, description="The base type this Struct extends (directly)."
@@ -466,6 +473,8 @@ class StructDefinition(BuiltinObjectDefinition):
                 prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
             ],
             is_frozen=struct_cls.__is_frozen__,
+            is_abstract=struct_cls.__is_abstract__,
+            is_extensible=struct_cls.__is_extensible__,
             base_type=struct_cls.__base_type__,
             extended_by=list(struct_cls.__extended_by__),
             inherits=list(struct_cls.__inherits__),

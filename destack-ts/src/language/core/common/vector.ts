@@ -10,18 +10,60 @@ import {
   Vector3iProto,
   Vector4fProto,
   Vector4iProto,
-  VectorProto,
-  VectorfProto,
-  VectoriProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashFloat, hashInt } from "@destack/utils/hash";
+
+/* ==== DESTACK_GENERATED_START:STRUCT:700 ==== */
+/**
+ * A vector.
+ */
+export abstract class Vector extends StructFrozen {
+  static metatype: StructType = StructType.VECTOR;
+  static __isFrozen__: boolean = true;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.VECTOR, Vector);
+/* ==== DESTACK_GENERATED_END:STRUCT:700 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:710 ==== */
+/**
+ * A floating point vector.
+ */
+export abstract class Vectorf extends Vector {
+  static metatype: StructType = StructType.VECTORF;
+  static __isFrozen__: boolean = true;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.VECTORF, Vectorf);
+/* ==== DESTACK_GENERATED_END:STRUCT:710 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:720 ==== */
+/**
+ * An integer vector.
+ */
+export abstract class Vectori extends Vector {
+  static metatype: StructType = StructType.VECTORI;
+  static __isFrozen__: boolean = true;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.VECTORI, Vectori);
+/* ==== DESTACK_GENERATED_END:STRUCT:720 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:711 ==== */
 /**
  * A 2D float vector.
  */
-export class Vector2f extends StructFrozen {
+export class Vector2f extends Vectorf {
   static metatype: StructType = StructType.VECTOR2F;
   static __isFrozen__: boolean = true;
 
@@ -374,7 +416,7 @@ registerStructClass(StructType.VECTOR2F, Vector2f);
 /**
  * A 3D float vector.
  */
-export class Vector3f extends StructFrozen {
+export class Vector3f extends Vectorf {
   static metatype: StructType = StructType.VECTOR3F;
   static __isFrozen__: boolean = true;
 
@@ -773,7 +815,7 @@ registerStructClass(StructType.VECTOR3F, Vector3f);
 /**
  * A 4D float vector.
  */
-export class Vector4f extends StructFrozen {
+export class Vector4f extends Vectorf {
   static metatype: StructType = StructType.VECTOR4F;
   static __isFrozen__: boolean = true;
 
@@ -1208,7 +1250,7 @@ registerStructClass(StructType.VECTOR4F, Vector4f);
 /**
  * A 2D integer vector.
  */
-export class Vector2i extends StructFrozen {
+export class Vector2i extends Vectori {
   static metatype: StructType = StructType.VECTOR2I;
   static __isFrozen__: boolean = true;
 
@@ -1561,7 +1603,7 @@ registerStructClass(StructType.VECTOR2I, Vector2i);
 /**
  * A 3D integer vector.
  */
-export class Vector3i extends StructFrozen {
+export class Vector3i extends Vectori {
   static metatype: StructType = StructType.VECTOR3I;
   static __isFrozen__: boolean = true;
 
@@ -1950,7 +1992,7 @@ registerStructClass(StructType.VECTOR3I, Vector3i);
 /**
  * A 4D integer vector.
  */
-export class Vector4i extends StructFrozen {
+export class Vector4i extends Vectori {
   static metatype: StructType = StructType.VECTOR4I;
   static __isFrozen__: boolean = true;
 
@@ -2352,438 +2394,3 @@ export class Vector4i extends StructFrozen {
 }
 registerStructClass(StructType.VECTOR4I, Vector4i);
 /* ==== DESTACK_GENERATED_END:STRUCT:723 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:700 ==== */
-/**
- * A vector.
- */
-export class Vector extends StructFrozen {
-  static metatype: StructType = StructType.VECTOR;
-  static __isFrozen__: boolean = true;
-
-  constructor(options: {
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    return `<Vector>`;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Vector.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Vector): { [key: string]: any } {
-    throw new Error("cannot pack abstract Vector");
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vector {
-    throw new Error("cannot unpack abstract Vector");
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vector {
-    return Vector.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): VectorProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Vector.__packProto__(this);
-    }
-    return this._proto as VectorProto;
-  }
-
-  static __packProto__(object: Vector): VectorProto {
-    const objectProto: Partial<VectorProto> = { metatype: 700 };
-    return objectProto as VectorProto;
-  }
-
-  static __unpackProto__(
-    objectProto: VectorProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vector {
-    return new Vector({
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: VectorProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vector {
-    return Vector.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Vector {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = VectorProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.VECTOR, Vector);
-/* ==== DESTACK_GENERATED_END:STRUCT:700 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:710 ==== */
-/**
- * A floating point vector.
- */
-export class Vectorf extends StructFrozen {
-  static metatype: StructType = StructType.VECTORF;
-  static __isFrozen__: boolean = true;
-
-  constructor(options: {
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    return `<Vectorf>`;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Vectorf.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Vectorf): { [key: string]: any } {
-    throw new Error("cannot pack abstract Vectorf");
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vectorf {
-    throw new Error("cannot unpack abstract Vectorf");
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vectorf {
-    return Vectorf.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): VectorfProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Vectorf.__packProto__(this);
-    }
-    return this._proto as VectorfProto;
-  }
-
-  static __packProto__(object: Vectorf): VectorfProto {
-    const objectProto: Partial<VectorfProto> = { metatype: 710 };
-    return objectProto as VectorfProto;
-  }
-
-  static __unpackProto__(
-    objectProto: VectorfProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vectorf {
-    return new Vectorf({
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: VectorfProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vectorf {
-    return Vectorf.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Vectorf {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = VectorfProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.VECTORF, Vectorf);
-/* ==== DESTACK_GENERATED_END:STRUCT:710 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:720 ==== */
-/**
- * An integer vector.
- */
-export class Vectori extends StructFrozen {
-  static metatype: StructType = StructType.VECTORI;
-  static __isFrozen__: boolean = true;
-
-  constructor(options: {
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    return `<Vectori>`;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Vectori.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Vectori): { [key: string]: any } {
-    throw new Error("cannot pack abstract Vectori");
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vectori {
-    throw new Error("cannot unpack abstract Vectori");
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vectori {
-    return Vectori.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): VectoriProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Vectori.__packProto__(this);
-    }
-    return this._proto as VectoriProto;
-  }
-
-  static __packProto__(object: Vectori): VectoriProto {
-    const objectProto: Partial<VectoriProto> = { metatype: 720 };
-    return objectProto as VectoriProto;
-  }
-
-  static __unpackProto__(
-    objectProto: VectoriProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vectori {
-    return new Vectori({
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: VectoriProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Vectori {
-    return Vectori.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Vectori {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = VectoriProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.VECTORI, Vectori);
-/* ==== DESTACK_GENERATED_END:STRUCT:720 ==== */
