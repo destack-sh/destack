@@ -16,6 +16,7 @@ from ..builtin.common import (
     NodeType,
     PrimitiveType,
     ScalarType,
+    StoreType,
     StructType,
     TraitType,
     TypeCardinality,
@@ -332,7 +333,8 @@ class NodeDefinition(StructFrozen):
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(104)
+    primary_store_types: list[StoreType] = builtin_property(104)
+    properties: list["PropertyDefinition"] = builtin_property(105)
 
     is_global: bool = builtin_property(
         110,
@@ -405,6 +407,7 @@ class NodeDefinition(StructFrozen):
             name=node_cls.__name__,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
+            primary_store_types=list(node_cls.__primary_store_types__),
             properties=[
                 prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
             ],

@@ -454,7 +454,7 @@ registerEnumClass(EnumType.NODE_TYPE, NodeType);
 export enum StoreType {
   GLOBAL_ENTITY_PRIMARY = 1000,
   SPATIAL_ENTITY_PRIMARY = 1100,
-  GLOBAL_EVENT_PRIMARY = 2000,
+  SPATIAL_EVENT_PRIMARY = 2100,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

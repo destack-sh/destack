@@ -8,15 +8,20 @@ import {
   NodeType,
   Session,
   Star,
+  StoreType,
   User,
   UserStatus,
 } from "@destack/language";
+import { MemoryStore } from "@destack/store/memory";
 import { v4 as uuid4 } from "uuid";
 import { expect, test } from "vitest";
 
 const sessionTest = test.extend<{ session: Session }>({
   session: async ({ task }, use) => {
-    const session = new Session();
+    const store = new MemoryStore({
+      types: [StoreType.GLOBAL_ENTITY_PRIMARY, StoreType.SPATIAL_ENTITY_PRIMARY],
+    });
+    const session = new Session({ store });
     await session.open();
     await use(session);
     await session.close();

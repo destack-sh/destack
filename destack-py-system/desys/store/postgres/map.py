@@ -12,7 +12,7 @@ from destack.language import (
     StoreType,
     TypeCardinality,
 )
-from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_MAIN_STORE_TYPE
+from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_PRIMARY_STORE_TYPE
 
 from .core import (
     EXTENSIONS,
@@ -143,7 +143,7 @@ def get_builtin_schema(*store_types: StoreType) -> PostgresSchema:
         {
             node_type
             for store_type in store_types
-            for node_type in NODE_TYPES_BY_MAIN_STORE_TYPE[store_type]
+            for node_type in NODE_TYPES_BY_PRIMARY_STORE_TYPE[store_type]
         }
     )
     tables: list[PostgresTable] = [

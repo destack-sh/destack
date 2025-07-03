@@ -5,6 +5,7 @@ import {
   NodeType,
   PrimitiveType,
   ScalarType,
+  StoreType,
   StructType,
   TraitType,
   TypeCardinality,
@@ -43,6 +44,7 @@ import {
   PrimitiveTypeProto,
   PropertyDefinitionProto,
   ScalarTypeProto,
+  StoreTypeProto,
   StructDefinitionProto,
   StructTypeProto,
   TraitDefinitionProto,
@@ -1832,6 +1834,11 @@ export class NodeDefinition extends StructFrozen {
   readonly description: string | null;
 
   /**
+   * NodeDefinition.primaryStoreTypes
+   */
+  readonly primaryStoreTypes: Array<StoreType>;
+
+  /**
    * NodeDefinition.properties
    */
   readonly properties: Array<PropertyDefinition>;
@@ -1922,6 +1929,7 @@ export class NodeDefinition extends StructFrozen {
     name: string;
     icon?: Icon | null;
     description?: string | null;
+    primaryStoreTypes?: Array<StoreType>;
     properties?: Array<PropertyDefinition>;
     isGlobal: boolean;
     isSpatial: boolean;
@@ -1973,6 +1981,11 @@ export class NodeDefinition extends StructFrozen {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
+    let _primaryStoreTypes = options.primaryStoreTypes ?? null;
+    if (_primaryStoreTypes === null) {
+      _primaryStoreTypes = [];
+    }
+    this.primaryStoreTypes = _primaryStoreTypes;
     let _properties = options.properties ?? null;
     if (_properties === null) {
       _properties = [];
@@ -2085,6 +2098,14 @@ export class NodeDefinition extends StructFrozen {
     }
     if (!(this.description === other.description)) {
       return false;
+    }
+    if (this.primaryStoreTypes.length !== other.primaryStoreTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.primaryStoreTypes.length; i++) {
+      if (!(this.primaryStoreTypes[i] === other.primaryStoreTypes[i])) {
+        return false;
+      }
     }
     if (this.properties.length !== other.properties.length) {
       return false;
@@ -2226,6 +2247,11 @@ export class NodeDefinition extends StructFrozen {
     if (this.description !== null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
+    if (this.primaryStoreTypes && this.primaryStoreTypes.length > 0) {
+      for (const _item of this.primaryStoreTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -2317,12 +2343,19 @@ export class NodeDefinition extends StructFrozen {
     if (object.description != null) {
       objectValue["103"] = object.description;
     }
+    if (object.primaryStoreTypes.length > 0) {
+      const packedPrimaryStoreTypes: any[] = [];
+      for (const item of object.primaryStoreTypes) {
+        packedPrimaryStoreTypes.push(item);
+      }
+      objectValue["104"] = packedPrimaryStoreTypes;
+    }
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toValue());
       }
-      objectValue["104"] = packedProperties;
+      objectValue["105"] = packedProperties;
     }
     objectValue["110"] = object.isGlobal;
     objectValue["111"] = object.isSpatial;
@@ -2419,9 +2452,15 @@ export class NodeDefinition extends StructFrozen {
         : null;
     const descriptionValue = objectValue["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    const unpackedProperties: any[] = [];
+    const unpackedPrimaryStoreTypes: any[] = [];
     if (objectValue["104"] != undefined) {
       for (const item of objectValue["104"]) {
+        unpackedPrimaryStoreTypes.push(Number(item));
+      }
+    }
+    const unpackedProperties: any[] = [];
+    if (objectValue["105"] != undefined) {
+      for (const item of objectValue["105"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
@@ -2491,6 +2530,7 @@ export class NodeDefinition extends StructFrozen {
       name: objectValue["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
+      primaryStoreTypes: unpackedPrimaryStoreTypes,
       properties: unpackedProperties,
       isGlobal: objectValue["110"],
       isSpatial: objectValue["111"],
@@ -2541,6 +2581,13 @@ export class NodeDefinition extends StructFrozen {
     }
     if (object.description != null) {
       objectProto.description = object.description;
+    }
+    if (object.primaryStoreTypes) {
+      const packedPrimaryStoreTypes: any[] = [];
+      for (const item of object.primaryStoreTypes) {
+        packedPrimaryStoreTypes.push(Number(item) as StoreTypeProto);
+      }
+      objectProto.primaryStoreTypes = packedPrimaryStoreTypes;
     }
     if (object.properties) {
       const packedProperties: any[] = [];
@@ -2637,6 +2684,12 @@ export class NodeDefinition extends StructFrozen {
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedPrimaryStoreTypes: any[] = [];
+    if (objectProto.primaryStoreTypes) {
+      for (const item of objectProto.primaryStoreTypes) {
+        unpackedPrimaryStoreTypes.push(Number(item) as StoreType);
+      }
+    }
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
@@ -2708,6 +2761,7 @@ export class NodeDefinition extends StructFrozen {
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
+      primaryStoreTypes: unpackedPrimaryStoreTypes,
       properties: unpackedProperties,
       isGlobal: objectProto.isGlobal,
       isSpatial: objectProto.isSpatial,

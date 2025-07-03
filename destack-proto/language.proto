@@ -1315,7 +1315,7 @@ enum StoreTypeProto {
   STORE_TYPE_UNSPECIFIED = 0;
   STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000;
   STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100;
-  STORE_TYPE_GLOBAL_EVENT_PRIMARY = 2000;
+  STORE_TYPE_SPATIAL_EVENT_PRIMARY = 2100;
 }
 
 // The format of a string.
@@ -3745,7 +3745,8 @@ message NodeDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-  repeated PropertyDefinitionProto properties = 104;
+  repeated StoreTypeProto primary_store_types = 104;
+  repeated PropertyDefinitionProto properties = 105;
   bool is_global = 110;
   bool is_spatial = 111;
   bool is_abstract = 112;

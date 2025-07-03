@@ -8,6 +8,7 @@ import {
 } from "@destack/language";
 import {
   NODE_CLASS_BY_TYPE,
+  NODE_TYPES_BY_PRIMARY_STORE_TYPE,
   STRUCT_CLASS_BY_TYPE,
   TRAIT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
@@ -39,6 +40,12 @@ export function finalize(): void {
     for (const propertyDefinition of nodeDefinition.properties) {
       nodeClass.__properties__[propertyDefinition.name] = propertyDefinition;
       nodeClass.__propertiesById__[propertyDefinition.id] = propertyDefinition;
+    }
+    for (const storeType of nodeDefinition.primaryStoreTypes) {
+      if (!NODE_TYPES_BY_PRIMARY_STORE_TYPE[storeType]) {
+        NODE_TYPES_BY_PRIMARY_STORE_TYPE[storeType] = [];
+      }
+      NODE_TYPES_BY_PRIMARY_STORE_TYPE[storeType].push(nodeDefinition.type);
     }
   }
 

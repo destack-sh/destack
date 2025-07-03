@@ -7643,7 +7643,11 @@ export interface NodeDefinitionProto {
      */
     description?: string;
     /**
-     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 104
+     * @generated from protobuf field: repeated symbol.destack.StoreTypeProto primary_store_types = 104
+     */
+    primaryStoreTypes: StoreTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
      */
     properties: PropertyDefinitionProto[];
     /**
@@ -20055,9 +20059,9 @@ export enum StoreTypeProto {
      */
     STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100,
     /**
-     * @generated from protobuf enum value: STORE_TYPE_GLOBAL_EVENT_PRIMARY = 2000;
+     * @generated from protobuf enum value: STORE_TYPE_SPATIAL_EVENT_PRIMARY = 2100;
      */
-    STORE_TYPE_GLOBAL_EVENT_PRIMARY = 2000
+    STORE_TYPE_SPATIAL_EVENT_PRIMARY = 2100
 }
 /**
  * The format of a string.
@@ -38770,7 +38774,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 104, name: "primary_store_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StoreTypeProto", StoreTypeProto] },
+            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
             { no: 110, name: "is_global", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 111, name: "is_spatial", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 112, name: "is_abstract", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -38795,6 +38800,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.id = 0;
         message.type = 0;
         message.name = "";
+        message.primaryStoreTypes = [];
         message.properties = [];
         message.isGlobal = false;
         message.isSpatial = false;
@@ -38837,7 +38843,14 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 case /* optional string description */ 103:
                     message.description = reader.string();
                     break;
-                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 104:
+                case /* repeated symbol.destack.StoreTypeProto primary_store_types */ 104:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.primaryStoreTypes.push(reader.int32());
+                    else
+                        message.primaryStoreTypes.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* bool is_global */ 110:
@@ -38954,9 +38967,16 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
-        /* repeated symbol.destack.PropertyDefinitionProto properties = 104; */
+        /* repeated symbol.destack.StoreTypeProto primary_store_types = 104; */
+        if (message.primaryStoreTypes.length) {
+            writer.tag(104, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.primaryStoreTypes.length; i++)
+                writer.int32(message.primaryStoreTypes[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
-            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
         /* bool is_global = 110; */
         if (message.isGlobal !== false)
             writer.tag(110, WireType.Varint).bool(message.isGlobal);
