@@ -82,7 +82,7 @@ export class Palette extends Entity implements IsSpatial, IsOrdered, IsTaggable,
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): Palette | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -94,7 +94,7 @@ export class Palette extends Entity implements IsSpatial, IsOrdered, IsTaggable,
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -217,7 +217,7 @@ export class Palette extends Entity implements IsSpatial, IsOrdered, IsTaggable,
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`Palette.materialization is required`);

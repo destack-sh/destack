@@ -225,14 +225,14 @@ class Session:
                 undo_edit = Edit(
                     type=EditType.UPDATE,
                     node_ptr=node_ptr,
-                    prop_ptr=prop_ptr,
+                    attribute=prop_ptr,
                     operation=undo_operation,
                     value=old_value,
                 )
                 edit = Edit(
                     type=EditType.UPDATE,
                     node_ptr=node_ptr,
-                    prop_ptr=prop_ptr,
+                    attribute=prop_ptr,
                     operation=operation,
                     value=new_value,
                     undo=undo_edit,

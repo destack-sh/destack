@@ -14,7 +14,7 @@ from destack.utils.uuid import UUID, uuid4
 from .common import Cloud, Region
 
 if TYPE_CHECKING:
-    from destack.language import Session
+    from destack.language import Session, Snapshot
 
 
 class _Unset:
@@ -26,7 +26,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.07.03.0"
+VERSION = "2025.07.03.1"
 FLOAT_EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
@@ -46,6 +46,14 @@ IS_IN_USER_CODE = contextvars.ContextVar("is_in_user_code", default=False)
 ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
 )
+ACTIVE_SNAPSHOT: contextvars.ContextVar[Optional["Snapshot"]] = contextvars.ContextVar(
+    "active_snapshot", default=None
+)
+
+
+def get_active_session() -> Optional["Session"]:
+    """Gets the currently active Session (if any)."""
+    return ACTIVE_SESSION.get()
 
 
 def active_session() -> "Session":
@@ -55,9 +63,16 @@ def active_session() -> "Session":
     return session
 
 
-def get_active_session() -> Optional["Session"]:
-    """Gets the currently active Session (if any)."""
-    return ACTIVE_SESSION.get()
+def get_active_snapshot() -> Optional["Snapshot"]:
+    """Gets the currently active Snapshot (if any)."""
+    return ACTIVE_SNAPSHOT.get()
+
+
+def active_snapshot() -> "Snapshot":
+    """Gets the currently active Snapshot (error if none)."""
+    snapshot = ACTIVE_SNAPSHOT.get()
+    assert snapshot is not None, "no active snapshot"
+    return snapshot
 
 
 CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")

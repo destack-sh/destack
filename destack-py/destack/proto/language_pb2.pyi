@@ -335,8 +335,6 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_EDIT_OPERATION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CHANGE_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CHANGE_DEBOUNCE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_NODE_PERMISSION: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_JOINABLE_PERMISSION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_TYPE_CARDINALITY: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SCALAR_TYPE: _ClassVar[EnumTypeProto]
@@ -348,6 +346,7 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_EDGE_DIRECTION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CASCADE_ACTION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_SNAPSHOT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CONDITIONAL_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_AGGREGATION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SORT_MODE: _ClassVar[EnumTypeProto]
@@ -361,6 +360,7 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_JOINABLE_PERMISSION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_MEMBERSHIP_PERMISSION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_ROLE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_PERMISSION_TYPE: _ClassVar[EnumTypeProto]
@@ -751,9 +751,9 @@ class MachineTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class MaterializationProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MATERIALIZATION_UNSPECIFIED: _ClassVar[MaterializationProto]
-    MATERIALIZATION_FRAGMENT: _ClassVar[MaterializationProto]
-    MATERIALIZATION_SUBGRAPH: _ClassVar[MaterializationProto]
-    MATERIALIZATION_FULL: _ClassVar[MaterializationProto]
+    MATERIALIZATION_PARTIAL_NODE: _ClassVar[MaterializationProto]
+    MATERIALIZATION_PARTIAL_GRAPH: _ClassVar[MaterializationProto]
+    MATERIALIZATION_FULL_GRAPH: _ClassVar[MaterializationProto]
 
 class MembershipPermissionProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -816,14 +816,6 @@ class NodeDefinitionTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper)
     NODE_DEFINITION_TYPE_BUILTIN: _ClassVar[NodeDefinitionTypeProto]
     NODE_DEFINITION_TYPE_CUSTOM: _ClassVar[NodeDefinitionTypeProto]
 
-class NodePermissionProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    NODE_PERMISSION_UNSPECIFIED: _ClassVar[NodePermissionProto]
-    NODE_PERMISSION_READ: _ClassVar[NodePermissionProto]
-    NODE_PERMISSION_ADD: _ClassVar[NodePermissionProto]
-    NODE_PERMISSION_UPDATE: _ClassVar[NodePermissionProto]
-    NODE_PERMISSION_REMOVE: _ClassVar[NodePermissionProto]
-
 class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     NODE_TYPE_UNSPECIFIED: _ClassVar[NodeTypeProto]
@@ -843,6 +835,8 @@ class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_SNAPSHOT: _ClassVar[NodeTypeProto]
     NODE_TYPE_SIGNAL: _ClassVar[NodeTypeProto]
     NODE_TYPE_EDIT_EVENT: _ClassVar[NodeTypeProto]
+    NODE_TYPE_CHANGE_EVENT: _ClassVar[NodeTypeProto]
+    NODE_TYPE_QUERY_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_MEASUREMENT_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_SPACE: _ClassVar[NodeTypeProto]
     NODE_TYPE_HANDLE: _ClassVar[NodeTypeProto]
@@ -1248,6 +1242,13 @@ class ShadowTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SHADOW_TYPE_UNSPECIFIED: _ClassVar[ShadowTypeProto]
     SHADOW_TYPE_BOX: _ClassVar[ShadowTypeProto]
     SHADOW_TYPE_REALISTIC: _ClassVar[ShadowTypeProto]
+
+class SnapshotTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SNAPSHOT_TYPE_UNSPECIFIED: _ClassVar[SnapshotTypeProto]
+    SNAPSHOT_TYPE_PARTIAL_NODE: _ClassVar[SnapshotTypeProto]
+    SNAPSHOT_TYPE_PARTIAL_GRAPH: _ClassVar[SnapshotTypeProto]
+    SNAPSHOT_TYPE_FULL_GRAPH: _ClassVar[SnapshotTypeProto]
 
 class SortModeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1754,8 +1755,6 @@ ENUM_TYPE_EDIT_TYPE: EnumTypeProto
 ENUM_TYPE_EDIT_OPERATION: EnumTypeProto
 ENUM_TYPE_CHANGE_STATUS: EnumTypeProto
 ENUM_TYPE_CHANGE_DEBOUNCE: EnumTypeProto
-ENUM_TYPE_NODE_PERMISSION: EnumTypeProto
-ENUM_TYPE_JOINABLE_PERMISSION: EnumTypeProto
 ENUM_TYPE_PRIMITIVE_TYPE: EnumTypeProto
 ENUM_TYPE_TYPE_CARDINALITY: EnumTypeProto
 ENUM_TYPE_SCALAR_TYPE: EnumTypeProto
@@ -1767,6 +1766,7 @@ ENUM_TYPE_EDGE_TYPE: EnumTypeProto
 ENUM_TYPE_EDGE_DIRECTION: EnumTypeProto
 ENUM_TYPE_CASCADE_ACTION: EnumTypeProto
 ENUM_TYPE_RESOURCE_STATUS: EnumTypeProto
+ENUM_TYPE_SNAPSHOT_TYPE: EnumTypeProto
 ENUM_TYPE_CONDITIONAL_TYPE: EnumTypeProto
 ENUM_TYPE_AGGREGATION_TYPE: EnumTypeProto
 ENUM_TYPE_SORT_MODE: EnumTypeProto
@@ -1780,6 +1780,7 @@ ENUM_TYPE_SPACE_STATUS: EnumTypeProto
 ENUM_TYPE_USER_STATUS: EnumTypeProto
 ENUM_TYPE_ORGANIZATION_STATUS: EnumTypeProto
 ENUM_TYPE_CLIENT_TYPE: EnumTypeProto
+ENUM_TYPE_JOINABLE_PERMISSION: EnumTypeProto
 ENUM_TYPE_MEMBERSHIP_PERMISSION: EnumTypeProto
 ENUM_TYPE_ROLE_TYPE: EnumTypeProto
 ENUM_TYPE_PERMISSION_TYPE: EnumTypeProto
@@ -2089,9 +2090,9 @@ MACHINE_TYPE_MAC: MachineTypeProto
 MACHINE_TYPE_WINDOWS: MachineTypeProto
 MACHINE_TYPE_CUSTOM: MachineTypeProto
 MATERIALIZATION_UNSPECIFIED: MaterializationProto
-MATERIALIZATION_FRAGMENT: MaterializationProto
-MATERIALIZATION_SUBGRAPH: MaterializationProto
-MATERIALIZATION_FULL: MaterializationProto
+MATERIALIZATION_PARTIAL_NODE: MaterializationProto
+MATERIALIZATION_PARTIAL_GRAPH: MaterializationProto
+MATERIALIZATION_FULL_GRAPH: MaterializationProto
 MEMBERSHIP_PERMISSION_UNSPECIFIED: MembershipPermissionProto
 MEMBERSHIP_PERMISSION_KICK: MembershipPermissionProto
 MEMBERSHIP_PERMISSION_BAN: MembershipPermissionProto
@@ -2132,11 +2133,6 @@ MOUSE_BUTTON_MIDDLE: MouseButtonProto
 NODE_DEFINITION_TYPE_UNSPECIFIED: NodeDefinitionTypeProto
 NODE_DEFINITION_TYPE_BUILTIN: NodeDefinitionTypeProto
 NODE_DEFINITION_TYPE_CUSTOM: NodeDefinitionTypeProto
-NODE_PERMISSION_UNSPECIFIED: NodePermissionProto
-NODE_PERMISSION_READ: NodePermissionProto
-NODE_PERMISSION_ADD: NodePermissionProto
-NODE_PERMISSION_UPDATE: NodePermissionProto
-NODE_PERMISSION_REMOVE: NodePermissionProto
 NODE_TYPE_UNSPECIFIED: NodeTypeProto
 NODE_TYPE_NODE: NodeTypeProto
 NODE_TYPE_ENTITY: NodeTypeProto
@@ -2154,6 +2150,8 @@ NODE_TYPE_METRIC: NodeTypeProto
 NODE_TYPE_SNAPSHOT: NodeTypeProto
 NODE_TYPE_SIGNAL: NodeTypeProto
 NODE_TYPE_EDIT_EVENT: NodeTypeProto
+NODE_TYPE_CHANGE_EVENT: NodeTypeProto
+NODE_TYPE_QUERY_EVENT: NodeTypeProto
 NODE_TYPE_MEASUREMENT_EVENT: NodeTypeProto
 NODE_TYPE_SPACE: NodeTypeProto
 NODE_TYPE_HANDLE: NodeTypeProto
@@ -2478,6 +2476,10 @@ SHADOW_POSITION_INSIDE: ShadowPositionProto
 SHADOW_TYPE_UNSPECIFIED: ShadowTypeProto
 SHADOW_TYPE_BOX: ShadowTypeProto
 SHADOW_TYPE_REALISTIC: ShadowTypeProto
+SNAPSHOT_TYPE_UNSPECIFIED: SnapshotTypeProto
+SNAPSHOT_TYPE_PARTIAL_NODE: SnapshotTypeProto
+SNAPSHOT_TYPE_PARTIAL_GRAPH: SnapshotTypeProto
+SNAPSHOT_TYPE_FULL_GRAPH: SnapshotTypeProto
 SORT_MODE_UNSPECIFIED: SortModeProto
 SORT_MODE_MAX: SortModeProto
 SORT_MODE_MIN: SortModeProto
@@ -3264,6 +3266,32 @@ class ChangeProto(_message.Message):
     debounce: ChangeDebounceProto
     edits: _containers.RepeatedCompositeFieldContainer[EditProto]
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., name: _Optional[str] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., origin: _Optional[_Union[OriginProto, _Mapping]] = ..., debounce: _Optional[_Union[ChangeDebounceProto, str]] = ..., edits: _Optional[_Iterable[_Union[EditProto, _Mapping]]] = ...) -> None: ...
+
+class ChangeEventProto(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "node_ptr", "name", "origin", "debounce", "edits_ids")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    DEBOUNCE_FIELD_NUMBER: _ClassVar[int]
+    EDITS_IDS_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeTypeProto
+    id: str
+    parent_ptr: NodeReferenceProto
+    space_ptr: NodeReferenceProto
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceProto
+    node_ptr: NodeReferenceProto
+    name: str
+    origin: OriginProto
+    debounce: ChangeDebounceProto
+    edits_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., origin: _Optional[_Union[OriginProto, _Mapping]] = ..., debounce: _Optional[_Union[ChangeDebounceProto, str]] = ..., edits_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ChangeResultProto(_message.Message):
     __slots__ = ("metatype", "id", "created_at", "debounce", "status", "edits", "cascaded_edits")
@@ -4515,29 +4543,33 @@ class DropEventProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., position: _Optional[_Union[Vector2Proto, _Mapping]] = ...) -> None: ...
 
 class EditProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "operation", "node_ptr", "prop_ptr", "key", "value", "undo")
+    __slots__ = ("metatype", "id", "type", "operation", "node_ptr", "attribute", "key", "value", "undo", "snapshot_ptr", "ancestors")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    PROP_PTR_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTE_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     UNDO_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
+    ANCESTORS_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: str
     type: EditTypeProto
     operation: EditOperationProto
     node_ptr: NodeReferenceProto
-    prop_ptr: PropertyReferenceProto
+    attribute: PropertyReferenceProto
     key: ValueProto
     value: ValueProto
     undo: EditProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., prop_ptr: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., undo: _Optional[_Union[EditProto, _Mapping]] = ...) -> None: ...
+    snapshot_ptr: NodeReferenceProto
+    ancestors: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., attribute: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., undo: _Optional[_Union[EditProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., ancestors: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EditEventProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "type", "node_ptr", "operation", "prop_ptr", "key", "value")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "type", "node_ptr", "operation", "attribute", "key", "value", "undo", "snapshot_ptr", "ancestors_ids")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4547,9 +4579,12 @@ class EditEventProto(_message.Message):
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
-    PROP_PTR_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTE_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
+    UNDO_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
+    ANCESTORS_IDS_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
     parent_ptr: NodeReferenceProto
@@ -4559,10 +4594,13 @@ class EditEventProto(_message.Message):
     type: EditTypeProto
     node_ptr: NodeReferenceProto
     operation: EditOperationProto
-    prop_ptr: PropertyReferenceProto
+    attribute: PropertyReferenceProto
     key: ValueProto
     value: ValueProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., prop_ptr: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
+    undo: EditProto
+    snapshot_ptr: NodeReferenceProto
+    ancestors_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., attribute: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., undo: _Optional[_Union[EditProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., ancestors_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EffectProto(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")
@@ -8082,6 +8120,50 @@ class QueryProto(_message.Message):
     offset: int
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
+class QueryEventProto(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "type", "node_ptr", "name", "definition", "join", "select", "subqueries", "where", "having", "group_by", "aggregation", "sort", "limit", "offset")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    JOIN_FIELD_NUMBER: _ClassVar[int]
+    SELECT_FIELD_NUMBER: _ClassVar[int]
+    SUBQUERIES_FIELD_NUMBER: _ClassVar[int]
+    WHERE_FIELD_NUMBER: _ClassVar[int]
+    HAVING_FIELD_NUMBER: _ClassVar[int]
+    GROUP_BY_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATION_FIELD_NUMBER: _ClassVar[int]
+    SORT_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeTypeProto
+    id: str
+    parent_ptr: NodeReferenceProto
+    space_ptr: NodeReferenceProto
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceProto
+    type: QueryTypeProto
+    node_ptr: NodeReferenceProto
+    name: str
+    definition: NodeDefinitionReferenceProto
+    join: JoinProto
+    select: SelectProto
+    subqueries: _containers.RepeatedCompositeFieldContainer[QueryProto]
+    where: ConditionProto
+    having: ConditionProto
+    group_by: _containers.RepeatedCompositeFieldContainer[ExpressionProto]
+    aggregation: AggregationProto
+    sort: _containers.RepeatedCompositeFieldContainer[SortProto]
+    limit: int
+    offset: int
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+
 class QueryResultProto(_message.Message):
     __slots__ = ("metatype", "id", "type", "groups", "subresults", "nodes", "count", "exists", "scalar")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -9452,7 +9534,7 @@ class SliderInputViewProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., base_type: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_root_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., position: _Optional[_Union[PositionProto, _Mapping]] = ..., width: _Optional[_Union[DimensionProto, _Mapping]] = ..., height: _Optional[_Union[DimensionProto, _Mapping]] = ..., min_width: _Optional[_Union[DimensionProto, _Mapping]] = ..., min_height: _Optional[_Union[DimensionProto, _Mapping]] = ..., max_width: _Optional[_Union[DimensionProto, _Mapping]] = ..., max_height: _Optional[_Union[DimensionProto, _Mapping]] = ..., is_visible: bool = ..., opacity: _Optional[float] = ..., value: _Optional[float] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step: _Optional[float] = ...) -> None: ...
 
 class SnapshotProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "template_ptr", "instance_root_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "owned_by_ptr", "name", "icon")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "template_ptr", "instance_root_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "owned_by_ptr", "type", "name")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -9466,10 +9548,11 @@ class SnapshotProto(_message.Message):
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
-    ICON_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
     parent_ptr: NodeReferenceProto
@@ -9483,11 +9566,12 @@ class SnapshotProto(_message.Message):
     created_by_ptr: NodeReferenceProto
     updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceProto
+    archived_at: _timestamp_pb2.Timestamp
     deleted_at: _timestamp_pb2.Timestamp
     owned_by_ptr: NodeReferenceProto
+    type: SnapshotTypeProto
     name: str
-    icon: IconProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_root_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_root_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., type: _Optional[_Union[SnapshotTypeProto, str]] = ..., name: _Optional[str] = ...) -> None: ...
 
 class SortProto(_message.Message):
     __slots__ = ("metatype", "type", "by", "mode")
@@ -10887,12 +10971,14 @@ class WindowProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_root_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., type: _Optional[_Union[WindowTypeProto, str]] = ..., name: _Optional[str] = ...) -> None: ...
 
 class SomeNodeProto(_message.Message):
-    __slots__ = ("custom_entity_definition", "custom_trait_definition", "snapshot", "custom_event_definition", "edit_event", "custom_enum_definition", "custom_option", "gauge_metric", "gauge_measurement_event", "counter_metric", "counter_measurement_event", "histogram_metric", "histogram_measurement_event", "custom_property", "custom_struct_definition", "entitlement_requested_event", "entitlement_granted_event", "entitlement_revoked_event", "entitlement_expired_event", "entitlement", "invite_sent_event", "invite_rescinded_event", "invite_accepted_event", "invite_rejected_event", "invite", "membership_joined_event", "membership_left_event", "membership", "permission", "role_assigned_event", "role_unassigned_event", "role", "sanction_requested_event", "sanction_granted_event", "sanction_revoked_event", "sanction_expired_event", "sanction", "frame_view", "label_view", "split_view", "text_view", "number_input_view", "slider_input_view", "internal_view", "annotation_shape", "arrow_shape", "canvas", "line_shape", "file", "environment", "folder", "tag", "tagging", "database", "machine", "pointer_down_event", "pointer_up_event", "pointer_move_event", "pointer_enter_event", "pointer_over_event", "pointer_leave_event", "long_press_event", "left_click_event", "right_click_event", "middle_click_event", "double_click_event", "wheel_event", "key_down_event", "key_up_event", "key_press_event", "drag_start_event", "drag_end_event", "drag_over_event", "drag_enter_event", "drag_leave_event", "drop_event", "copy_event", "cut_event", "paste_event", "focus_in_event", "focus_out_event", "action", "event_cursor", "screen_cursor", "thread_cursor", "route", "script", "service", "timer_started_event", "timer_completed_event", "timer_cancelled_event", "timer", "trigger", "interruption", "log_event", "run_started_event", "run_pause_requested_event", "run_paused_event", "run_resume_requested_event", "run_resumed_event", "run_stop_requested_event", "run_failed_event", "run_completed_event", "run", "span_event", "layer", "scene_entered_event", "scene_exited_event", "scene", "variant", "window", "follow", "message", "notification_sent_event", "notification_rescinded_event", "notification_read_event", "notification_dismissed_event", "notification_expired_event", "notification", "reaction", "star", "thread", "agent", "client", "friendship", "friendship_invite_sent_event", "friendship_invite_rescinded_event", "friendship_invite_accepted_event", "friendship_invite_rejected_event", "friendship_invite", "handle", "organization", "space", "team", "user", "branch", "color_style", "border_style", "transition_style", "effect_style", "gradient_style", "fill_style", "font_style", "palette", "shadow_style", "stroke_style", "theme")
+    __slots__ = ("custom_entity_definition", "custom_trait_definition", "snapshot", "custom_event_definition", "edit_event", "change_event", "query_event", "custom_enum_definition", "custom_option", "gauge_metric", "gauge_measurement_event", "counter_metric", "counter_measurement_event", "histogram_metric", "histogram_measurement_event", "custom_property", "custom_struct_definition", "entitlement_requested_event", "entitlement_granted_event", "entitlement_revoked_event", "entitlement_expired_event", "entitlement", "invite_sent_event", "invite_rescinded_event", "invite_accepted_event", "invite_rejected_event", "invite", "membership_joined_event", "membership_left_event", "membership", "permission", "role_assigned_event", "role_unassigned_event", "role", "sanction_requested_event", "sanction_granted_event", "sanction_revoked_event", "sanction_expired_event", "sanction", "frame_view", "label_view", "split_view", "text_view", "number_input_view", "slider_input_view", "internal_view", "annotation_shape", "arrow_shape", "canvas", "line_shape", "file", "environment", "folder", "tag", "tagging", "database", "machine", "pointer_down_event", "pointer_up_event", "pointer_move_event", "pointer_enter_event", "pointer_over_event", "pointer_leave_event", "long_press_event", "left_click_event", "right_click_event", "middle_click_event", "double_click_event", "wheel_event", "key_down_event", "key_up_event", "key_press_event", "drag_start_event", "drag_end_event", "drag_over_event", "drag_enter_event", "drag_leave_event", "drop_event", "copy_event", "cut_event", "paste_event", "focus_in_event", "focus_out_event", "action", "event_cursor", "screen_cursor", "thread_cursor", "route", "script", "service", "timer_started_event", "timer_completed_event", "timer_cancelled_event", "timer", "trigger", "interruption", "log_event", "run_started_event", "run_pause_requested_event", "run_paused_event", "run_resume_requested_event", "run_resumed_event", "run_stop_requested_event", "run_failed_event", "run_completed_event", "run", "span_event", "layer", "scene_entered_event", "scene_exited_event", "scene", "variant", "window", "follow", "message", "notification_sent_event", "notification_rescinded_event", "notification_read_event", "notification_dismissed_event", "notification_expired_event", "notification", "reaction", "star", "thread", "agent", "client", "friendship", "friendship_invite_sent_event", "friendship_invite_rescinded_event", "friendship_invite_accepted_event", "friendship_invite_rejected_event", "friendship_invite", "handle", "organization", "space", "team", "user", "branch", "color_style", "border_style", "transition_style", "effect_style", "gradient_style", "fill_style", "font_style", "palette", "shadow_style", "stroke_style", "theme")
     CUSTOM_ENTITY_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_TRAIT_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_EVENT_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     EDIT_EVENT_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_EVENT_FIELD_NUMBER: _ClassVar[int]
+    QUERY_EVENT_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_ENUM_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_OPTION_FIELD_NUMBER: _ClassVar[int]
     GAUGE_METRIC_FIELD_NUMBER: _ClassVar[int]
@@ -11040,6 +11126,8 @@ class SomeNodeProto(_message.Message):
     snapshot: SnapshotProto
     custom_event_definition: CustomEventDefinitionProto
     edit_event: EditEventProto
+    change_event: ChangeEventProto
+    query_event: QueryEventProto
     custom_enum_definition: CustomEnumDefinitionProto
     custom_option: CustomOptionProto
     gauge_metric: GaugeMetricProto
@@ -11182,7 +11270,7 @@ class SomeNodeProto(_message.Message):
     shadow_style: ShadowStyleProto
     stroke_style: StrokeStyleProto
     theme: ThemeProto
-    def __init__(self, custom_entity_definition: _Optional[_Union[CustomEntityDefinitionProto, _Mapping]] = ..., custom_trait_definition: _Optional[_Union[CustomTraitDefinitionProto, _Mapping]] = ..., snapshot: _Optional[_Union[SnapshotProto, _Mapping]] = ..., custom_event_definition: _Optional[_Union[CustomEventDefinitionProto, _Mapping]] = ..., edit_event: _Optional[_Union[EditEventProto, _Mapping]] = ..., custom_enum_definition: _Optional[_Union[CustomEnumDefinitionProto, _Mapping]] = ..., custom_option: _Optional[_Union[CustomOptionProto, _Mapping]] = ..., gauge_metric: _Optional[_Union[GaugeMetricProto, _Mapping]] = ..., gauge_measurement_event: _Optional[_Union[GaugeMeasurementEventProto, _Mapping]] = ..., counter_metric: _Optional[_Union[CounterMetricProto, _Mapping]] = ..., counter_measurement_event: _Optional[_Union[CounterMeasurementEventProto, _Mapping]] = ..., histogram_metric: _Optional[_Union[HistogramMetricProto, _Mapping]] = ..., histogram_measurement_event: _Optional[_Union[HistogramMeasurementEventProto, _Mapping]] = ..., custom_property: _Optional[_Union[CustomPropertyProto, _Mapping]] = ..., custom_struct_definition: _Optional[_Union[CustomStructDefinitionProto, _Mapping]] = ..., entitlement_requested_event: _Optional[_Union[EntitlementRequestedEventProto, _Mapping]] = ..., entitlement_granted_event: _Optional[_Union[EntitlementGrantedEventProto, _Mapping]] = ..., entitlement_revoked_event: _Optional[_Union[EntitlementRevokedEventProto, _Mapping]] = ..., entitlement_expired_event: _Optional[_Union[EntitlementExpiredEventProto, _Mapping]] = ..., entitlement: _Optional[_Union[EntitlementProto, _Mapping]] = ..., invite_sent_event: _Optional[_Union[InviteSentEventProto, _Mapping]] = ..., invite_rescinded_event: _Optional[_Union[InviteRescindedEventProto, _Mapping]] = ..., invite_accepted_event: _Optional[_Union[InviteAcceptedEventProto, _Mapping]] = ..., invite_rejected_event: _Optional[_Union[InviteRejectedEventProto, _Mapping]] = ..., invite: _Optional[_Union[InviteProto, _Mapping]] = ..., membership_joined_event: _Optional[_Union[MembershipJoinedEventProto, _Mapping]] = ..., membership_left_event: _Optional[_Union[MembershipLeftEventProto, _Mapping]] = ..., membership: _Optional[_Union[MembershipProto, _Mapping]] = ..., permission: _Optional[_Union[PermissionProto, _Mapping]] = ..., role_assigned_event: _Optional[_Union[RoleAssignedEventProto, _Mapping]] = ..., role_unassigned_event: _Optional[_Union[RoleUnassignedEventProto, _Mapping]] = ..., role: _Optional[_Union[RoleProto, _Mapping]] = ..., sanction_requested_event: _Optional[_Union[SanctionRequestedEventProto, _Mapping]] = ..., sanction_granted_event: _Optional[_Union[SanctionGrantedEventProto, _Mapping]] = ..., sanction_revoked_event: _Optional[_Union[SanctionRevokedEventProto, _Mapping]] = ..., sanction_expired_event: _Optional[_Union[SanctionExpiredEventProto, _Mapping]] = ..., sanction: _Optional[_Union[SanctionProto, _Mapping]] = ..., frame_view: _Optional[_Union[FrameViewProto, _Mapping]] = ..., label_view: _Optional[_Union[LabelViewProto, _Mapping]] = ..., split_view: _Optional[_Union[SplitViewProto, _Mapping]] = ..., text_view: _Optional[_Union[TextViewProto, _Mapping]] = ..., number_input_view: _Optional[_Union[NumberInputViewProto, _Mapping]] = ..., slider_input_view: _Optional[_Union[SliderInputViewProto, _Mapping]] = ..., internal_view: _Optional[_Union[InternalViewProto, _Mapping]] = ..., annotation_shape: _Optional[_Union[AnnotationShapeProto, _Mapping]] = ..., arrow_shape: _Optional[_Union[ArrowShapeProto, _Mapping]] = ..., canvas: _Optional[_Union[CanvasProto, _Mapping]] = ..., line_shape: _Optional[_Union[LineShapeProto, _Mapping]] = ..., file: _Optional[_Union[FileProto, _Mapping]] = ..., environment: _Optional[_Union[EnvironmentProto, _Mapping]] = ..., folder: _Optional[_Union[FolderProto, _Mapping]] = ..., tag: _Optional[_Union[TagProto, _Mapping]] = ..., tagging: _Optional[_Union[TaggingProto, _Mapping]] = ..., database: _Optional[_Union[DatabaseProto, _Mapping]] = ..., machine: _Optional[_Union[MachineProto, _Mapping]] = ..., pointer_down_event: _Optional[_Union[PointerDownEventProto, _Mapping]] = ..., pointer_up_event: _Optional[_Union[PointerUpEventProto, _Mapping]] = ..., pointer_move_event: _Optional[_Union[PointerMoveEventProto, _Mapping]] = ..., pointer_enter_event: _Optional[_Union[PointerEnterEventProto, _Mapping]] = ..., pointer_over_event: _Optional[_Union[PointerOverEventProto, _Mapping]] = ..., pointer_leave_event: _Optional[_Union[PointerLeaveEventProto, _Mapping]] = ..., long_press_event: _Optional[_Union[LongPressEventProto, _Mapping]] = ..., left_click_event: _Optional[_Union[LeftClickEventProto, _Mapping]] = ..., right_click_event: _Optional[_Union[RightClickEventProto, _Mapping]] = ..., middle_click_event: _Optional[_Union[MiddleClickEventProto, _Mapping]] = ..., double_click_event: _Optional[_Union[DoubleClickEventProto, _Mapping]] = ..., wheel_event: _Optional[_Union[WheelEventProto, _Mapping]] = ..., key_down_event: _Optional[_Union[KeyDownEventProto, _Mapping]] = ..., key_up_event: _Optional[_Union[KeyUpEventProto, _Mapping]] = ..., key_press_event: _Optional[_Union[KeyPressEventProto, _Mapping]] = ..., drag_start_event: _Optional[_Union[DragStartEventProto, _Mapping]] = ..., drag_end_event: _Optional[_Union[DragEndEventProto, _Mapping]] = ..., drag_over_event: _Optional[_Union[DragOverEventProto, _Mapping]] = ..., drag_enter_event: _Optional[_Union[DragEnterEventProto, _Mapping]] = ..., drag_leave_event: _Optional[_Union[DragLeaveEventProto, _Mapping]] = ..., drop_event: _Optional[_Union[DropEventProto, _Mapping]] = ..., copy_event: _Optional[_Union[CopyEventProto, _Mapping]] = ..., cut_event: _Optional[_Union[CutEventProto, _Mapping]] = ..., paste_event: _Optional[_Union[PasteEventProto, _Mapping]] = ..., focus_in_event: _Optional[_Union[FocusInEventProto, _Mapping]] = ..., focus_out_event: _Optional[_Union[FocusOutEventProto, _Mapping]] = ..., action: _Optional[_Union[ActionProto, _Mapping]] = ..., event_cursor: _Optional[_Union[EventCursorProto, _Mapping]] = ..., screen_cursor: _Optional[_Union[ScreenCursorProto, _Mapping]] = ..., thread_cursor: _Optional[_Union[ThreadCursorProto, _Mapping]] = ..., route: _Optional[_Union[RouteProto, _Mapping]] = ..., script: _Optional[_Union[ScriptProto, _Mapping]] = ..., service: _Optional[_Union[ServiceProto, _Mapping]] = ..., timer_started_event: _Optional[_Union[TimerStartedEventProto, _Mapping]] = ..., timer_completed_event: _Optional[_Union[TimerCompletedEventProto, _Mapping]] = ..., timer_cancelled_event: _Optional[_Union[TimerCancelledEventProto, _Mapping]] = ..., timer: _Optional[_Union[TimerProto, _Mapping]] = ..., trigger: _Optional[_Union[TriggerProto, _Mapping]] = ..., interruption: _Optional[_Union[InterruptionProto, _Mapping]] = ..., log_event: _Optional[_Union[LogEventProto, _Mapping]] = ..., run_started_event: _Optional[_Union[RunStartedEventProto, _Mapping]] = ..., run_pause_requested_event: _Optional[_Union[RunPauseRequestedEventProto, _Mapping]] = ..., run_paused_event: _Optional[_Union[RunPausedEventProto, _Mapping]] = ..., run_resume_requested_event: _Optional[_Union[RunResumeRequestedEventProto, _Mapping]] = ..., run_resumed_event: _Optional[_Union[RunResumedEventProto, _Mapping]] = ..., run_stop_requested_event: _Optional[_Union[RunStopRequestedEventProto, _Mapping]] = ..., run_failed_event: _Optional[_Union[RunFailedEventProto, _Mapping]] = ..., run_completed_event: _Optional[_Union[RunCompletedEventProto, _Mapping]] = ..., run: _Optional[_Union[RunProto, _Mapping]] = ..., span_event: _Optional[_Union[SpanEventProto, _Mapping]] = ..., layer: _Optional[_Union[LayerProto, _Mapping]] = ..., scene_entered_event: _Optional[_Union[SceneEnteredEventProto, _Mapping]] = ..., scene_exited_event: _Optional[_Union[SceneExitedEventProto, _Mapping]] = ..., scene: _Optional[_Union[SceneProto, _Mapping]] = ..., variant: _Optional[_Union[VariantProto, _Mapping]] = ..., window: _Optional[_Union[WindowProto, _Mapping]] = ..., follow: _Optional[_Union[FollowProto, _Mapping]] = ..., message: _Optional[_Union[MessageProto, _Mapping]] = ..., notification_sent_event: _Optional[_Union[NotificationSentEventProto, _Mapping]] = ..., notification_rescinded_event: _Optional[_Union[NotificationRescindedEventProto, _Mapping]] = ..., notification_read_event: _Optional[_Union[NotificationReadEventProto, _Mapping]] = ..., notification_dismissed_event: _Optional[_Union[NotificationDismissedEventProto, _Mapping]] = ..., notification_expired_event: _Optional[_Union[NotificationExpiredEventProto, _Mapping]] = ..., notification: _Optional[_Union[NotificationProto, _Mapping]] = ..., reaction: _Optional[_Union[ReactionProto, _Mapping]] = ..., star: _Optional[_Union[StarProto, _Mapping]] = ..., thread: _Optional[_Union[ThreadProto, _Mapping]] = ..., agent: _Optional[_Union[AgentProto, _Mapping]] = ..., client: _Optional[_Union[ClientProto, _Mapping]] = ..., friendship: _Optional[_Union[FriendshipProto, _Mapping]] = ..., friendship_invite_sent_event: _Optional[_Union[FriendshipInviteSentEventProto, _Mapping]] = ..., friendship_invite_rescinded_event: _Optional[_Union[FriendshipInviteRescindedEventProto, _Mapping]] = ..., friendship_invite_accepted_event: _Optional[_Union[FriendshipInviteAcceptedEventProto, _Mapping]] = ..., friendship_invite_rejected_event: _Optional[_Union[FriendshipInviteRejectedEventProto, _Mapping]] = ..., friendship_invite: _Optional[_Union[FriendshipInviteProto, _Mapping]] = ..., handle: _Optional[_Union[HandleProto, _Mapping]] = ..., organization: _Optional[_Union[OrganizationProto, _Mapping]] = ..., space: _Optional[_Union[SpaceProto, _Mapping]] = ..., team: _Optional[_Union[TeamProto, _Mapping]] = ..., user: _Optional[_Union[UserProto, _Mapping]] = ..., branch: _Optional[_Union[BranchProto, _Mapping]] = ..., color_style: _Optional[_Union[ColorStyleProto, _Mapping]] = ..., border_style: _Optional[_Union[BorderStyleProto, _Mapping]] = ..., transition_style: _Optional[_Union[TransitionStyleProto, _Mapping]] = ..., effect_style: _Optional[_Union[EffectStyleProto, _Mapping]] = ..., gradient_style: _Optional[_Union[GradientStyleProto, _Mapping]] = ..., fill_style: _Optional[_Union[FillStyleProto, _Mapping]] = ..., font_style: _Optional[_Union[FontStyleProto, _Mapping]] = ..., palette: _Optional[_Union[PaletteProto, _Mapping]] = ..., shadow_style: _Optional[_Union[ShadowStyleProto, _Mapping]] = ..., stroke_style: _Optional[_Union[StrokeStyleProto, _Mapping]] = ..., theme: _Optional[_Union[ThemeProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, custom_entity_definition: _Optional[_Union[CustomEntityDefinitionProto, _Mapping]] = ..., custom_trait_definition: _Optional[_Union[CustomTraitDefinitionProto, _Mapping]] = ..., snapshot: _Optional[_Union[SnapshotProto, _Mapping]] = ..., custom_event_definition: _Optional[_Union[CustomEventDefinitionProto, _Mapping]] = ..., edit_event: _Optional[_Union[EditEventProto, _Mapping]] = ..., change_event: _Optional[_Union[ChangeEventProto, _Mapping]] = ..., query_event: _Optional[_Union[QueryEventProto, _Mapping]] = ..., custom_enum_definition: _Optional[_Union[CustomEnumDefinitionProto, _Mapping]] = ..., custom_option: _Optional[_Union[CustomOptionProto, _Mapping]] = ..., gauge_metric: _Optional[_Union[GaugeMetricProto, _Mapping]] = ..., gauge_measurement_event: _Optional[_Union[GaugeMeasurementEventProto, _Mapping]] = ..., counter_metric: _Optional[_Union[CounterMetricProto, _Mapping]] = ..., counter_measurement_event: _Optional[_Union[CounterMeasurementEventProto, _Mapping]] = ..., histogram_metric: _Optional[_Union[HistogramMetricProto, _Mapping]] = ..., histogram_measurement_event: _Optional[_Union[HistogramMeasurementEventProto, _Mapping]] = ..., custom_property: _Optional[_Union[CustomPropertyProto, _Mapping]] = ..., custom_struct_definition: _Optional[_Union[CustomStructDefinitionProto, _Mapping]] = ..., entitlement_requested_event: _Optional[_Union[EntitlementRequestedEventProto, _Mapping]] = ..., entitlement_granted_event: _Optional[_Union[EntitlementGrantedEventProto, _Mapping]] = ..., entitlement_revoked_event: _Optional[_Union[EntitlementRevokedEventProto, _Mapping]] = ..., entitlement_expired_event: _Optional[_Union[EntitlementExpiredEventProto, _Mapping]] = ..., entitlement: _Optional[_Union[EntitlementProto, _Mapping]] = ..., invite_sent_event: _Optional[_Union[InviteSentEventProto, _Mapping]] = ..., invite_rescinded_event: _Optional[_Union[InviteRescindedEventProto, _Mapping]] = ..., invite_accepted_event: _Optional[_Union[InviteAcceptedEventProto, _Mapping]] = ..., invite_rejected_event: _Optional[_Union[InviteRejectedEventProto, _Mapping]] = ..., invite: _Optional[_Union[InviteProto, _Mapping]] = ..., membership_joined_event: _Optional[_Union[MembershipJoinedEventProto, _Mapping]] = ..., membership_left_event: _Optional[_Union[MembershipLeftEventProto, _Mapping]] = ..., membership: _Optional[_Union[MembershipProto, _Mapping]] = ..., permission: _Optional[_Union[PermissionProto, _Mapping]] = ..., role_assigned_event: _Optional[_Union[RoleAssignedEventProto, _Mapping]] = ..., role_unassigned_event: _Optional[_Union[RoleUnassignedEventProto, _Mapping]] = ..., role: _Optional[_Union[RoleProto, _Mapping]] = ..., sanction_requested_event: _Optional[_Union[SanctionRequestedEventProto, _Mapping]] = ..., sanction_granted_event: _Optional[_Union[SanctionGrantedEventProto, _Mapping]] = ..., sanction_revoked_event: _Optional[_Union[SanctionRevokedEventProto, _Mapping]] = ..., sanction_expired_event: _Optional[_Union[SanctionExpiredEventProto, _Mapping]] = ..., sanction: _Optional[_Union[SanctionProto, _Mapping]] = ..., frame_view: _Optional[_Union[FrameViewProto, _Mapping]] = ..., label_view: _Optional[_Union[LabelViewProto, _Mapping]] = ..., split_view: _Optional[_Union[SplitViewProto, _Mapping]] = ..., text_view: _Optional[_Union[TextViewProto, _Mapping]] = ..., number_input_view: _Optional[_Union[NumberInputViewProto, _Mapping]] = ..., slider_input_view: _Optional[_Union[SliderInputViewProto, _Mapping]] = ..., internal_view: _Optional[_Union[InternalViewProto, _Mapping]] = ..., annotation_shape: _Optional[_Union[AnnotationShapeProto, _Mapping]] = ..., arrow_shape: _Optional[_Union[ArrowShapeProto, _Mapping]] = ..., canvas: _Optional[_Union[CanvasProto, _Mapping]] = ..., line_shape: _Optional[_Union[LineShapeProto, _Mapping]] = ..., file: _Optional[_Union[FileProto, _Mapping]] = ..., environment: _Optional[_Union[EnvironmentProto, _Mapping]] = ..., folder: _Optional[_Union[FolderProto, _Mapping]] = ..., tag: _Optional[_Union[TagProto, _Mapping]] = ..., tagging: _Optional[_Union[TaggingProto, _Mapping]] = ..., database: _Optional[_Union[DatabaseProto, _Mapping]] = ..., machine: _Optional[_Union[MachineProto, _Mapping]] = ..., pointer_down_event: _Optional[_Union[PointerDownEventProto, _Mapping]] = ..., pointer_up_event: _Optional[_Union[PointerUpEventProto, _Mapping]] = ..., pointer_move_event: _Optional[_Union[PointerMoveEventProto, _Mapping]] = ..., pointer_enter_event: _Optional[_Union[PointerEnterEventProto, _Mapping]] = ..., pointer_over_event: _Optional[_Union[PointerOverEventProto, _Mapping]] = ..., pointer_leave_event: _Optional[_Union[PointerLeaveEventProto, _Mapping]] = ..., long_press_event: _Optional[_Union[LongPressEventProto, _Mapping]] = ..., left_click_event: _Optional[_Union[LeftClickEventProto, _Mapping]] = ..., right_click_event: _Optional[_Union[RightClickEventProto, _Mapping]] = ..., middle_click_event: _Optional[_Union[MiddleClickEventProto, _Mapping]] = ..., double_click_event: _Optional[_Union[DoubleClickEventProto, _Mapping]] = ..., wheel_event: _Optional[_Union[WheelEventProto, _Mapping]] = ..., key_down_event: _Optional[_Union[KeyDownEventProto, _Mapping]] = ..., key_up_event: _Optional[_Union[KeyUpEventProto, _Mapping]] = ..., key_press_event: _Optional[_Union[KeyPressEventProto, _Mapping]] = ..., drag_start_event: _Optional[_Union[DragStartEventProto, _Mapping]] = ..., drag_end_event: _Optional[_Union[DragEndEventProto, _Mapping]] = ..., drag_over_event: _Optional[_Union[DragOverEventProto, _Mapping]] = ..., drag_enter_event: _Optional[_Union[DragEnterEventProto, _Mapping]] = ..., drag_leave_event: _Optional[_Union[DragLeaveEventProto, _Mapping]] = ..., drop_event: _Optional[_Union[DropEventProto, _Mapping]] = ..., copy_event: _Optional[_Union[CopyEventProto, _Mapping]] = ..., cut_event: _Optional[_Union[CutEventProto, _Mapping]] = ..., paste_event: _Optional[_Union[PasteEventProto, _Mapping]] = ..., focus_in_event: _Optional[_Union[FocusInEventProto, _Mapping]] = ..., focus_out_event: _Optional[_Union[FocusOutEventProto, _Mapping]] = ..., action: _Optional[_Union[ActionProto, _Mapping]] = ..., event_cursor: _Optional[_Union[EventCursorProto, _Mapping]] = ..., screen_cursor: _Optional[_Union[ScreenCursorProto, _Mapping]] = ..., thread_cursor: _Optional[_Union[ThreadCursorProto, _Mapping]] = ..., route: _Optional[_Union[RouteProto, _Mapping]] = ..., script: _Optional[_Union[ScriptProto, _Mapping]] = ..., service: _Optional[_Union[ServiceProto, _Mapping]] = ..., timer_started_event: _Optional[_Union[TimerStartedEventProto, _Mapping]] = ..., timer_completed_event: _Optional[_Union[TimerCompletedEventProto, _Mapping]] = ..., timer_cancelled_event: _Optional[_Union[TimerCancelledEventProto, _Mapping]] = ..., timer: _Optional[_Union[TimerProto, _Mapping]] = ..., trigger: _Optional[_Union[TriggerProto, _Mapping]] = ..., interruption: _Optional[_Union[InterruptionProto, _Mapping]] = ..., log_event: _Optional[_Union[LogEventProto, _Mapping]] = ..., run_started_event: _Optional[_Union[RunStartedEventProto, _Mapping]] = ..., run_pause_requested_event: _Optional[_Union[RunPauseRequestedEventProto, _Mapping]] = ..., run_paused_event: _Optional[_Union[RunPausedEventProto, _Mapping]] = ..., run_resume_requested_event: _Optional[_Union[RunResumeRequestedEventProto, _Mapping]] = ..., run_resumed_event: _Optional[_Union[RunResumedEventProto, _Mapping]] = ..., run_stop_requested_event: _Optional[_Union[RunStopRequestedEventProto, _Mapping]] = ..., run_failed_event: _Optional[_Union[RunFailedEventProto, _Mapping]] = ..., run_completed_event: _Optional[_Union[RunCompletedEventProto, _Mapping]] = ..., run: _Optional[_Union[RunProto, _Mapping]] = ..., span_event: _Optional[_Union[SpanEventProto, _Mapping]] = ..., layer: _Optional[_Union[LayerProto, _Mapping]] = ..., scene_entered_event: _Optional[_Union[SceneEnteredEventProto, _Mapping]] = ..., scene_exited_event: _Optional[_Union[SceneExitedEventProto, _Mapping]] = ..., scene: _Optional[_Union[SceneProto, _Mapping]] = ..., variant: _Optional[_Union[VariantProto, _Mapping]] = ..., window: _Optional[_Union[WindowProto, _Mapping]] = ..., follow: _Optional[_Union[FollowProto, _Mapping]] = ..., message: _Optional[_Union[MessageProto, _Mapping]] = ..., notification_sent_event: _Optional[_Union[NotificationSentEventProto, _Mapping]] = ..., notification_rescinded_event: _Optional[_Union[NotificationRescindedEventProto, _Mapping]] = ..., notification_read_event: _Optional[_Union[NotificationReadEventProto, _Mapping]] = ..., notification_dismissed_event: _Optional[_Union[NotificationDismissedEventProto, _Mapping]] = ..., notification_expired_event: _Optional[_Union[NotificationExpiredEventProto, _Mapping]] = ..., notification: _Optional[_Union[NotificationProto, _Mapping]] = ..., reaction: _Optional[_Union[ReactionProto, _Mapping]] = ..., star: _Optional[_Union[StarProto, _Mapping]] = ..., thread: _Optional[_Union[ThreadProto, _Mapping]] = ..., agent: _Optional[_Union[AgentProto, _Mapping]] = ..., client: _Optional[_Union[ClientProto, _Mapping]] = ..., friendship: _Optional[_Union[FriendshipProto, _Mapping]] = ..., friendship_invite_sent_event: _Optional[_Union[FriendshipInviteSentEventProto, _Mapping]] = ..., friendship_invite_rescinded_event: _Optional[_Union[FriendshipInviteRescindedEventProto, _Mapping]] = ..., friendship_invite_accepted_event: _Optional[_Union[FriendshipInviteAcceptedEventProto, _Mapping]] = ..., friendship_invite_rejected_event: _Optional[_Union[FriendshipInviteRejectedEventProto, _Mapping]] = ..., friendship_invite: _Optional[_Union[FriendshipInviteProto, _Mapping]] = ..., handle: _Optional[_Union[HandleProto, _Mapping]] = ..., organization: _Optional[_Union[OrganizationProto, _Mapping]] = ..., space: _Optional[_Union[SpaceProto, _Mapping]] = ..., team: _Optional[_Union[TeamProto, _Mapping]] = ..., user: _Optional[_Union[UserProto, _Mapping]] = ..., branch: _Optional[_Union[BranchProto, _Mapping]] = ..., color_style: _Optional[_Union[ColorStyleProto, _Mapping]] = ..., border_style: _Optional[_Union[BorderStyleProto, _Mapping]] = ..., transition_style: _Optional[_Union[TransitionStyleProto, _Mapping]] = ..., effect_style: _Optional[_Union[EffectStyleProto, _Mapping]] = ..., gradient_style: _Optional[_Union[GradientStyleProto, _Mapping]] = ..., fill_style: _Optional[_Union[FillStyleProto, _Mapping]] = ..., font_style: _Optional[_Union[FontStyleProto, _Mapping]] = ..., palette: _Optional[_Union[PaletteProto, _Mapping]] = ..., shadow_style: _Optional[_Union[ShadowStyleProto, _Mapping]] = ..., stroke_style: _Optional[_Union[StrokeStyleProto, _Mapping]] = ..., theme: _Optional[_Union[ThemeProto, _Mapping]] = ...) -> None: ...
 
 class SomeEntityProto(_message.Message):
     __slots__ = ("custom_entity_definition", "custom_trait_definition", "snapshot", "custom_event_definition", "custom_enum_definition", "custom_option", "gauge_metric", "counter_metric", "histogram_metric", "custom_property", "custom_struct_definition", "entitlement", "invite", "membership", "permission", "role", "sanction", "frame_view", "label_view", "split_view", "text_view", "number_input_view", "slider_input_view", "internal_view", "annotation_shape", "arrow_shape", "canvas", "line_shape", "file", "environment", "folder", "tag", "tagging", "database", "machine", "action", "event_cursor", "screen_cursor", "thread_cursor", "route", "script", "service", "timer", "trigger", "interruption", "run", "layer", "scene", "variant", "window", "follow", "message", "notification", "reaction", "star", "thread", "agent", "client", "friendship", "friendship_invite", "handle", "organization", "space", "team", "user", "branch", "color_style", "border_style", "transition_style", "effect_style", "gradient_style", "fill_style", "font_style", "palette", "shadow_style", "stroke_style", "theme")
@@ -11343,8 +11431,10 @@ class SomeEntityProto(_message.Message):
     def __init__(self, custom_entity_definition: _Optional[_Union[CustomEntityDefinitionProto, _Mapping]] = ..., custom_trait_definition: _Optional[_Union[CustomTraitDefinitionProto, _Mapping]] = ..., snapshot: _Optional[_Union[SnapshotProto, _Mapping]] = ..., custom_event_definition: _Optional[_Union[CustomEventDefinitionProto, _Mapping]] = ..., custom_enum_definition: _Optional[_Union[CustomEnumDefinitionProto, _Mapping]] = ..., custom_option: _Optional[_Union[CustomOptionProto, _Mapping]] = ..., gauge_metric: _Optional[_Union[GaugeMetricProto, _Mapping]] = ..., counter_metric: _Optional[_Union[CounterMetricProto, _Mapping]] = ..., histogram_metric: _Optional[_Union[HistogramMetricProto, _Mapping]] = ..., custom_property: _Optional[_Union[CustomPropertyProto, _Mapping]] = ..., custom_struct_definition: _Optional[_Union[CustomStructDefinitionProto, _Mapping]] = ..., entitlement: _Optional[_Union[EntitlementProto, _Mapping]] = ..., invite: _Optional[_Union[InviteProto, _Mapping]] = ..., membership: _Optional[_Union[MembershipProto, _Mapping]] = ..., permission: _Optional[_Union[PermissionProto, _Mapping]] = ..., role: _Optional[_Union[RoleProto, _Mapping]] = ..., sanction: _Optional[_Union[SanctionProto, _Mapping]] = ..., frame_view: _Optional[_Union[FrameViewProto, _Mapping]] = ..., label_view: _Optional[_Union[LabelViewProto, _Mapping]] = ..., split_view: _Optional[_Union[SplitViewProto, _Mapping]] = ..., text_view: _Optional[_Union[TextViewProto, _Mapping]] = ..., number_input_view: _Optional[_Union[NumberInputViewProto, _Mapping]] = ..., slider_input_view: _Optional[_Union[SliderInputViewProto, _Mapping]] = ..., internal_view: _Optional[_Union[InternalViewProto, _Mapping]] = ..., annotation_shape: _Optional[_Union[AnnotationShapeProto, _Mapping]] = ..., arrow_shape: _Optional[_Union[ArrowShapeProto, _Mapping]] = ..., canvas: _Optional[_Union[CanvasProto, _Mapping]] = ..., line_shape: _Optional[_Union[LineShapeProto, _Mapping]] = ..., file: _Optional[_Union[FileProto, _Mapping]] = ..., environment: _Optional[_Union[EnvironmentProto, _Mapping]] = ..., folder: _Optional[_Union[FolderProto, _Mapping]] = ..., tag: _Optional[_Union[TagProto, _Mapping]] = ..., tagging: _Optional[_Union[TaggingProto, _Mapping]] = ..., database: _Optional[_Union[DatabaseProto, _Mapping]] = ..., machine: _Optional[_Union[MachineProto, _Mapping]] = ..., action: _Optional[_Union[ActionProto, _Mapping]] = ..., event_cursor: _Optional[_Union[EventCursorProto, _Mapping]] = ..., screen_cursor: _Optional[_Union[ScreenCursorProto, _Mapping]] = ..., thread_cursor: _Optional[_Union[ThreadCursorProto, _Mapping]] = ..., route: _Optional[_Union[RouteProto, _Mapping]] = ..., script: _Optional[_Union[ScriptProto, _Mapping]] = ..., service: _Optional[_Union[ServiceProto, _Mapping]] = ..., timer: _Optional[_Union[TimerProto, _Mapping]] = ..., trigger: _Optional[_Union[TriggerProto, _Mapping]] = ..., interruption: _Optional[_Union[InterruptionProto, _Mapping]] = ..., run: _Optional[_Union[RunProto, _Mapping]] = ..., layer: _Optional[_Union[LayerProto, _Mapping]] = ..., scene: _Optional[_Union[SceneProto, _Mapping]] = ..., variant: _Optional[_Union[VariantProto, _Mapping]] = ..., window: _Optional[_Union[WindowProto, _Mapping]] = ..., follow: _Optional[_Union[FollowProto, _Mapping]] = ..., message: _Optional[_Union[MessageProto, _Mapping]] = ..., notification: _Optional[_Union[NotificationProto, _Mapping]] = ..., reaction: _Optional[_Union[ReactionProto, _Mapping]] = ..., star: _Optional[_Union[StarProto, _Mapping]] = ..., thread: _Optional[_Union[ThreadProto, _Mapping]] = ..., agent: _Optional[_Union[AgentProto, _Mapping]] = ..., client: _Optional[_Union[ClientProto, _Mapping]] = ..., friendship: _Optional[_Union[FriendshipProto, _Mapping]] = ..., friendship_invite: _Optional[_Union[FriendshipInviteProto, _Mapping]] = ..., handle: _Optional[_Union[HandleProto, _Mapping]] = ..., organization: _Optional[_Union[OrganizationProto, _Mapping]] = ..., space: _Optional[_Union[SpaceProto, _Mapping]] = ..., team: _Optional[_Union[TeamProto, _Mapping]] = ..., user: _Optional[_Union[UserProto, _Mapping]] = ..., branch: _Optional[_Union[BranchProto, _Mapping]] = ..., color_style: _Optional[_Union[ColorStyleProto, _Mapping]] = ..., border_style: _Optional[_Union[BorderStyleProto, _Mapping]] = ..., transition_style: _Optional[_Union[TransitionStyleProto, _Mapping]] = ..., effect_style: _Optional[_Union[EffectStyleProto, _Mapping]] = ..., gradient_style: _Optional[_Union[GradientStyleProto, _Mapping]] = ..., fill_style: _Optional[_Union[FillStyleProto, _Mapping]] = ..., font_style: _Optional[_Union[FontStyleProto, _Mapping]] = ..., palette: _Optional[_Union[PaletteProto, _Mapping]] = ..., shadow_style: _Optional[_Union[ShadowStyleProto, _Mapping]] = ..., stroke_style: _Optional[_Union[StrokeStyleProto, _Mapping]] = ..., theme: _Optional[_Union[ThemeProto, _Mapping]] = ...) -> None: ...
 
 class SomeEventProto(_message.Message):
-    __slots__ = ("edit_event", "gauge_measurement_event", "counter_measurement_event", "histogram_measurement_event", "entitlement_requested_event", "entitlement_granted_event", "entitlement_revoked_event", "entitlement_expired_event", "invite_sent_event", "invite_rescinded_event", "invite_accepted_event", "invite_rejected_event", "membership_joined_event", "membership_left_event", "role_assigned_event", "role_unassigned_event", "sanction_requested_event", "sanction_granted_event", "sanction_revoked_event", "sanction_expired_event", "pointer_down_event", "pointer_up_event", "pointer_move_event", "pointer_enter_event", "pointer_over_event", "pointer_leave_event", "long_press_event", "left_click_event", "right_click_event", "middle_click_event", "double_click_event", "wheel_event", "key_down_event", "key_up_event", "key_press_event", "drag_start_event", "drag_end_event", "drag_over_event", "drag_enter_event", "drag_leave_event", "drop_event", "copy_event", "cut_event", "paste_event", "focus_in_event", "focus_out_event", "timer_started_event", "timer_completed_event", "timer_cancelled_event", "log_event", "run_started_event", "run_pause_requested_event", "run_paused_event", "run_resume_requested_event", "run_resumed_event", "run_stop_requested_event", "run_failed_event", "run_completed_event", "span_event", "scene_entered_event", "scene_exited_event", "notification_sent_event", "notification_rescinded_event", "notification_read_event", "notification_dismissed_event", "notification_expired_event", "friendship_invite_sent_event", "friendship_invite_rescinded_event", "friendship_invite_accepted_event", "friendship_invite_rejected_event")
+    __slots__ = ("edit_event", "change_event", "query_event", "gauge_measurement_event", "counter_measurement_event", "histogram_measurement_event", "entitlement_requested_event", "entitlement_granted_event", "entitlement_revoked_event", "entitlement_expired_event", "invite_sent_event", "invite_rescinded_event", "invite_accepted_event", "invite_rejected_event", "membership_joined_event", "membership_left_event", "role_assigned_event", "role_unassigned_event", "sanction_requested_event", "sanction_granted_event", "sanction_revoked_event", "sanction_expired_event", "pointer_down_event", "pointer_up_event", "pointer_move_event", "pointer_enter_event", "pointer_over_event", "pointer_leave_event", "long_press_event", "left_click_event", "right_click_event", "middle_click_event", "double_click_event", "wheel_event", "key_down_event", "key_up_event", "key_press_event", "drag_start_event", "drag_end_event", "drag_over_event", "drag_enter_event", "drag_leave_event", "drop_event", "copy_event", "cut_event", "paste_event", "focus_in_event", "focus_out_event", "timer_started_event", "timer_completed_event", "timer_cancelled_event", "log_event", "run_started_event", "run_pause_requested_event", "run_paused_event", "run_resume_requested_event", "run_resumed_event", "run_stop_requested_event", "run_failed_event", "run_completed_event", "span_event", "scene_entered_event", "scene_exited_event", "notification_sent_event", "notification_rescinded_event", "notification_read_event", "notification_dismissed_event", "notification_expired_event", "friendship_invite_sent_event", "friendship_invite_rescinded_event", "friendship_invite_accepted_event", "friendship_invite_rejected_event")
     EDIT_EVENT_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_EVENT_FIELD_NUMBER: _ClassVar[int]
+    QUERY_EVENT_FIELD_NUMBER: _ClassVar[int]
     GAUGE_MEASUREMENT_EVENT_FIELD_NUMBER: _ClassVar[int]
     COUNTER_MEASUREMENT_EVENT_FIELD_NUMBER: _ClassVar[int]
     HISTOGRAM_MEASUREMENT_EVENT_FIELD_NUMBER: _ClassVar[int]
@@ -11415,6 +11505,8 @@ class SomeEventProto(_message.Message):
     FRIENDSHIP_INVITE_ACCEPTED_EVENT_FIELD_NUMBER: _ClassVar[int]
     FRIENDSHIP_INVITE_REJECTED_EVENT_FIELD_NUMBER: _ClassVar[int]
     edit_event: EditEventProto
+    change_event: ChangeEventProto
+    query_event: QueryEventProto
     gauge_measurement_event: GaugeMeasurementEventProto
     counter_measurement_event: CounterMeasurementEventProto
     histogram_measurement_event: HistogramMeasurementEventProto
@@ -11484,4 +11576,4 @@ class SomeEventProto(_message.Message):
     friendship_invite_rescinded_event: FriendshipInviteRescindedEventProto
     friendship_invite_accepted_event: FriendshipInviteAcceptedEventProto
     friendship_invite_rejected_event: FriendshipInviteRejectedEventProto
-    def __init__(self, edit_event: _Optional[_Union[EditEventProto, _Mapping]] = ..., gauge_measurement_event: _Optional[_Union[GaugeMeasurementEventProto, _Mapping]] = ..., counter_measurement_event: _Optional[_Union[CounterMeasurementEventProto, _Mapping]] = ..., histogram_measurement_event: _Optional[_Union[HistogramMeasurementEventProto, _Mapping]] = ..., entitlement_requested_event: _Optional[_Union[EntitlementRequestedEventProto, _Mapping]] = ..., entitlement_granted_event: _Optional[_Union[EntitlementGrantedEventProto, _Mapping]] = ..., entitlement_revoked_event: _Optional[_Union[EntitlementRevokedEventProto, _Mapping]] = ..., entitlement_expired_event: _Optional[_Union[EntitlementExpiredEventProto, _Mapping]] = ..., invite_sent_event: _Optional[_Union[InviteSentEventProto, _Mapping]] = ..., invite_rescinded_event: _Optional[_Union[InviteRescindedEventProto, _Mapping]] = ..., invite_accepted_event: _Optional[_Union[InviteAcceptedEventProto, _Mapping]] = ..., invite_rejected_event: _Optional[_Union[InviteRejectedEventProto, _Mapping]] = ..., membership_joined_event: _Optional[_Union[MembershipJoinedEventProto, _Mapping]] = ..., membership_left_event: _Optional[_Union[MembershipLeftEventProto, _Mapping]] = ..., role_assigned_event: _Optional[_Union[RoleAssignedEventProto, _Mapping]] = ..., role_unassigned_event: _Optional[_Union[RoleUnassignedEventProto, _Mapping]] = ..., sanction_requested_event: _Optional[_Union[SanctionRequestedEventProto, _Mapping]] = ..., sanction_granted_event: _Optional[_Union[SanctionGrantedEventProto, _Mapping]] = ..., sanction_revoked_event: _Optional[_Union[SanctionRevokedEventProto, _Mapping]] = ..., sanction_expired_event: _Optional[_Union[SanctionExpiredEventProto, _Mapping]] = ..., pointer_down_event: _Optional[_Union[PointerDownEventProto, _Mapping]] = ..., pointer_up_event: _Optional[_Union[PointerUpEventProto, _Mapping]] = ..., pointer_move_event: _Optional[_Union[PointerMoveEventProto, _Mapping]] = ..., pointer_enter_event: _Optional[_Union[PointerEnterEventProto, _Mapping]] = ..., pointer_over_event: _Optional[_Union[PointerOverEventProto, _Mapping]] = ..., pointer_leave_event: _Optional[_Union[PointerLeaveEventProto, _Mapping]] = ..., long_press_event: _Optional[_Union[LongPressEventProto, _Mapping]] = ..., left_click_event: _Optional[_Union[LeftClickEventProto, _Mapping]] = ..., right_click_event: _Optional[_Union[RightClickEventProto, _Mapping]] = ..., middle_click_event: _Optional[_Union[MiddleClickEventProto, _Mapping]] = ..., double_click_event: _Optional[_Union[DoubleClickEventProto, _Mapping]] = ..., wheel_event: _Optional[_Union[WheelEventProto, _Mapping]] = ..., key_down_event: _Optional[_Union[KeyDownEventProto, _Mapping]] = ..., key_up_event: _Optional[_Union[KeyUpEventProto, _Mapping]] = ..., key_press_event: _Optional[_Union[KeyPressEventProto, _Mapping]] = ..., drag_start_event: _Optional[_Union[DragStartEventProto, _Mapping]] = ..., drag_end_event: _Optional[_Union[DragEndEventProto, _Mapping]] = ..., drag_over_event: _Optional[_Union[DragOverEventProto, _Mapping]] = ..., drag_enter_event: _Optional[_Union[DragEnterEventProto, _Mapping]] = ..., drag_leave_event: _Optional[_Union[DragLeaveEventProto, _Mapping]] = ..., drop_event: _Optional[_Union[DropEventProto, _Mapping]] = ..., copy_event: _Optional[_Union[CopyEventProto, _Mapping]] = ..., cut_event: _Optional[_Union[CutEventProto, _Mapping]] = ..., paste_event: _Optional[_Union[PasteEventProto, _Mapping]] = ..., focus_in_event: _Optional[_Union[FocusInEventProto, _Mapping]] = ..., focus_out_event: _Optional[_Union[FocusOutEventProto, _Mapping]] = ..., timer_started_event: _Optional[_Union[TimerStartedEventProto, _Mapping]] = ..., timer_completed_event: _Optional[_Union[TimerCompletedEventProto, _Mapping]] = ..., timer_cancelled_event: _Optional[_Union[TimerCancelledEventProto, _Mapping]] = ..., log_event: _Optional[_Union[LogEventProto, _Mapping]] = ..., run_started_event: _Optional[_Union[RunStartedEventProto, _Mapping]] = ..., run_pause_requested_event: _Optional[_Union[RunPauseRequestedEventProto, _Mapping]] = ..., run_paused_event: _Optional[_Union[RunPausedEventProto, _Mapping]] = ..., run_resume_requested_event: _Optional[_Union[RunResumeRequestedEventProto, _Mapping]] = ..., run_resumed_event: _Optional[_Union[RunResumedEventProto, _Mapping]] = ..., run_stop_requested_event: _Optional[_Union[RunStopRequestedEventProto, _Mapping]] = ..., run_failed_event: _Optional[_Union[RunFailedEventProto, _Mapping]] = ..., run_completed_event: _Optional[_Union[RunCompletedEventProto, _Mapping]] = ..., span_event: _Optional[_Union[SpanEventProto, _Mapping]] = ..., scene_entered_event: _Optional[_Union[SceneEnteredEventProto, _Mapping]] = ..., scene_exited_event: _Optional[_Union[SceneExitedEventProto, _Mapping]] = ..., notification_sent_event: _Optional[_Union[NotificationSentEventProto, _Mapping]] = ..., notification_rescinded_event: _Optional[_Union[NotificationRescindedEventProto, _Mapping]] = ..., notification_read_event: _Optional[_Union[NotificationReadEventProto, _Mapping]] = ..., notification_dismissed_event: _Optional[_Union[NotificationDismissedEventProto, _Mapping]] = ..., notification_expired_event: _Optional[_Union[NotificationExpiredEventProto, _Mapping]] = ..., friendship_invite_sent_event: _Optional[_Union[FriendshipInviteSentEventProto, _Mapping]] = ..., friendship_invite_rescinded_event: _Optional[_Union[FriendshipInviteRescindedEventProto, _Mapping]] = ..., friendship_invite_accepted_event: _Optional[_Union[FriendshipInviteAcceptedEventProto, _Mapping]] = ..., friendship_invite_rejected_event: _Optional[_Union[FriendshipInviteRejectedEventProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, edit_event: _Optional[_Union[EditEventProto, _Mapping]] = ..., change_event: _Optional[_Union[ChangeEventProto, _Mapping]] = ..., query_event: _Optional[_Union[QueryEventProto, _Mapping]] = ..., gauge_measurement_event: _Optional[_Union[GaugeMeasurementEventProto, _Mapping]] = ..., counter_measurement_event: _Optional[_Union[CounterMeasurementEventProto, _Mapping]] = ..., histogram_measurement_event: _Optional[_Union[HistogramMeasurementEventProto, _Mapping]] = ..., entitlement_requested_event: _Optional[_Union[EntitlementRequestedEventProto, _Mapping]] = ..., entitlement_granted_event: _Optional[_Union[EntitlementGrantedEventProto, _Mapping]] = ..., entitlement_revoked_event: _Optional[_Union[EntitlementRevokedEventProto, _Mapping]] = ..., entitlement_expired_event: _Optional[_Union[EntitlementExpiredEventProto, _Mapping]] = ..., invite_sent_event: _Optional[_Union[InviteSentEventProto, _Mapping]] = ..., invite_rescinded_event: _Optional[_Union[InviteRescindedEventProto, _Mapping]] = ..., invite_accepted_event: _Optional[_Union[InviteAcceptedEventProto, _Mapping]] = ..., invite_rejected_event: _Optional[_Union[InviteRejectedEventProto, _Mapping]] = ..., membership_joined_event: _Optional[_Union[MembershipJoinedEventProto, _Mapping]] = ..., membership_left_event: _Optional[_Union[MembershipLeftEventProto, _Mapping]] = ..., role_assigned_event: _Optional[_Union[RoleAssignedEventProto, _Mapping]] = ..., role_unassigned_event: _Optional[_Union[RoleUnassignedEventProto, _Mapping]] = ..., sanction_requested_event: _Optional[_Union[SanctionRequestedEventProto, _Mapping]] = ..., sanction_granted_event: _Optional[_Union[SanctionGrantedEventProto, _Mapping]] = ..., sanction_revoked_event: _Optional[_Union[SanctionRevokedEventProto, _Mapping]] = ..., sanction_expired_event: _Optional[_Union[SanctionExpiredEventProto, _Mapping]] = ..., pointer_down_event: _Optional[_Union[PointerDownEventProto, _Mapping]] = ..., pointer_up_event: _Optional[_Union[PointerUpEventProto, _Mapping]] = ..., pointer_move_event: _Optional[_Union[PointerMoveEventProto, _Mapping]] = ..., pointer_enter_event: _Optional[_Union[PointerEnterEventProto, _Mapping]] = ..., pointer_over_event: _Optional[_Union[PointerOverEventProto, _Mapping]] = ..., pointer_leave_event: _Optional[_Union[PointerLeaveEventProto, _Mapping]] = ..., long_press_event: _Optional[_Union[LongPressEventProto, _Mapping]] = ..., left_click_event: _Optional[_Union[LeftClickEventProto, _Mapping]] = ..., right_click_event: _Optional[_Union[RightClickEventProto, _Mapping]] = ..., middle_click_event: _Optional[_Union[MiddleClickEventProto, _Mapping]] = ..., double_click_event: _Optional[_Union[DoubleClickEventProto, _Mapping]] = ..., wheel_event: _Optional[_Union[WheelEventProto, _Mapping]] = ..., key_down_event: _Optional[_Union[KeyDownEventProto, _Mapping]] = ..., key_up_event: _Optional[_Union[KeyUpEventProto, _Mapping]] = ..., key_press_event: _Optional[_Union[KeyPressEventProto, _Mapping]] = ..., drag_start_event: _Optional[_Union[DragStartEventProto, _Mapping]] = ..., drag_end_event: _Optional[_Union[DragEndEventProto, _Mapping]] = ..., drag_over_event: _Optional[_Union[DragOverEventProto, _Mapping]] = ..., drag_enter_event: _Optional[_Union[DragEnterEventProto, _Mapping]] = ..., drag_leave_event: _Optional[_Union[DragLeaveEventProto, _Mapping]] = ..., drop_event: _Optional[_Union[DropEventProto, _Mapping]] = ..., copy_event: _Optional[_Union[CopyEventProto, _Mapping]] = ..., cut_event: _Optional[_Union[CutEventProto, _Mapping]] = ..., paste_event: _Optional[_Union[PasteEventProto, _Mapping]] = ..., focus_in_event: _Optional[_Union[FocusInEventProto, _Mapping]] = ..., focus_out_event: _Optional[_Union[FocusOutEventProto, _Mapping]] = ..., timer_started_event: _Optional[_Union[TimerStartedEventProto, _Mapping]] = ..., timer_completed_event: _Optional[_Union[TimerCompletedEventProto, _Mapping]] = ..., timer_cancelled_event: _Optional[_Union[TimerCancelledEventProto, _Mapping]] = ..., log_event: _Optional[_Union[LogEventProto, _Mapping]] = ..., run_started_event: _Optional[_Union[RunStartedEventProto, _Mapping]] = ..., run_pause_requested_event: _Optional[_Union[RunPauseRequestedEventProto, _Mapping]] = ..., run_paused_event: _Optional[_Union[RunPausedEventProto, _Mapping]] = ..., run_resume_requested_event: _Optional[_Union[RunResumeRequestedEventProto, _Mapping]] = ..., run_resumed_event: _Optional[_Union[RunResumedEventProto, _Mapping]] = ..., run_stop_requested_event: _Optional[_Union[RunStopRequestedEventProto, _Mapping]] = ..., run_failed_event: _Optional[_Union[RunFailedEventProto, _Mapping]] = ..., run_completed_event: _Optional[_Union[RunCompletedEventProto, _Mapping]] = ..., span_event: _Optional[_Union[SpanEventProto, _Mapping]] = ..., scene_entered_event: _Optional[_Union[SceneEnteredEventProto, _Mapping]] = ..., scene_exited_event: _Optional[_Union[SceneExitedEventProto, _Mapping]] = ..., notification_sent_event: _Optional[_Union[NotificationSentEventProto, _Mapping]] = ..., notification_rescinded_event: _Optional[_Union[NotificationRescindedEventProto, _Mapping]] = ..., notification_read_event: _Optional[_Union[NotificationReadEventProto, _Mapping]] = ..., notification_dismissed_event: _Optional[_Union[NotificationDismissedEventProto, _Mapping]] = ..., notification_expired_event: _Optional[_Union[NotificationExpiredEventProto, _Mapping]] = ..., friendship_invite_sent_event: _Optional[_Union[FriendshipInviteSentEventProto, _Mapping]] = ..., friendship_invite_rescinded_event: _Optional[_Union[FriendshipInviteRescindedEventProto, _Mapping]] = ..., friendship_invite_accepted_event: _Optional[_Union[FriendshipInviteAcceptedEventProto, _Mapping]] = ..., friendship_invite_rejected_event: _Optional[_Union[FriendshipInviteRejectedEventProto, _Mapping]] = ...) -> None: ...

@@ -48,43 +48,6 @@ import {
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:ENUM:504 ==== */
-/**
- * StringFormat
- */
-export enum StringFormat {
-  NAME = 1,
-  SLUG = 2,
-  EMAIL = 3,
-  UUID = 10,
-  URL = 11,
-  EMOJI = 12,
-  MIME = 13,
-  BASE64 = 20,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.STRING_FORMAT, StringFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:504 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:505 ==== */
-/**
- * NumberFormat
- */
-export enum NumberFormat {
-  PERCENTAGE = 1,
-  ANGLE = 2,
-  CURRENCY = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:505 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:411 ==== */
 /**
  * The constraint of a string.
@@ -1956,3 +1919,40 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
 
   throw new Error(`cannot infer type of ${valueOrType}`);
 }
+
+/* ==== DESTACK_GENERATED_START:ENUM:64 ==== */
+/**
+ * StringFormat
+ */
+export enum StringFormat {
+  NAME = 1,
+  SLUG = 2,
+  EMAIL = 3,
+  UUID = 10,
+  URL = 11,
+  EMOJI = 12,
+  MIME = 13,
+  BASE64 = 20,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.STRING_FORMAT, StringFormat);
+/* ==== DESTACK_GENERATED_END:ENUM:64 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:65 ==== */
+/**
+ * NumberFormat
+ */
+export enum NumberFormat {
+  PERCENTAGE = 1,
+  ANGLE = 2,
+  CURRENCY = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
+/* ==== DESTACK_GENERATED_END:ENUM:65 ==== */

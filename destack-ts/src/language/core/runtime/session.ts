@@ -243,14 +243,14 @@ export class Session {
         const undoEdit = new Edit({
           type: EditType.UPDATE,
           node: nodePtr,
-          propPtr: propPtr,
+          attribute: propPtr,
           operation: undoOperation,
           value: oldValue,
         });
         const edit = new Edit({
           type: EditType.UPDATE,
           node: nodePtr,
-          propPtr: propPtr,
+          attribute: propPtr,
           operation: operation,
           value: newValue,
           undo: undoEdit,

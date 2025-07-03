@@ -323,6 +323,7 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
 
     type: NodeType = builtin_property(100, is_repr=True)
     id: UUID = builtin_property(101, is_repr=True)
-    space_id: Optional[UUID] = builtin_property(102, is_repr=True)
+    snapshot_id: Optional[UUID] = builtin_property(102, is_repr=True)
     definition_id: Optional[UUID] = builtin_property(103, is_repr=True)
+    space_id: Optional[UUID] = builtin_property(104, is_repr=True)
     # store_type? external_id?

@@ -138,7 +138,7 @@ export class CustomProperty
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -150,7 +150,7 @@ export class CustomProperty
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -470,7 +470,7 @@ export class CustomProperty
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`CustomProperty.materialization is required`);
@@ -1650,7 +1650,7 @@ export class CustomProperty
 registerNodeClass(NodeType.CUSTOM_PROPERTY, CustomProperty);
 /* ==== DESTACK_GENERATED_END:NODE:105 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:506 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:66 ==== */
 /**
  * CustomPropertyType
  */
@@ -1664,4 +1664,4 @@ export enum CustomPropertyType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CUSTOM_PROPERTY_TYPE, CustomPropertyType);
-/* ==== DESTACK_GENERATED_END:ENUM:506 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:66 ==== */

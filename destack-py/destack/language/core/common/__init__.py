@@ -1,6 +1,7 @@
 from .edit import (
     CASCADING_EDIT_TYPES,
     Change,
+    ChangeDebounce,
     ChangeResult,
     ChangeStatus,
     Edit,
@@ -122,6 +123,7 @@ __all__ = [
     "Axis2",
     "Axis3",
     "Change",
+    "ChangeDebounce",
     "ChangeResult",
     "ChangeStatus",
     "CollectionConstraint",

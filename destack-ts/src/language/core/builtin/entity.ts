@@ -1,6 +1,11 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { ResourceStatus } from "@destack/language/core/builtin/common";
-import { Materialization, NodeType, StructType } from "@destack/language/core/builtin/common";
+import {
+  EnumType,
+  Materialization,
+  NodeType,
+  StructType,
+} from "@destack/language/core/builtin/common";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type {
@@ -27,13 +32,18 @@ import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
   CustomEntityDefinitionProto,
   CustomTraitDefinitionProto,
   MaterializationProto,
   SnapshotProto,
+  SnapshotTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
@@ -88,7 +98,7 @@ export abstract class Entity extends Node {
   declare readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): Entity | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -100,7 +110,7 @@ export abstract class Entity extends Node {
   declare readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -226,7 +236,7 @@ export class CustomEntityDefinition
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): CustomEntityDefinition | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -238,7 +248,7 @@ export class CustomEntityDefinition
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -458,7 +468,7 @@ export class CustomEntityDefinition
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`CustomEntityDefinition.materialization is required`);
@@ -1322,7 +1332,7 @@ export class CustomTraitDefinition
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): CustomTraitDefinition | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -1334,7 +1344,7 @@ export class CustomTraitDefinition
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -1514,7 +1524,7 @@ export class CustomTraitDefinition
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`CustomTraitDefinition.materialization is required`);
@@ -2343,7 +2353,7 @@ export abstract class Record
   declare readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): Node | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -2355,7 +2365,7 @@ export abstract class Record
   declare readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -2511,7 +2521,7 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   declare readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): Resource | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -2523,7 +2533,7 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   declare readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -2651,7 +2661,7 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
   declare readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): Metric | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -2663,7 +2673,7 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
   declare readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -2746,16 +2756,16 @@ registerNodeClass(NodeType.METRIC, Metric);
 /**
  * A Snapshot is a point in Space time.
  */
-export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletable {
+export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivable, IsDeletable {
   static metatype: NodeType = NodeType.SNAPSHOT;
 
   /**
    * Snapshot.parent
    */
-  get parent(): Space | null {
+  get parent(): Space | Snapshot | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Space | Snapshot | null;
     }
     return null;
   }
@@ -2803,7 +2813,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on.
+   * The template this Entity instance is based on (from the template tree).
    */
   get template(): Snapshot | null {
     const nodePtr: NodeReference | null = this.templatePtr;
@@ -2815,7 +2825,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree.
+   * The (root) Entity in this Entity's instance tree (not the template tree).
    */
   get instanceRoot(): Entity | null {
     const nodePtr: NodeReference | null = this.instanceRootPtr;
@@ -2861,6 +2871,11 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * IsArchivable.archivedAt
+   */
+  readonly archivedAt: Temporal.ZonedDateTime | null;
+
+  /**
    * IsDeletable.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
@@ -2885,18 +2900,18 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
   ownedByPtr: NodeReference | null;
 
   /**
+   * Snapshot.type
+   */
+  type: SnapshotType;
+
+  /**
    * Snapshot.name
    */
   name: string;
 
-  /**
-   * Snapshot.icon
-   */
-  icon: Icon | null;
-
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Space | Snapshot | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -2907,10 +2922,11 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
+    archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Node & IsOwner) | NodeReference | null;
+    type: SnapshotType;
     name: string;
-    icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2952,7 +2968,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.FULL_GRAPH */;
     }
     if (_materialization === null) {
       throw new Error(`Snapshot.materialization is required`);
@@ -2978,6 +2994,8 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
       _instanceRoot = (_instanceRoot as Node).toRef();
     }
     this.instanceRootPtr = _instanceRoot;
+    let _archivedAt = options.archivedAt ?? null;
+    this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
@@ -2985,13 +3003,16 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this.ownedByPtr = _ownedBy;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Snapshot.type is required`);
+    }
+    this.type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Snapshot.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -3027,13 +3048,10 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
+    if (!(this.name === other.name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -3063,15 +3081,16 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
+    if (this.archivedAt !== null) {
+      h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -3177,16 +3196,17 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
+    if (object.archivedAt != null) {
+      objectValue["24"] = object.archivedAt.toString({ timeZoneName: "never" });
+    }
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object.ownedByPtr != null) {
       objectValue["28"] = object.ownedByPtr.toValue();
     }
+    objectValue["100"] = object.type;
     objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
     return objectValue;
   }
 
@@ -3198,16 +3218,10 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
     _connection?: any | null,
   ): Snapshot {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
@@ -3218,6 +3232,11 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const archivedAtValue = objectValue["24"];
+    const unpackedArchivedAt =
+      archivedAtValue != undefined
+        ? Temporal.Instant.from(archivedAtValue).toZonedDateTimeISO("UTC")
         : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
@@ -3256,10 +3275,11 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
         : null;
     return new Snapshot({
       parent: unpackedParentPtr,
+      type: Number(objectValue["100"]),
       name: objectValue["101"],
-      icon: unpackedIcon,
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
+      archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -3321,16 +3341,17 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
+    if (object.archivedAt != null) {
+      objectProto.archivedAt = packProtoTimestamp(object.archivedAt);
+    }
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object.ownedByPtr != null) {
       objectProto.ownedByPtr = object.ownedByPtr.toProto();
     }
+    objectProto.type = Number(object.type) as SnapshotTypeProto;
     objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
     return objectProto as SnapshotProto;
   }
 
@@ -3342,7 +3363,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
     _connection?: any | null,
   ): Snapshot {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Snapshot({
       parent:
         objectProto.parentPtr != undefined
@@ -3354,11 +3374,8 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
               _connection,
             )
           : null,
+      type: Number(objectProto.type) as SnapshotType,
       name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -3379,6 +3396,8 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
               _connection,
             )
           : null,
+      archivedAt:
+        objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       materialization: Number(objectProto.materialization) as Materialization,
@@ -3473,3 +3492,19 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletabl
 }
 registerNodeClass(NodeType.SNAPSHOT, Snapshot);
 /* ==== DESTACK_GENERATED_END:NODE:1300 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:1300 ==== */
+/**
+ * SnapshotType
+ */
+export enum SnapshotType {
+  PARTIAL_NODE = 1,
+  PARTIAL_GRAPH = 2,
+  FULL_GRAPH = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SNAPSHOT_TYPE, SnapshotType);
+/* ==== DESTACK_GENERATED_END:ENUM:1300 ==== */

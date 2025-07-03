@@ -24,19 +24,18 @@ export enum EnumType {
   EDIT_OPERATION = 51,
   CHANGE_STATUS = 52,
   CHANGE_DEBOUNCE = 53,
-  NODE_PERMISSION = 100,
-  JOINABLE_PERMISSION = 101,
-  PRIMITIVE_TYPE = 500,
-  TYPE_CARDINALITY = 501,
-  SCALAR_TYPE = 502,
-  VALUE_FACTORY = 503,
-  STRING_FORMAT = 504,
-  NUMBER_FORMAT = 505,
-  CUSTOM_PROPERTY_TYPE = 506,
-  EDGE_TYPE = 507,
-  EDGE_DIRECTION = 508,
-  CASCADE_ACTION = 509,
-  RESOURCE_STATUS = 600,
+  PRIMITIVE_TYPE = 60,
+  TYPE_CARDINALITY = 61,
+  SCALAR_TYPE = 62,
+  VALUE_FACTORY = 63,
+  STRING_FORMAT = 64,
+  NUMBER_FORMAT = 65,
+  CUSTOM_PROPERTY_TYPE = 66,
+  EDGE_TYPE = 67,
+  EDGE_DIRECTION = 68,
+  CASCADE_ACTION = 69,
+  RESOURCE_STATUS = 1100,
+  SNAPSHOT_TYPE = 1300,
   CONDITIONAL_TYPE = 10103,
   AGGREGATION_TYPE = 10104,
   SORT_MODE = 10105,
@@ -50,6 +49,7 @@ export enum EnumType {
   USER_STATUS = 10200,
   ORGANIZATION_STATUS = 10500,
   CLIENT_TYPE = 10700,
+  JOINABLE_PERMISSION = 20000,
   MEMBERSHIP_PERMISSION = 20001,
   ROLE_TYPE = 20200,
   PERMISSION_TYPE = 20300,
@@ -274,7 +274,9 @@ export enum NodeType {
   SNAPSHOT = 1300,
   SIGNAL = 2000,
   EDIT_EVENT = 2001,
-  MEASUREMENT_EVENT = 2002,
+  CHANGE_EVENT = 2002,
+  QUERY_EVENT = 2003,
+  MEASUREMENT_EVENT = 2004,
   SPACE = 10000,
   HANDLE = 10100,
   USER = 10200,
@@ -550,9 +552,9 @@ registerEnumClass(EnumType.ENVIRONMENT_TYPE, EnvironmentType);
  * Materialization
  */
 export enum Materialization {
-  FRAGMENT = 1,
-  SUBGRAPH = 2,
-  FULL = 3,
+  PARTIAL_NODE = 1,
+  PARTIAL_GRAPH = 2,
+  FULL_GRAPH = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -683,131 +685,6 @@ export enum Region {
 registerEnumClass(EnumType.REGION, Region);
 /* ==== DESTACK_GENERATED_END:ENUM:160001 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:507 ==== */
-/**
- * EdgeType
- */
-export enum EdgeType {
-  PARENT = 1,
-  REGULAR = 5,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.EDGE_TYPE, EdgeType);
-/* ==== DESTACK_GENERATED_END:ENUM:507 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:509 ==== */
-/**
- * CascadeAction
- */
-export enum CascadeAction {
-  RESTRICT = 1,
-  CASCADE = 2,
-  SET_NULL = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.CASCADE_ACTION, CascadeAction);
-/* ==== DESTACK_GENERATED_END:ENUM:509 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:508 ==== */
-/**
- * EdgeDirection
- */
-export enum EdgeDirection {
-  PARENT = 1,
-  CHILD = 2,
-  SIDE = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.EDGE_DIRECTION, EdgeDirection);
-/* ==== DESTACK_GENERATED_END:ENUM:508 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:500 ==== */
-/**
- * PrimitiveType
- */
-export enum PrimitiveType {
-  BOOLEAN = 1,
-  INT16 = 4,
-  INT32 = 5,
-  INT64 = 6,
-  DECIMAL = 10,
-  FLOAT32 = 16,
-  FLOAT64 = 17,
-  STRING = 20,
-  UUID = 21,
-  JSON = 22,
-  BYTES = 25,
-  DATETIME = 30,
-  DATE = 31,
-  TIME = 32,
-  DURATION = 33,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.PRIMITIVE_TYPE, PrimitiveType);
-/* ==== DESTACK_GENERATED_END:ENUM:500 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:501 ==== */
-/**
- * TypeCardinality
- */
-export enum TypeCardinality {
-  SCALAR = 1,
-  LIST = 2,
-  MAP = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.TYPE_CARDINALITY, TypeCardinality);
-/* ==== DESTACK_GENERATED_END:ENUM:501 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:502 ==== */
-/**
- * ScalarType
- */
-export enum ScalarType {
-  PRIMITIVE = 1,
-  ENUM = 2,
-  NODE_REFERENCE = 3,
-  NODE_VALUE = 4,
-  STRUCT = 5,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SCALAR_TYPE, ScalarType);
-/* ==== DESTACK_GENERATED_END:ENUM:502 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:503 ==== */
-/**
- * ValueFactory
- */
-export enum ValueFactory {
-  UUID = 1,
-  NOW = 2,
-  REGION = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.VALUE_FACTORY, ValueFactory);
-/* ==== DESTACK_GENERATED_END:ENUM:503 ==== */
-
 /* ==== DESTACK_GENERATED_START:ENUM:20200 ==== */
 /**
  * RoleType
@@ -826,28 +703,6 @@ export enum RoleType {
 }
 registerEnumClass(EnumType.ROLE_TYPE, RoleType);
 /* ==== DESTACK_GENERATED_END:ENUM:20200 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:600 ==== */
-/**
- * ResourceStatus
- */
-export enum ResourceStatus {
-  PENDING = 1,
-  CREATING = 2,
-  RETRYING = 3,
-  AVAILABLE = 10,
-  SLEEPING = 11,
-  UNAVAILABLE = 15,
-  IMPAIRED = 16,
-  OFFLINE = 30,
-  FAILED = 31,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.RESOURCE_STATUS, ResourceStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:600 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:10700 ==== */
 /**
@@ -882,22 +737,152 @@ export enum Tenancy {
 registerEnumClass(EnumType.TENANCY, Tenancy);
 /* ==== DESTACK_GENERATED_END:ENUM:160004 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:100 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:67 ==== */
 /**
- * NodePermission
+ * EdgeType
  */
-export enum NodePermission {
-  READ = 1,
-  ADD = 10,
-  UPDATE = 11,
-  REMOVE = 12,
+export enum EdgeType {
+  PARENT = 1,
+  REGULAR = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.NODE_PERMISSION, NodePermission);
-/* ==== DESTACK_GENERATED_END:ENUM:100 ==== */
+registerEnumClass(EnumType.EDGE_TYPE, EdgeType);
+/* ==== DESTACK_GENERATED_END:ENUM:67 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:69 ==== */
+/**
+ * CascadeAction
+ */
+export enum CascadeAction {
+  RESTRICT = 1,
+  CASCADE = 2,
+  SET_NULL = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.CASCADE_ACTION, CascadeAction);
+/* ==== DESTACK_GENERATED_END:ENUM:69 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:68 ==== */
+/**
+ * EdgeDirection
+ */
+export enum EdgeDirection {
+  PARENT = 1,
+  CHILD = 2,
+  SIDE = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.EDGE_DIRECTION, EdgeDirection);
+/* ==== DESTACK_GENERATED_END:ENUM:68 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:60 ==== */
+/**
+ * PrimitiveType
+ */
+export enum PrimitiveType {
+  BOOLEAN = 1,
+  INT16 = 4,
+  INT32 = 5,
+  INT64 = 6,
+  DECIMAL = 10,
+  FLOAT32 = 16,
+  FLOAT64 = 17,
+  STRING = 20,
+  UUID = 21,
+  JSON = 22,
+  BYTES = 25,
+  DATETIME = 30,
+  DATE = 31,
+  TIME = 32,
+  DURATION = 33,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.PRIMITIVE_TYPE, PrimitiveType);
+/* ==== DESTACK_GENERATED_END:ENUM:60 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:61 ==== */
+/**
+ * TypeCardinality
+ */
+export enum TypeCardinality {
+  SCALAR = 1,
+  LIST = 2,
+  MAP = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.TYPE_CARDINALITY, TypeCardinality);
+/* ==== DESTACK_GENERATED_END:ENUM:61 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:62 ==== */
+/**
+ * ScalarType
+ */
+export enum ScalarType {
+  PRIMITIVE = 1,
+  ENUM = 2,
+  NODE_REFERENCE = 3,
+  NODE_VALUE = 4,
+  STRUCT = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SCALAR_TYPE, ScalarType);
+/* ==== DESTACK_GENERATED_END:ENUM:62 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:63 ==== */
+/**
+ * ValueFactory
+ */
+export enum ValueFactory {
+  UUID = 1,
+  NOW = 2,
+  REGION = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.VALUE_FACTORY, ValueFactory);
+/* ==== DESTACK_GENERATED_END:ENUM:63 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:1100 ==== */
+/**
+ * ResourceStatus
+ */
+export enum ResourceStatus {
+  PENDING = 1,
+  CREATING = 2,
+  RETRYING = 3,
+  AVAILABLE = 10,
+  SLEEPING = 11,
+  UNAVAILABLE = 15,
+  IMPAIRED = 16,
+  OFFLINE = 30,
+  FAILED = 31,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.RESOURCE_STATUS, ResourceStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:1100 ==== */
 
 export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {
   [PrimitiveType.BOOLEAN]: Boolean,
