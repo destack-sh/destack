@@ -648,6 +648,7 @@ export class FontStyle extends Style {
       type: NodeType.FONT_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

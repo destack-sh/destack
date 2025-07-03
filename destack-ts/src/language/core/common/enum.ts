@@ -435,6 +435,7 @@ export class CustomEnumDefinition
       type: NodeType.CUSTOM_ENUM_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1226,6 +1227,7 @@ export class CustomOption
       type: NodeType.CUSTOM_OPTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

@@ -540,6 +540,7 @@ export class User
     return new _NodeReference({
       type: NodeType.USER,
       id: this.id,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

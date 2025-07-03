@@ -302,6 +302,7 @@ export class Handle extends Entity implements IsGlobal {
     return new _NodeReference({
       type: NodeType.HANDLE,
       id: this.id,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

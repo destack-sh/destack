@@ -964,6 +964,7 @@ export class Canvas extends ContainerView {
       type: NodeType.CANVAS,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,

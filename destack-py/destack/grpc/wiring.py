@@ -16,7 +16,7 @@ from opentelemetry import trace
 
 from destack import proto
 from destack.language.core import (
-    BuiltinObjectBase,
+    BuiltinObject,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
@@ -37,7 +37,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def generate_pack_proto_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[str, Any]]:
+def generate_pack_proto_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:
     """
     Generate BuiltinObject.__pack_proto__ and __unpack_proto__ class methods.
     """
@@ -93,7 +93,7 @@ from_proto = __unpack_proto__
     }
 
 
-def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:
+def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject.__pack_proto__ method implementation."""
     metatype = get_builtin_type(cls)
     pack_method_parts: list[str] = []
@@ -111,7 +111,7 @@ def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:
     return "\n".join(pack_method_parts)
 
 
-def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
+def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject.__unpack_proto__ method implementation."""
     unpack_assignments: list[str] = []
     unpack_method_parts: list[str] = []

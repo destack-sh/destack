@@ -78,13 +78,7 @@ from .event import (
     Signal,
 )
 from .node import IndexIn, Node, builtin_node
-from .object import (
-    BuiltinObjectBase,
-    BuiltinObjectFrozen,
-    BuiltinObjectMutable,
-    _is_finalized,
-    object_,
-)
+from .object import BuiltinObject, _is_finalized
 from .property import (
     PropertyDeclaration,
     TypeDeclaration,
@@ -104,7 +98,7 @@ from .relation import (
     StructDefinitionReference,
     StructDefinitionType,
 )
-from .struct import StructBase, StructFrozen, StructMutable, builtin_struct
+from .struct import Struct, StructFrozen, StructMutable, builtin_struct
 from .trait import (
     TRAIT_PREFIXES,
     IsArchivable,
@@ -126,7 +120,6 @@ from .trait import (
     IsSubject,
     IsTaggable,
     JoinablePermission,
-    NodeBase,
     Trait,
     builtin_trait,
 )
@@ -157,9 +150,7 @@ __all__ = [
     "TRAIT_TYPES",
     "UNSET",
     "VERSION",
-    "BuiltinObjectBase",
-    "BuiltinObjectFrozen",
-    "BuiltinObjectMutable",
+    "BuiltinObject",
     "CascadeAction",
     "ChangeEvent",
     "ClientType",
@@ -201,7 +192,6 @@ __all__ = [
     "MeasurementEvent",
     "Metric",
     "Node",
-    "NodeBase",
     "NodeDefinitionReference",
     "NodeDefinitionType",
     "NodeReference",
@@ -229,7 +219,7 @@ __all__ = [
     "SnapshotType",
     "StoreImplementation",
     "StoreType",
-    "StructBase",
+    "Struct",
     "StructDefinitionReference",
     "StructDefinitionType",
     "StructFrozen",
@@ -253,7 +243,6 @@ __all__ = [
     "builtin_trait",
     "get_active_session",
     "get_active_snapshot",
-    "object_",
     "parse_type_annotation",
     "register_constant",
 ]

@@ -392,6 +392,7 @@ export class GaugeMetric extends Metric {
       type: NodeType.GAUGE_METRIC,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -789,6 +790,18 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   definitionPtr: NodeReference;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -829,6 +842,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     definition: GaugeMetric | NodeReference;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
@@ -879,6 +893,11 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       throw new Error(`GaugeMeasurementEvent.definition is required`);
     }
     this.definitionPtr = _definition;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -911,6 +930,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -926,6 +948,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -952,6 +977,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       type: NodeType.GAUGE_MEASUREMENT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -993,6 +1019,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1015,6 +1044,11 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1040,6 +1074,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
         _connection,
       ),
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
@@ -1081,6 +1116,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1111,6 +1149,16 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1550,6 +1598,7 @@ export class CounterMetric extends Metric {
       type: NodeType.COUNTER_METRIC,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1947,6 +1996,18 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   definitionPtr: NodeReference;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1987,6 +2048,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     definition: CounterMetric | NodeReference;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
@@ -2037,6 +2099,11 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       throw new Error(`CounterMeasurementEvent.definition is required`);
     }
     this.definitionPtr = _definition;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2069,6 +2136,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -2084,6 +2154,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -2110,6 +2183,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       type: NodeType.COUNTER_MEASUREMENT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2151,6 +2225,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2173,6 +2250,11 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -2198,6 +2280,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
         _connection,
       ),
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
@@ -2239,6 +2322,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -2269,6 +2355,16 @@ export class CounterMeasurementEvent extends MeasurementEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2708,6 +2804,7 @@ export class HistogramMetric extends Metric {
       type: NodeType.HISTOGRAM_METRIC,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -3105,6 +3202,18 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   definitionPtr: NodeReference;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -3145,6 +3254,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     definition: HistogramMetric | NodeReference;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
@@ -3195,6 +3305,11 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       throw new Error(`HistogramMeasurementEvent.definition is required`);
     }
     this.definitionPtr = _definition;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3227,6 +3342,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -3242,6 +3360,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -3268,6 +3389,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       type: NodeType.HISTOGRAM_MEASUREMENT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -3309,6 +3431,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -3331,6 +3456,11 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -3356,6 +3486,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
         _connection,
       ),
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
@@ -3397,6 +3528,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -3427,6 +3561,16 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,

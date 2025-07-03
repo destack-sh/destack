@@ -30,7 +30,7 @@ from ..builtin.relation import (
     PropertyReference,
     PropertyReferenceType,
 )
-from ..builtin.struct import StructBase, StructFrozen, builtin_struct
+from ..builtin.struct import Struct, StructFrozen, builtin_struct
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -39,7 +39,6 @@ if TYPE_CHECKING:
         ConditionalType,
         Icon,
         Node,
-        NodeBase,
         NodeConstraint,
         NumberConstraint,
         ObjectDefinitionReference,
@@ -301,7 +300,7 @@ class TraitDefinition(StructFrozen):
     )
 
     @classmethod
-    def from_trait(cls, trait_cls: _type["NodeBase"]) -> "TraitDefinition":
+    def from_trait(cls, trait_cls: _type["Trait"]) -> "TraitDefinition":
         """Create TraitDefinition from a Trait class."""
         from . import to_icon
 
@@ -442,7 +441,7 @@ class StructDefinition(StructFrozen):
     is_frozen: bool = builtin_property(110)
 
     @classmethod
-    def from_struct(cls, struct_cls: _type[StructBase]) -> "StructDefinition":
+    def from_struct(cls, struct_cls: _type[Struct]) -> "StructDefinition":
         """Create StructDefinition from a Struct class."""
         from . import to_icon
 

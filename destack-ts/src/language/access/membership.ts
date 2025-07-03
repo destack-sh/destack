@@ -89,6 +89,18 @@ export abstract class MembershipEvent extends Event {
   declare readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  declare readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -189,6 +201,18 @@ export class MembershipJoinedEvent extends MembershipEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -274,6 +298,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Membership | NodeReference;
@@ -320,6 +345,11 @@ export class MembershipJoinedEvent extends MembershipEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -396,6 +426,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -412,6 +445,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -435,6 +471,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
       type: NodeType.MEMBERSHIP_JOINED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -475,6 +512,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -499,6 +539,11 @@ export class MembershipJoinedEvent extends MembershipEvent {
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -541,6 +586,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
         _connection,
       ),
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -579,6 +625,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -634,6 +683,16 @@ export class MembershipJoinedEvent extends MembershipEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -729,6 +788,18 @@ export class MembershipLeftEvent extends MembershipEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -794,6 +865,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Membership | NodeReference;
@@ -838,6 +910,11 @@ export class MembershipLeftEvent extends MembershipEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -895,6 +972,9 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -909,6 +989,9 @@ export class MembershipLeftEvent extends MembershipEvent {
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -932,6 +1015,7 @@ export class MembershipLeftEvent extends MembershipEvent {
       type: NodeType.MEMBERSHIP_LEFT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -972,6 +1056,9 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -994,6 +1081,11 @@ export class MembershipLeftEvent extends MembershipEvent {
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1028,6 +1120,7 @@ export class MembershipLeftEvent extends MembershipEvent {
         _connection,
       ),
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -1066,6 +1159,9 @@ export class MembershipLeftEvent extends MembershipEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1111,6 +1207,16 @@ export class MembershipLeftEvent extends MembershipEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1584,6 +1690,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       type: NodeType.MEMBERSHIP,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

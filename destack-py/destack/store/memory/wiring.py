@@ -22,6 +22,7 @@ NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
 def pack_node_row(table: MemoryTable, value: Value) -> MemoryRow:
     """Pack a Value into a MemoryRow."""
     value_packed = value.value
+    assert value_packed is not None, f"no value for {value!r}"
     id = UUID(value_packed[NODE_ID_KEY])
     ptr = NodeReference(
         type=table.node_type,

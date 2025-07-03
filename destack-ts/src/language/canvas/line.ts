@@ -1226,6 +1226,7 @@ export class LineShape extends Shape {
       type: NodeType.LINE_SHAPE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,

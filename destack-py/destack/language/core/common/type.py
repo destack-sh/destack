@@ -20,7 +20,7 @@ from ..builtin import (
     NodeType,
     PrimitiveType,
     ScalarType,
-    StructBase,
+    Struct,
     StructFrozen,
     StructType,
     TraitType,
@@ -179,7 +179,7 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             scalar_type=ScalarType.NODE_VALUE if node_as_value else ScalarType.NODE_REFERENCE,
             node_type=value_or_type.metatype,
         )
-    elif isinstance(value_or_type, StructBase):
+    elif isinstance(value_or_type, Struct):
         return Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.STRUCT,
@@ -313,7 +313,7 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
                 scalar_type=ScalarType.NODE_REFERENCE,
                 node_type=getattr(value_or_type, "metatype", None),
             )
-        elif issubclass(value_or_type, StructBase):
+        elif issubclass(value_or_type, Struct):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.STRUCT,

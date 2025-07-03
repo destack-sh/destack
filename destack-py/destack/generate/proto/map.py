@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
 
 from destack.language import (
-    BuiltinObjectBase,
+    BuiltinObject,
     Enum,
     Node,
     PrimitiveType,
@@ -43,7 +43,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
 
 
 def _map_property_to_proto_field(
-    prop: "PropertyDeclaration", cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject]
+    prop: "PropertyDeclaration", cache: dict[type[BuiltinObject] | type[Enum], ProtoObject]
 ) -> ProtoField:
     assert prop.id == 1 or prop.is_wired, f"not a wired property: {prop!r}"
     assert isinstance(prop.id, int), f"invalid id: {prop!r}"
@@ -130,8 +130,8 @@ def _map_property_to_proto_field(
 
 
 def _map_builtin_object_to_proto_message(
-    cls: type[BuiltinObjectBase],
-    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject],
+    cls: type[BuiltinObject],
+    cache: dict[type[BuiltinObject] | type[Enum], ProtoObject],
     alias: str | None = None,
     properties: Sequence["PropertyDeclaration"] | None = None,
 ) -> ProtoMessage:
@@ -176,16 +176,16 @@ def _map_builtin_enum_to_proto_enum(
 
 
 def _map_object_type_to_proto(
-    destack_cls: type[BuiltinObjectBase] | type[Enum],
-    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject],
+    destack_cls: type[BuiltinObject] | type[Enum],
+    cache: dict[type[BuiltinObject] | type[Enum], ProtoObject],
     alias: str | None = None,
 ) -> ProtoObject:
     """Maps a Destack type to a Proto type. If not yet mapped, adds it to the cache."""
-    from destack.language import BuiltinObjectBase
+    from destack.language import BuiltinObject
 
     if destack_cls in cache:
         return cache[destack_cls]
-    if issubclass(destack_cls, BuiltinObjectBase):
+    if issubclass(destack_cls, BuiltinObject):
         ret = _map_builtin_object_to_proto_message(destack_cls, cache, alias=alias)
     elif issubclass(destack_cls, Enum):
         ret = _map_builtin_enum_to_proto_enum(destack_cls, alias=alias)

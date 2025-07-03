@@ -318,6 +318,7 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
     return new _NodeReference({
       type: NodeType.TEAM,
       id: this.id,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

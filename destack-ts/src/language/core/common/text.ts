@@ -71,27 +71,27 @@ export class TextSpan extends StructFrozen {
   readonly url: string | null;
 
   /**
-   * TextOptionsBase.isBold
+   * TextSpan.isBold
    */
   readonly isBold: boolean | null;
 
   /**
-   * TextOptionsBase.isItalic
+   * TextSpan.isItalic
    */
   readonly isItalic: boolean | null;
 
   /**
-   * TextOptionsBase.isStrikethrough
+   * TextSpan.isStrikethrough
    */
   readonly isStrikethrough: boolean | null;
 
   /**
-   * TextOptionsBase.isUnderline
+   * TextSpan.isUnderline
    */
   readonly isUnderline: boolean | null;
 
   /**
-   * TextOptionsBase.isCode
+   * TextSpan.isCode
    */
   readonly isCode: boolean | null;
 
@@ -438,27 +438,27 @@ export class Text extends StructFrozen {
   readonly spans: Array<TextSpan>;
 
   /**
-   * TextOptionsBase.isBold
+   * Text.isBold
    */
   readonly isBold: boolean | null;
 
   /**
-   * TextOptionsBase.isItalic
+   * Text.isItalic
    */
   readonly isItalic: boolean | null;
 
   /**
-   * TextOptionsBase.isStrikethrough
+   * Text.isStrikethrough
    */
   readonly isStrikethrough: boolean | null;
 
   /**
-   * TextOptionsBase.isUnderline
+   * Text.isUnderline
    */
   readonly isUnderline: boolean | null;
 
   /**
-   * TextOptionsBase.isCode
+   * Text.isCode
    */
   readonly isCode: boolean | null;
 

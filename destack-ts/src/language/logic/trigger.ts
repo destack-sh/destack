@@ -80,6 +80,18 @@ export abstract class TriggerEvent extends Event {
   declare readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  declare readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -535,6 +547,7 @@ export class Trigger extends Entity implements IsSpatial {
       type: NodeType.TRIGGER,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

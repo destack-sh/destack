@@ -730,6 +730,7 @@ export class CustomEntityDefinition
       type: NodeType.CUSTOM_ENTITY_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1766,6 +1767,7 @@ export class CustomTraitDefinition
       type: NodeType.CUSTOM_TRAIT_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -3138,6 +3140,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       type: NodeType.SNAPSHOT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

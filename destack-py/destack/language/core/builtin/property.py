@@ -38,7 +38,7 @@ from .const import EMPTY_DICT, UNSET
 
 if TYPE_CHECKING:
     from destack.language import (
-        BuiltinObjectBase,
+        BuiltinObject,
         Condition,
         Constraint,
         Format,
@@ -356,8 +356,8 @@ class PropertyDeclaration(TypeDeclaration):
     ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
     description: str | None = None
-    component: type["BuiltinObjectBase"] = UNSET  # builtin object component
-    original_component: type["BuiltinObjectBase"] = UNSET  # original component (first in chain)
+    component: type["BuiltinObject"] = UNSET  # builtin object component
+    original_component: type["BuiltinObject"] = UNSET  # original component (first in chain)
 
     # pointers
     node_space_from: Literal["self"] | None = None

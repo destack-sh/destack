@@ -681,6 +681,7 @@ export class Machine extends Resource implements IsSpatial {
       type: NodeType.MACHINE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,

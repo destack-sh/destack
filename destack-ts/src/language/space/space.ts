@@ -553,6 +553,7 @@ export class Space
       type: NodeType.SPACE,
       id: this.id,
       spaceId: this.id,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

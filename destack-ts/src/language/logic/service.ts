@@ -45,7 +45,8 @@ export class Service
     IsRunnable,
     IsScriptable,
     IsExtensible,
-    IsSourceable
+    IsSourceable,
+    IsSubject
 {
   static metatype: NodeType = NodeType.SERVICE;
 
@@ -553,6 +554,7 @@ export class Service
       type: NodeType.SERVICE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,

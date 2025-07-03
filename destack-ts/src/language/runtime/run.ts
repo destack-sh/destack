@@ -103,6 +103,18 @@ export abstract class RunEvent extends Event {
   declare readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  declare readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -192,6 +204,18 @@ export class RunStartedEvent extends RunEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -246,6 +270,7 @@ export class RunStartedEvent extends RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
@@ -289,6 +314,11 @@ export class RunStartedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -332,6 +362,9 @@ export class RunStartedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -347,6 +380,9 @@ export class RunStartedEvent extends RunEvent {
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -370,6 +406,7 @@ export class RunStartedEvent extends RunEvent {
       type: NodeType.RUN_STARTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -410,6 +447,9 @@ export class RunStartedEvent extends RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -439,6 +479,11 @@ export class RunStartedEvent extends RunEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -459,6 +504,7 @@ export class RunStartedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -491,6 +537,9 @@ export class RunStartedEvent extends RunEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -533,6 +582,16 @@ export class RunStartedEvent extends RunEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -622,6 +681,18 @@ export class RunPauseRequestedEvent extends RunEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -676,6 +747,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
@@ -719,6 +791,11 @@ export class RunPauseRequestedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -762,6 +839,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -777,6 +857,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -800,6 +883,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       type: NodeType.RUN_PAUSE_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -840,6 +924,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -869,6 +956,11 @@ export class RunPauseRequestedEvent extends RunEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -889,6 +981,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -927,6 +1020,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -969,6 +1065,16 @@ export class RunPauseRequestedEvent extends RunEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1064,6 +1170,18 @@ export class RunPausedEvent extends RunEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1118,6 +1236,7 @@ export class RunPausedEvent extends RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
@@ -1161,6 +1280,11 @@ export class RunPausedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1204,6 +1328,9 @@ export class RunPausedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1219,6 +1346,9 @@ export class RunPausedEvent extends RunEvent {
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -1242,6 +1372,7 @@ export class RunPausedEvent extends RunEvent {
       type: NodeType.RUN_PAUSED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1282,6 +1413,9 @@ export class RunPausedEvent extends RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1311,6 +1445,11 @@ export class RunPausedEvent extends RunEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1331,6 +1470,7 @@ export class RunPausedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -1363,6 +1503,9 @@ export class RunPausedEvent extends RunEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1405,6 +1548,16 @@ export class RunPausedEvent extends RunEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1494,6 +1647,18 @@ export class RunResumeRequestedEvent extends RunEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1548,6 +1713,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
@@ -1591,6 +1757,11 @@ export class RunResumeRequestedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1634,6 +1805,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1649,6 +1823,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -1672,6 +1849,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       type: NodeType.RUN_RESUME_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1712,6 +1890,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1741,6 +1922,11 @@ export class RunResumeRequestedEvent extends RunEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1761,6 +1947,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -1799,6 +1986,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1841,6 +2031,16 @@ export class RunResumeRequestedEvent extends RunEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1936,6 +2136,18 @@ export class RunResumedEvent extends RunEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1990,6 +2202,7 @@ export class RunResumedEvent extends RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
@@ -2033,6 +2246,11 @@ export class RunResumedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2076,6 +2294,9 @@ export class RunResumedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -2091,6 +2312,9 @@ export class RunResumedEvent extends RunEvent {
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -2114,6 +2338,7 @@ export class RunResumedEvent extends RunEvent {
       type: NodeType.RUN_RESUMED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2154,6 +2379,9 @@ export class RunResumedEvent extends RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2183,6 +2411,11 @@ export class RunResumedEvent extends RunEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2203,6 +2436,7 @@ export class RunResumedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -2235,6 +2469,9 @@ export class RunResumedEvent extends RunEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2277,6 +2514,16 @@ export class RunResumedEvent extends RunEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2366,6 +2613,18 @@ export class RunStopRequestedEvent extends RunEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -2420,6 +2679,7 @@ export class RunStopRequestedEvent extends RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
@@ -2463,6 +2723,11 @@ export class RunStopRequestedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2506,6 +2771,9 @@ export class RunStopRequestedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -2521,6 +2789,9 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -2544,6 +2815,7 @@ export class RunStopRequestedEvent extends RunEvent {
       type: NodeType.RUN_STOP_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2584,6 +2856,9 @@ export class RunStopRequestedEvent extends RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2613,6 +2888,11 @@ export class RunStopRequestedEvent extends RunEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2633,6 +2913,7 @@ export class RunStopRequestedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -2671,6 +2952,9 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2713,6 +2997,16 @@ export class RunStopRequestedEvent extends RunEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2808,6 +3102,18 @@ export class RunFailedEvent extends RunEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -2862,6 +3168,7 @@ export class RunFailedEvent extends RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
@@ -2905,6 +3212,11 @@ export class RunFailedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2948,6 +3260,9 @@ export class RunFailedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -2963,6 +3278,9 @@ export class RunFailedEvent extends RunEvent {
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -2986,6 +3304,7 @@ export class RunFailedEvent extends RunEvent {
       type: NodeType.RUN_FAILED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -3026,6 +3345,9 @@ export class RunFailedEvent extends RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -3055,6 +3377,11 @@ export class RunFailedEvent extends RunEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3075,6 +3402,7 @@ export class RunFailedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -3107,6 +3435,9 @@ export class RunFailedEvent extends RunEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3149,6 +3480,16 @@ export class RunFailedEvent extends RunEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3238,6 +3579,18 @@ export class RunCompletedEvent extends RunEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -3292,6 +3645,7 @@ export class RunCompletedEvent extends RunEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node: Run | NodeReference;
@@ -3335,6 +3689,11 @@ export class RunCompletedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3378,6 +3737,9 @@ export class RunCompletedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -3393,6 +3755,9 @@ export class RunCompletedEvent extends RunEvent {
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -3416,6 +3781,7 @@ export class RunCompletedEvent extends RunEvent {
       type: NodeType.RUN_COMPLETED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -3456,6 +3822,9 @@ export class RunCompletedEvent extends RunEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -3485,6 +3854,11 @@ export class RunCompletedEvent extends RunEvent {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3505,6 +3879,7 @@ export class RunCompletedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -3543,6 +3918,9 @@ export class RunCompletedEvent extends RunEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3585,6 +3963,16 @@ export class RunCompletedEvent extends RunEvent {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -4133,6 +4521,7 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
       type: NodeType.RUN,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

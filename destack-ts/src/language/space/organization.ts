@@ -398,6 +398,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return new _NodeReference({
       type: NodeType.ORGANIZATION,
       id: this.id,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

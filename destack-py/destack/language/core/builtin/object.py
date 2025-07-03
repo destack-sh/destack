@@ -79,16 +79,16 @@ def get_tk_b64_from_ck(ck: UUID) -> str:
     return base64.b64encode(ck.bytes).decode()
 
 
-_processed_classes: dict[type["BuiltinObjectBase"], type["BuiltinObjectBase"]] = {}
+_processed_classes: dict[type["BuiltinObject"], type["BuiltinObject"]] = {}
 
 
-def _generate_init[ObjectT: BuiltinObjectBase](
+def _generate_init[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     is_node: bool,
     is_root_node: bool,
     is_frozen: bool,
     traits: tuple[TraitType, ...],
-    extends: tuple[NodeType, ...],
+    inherits: tuple[StructType, ...] | tuple[NodeType, ...],
     properties: dict[str, PropertyDeclaration],
 ) -> tuple[str, dict[str, Any]]:
     """Generates an __init__ for a BuiltinObject class."""
@@ -162,13 +162,13 @@ def _generate_init[ObjectT: BuiltinObjectBase](
     if is_node:
         # node setup
         body_properties.pop("id")
-        if NodeType.ENTITY in extends:
+        if NodeType.ENTITY in inherits:
             body_properties.pop("created_at")
             body_properties.pop("updated_at")
-        elif NodeType.EVENT in extends:
+        elif NodeType.EVENT in inherits:
             body_properties.pop("created_at")
         else:
-            raise NotImplementedError(f"unexpected node {cls.__name__} extends {extends}")
+            raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
         body_properties.pop("_session")
         body_properties.pop("_graph")
         body_properties.pop("_connection")
@@ -191,19 +191,19 @@ if _supergraph is None:
 if id is None:
     id = uuid4()
     """)
-        if NodeType.ENTITY in extends:
+        if NodeType.ENTITY in inherits:
             method_body_lines.append("""\
     now = self._session.oracle.utc()
     created_at = now
     updated_at = now
 """)
-        elif NodeType.EVENT in extends:
+        elif NodeType.EVENT in inherits:
             method_body_lines.append("""\
     now = self._session.oracle.utc()
     created_at = now
 """)
         else:
-            raise NotImplementedError(f"unexpected node {cls.__name__} extends {extends}")
+            raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
         method_body_lines.append(f"""\
     _is_new = True
     _is_attached = {"True" if is_root_node else "_graph is not None"}
@@ -213,17 +213,17 @@ else:
 {set_template_str.format("id", "id")}
 """)
 
-        if NodeType.ENTITY in extends:
+        if NodeType.ENTITY in inherits:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 {set_template_str.format("updated_at", "updated_at")}
 """)
-        elif NodeType.EVENT in extends:
+        elif NodeType.EVENT in inherits:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 """)
         else:
-            raise NotImplementedError(f"unexpected node {cls.__name__} extends {extends}")
+            raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
         method_body_lines.append(f"""\
 {set_template_str.format("_ref", "None")}
 {set_template_str.format("_is_new", "_is_new")}
@@ -336,7 +336,7 @@ else:
     return init_str, extra_glbls
 
 
-def _generate_repr[ObjectT: BuiltinObjectBase](
+def _generate_repr[ObjectT: BuiltinObject](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.__repr__."""
@@ -534,7 +534,7 @@ def __to_ref__(self) -> "NodeReference":
 #
 
 
-def _generate_equals[ObjectT: BuiltinObjectBase](
+def _generate_equals[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     is_node: bool,
 ) -> tuple[str, dict[str, Any]]:
@@ -632,7 +632,7 @@ def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
         assert_never(prop.scalar_type)
 
 
-def _generate_hash[ObjectT: BuiltinObjectBase](
+def _generate_hash[ObjectT: BuiltinObject](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
     """Generate BuiltinObject.hash method."""
@@ -756,7 +756,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
 #
 
 
-def _generate_validate[ObjectT: BuiltinObjectBase](
+def _generate_validate[ObjectT: BuiltinObject](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.validate method."""
@@ -836,7 +836,7 @@ def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
     if is_node:
         getter = f"""\
 @property
-def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
+def {prop.name}(self: "BuiltinObject") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
         return self._supergraph.get(node_ptr.id)
@@ -846,7 +846,7 @@ def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     else:
         getter = f"""\
 @property
-def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
+def {prop.name}(self: "BuiltinObject") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
         if self._supergraph is None:
@@ -859,7 +859,7 @@ def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     if is_node:
         setter = f"""\
 @{prop.name}.setter
-def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
+def {prop.name}(self: "BuiltinObject", value: "Node | None"):
     if value is None:
         self._do_set("{prop.name}_ptr", None)
     else:
@@ -868,7 +868,7 @@ def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
     else:
         setter = f"""\
 @{prop.name}.setter
-def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
+def {prop.name}(self: "BuiltinObject", value: "Node | None"):
     if value is None:
         self.{prop.name}_ptr = None
     else:
@@ -878,7 +878,7 @@ def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
     return getter + "\n\n" + setter
 
 
-def _process_object_cls[ObjectT: BuiltinObjectBase](
+def _process_object_cls[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     object_type: NodeType | StructType | None,
     is_frozen: bool = False,
@@ -887,9 +887,9 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     is_node: bool = False,
     is_root_node: bool = False,
     is_abstract: bool = False,
-    base_type: NodeType | None = None,
+    base_type: StructType | NodeType | None = None,
     traits: tuple[TraitType, ...] = (),
-    inherits: tuple[NodeType, ...] = (),
+    inherits: tuple[StructType, ...] | tuple[NodeType, ...] = (),
 ) -> tuple[type[ObjectT], dict[str, "PropertyDeclaration"]]:
     """Process a BuiltinObject base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
@@ -928,7 +928,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
                     )
 
     # collect all components from class hierarchy (including self)
-    components: list[type[BuiltinObjectBase]] = []
+    components: list[type[BuiltinObject]] = []
     for base_cls in get_superclasses(cls):
         base_cls = _processed_classes.get(base_cls, base_cls)
         if base_cls.__name__ == "ABC":
@@ -1040,7 +1040,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
                 is_root_node=is_root_node,
                 properties=properties,
                 traits=traits,
-                extends=inherits,
+                inherits=inherits,
             )
             exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
             # __repr__
@@ -1109,7 +1109,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def object_[ObjectT: BuiltinObjectBase](
+def _builtin_object[ObjectT: BuiltinObject](
     object_type: NodeType | StructType | None = None,
     frozen: bool = False,
     concrete: bool = False,
@@ -1128,7 +1128,9 @@ def object_[ObjectT: BuiltinObjectBase](
             is_concrete=concrete,
             is_struct=struct,
             is_node=node,
+            is_abstract=True,
         )
+        cls.__is_abstract__ = True
         return cast(type[ObjectT], cls)
 
     return decorate
@@ -1137,7 +1139,8 @@ def object_[ObjectT: BuiltinObjectBase](
 _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", default=False)
 
 
-class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
+@_builtin_object()
+class BuiltinObject[ObjectProtoT: AnyObjectProto]:
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
 
     __is_frozen__: ClassVar[bool] = False
@@ -1158,7 +1161,9 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
     __properties_in_order__: ClassVar[tuple[PropertyDeclaration, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]
 
-    __slots__ = ()
+    __slots__: ClassVar[tuple[str, ...]] = ()
+
+    _supergraph: "Supergraph | None" = builtin_property_runtime()
 
     @classmethod
     def property(cls, name: str) -> PropertyDeclaration:
@@ -1266,17 +1271,3 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
     ) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated
-
-
-@object_()
-class BuiltinObjectMutable[ObjectProtoT: AnyObjectProto](BuiltinObjectBase[ObjectProtoT]):
-    """A mutable BuiltinObject."""
-
-    _supergraph: "Supergraph | None" = builtin_property_runtime()
-
-
-@object_(frozen=True)
-class BuiltinObjectFrozen[ObjectProtoT: AnyObjectProto](BuiltinObjectBase[ObjectProtoT]):
-    """A frozen BuiltinObject."""
-
-    _supergraph: "Supergraph | None" = builtin_property_runtime()

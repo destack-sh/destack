@@ -355,6 +355,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
       type: NodeType.STAR,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

@@ -32,7 +32,7 @@ from ..builtin.relation import NodeReference
 from .type import Json, ScalarType, Type, TypeCardinality, to_type
 
 if TYPE_CHECKING:
-    from ..builtin import BuiltinObjectBase
+    from ..builtin import BuiltinObject
     from ..runtime import Graph, QueryConnection, Session, Supergraph
 
 
@@ -50,7 +50,7 @@ class Value(StructFrozen[ValueProto]):
     """A generic Value of any Type."""
 
     type: Type = builtin_property(100, is_repr=True)
-    value: Json = builtin_property(110)
+    value: Json | None = builtin_property(110, default=None)
 
     _unpacked: Any | None = builtin_property_runtime()
 
@@ -70,7 +70,7 @@ class Value(StructFrozen[ValueProto]):
 #
 
 
-def generate_pack_value_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[str, Any]]:
+def generate_pack_value_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:
     """Generate the BuiltinObject.__pack_value__/__unpack_value__ method implementations."""
 
     pack_value = textwrap.indent(_generate_pack_value(cls), "    ")
@@ -121,7 +121,7 @@ from_value = __unpack_value__
     }
 
 
-def _generate_pack_value(cls: type["BuiltinObjectBase"]) -> str:
+def _generate_pack_value(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject.__pack_value__ method implementation."""
     pack_method_parts: list[str] = []
     pack_method_parts.append("_object_value = {}")
@@ -142,7 +142,7 @@ def _generate_pack_value(cls: type["BuiltinObjectBase"]) -> str:
     return "\n".join(pack_method_parts)
 
 
-def _generate_unpack_value(cls: type["BuiltinObjectBase"]) -> str:
+def _generate_unpack_value(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject.__unpack_value__ method implementation."""
     unpack_assignments: list[str] = []
     unpack_method_parts: list[str] = []

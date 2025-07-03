@@ -4,7 +4,7 @@ from hypothesis import HealthCheck, given, settings
 
 from destack.grpc import AnyObjectProto
 from destack.language import (
-    BuiltinObjectBase,
+    BuiltinObject,
     Join,
     JoinType,
     NodeReference,
@@ -112,7 +112,7 @@ def test_roundtrip_user_proto(session: Session):
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_roundtrip_builtin_object(obj: BuiltinObjectBase[AnyObjectProto], session: Session):
+def test_roundtrip_builtin_object(obj: BuiltinObject[AnyObjectProto], session: Session):
     # proto
     packed_obj_data: AnyObjectProto = obj.to_proto()
     packed_bytes = packed_obj_data.SerializeToString()
