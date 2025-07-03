@@ -1399,32 +1399,32 @@ export class NodeReference extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
-   * NodeReference.type
+   * The type of the Node.
    */
   readonly type: NodeType;
 
   /**
-   * NodeReference.id
+   * The unique id of the Node.
    */
   readonly id: string;
 
   /**
-   * NodeReference.definitionId
+   * The unique id of the custom Node definition.
    */
   readonly definitionId: string | null;
 
   /**
-   * NodeReference.snapshotId
+   * The id of the Snapshot the Node belonged to.
    */
   readonly snapshotId: string | null;
 
   /**
-   * NodeReference.spaceId
+   * The id of the Space the Node belonged to.
    */
   readonly spaceId: string | null;
 
   /**
-   * NodeReference.storeType
+   * The type of the Store the Node belonged to.
    */
   readonly storeType: StoreType | null;
 
@@ -1579,10 +1579,10 @@ export class NodeReference extends StructFrozen {
       objectValue["103"] = String(object.snapshotId);
     }
     if (object.spaceId != null) {
-      objectValue["104"] = String(object.spaceId);
+      objectValue["110"] = String(object.spaceId);
     }
     if (object.storeType != null) {
-      objectValue["105"] = object.storeType;
+      objectValue["111"] = object.storeType;
     }
     return objectValue;
   }
@@ -1598,9 +1598,9 @@ export class NodeReference extends StructFrozen {
     const unpackedDefinitionId = definitionIdValue != undefined ? String(definitionIdValue) : null;
     const snapshotIdValue = objectValue["103"];
     const unpackedSnapshotId = snapshotIdValue != undefined ? String(snapshotIdValue) : null;
-    const spaceIdValue = objectValue["104"];
+    const spaceIdValue = objectValue["110"];
     const unpackedSpaceId = spaceIdValue != undefined ? String(spaceIdValue) : null;
-    const storeTypeValue = objectValue["105"];
+    const storeTypeValue = objectValue["111"];
     const unpackedStoreType = storeTypeValue != undefined ? Number(storeTypeValue) : null;
     return new NodeReference({
       type: Number(objectValue["100"]),

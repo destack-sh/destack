@@ -16,7 +16,7 @@ from destack.language import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_TYPES,
-    BuiltinObjectBase,
+    BuiltinObject,
     CustomProperty,
     CustomPropertyType,
     EnumType,
@@ -182,7 +182,7 @@ def get_type_strategy(typ: Type) -> st.SearchStrategy[Any]:
 
 
 @cached({})
-def get_naive_object_strategy(object_cls: type[BuiltinObjectBase]):
+def get_naive_object_strategy(object_cls: type[BuiltinObject]):
     """Gets the default uncorrelated strategies for every (init) property of an object type."""
     object_kwargs: dict[str, st.SearchStrategy] = {}
     for prop in object_cls.__wired_properties__.values():
@@ -213,21 +213,21 @@ def from_object_type(
     object_type: NodeType | StructType,
     /,
     **custom_strategies: st.SearchStrategy,
-) -> st.SearchStrategy[BuiltinObjectBase]:
+) -> st.SearchStrategy[BuiltinObject]:
     # special cases
     if isinstance(object_type, StructType):
         if object_type == StructType.TYPE:
-            return cast(st.SearchStrategy[BuiltinObjectBase], types(SIMPLE_TYPE_CARDINALITIES))
+            return cast(st.SearchStrategy[BuiltinObject], types(SIMPLE_TYPE_CARDINALITIES))
         elif object_type == StructType.PROPERTY_REFERENCE:
             return cast(
-                st.SearchStrategy[BuiltinObjectBase],
+                st.SearchStrategy[BuiltinObject],
                 properties(object_type=None).map(lambda p: p.to_ref()),
             )
         elif object_type == StructType.ICON:
-            return cast(st.SearchStrategy[BuiltinObjectBase], icons())
+            return cast(st.SearchStrategy[BuiltinObject], icons())
     elif isinstance(object_type, NodeType):
         if object_type == NodeType.CUSTOM_PROPERTY:
-            return cast(st.SearchStrategy[BuiltinObjectBase], fields(SIMPLE_TYPE_CARDINALITIES))
+            return cast(st.SearchStrategy[BuiltinObject], fields(SIMPLE_TYPE_CARDINALITIES))
 
     # naive strategy
     object_cls = get_builtin_object_cls(object_type)

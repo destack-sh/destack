@@ -9,6 +9,7 @@ from destack.language.core import (
     IsScriptable,
     IsSourceable,
     IsSpatial,
+    IsSubject,
     IsTaggable,
     NodeType,
     builtin_node,
@@ -32,6 +33,7 @@ class Service(
     IsScriptable,
     IsExtensible,
     IsSourceable,
+    IsSubject,
     Entity,
 ):
     """

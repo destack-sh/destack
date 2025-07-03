@@ -11,16 +11,15 @@ from .core.builtin.enum import _ENUM_CLASS_BY_TYPE, _ENUM_TYPE_BY_CLASS
 
 if TYPE_CHECKING:
     from destack.language import (
-        BuiltinObjectBase,
+        BuiltinObject,
         ConstantDefinition,
         Enum,
         EnumDefinition,
         Node,
-        NodeBase,
         NodeDefinition,
         NodeDefinitionReference,
         ObjectDefinitionReference,
-        StructBase,
+        Struct,
         StructDefinition,
         Trait,
         TraitDefinition,
@@ -34,16 +33,14 @@ NODE_TYPE_BY_CLASS: dict[type["Node"], NodeType] = {}
 NODE_TYPES_BY_PRIMARY_STORE_TYPE: dict[StoreType, tuple[NodeType, ...]] = {}
 NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
 
-TRAIT_CLASS_BY_TYPE: dict[TraitType, type["NodeBase"]] = {}
+TRAIT_CLASS_BY_TYPE: dict[TraitType, type["Trait"]] = {}
 TRAIT_TYPE_BY_CLASS: dict[type["Trait"], TraitType] = {}
 
-STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
-STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
+STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
+STRUCT_TYPE_BY_CLASS: dict[type["Struct"], StructType] = {}
 
 NODE_DEFINITION_REFERENCE_BY_CLASS: dict[type["Node"], "NodeDefinitionReference"] = {}
-OBJECT_DEFINITION_REFERENCE_BY_CLASS: dict[
-    type["BuiltinObjectBase"], "ObjectDefinitionReference"
-] = {}
+OBJECT_DEFINITION_REFERENCE_BY_CLASS: dict[type["BuiltinObject"], "ObjectDefinitionReference"] = {}
 ENUM_DEFINITION_BY_TYPE: dict[EnumType, "EnumDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict[StructType, "StructDefinition"] = {}
 TRAIT_DEFINITION_BY_TYPE: dict[TraitType, "TraitDefinition"] = {}
@@ -56,7 +53,7 @@ ANCESTOR_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 
 def get_builtin_object_cls(
     object_type: NodeType | StructType | TraitType,
-) -> type["BuiltinObjectBase"]:
+) -> type["BuiltinObject"]:
     if isinstance(object_type, NodeType):
         return NODE_CLASS_BY_TYPE[object_type]
     elif isinstance(object_type, StructType):
@@ -69,7 +66,7 @@ def get_builtin_object_cls(
 
 def get_builtin_class(
     destack_tgype: NodeType | StructType | EnumType,
-) -> type["BuiltinObjectBase"] | type["Enum"]:
+) -> type["BuiltinObject"] | type["Enum"]:
     if isinstance(destack_tgype, NodeType):
         return NODE_CLASS_BY_TYPE[destack_tgype]
     elif isinstance(destack_tgype, StructType):
@@ -81,11 +78,11 @@ def get_builtin_class(
 
 
 def get_builtin_type(
-    cls: type["BuiltinObjectBase"] | type["Enum"],
+    cls: type["BuiltinObject"] | type["Enum"],
 ) -> NodeType | StructType | TraitType | EnumType:
-    from .core import Enum, Node, StructBase, Trait
+    from .core import Enum, Node, Struct, Trait
 
-    if issubclass(cls, (Node, StructBase, Trait)):
+    if issubclass(cls, (Node, Struct, Trait)):
         return cls.metatype
     elif issubclass(cls, Enum):
         return ENUM_TYPE_BY_CLASS[cls]
@@ -95,7 +92,7 @@ def get_builtin_type(
 
 def get_node_or_trait_cls(
     node_type: NodeType | TraitType,
-) -> type["NodeBase"] | type["Trait"]:
+) -> type["Node"] | type["Trait"]:
     if isinstance(node_type, NodeType):
         return NODE_CLASS_BY_TYPE[node_type]
     elif isinstance(node_type, TraitType):

@@ -17,7 +17,7 @@ from destack.utils.uuid import UUID
 
 from ..builtin import (
     NODE_TYPES,
-    BuiltinObjectBase,
+    BuiltinObject,
     Node,
     NodeReference,
     NodeType,
@@ -191,14 +191,14 @@ class Renderer:
         return ", ".join(a for a in args if a is not None)
 
     def render_builtin_object(
-        self, obj: BuiltinObjectBase, options: RenderOptions | None = None
+        self, obj: BuiltinObject, options: RenderOptions | None = None
     ) -> str:
         """Renders the given object into an expression (incl. inlined children for node)."""
         raise NotImplementedError
 
     def render_expression(
         self,
-        value: BuiltinObjectBase | PropertyDeclaration,
+        value: BuiltinObject | PropertyDeclaration,
         as_ref: bool = False,
         format: bool = False,
     ) -> str:

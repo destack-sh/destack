@@ -69,7 +69,7 @@ from destack.language import (
     NODE_TYPES,
     STRUCT_TYPES,
     WORLD_ORACLE,
-    BuiltinObjectBase,
+    BuiltinObject,
     NodeType,
     Session,
     StructType,
@@ -92,7 +92,7 @@ with warnings.catch_warnings(action="ignore"):
     ]
     ACTIVE_SESSION.set(None)
 
-BUILTIN_OBJECTS_BY_TYPE: Mapping[StructType | NodeType, BuiltinObjectBase] = {
+BUILTIN_OBJECTS_BY_TYPE: Mapping[StructType | NodeType, BuiltinObject] = {
     obj.metatype: obj for obj in BUILTIN_OBJECTS
 }
 STRUCTS = [BUILTIN_OBJECTS_BY_TYPE[t] for t in STRUCT_TYPES if t in BUILTIN_OBJECTS_BY_TYPE]

@@ -543,6 +543,7 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return new _NodeReference({
       type: NodeType.CLIENT,
       id: this.id,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

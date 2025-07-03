@@ -50,6 +50,7 @@ def _compile_value(context: PostgresContext, arguments_out: list[Any], value: Va
     """Compile a Value into a SQL expression."""
     if value.type.scalar_type == ScalarType.NODE_REFERENCE:
         # unravel reference column into id
+        assert value.value is not None, f"no value for {value!r}"
         value_id = uuid.UUID(value.value[NODE_REFERENCE_ID_KEY])
         arguments_out.append(value_id)
         return f"${len(arguments_out)}"
@@ -820,7 +821,10 @@ async def _execute_subquery(
         # collect/walk
         parents_ptr: dict[UUID, NodeReference] = {}
         for node_value in result.nodes:
-            if (parent_ptr_value := node_value.value.get("3")) is not None:
+            if (
+                node_value.value is not None
+                and (parent_ptr_value := node_value.value.get("3")) is not None
+            ):
                 parent_id = UUID(parent_ptr_value[NODE_REFERENCE_ID_KEY])
                 if parent_id in parents_ptr:
                     continue

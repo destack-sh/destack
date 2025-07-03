@@ -9,13 +9,12 @@ from typing import assert_never, cast
 from destack.language import (
     EMPTY_DICT,
     UNSET,
-    BuiltinObjectBase,
+    BuiltinObject,
     ConstantDefinition,
     Entity,
     EnumDefinition,
     Event,
     Node,
-    NodeBase,
     NodeDefinition,
     NodeType,
     PrimitiveType,
@@ -25,6 +24,7 @@ from destack.language import (
     ScalarType,
     StructDefinition,
     StructFrozen,
+    StructType,
     Trait,
     TraitDefinition,
     TraitType,
@@ -86,7 +86,7 @@ def _generate_multiline_doc(description: str) -> str:
     return f"/**\n{formatted_description}\n */"
 
 
-def _get_properties(cls: type[BuiltinObjectBase]) -> list[PropertyDeclaration]:
+def _get_properties(cls: type[BuiltinObject]) -> list[PropertyDeclaration]:
     """Get the properties of a class."""
     properties: list[PropertyDeclaration] = []
     for prop in cls.__wired_properties__.values():
@@ -277,7 +277,7 @@ set {ts_name}(value: {node_type_str}) {{
         return node_prop_str
 
 
-def _generate_init(cls: type[BuiltinObjectBase]) -> str:
+def _generate_init(cls: type[BuiltinObject]) -> str:
     """Generate a Typescript constructor with options-style parameters."""
 
     def _is_property_required(prop: PropertyDeclaration) -> bool:
@@ -514,7 +514,7 @@ constructor(options: {{
     return init_str.strip()
 
 
-def _generate_repr(cls: type[BuiltinObjectBase]) -> str:
+def _generate_repr(cls: type[BuiltinObject]) -> str:
     """Generate BuiltinObject.repr method."""
     repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
     if not repr_properties:
@@ -697,7 +697,7 @@ get path(): string {{
     return path_str.strip()
 
 
-def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
+def _generate_equals(cls: type[BuiltinObject]) -> str:
     """Generate a Typescript equals method."""
     eq_properties = [prop for prop in cls.__properties__.values() if prop.is_eq and prop.is_wired]
     assert eq_properties, f"{cls.__name__} has no properties to compare"
@@ -801,7 +801,7 @@ def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
         assert_never(prop.scalar_type)
 
 
-def _generate_hash(cls: type[BuiltinObjectBase]) -> str:
+def _generate_hash(cls: type[BuiltinObject]) -> str:
     """Generate a Typescript hash method."""
     hash_properties = [
         prop for prop in cls.__properties__.values() if prop.is_hash and prop.is_wired
@@ -917,7 +917,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
         assert_never(prop.scalar_type)
 
 
-def _generate_validate(cls: type[BuiltinObjectBase]) -> str:
+def _generate_validate(cls: type[BuiltinObject]) -> str:
     """Generate a Typescript validate method."""
     validate_str = """\
 validate(): void {
@@ -1183,7 +1183,6 @@ def _generate_node(definition: NodeDefinition) -> str:
         for super_cls in node_cls.__bases__
         if super_cls != node_cls
         and issubclass(super_cls, Trait)
-        and super_cls != NodeBase
         and super_cls != Node
         and super_cls.__is_trait__
     ]
@@ -1261,20 +1260,20 @@ def _get_type_dependencies(
 
 
 def _get_builtin_object_dependencies(
-    cls: type[BuiltinObjectBase], is_abstract: bool
+    cls: type[BuiltinObject], is_abstract: bool
 ) -> tuple[dict[str, Definition], set[str]]:
     """Get the dependencies of a definition."""
     dependencies: dict[str, Definition] = {}
     value_dependencies: set[str] = set()
 
     # base classes
-    if issubclass(cls, (Trait, NodeBase)):
+    if issubclass(cls, (Trait, Node)):
         for super_cls in cls.__bases__:
             if (
                 super_cls != cls
                 and issubclass(super_cls, Trait)
                 and super_cls != Trait
-                and super_cls != NodeBase
+                and super_cls != Node
             ):
                 super_type = super_cls.metatype
                 if isinstance(super_type, TraitType):
@@ -1314,7 +1313,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         definition_str = _generate_struct(definition)
         name = definition.name
         dependencies, value_dependencies = _get_builtin_object_dependencies(
-            cast(type[BuiltinObjectBase], cls), is_abstract=False
+            cast(type[BuiltinObject], cls), is_abstract=False
         )
     elif isinstance(definition, TraitDefinition):
         kind = "TRAIT"
@@ -1324,7 +1323,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         definition_str = _generate_trait(definition)
         name = definition.alias
         dependencies, value_dependencies = _get_builtin_object_dependencies(
-            cast(type[BuiltinObjectBase], cls), is_abstract=True
+            cast(type[BuiltinObject], cls), is_abstract=True
         )
     elif isinstance(definition, NodeDefinition):
         kind = "NODE"
@@ -1334,7 +1333,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         definition_str = _generate_node(definition)
         name = definition.name
         dependencies, value_dependencies = _get_builtin_object_dependencies(
-            cast(type[BuiltinObjectBase], cls), is_abstract=cls.__is_abstract__
+            cast(type[BuiltinObject], cls), is_abstract=cls.__is_abstract__
         )
     elif isinstance(definition, ConstantDefinition):
         kind = "CONSTANT"
@@ -1815,6 +1814,8 @@ def generate():
         definition = _generate_definition(ENUM_DEFINITION_BY_TYPE[enum_type])
         definitions_by_module[enum_cls.__module__].append(definition)
     for struct_type, struct_cls in STRUCT_CLASS_BY_TYPE.items():
+        if struct_type == StructType.STRUCT:
+            continue  # manually defined
         definition = _generate_definition(STRUCT_DEFINITION_BY_TYPE[struct_type])
         definitions_by_module[struct_cls.__module__].append(definition)
     for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():

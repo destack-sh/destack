@@ -43,7 +43,7 @@ import type { Arrow, ArrowHeadType, ArrowShape } from "@destack/language/canvas/
 import type { Canvas, CanvasType } from "@destack/language/canvas/canvas";
 import type { Line, LineShape } from "@destack/language/canvas/line";
 import type { Shape } from "@destack/language/canvas/shape";
-import type { Node } from "@destack/language/core";
+import type { Node, Struct } from "@destack/language/core";
 import type {
   CascadeAction,
   ClientType,
@@ -642,6 +642,7 @@ export type TraitTypeMapping = {
 };
 
 export type StructTypeMapping = {
+  [StructType.STRUCT]: Struct;
   [StructType.NODE_DEFINITION_REFERENCE]: NodeDefinitionReference;
   [StructType.OBJECT_DEFINITION_REFERENCE]: ObjectDefinitionReference;
   [StructType.STRUCT_DEFINITION_REFERENCE]: StructDefinitionReference;

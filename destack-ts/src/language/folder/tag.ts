@@ -375,6 +375,7 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
       type: NodeType.TAG,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1069,6 +1070,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       type: NodeType.TAGGING,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

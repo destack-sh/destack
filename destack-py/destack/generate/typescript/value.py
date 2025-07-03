@@ -3,12 +3,12 @@ import textwrap
 from typing import TYPE_CHECKING, Any, assert_never, cast
 
 from destack.language import (
-    BuiltinObjectBase,
+    BuiltinObject,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
-    StructBase,
+    Struct,
     StructType,
     Type,
     TypeCardinality,
@@ -30,7 +30,7 @@ def _upper_first(s: str) -> str:
     return s[0].upper() + s[1:]
 
 
-def generate_object_value(cls: type["BuiltinObjectBase"]) -> str:
+def generate_object_value(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject toValue/fromValue method implementations."""
 
     if cls.__is_abstract__:
@@ -82,7 +82,7 @@ def generate_object_value(cls: type["BuiltinObjectBase"]) -> str:
   }}"""
 
 
-def _generate_to_value(cls: type["BuiltinObjectBase"]) -> str:
+def _generate_to_value(cls: type["BuiltinObject"]) -> str:
     """Generate the toValue method implementation."""
     lines: list[str] = []
     lines.append("const objectValue: { [key: string]: any } = {};")
@@ -106,7 +106,7 @@ def _generate_to_value(cls: type["BuiltinObjectBase"]) -> str:
     return "\n".join(lines)
 
 
-def _generate_from_value(cls: type["BuiltinObjectBase"]) -> str:
+def _generate_from_value(cls: type["BuiltinObject"]) -> str:
     """Generate the fromValue method implementation."""
     unpack_references: set[NodeType | StructType] = set()
     unpack_assignments: list[str] = []
@@ -354,7 +354,7 @@ def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, v
         return f"({int(value)} /* {enum_cls.__name__}.{value.name} */)"
     elif type.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
         assert type.struct_type is not None, f"no struct_type for {type!r}"
-        assert isinstance(value, StructBase), f"value is not a Struct for {type!r}: {value!r}"
+        assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
         value_bytes = cast(AnyStructProto, value.to_proto()).SerializeToString()
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
         return f"{value.__class__.__name__}.fromProtoString({value_bytes_str!r})"

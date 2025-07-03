@@ -87,6 +87,18 @@ export abstract class Event extends Node implements IsSpatial {
   declare readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  declare readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -585,6 +597,7 @@ export class CustomEventDefinition
       type: NodeType.CUSTOM_EVENT_DEFINITION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1102,6 +1115,18 @@ export abstract class Signal extends Event implements IsExtensible {
   declare readonly baseType: NodeDefinitionReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  declare readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -1181,6 +1206,18 @@ export class EditEvent extends Event {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1248,25 +1285,6 @@ export class EditEvent extends Event {
   undo: Edit | null;
 
   /**
-   * EditEvent.snapshot
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
-  set snapshot(node: Snapshot | null) {
-    if (node === null) {
-      this.snapshotPtr = null;
-    } else {
-      this.snapshotPtr = node.toRef();
-    }
-  }
-  snapshotPtr: NodeReference | null;
-
-  /**
    * EditEvent.ancestorsIds
    */
   ancestorsIds: Array<string>;
@@ -1275,6 +1293,7 @@ export class EditEvent extends Event {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     type: EditType;
@@ -1285,7 +1304,6 @@ export class EditEvent extends Event {
     keyUnpacked?: any | null;
     value?: Value | null;
     undo?: Edit | null;
-    snapshot?: Snapshot | NodeReference | null;
     ancestorsIds?: Array<string>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1326,6 +1344,11 @@ export class EditEvent extends Event {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`EditEvent.type is required`);
@@ -1351,11 +1374,6 @@ export class EditEvent extends Event {
     this.value = _value;
     let _undo = options.undo ?? null;
     this.undo = _undo;
-    let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
-      _snapshot = (_snapshot as Node).toRef();
-    }
-    this.snapshotPtr = _snapshot;
     let _ancestorsIds = options.ancestorsIds ?? null;
     if (_ancestorsIds === null) {
       _ancestorsIds = [];
@@ -1421,9 +1439,6 @@ export class EditEvent extends Event {
     ) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
-      return false;
-    }
     if (this.ancestorsIds.length !== other.ancestorsIds.length) {
       return false;
     }
@@ -1431,6 +1446,9 @@ export class EditEvent extends Event {
       if (!(this.ancestorsIds[i] === other.ancestorsIds[i])) {
         return false;
       }
+    }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
@@ -1461,9 +1479,6 @@ export class EditEvent extends Event {
     if (this.undo !== null) {
       h = (h * 31 + this.undo.hash()) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
     if (this.ancestorsIds && this.ancestorsIds.length > 0) {
       for (const _item of this.ancestorsIds) {
         h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
@@ -1471,6 +1486,9 @@ export class EditEvent extends Event {
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -1494,6 +1512,7 @@ export class EditEvent extends Event {
       type: NodeType.EDIT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1549,6 +1568,9 @@ export class EditEvent extends Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1572,9 +1594,6 @@ export class EditEvent extends Event {
     }
     if (object.undo != null) {
       objectValue["120"] = object.undo.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["121"] = object.snapshotPtr.toValue();
     }
     if (object.ancestorsIds.length > 0) {
       const packedAncestorsIds: any[] = [];
@@ -1623,11 +1642,6 @@ export class EditEvent extends Event {
       undoValue != undefined
         ? _Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection)
         : null;
-    const snapshotPtrValue = objectValue["121"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const unpackedAncestorsIds: any[] = [];
     if (objectValue["122"] != undefined) {
       for (const item of objectValue["122"]) {
@@ -1638,6 +1652,11 @@ export class EditEvent extends Event {
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1664,9 +1683,9 @@ export class EditEvent extends Event {
       keyUnpacked: unpackedKeyUnpacked,
       value: unpackedValue,
       undo: unpackedUndo,
-      snapshot: unpackedSnapshotPtr,
       ancestorsIds: unpackedAncestorsIds,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       space: unpackedSpacePtr,
@@ -1700,6 +1719,9 @@ export class EditEvent extends Event {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1723,9 +1745,6 @@ export class EditEvent extends Event {
     }
     if (object.undo != null) {
       objectProto.undo = object.undo.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.ancestorsIds) {
       const packedAncestorsIds: any[] = [];
@@ -1793,21 +1812,21 @@ export class EditEvent extends Event {
         objectProto.undo != undefined
           ? _Edit.fromProto(objectProto.undo!, _session, _supergraph, _graph, _connection)
           : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
+      ancestorsIds: unpackedAncestorsIds,
+      parent:
+        objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
+              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
               _connection,
             )
           : null,
-      ancestorsIds: unpackedAncestorsIds,
-      parent:
-        objectProto.parentPtr != undefined
+      snapshot:
+        objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1897,6 +1916,18 @@ export class ChangeEvent extends Event {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1961,6 +1992,7 @@ export class ChangeEvent extends Event {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
@@ -2008,6 +2040,11 @@ export class ChangeEvent extends Event {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2081,6 +2118,9 @@ export class ChangeEvent extends Event {
         return false;
       }
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -2115,6 +2155,9 @@ export class ChangeEvent extends Event {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -2140,6 +2183,7 @@ export class ChangeEvent extends Event {
       type: NodeType.CHANGE_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2187,6 +2231,9 @@ export class ChangeEvent extends Event {
     }
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
+    }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -2256,6 +2303,11 @@ export class ChangeEvent extends Event {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2278,6 +2330,7 @@ export class ChangeEvent extends Event {
       editsIds: unpackedEditsIds,
       nodesIds: unpackedNodesIds,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
@@ -2311,6 +2364,9 @@ export class ChangeEvent extends Event {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2380,6 +2436,16 @@ export class ChangeEvent extends Event {
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2477,6 +2543,18 @@ export class QueryEvent extends Event {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
 
   /**
    * Event.createdAt
@@ -2583,6 +2661,7 @@ export class QueryEvent extends Event {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     type: QueryType;
@@ -2638,6 +2717,11 @@ export class QueryEvent extends Event {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`QueryEvent.type is required`);
@@ -2780,6 +2864,9 @@ export class QueryEvent extends Event {
     if (!(this.offset === other.offset)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -2834,6 +2921,9 @@ export class QueryEvent extends Event {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -2859,6 +2949,7 @@ export class QueryEvent extends Event {
       type: NodeType.QUERY_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2932,6 +3023,9 @@ export class QueryEvent extends Event {
     }
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
+    }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -3060,6 +3154,11 @@ export class QueryEvent extends Event {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3096,6 +3195,7 @@ export class QueryEvent extends Event {
       limit: unpackedLimit,
       offset: unpackedOffset,
       parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       node: unpackedNodePtr,
@@ -3129,6 +3229,9 @@ export class QueryEvent extends Event {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3276,6 +3379,16 @@ export class QueryEvent extends Event {
               _connection,
             )
           : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -3379,6 +3492,18 @@ export abstract class MeasurementEvent extends Event {
     return null;
   }
   declare readonly definitionPtr: NodeReference;
+
+  /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  declare readonly snapshotPtr: NodeReference | null;
 
   /**
    * Event.createdAt

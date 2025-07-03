@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from destack.language import (
-    BuiltinObjectBase,
+    BuiltinObject,
     Entity,
     Enum,
     EnumType,
@@ -42,7 +42,7 @@ def _generate_proto_schema(
     postfix: str,
 ) -> ProtoSchema:
     # walk all destack types to populate the cache
-    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject] = {}
+    cache: dict[type[BuiltinObject] | type[Enum], ProtoObject] = {}
     for destack_cls in chain(
         NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values(), ENUM_CLASS_BY_TYPE.values()
     ):

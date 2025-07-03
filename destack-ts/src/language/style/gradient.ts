@@ -488,6 +488,7 @@ export class GradientStyle extends Style {
       type: NodeType.GRADIENT_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

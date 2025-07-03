@@ -2,7 +2,7 @@ import textwrap
 from typing import TYPE_CHECKING, assert_never
 
 from destack.language import (
-    BuiltinObjectBase,
+    BuiltinObject,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
@@ -26,7 +26,7 @@ def _upper_first(s: str) -> str:
     return s[0].upper() + s[1:]
 
 
-def generate_object_proto(cls: type["BuiltinObjectBase"]) -> str:
+def generate_object_proto(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject toProto/fromProto method implementations."""
 
     pack_proto = _generate_pack_proto(cls)
@@ -81,7 +81,7 @@ def generate_object_proto(cls: type["BuiltinObjectBase"]) -> str:
   """
 
 
-def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:
+def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
     """Generate the toProto method implementation."""
     lines: list[str] = []
 
@@ -105,7 +105,7 @@ def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:
     return "\n".join(lines)
 
 
-def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
+def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     """Generate the fromProto method implementation."""
     unpack_references: set[NodeType | StructType] = set()
     unpack_assignments: list[str] = []

@@ -421,6 +421,7 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
       type: NodeType.BRANCH,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

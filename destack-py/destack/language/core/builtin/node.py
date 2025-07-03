@@ -19,10 +19,12 @@ from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import NodeType, RoleType, TraitType
-from .object import _process_object_cls
+from .common import NodeType, RoleType, StoreType, TraitType
+from .const import UNSET
+from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
+    PropertyDeclaration,
     _resolve_trait_type,
     builtin_property,
     builtin_property_parent,
@@ -33,7 +35,6 @@ from .trait import (
     IndexIn,
     IsOrdered,
     IsSpatial,
-    NodeBase,
 )
 
 if TYPE_CHECKING:
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
         Graph,
         JoinIn,
         Node,
+        NodeDefinition,
         NodeReference,
         Query,
         QueryConnection,
@@ -70,9 +72,11 @@ def builtin_node(
     if root_type:
         index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
-    def decorate(cls: type["Node"]) -> type["Node"]:
+    def decorate(cls: type) -> type:
         nonlocal pretend_frozen
         assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
+
+        # bases
         traits: list[TraitType] = []
         base_traits: list[TraitType] = []
         inherits: list[NodeType] = []
@@ -103,7 +107,7 @@ def builtin_node(
             pretend_frozen = True  # Events are frozen by default
 
         cls, _ = _process_object_cls(
-            cls=cls,
+            cls=cast(type["Node"], cls),
             object_type=node_type,
             is_concrete=node_type is not None,
             is_node=True,
@@ -137,12 +141,54 @@ _object_set = object.__setattr__
 
 
 @builtin_node(node_type=NodeType.NODE, root_type=None, is_abstract=True)
-class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
+class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """
     A Node with Properties and a persistent identity.
     """
 
     metatype: ClassVar[NodeType]
+    __is_node__: ClassVar[bool] = True
+
+    __definition__: ClassVar["NodeDefinition"]
+
+    """Whether this class is an actual Node (not a Trait)."""
+    __is_node__: ClassVar[bool] = True
+    """Whether this class is a Trait (not a Node)."""
+    __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__
+    """Indexes for this Node."""
+    __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
+
+    """Whether this class is abstract (not concrete)."""
+    __is_abstract__: ClassVar[bool] = False
+    """The base type this Node extends (directly)."""
+    __base_type__: ClassVar[NodeType | None] = None
+    """Nodes that extend this Node type (directly)."""
+    __extended_by__: ClassVar[tuple[NodeType, ...]] = ()
+    """Nodes that this Node extends (directly and indirectly)."""
+    __inherits__: ClassVar[tuple[NodeType, ...]] = ()
+    """Nodes that extend this Node type (directly and indirectly)."""
+    __inherited_by__: ClassVar[tuple[NodeType, ...]] = ()
+    """Traits directly inherited by this Node (directly)."""
+    __base_traits__: ClassVar[tuple[TraitType, ...]] = ()
+    """Traits directly and indirectly inherited by this Node (directly and indirectly)."""
+    __traits__: ClassVar[tuple[TraitType, ...]] = ()
+    """The main StoreTypes this Node is primarily stored in."""
+    __primary_store_types__: ClassVar[tuple[StoreType, ...]] = ()
+
+    """The root ancestor type of this Node type (if any)."""
+    __root_type__: ClassVar[NodeType | None] = None
+    """The parent type of this Node type (directly)."""
+    __parent_property__: ClassVar[PropertyDeclaration] = UNSET
+    """The parent classes of this Node type (directly)."""
+    __parent_classes__: ClassVar[tuple[type["Node"], ...]] = ()
+    """The parent types of this Node type (directly)."""
+    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The child types of this Node type (directly)."""
+    __child_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The ancestor types of this Node type (directly and indirectly)."""
+    __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The descendant types of this Node type (directly and indirectly)."""
+    __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
     # 1-20: node identity
     # Node.metatype: 1
@@ -164,6 +210,21 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
     _is_new: bool = builtin_property_runtime(default=False)
     _is_attached: bool = builtin_property_runtime(default=False)
     _dirty: dict[str, Any] | None = builtin_property_runtime(default=None)
+
+    # 20-40: node tracking
+    # IsTracked.created_at/created_by/updated_at/updated_by: 20-23
+    # IsArchivable.archived_at: 24
+    # IsDeletable.deleted_at: 25
+    # IsCustomizable.custom_values: 26
+    # IsOrdered.order_key: 27
+    # IsOwnable.owned_by: 28
+    # ...managed_by/controlled_by?
+
+    # 40-100: internal properties
+    # ...
+
+    # 100+ for general properties
+    # ...
 
     def __eq__(self, other: Any):
         """Equals the Node's identity."""

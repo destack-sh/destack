@@ -1,7 +1,11 @@
-import type { Session, StructDefinition, Supergraph } from "@destack/language/core";
-import { ACTIVE_SESSION, StructType } from "@destack/language/core";
+import type { StructDefinition } from "@destack/language/core";
+import { StructType } from "@destack/language/core/builtin/common";
+import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
+import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
 import type { StructTypeMapping } from "@destack/language/mapping";
+import { registerStructClass } from "@destack/language/registry";
 import { AnyStructProto } from "@destack/proto";
 
 /** A Struct is an ordered collection of Properties. */
@@ -19,6 +23,7 @@ export abstract class Struct extends BuiltinObject {
     return (this.constructor as typeof Struct).metatype;
   }
 }
+registerStructClass(StructType.STRUCT, Struct);
 
 /** A frozen Struct is a Struct that is immutable. */
 export abstract class StructFrozen extends Struct {
@@ -43,7 +48,11 @@ export abstract class StructFrozen extends Struct {
 
 /** A Struct class. */
 type StructConstructor<S extends Struct = Struct> = new (...args: any[]) => S;
-export type StructClass<S extends Struct = Struct> = StructConstructor &
+type AbstractStructConstructor<S extends Struct = Struct> = abstract new (...args: any[]) => S;
+export type StructClass<S extends Struct = Struct> = (
+  | StructConstructor<S>
+  | AbstractStructConstructor<S>
+) &
   BuiltinObjectClass<any, any> & {
     metatype: StructType;
     __definition__: StructDefinition;

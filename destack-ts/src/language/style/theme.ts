@@ -356,6 +356,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
       type: NodeType.THEME,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });

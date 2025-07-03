@@ -141,6 +141,7 @@ registerEnumClass(EnumType.ENUM_TYPE, EnumType);
  * StructType
  */
 export enum StructType {
+  STRUCT = 1,
   NODE_REFERENCE = 100,
   PROPERTY_REFERENCE = 101,
   PROPERTY_DEFINITION = 102,

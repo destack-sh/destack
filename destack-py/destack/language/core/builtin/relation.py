@@ -3,6 +3,7 @@ from typing import (
     Optional,
     Union,
     assert_never,
+    cast,
 )
 
 from destack.language.registry import (
@@ -15,9 +16,9 @@ from destack.utils.uuid import UUID
 
 from .common import EnumType, NodeType, PrimitiveType, StoreType
 from .enum import Enum, builtin_enum
-from .object import BuiltinObjectBase
+from .object import BuiltinObject
 from .property import PropertyDeclaration, builtin_property
-from .struct import StructBase, StructFrozen, StructType, builtin_struct
+from .struct import Struct, StructFrozen, StructType, builtin_struct
 from .trait import Trait, TraitType
 
 if TYPE_CHECKING:
@@ -28,7 +29,6 @@ if TYPE_CHECKING:
         CustomStructDefinition,
         CustomTraitDefinition,
         Node,
-        NodeBase,
         PropertyDefinition,
     )
 
@@ -70,7 +70,7 @@ class NodeDefinitionReference(StructFrozen):
             assert_never(self.type)
 
     @property
-    def object_cls(self) -> type_[BuiltinObjectBase] | None:
+    def object_cls(self) -> type_[BuiltinObject] | None:
         return NODE_CLASS_BY_TYPE.get(self.node_type)
 
     def resolve_property(self, name: str) -> "PropertyDeclaration | None":
@@ -89,7 +89,7 @@ class NodeDefinitionReference(StructFrozen):
 
     @classmethod
     def of(
-        cls, base: "NodeType | type[NodeBase] | CustomEntityDefinition"
+        cls, base: "NodeType | type[Node] | CustomEntityDefinition"
     ) -> "NodeDefinitionReference":
         from .node import Node
 
@@ -138,7 +138,7 @@ class ObjectDefinitionReference(StructFrozen):
         definition_ptr: Optional["NodeReference"] = None
 
     @property
-    def object_cls(self) -> type_[BuiltinObjectBase] | None:
+    def object_cls(self) -> type_[BuiltinObject] | None:
         if self.type == ObjectDefinitionType.BUILTIN_NODE:
             assert self.node_type is not None, f"no node_type for {self!r}"
             return NODE_CLASS_BY_TYPE.get(self.node_type)
@@ -177,11 +177,12 @@ class ObjectDefinitionReference(StructFrozen):
         cls,
         base: Union[
             "NodeType",
-            "type[NodeBase]",
+            "type[Node]",
+            "type[Trait]",
+            "type[Struct]",
             "CustomEntityDefinition",
             "CustomEventDefinition",
             "CustomTraitDefinition",
-            "type[StructBase]",
         ],
     ) -> "ObjectDefinitionReference":
         from .entity import CustomEntityDefinition, CustomTraitDefinition
@@ -197,15 +198,18 @@ class ObjectDefinitionReference(StructFrozen):
         elif isinstance(base, type):
             if issubclass(base, Node):
                 return ObjectDefinitionReference(
-                    type=ObjectDefinitionType.BUILTIN_NODE, node_type=base.metatype
+                    type=ObjectDefinitionType.BUILTIN_NODE,
+                    node_type=cast(NodeType, base.metatype),
                 )
             elif issubclass(base, Trait):
                 return ObjectDefinitionReference(
-                    type=ObjectDefinitionType.BUILTIN_TRAIT, trait_type=base.metatype
+                    type=ObjectDefinitionType.BUILTIN_TRAIT,
+                    trait_type=cast(TraitType, base.metatype),
                 )
-            elif issubclass(base, StructBase):
+            elif issubclass(base, Struct):
                 return ObjectDefinitionReference(
-                    type=ObjectDefinitionType.BUILTIN_STRUCT, struct_type=base.metatype
+                    type=ObjectDefinitionType.BUILTIN_STRUCT,
+                    struct_type=base.metatype,
                 )
             else:
                 raise ValueError(f"invalid object reference type: {base!r}")
