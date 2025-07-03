@@ -322,10 +322,10 @@ async def test_benchmark_create_reactions(session: Session, async_benchmark: Asy
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
-async def test_create_snapshot(session: Session):
+async def test_edit_partial_node_in_snapshot(session: Session):
     """Create a Snapshot and query it."""
 
-    # nocheckin: support Entity branching & variants (how to handle Snapshot, which is an Entity?)
+    # nocheckin: support Entity branching & variants
 
     user = User(
         name="Alice", slug="alice", space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4())
@@ -363,3 +363,16 @@ async def test_create_snapshot(session: Session):
         assert snapshot_user.name == "Charlie"
         # except for override
         assert snapshot_user.slug == "bob"
+
+
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
+async def test_edit_partial_graph_in_snapshot(session: Session):
+    """Create a Snapshot and query it."""
+
+    user = User(
+        name="Alice", slug="alice", space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4())
+    )
+    session.create(user)
+    await session.commit()
+
+    # nocheckin: ... also delete overrides and such

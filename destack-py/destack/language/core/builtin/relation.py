@@ -13,7 +13,7 @@ from destack.language.registry import (
 from destack.proto import NodeReferenceProto, PropertyReferenceProto
 from destack.utils.uuid import UUID
 
-from .common import EnumType, NodeType, PrimitiveType
+from .common import EnumType, NodeType, PrimitiveType, StoreType
 from .enum import Enum, builtin_enum
 from .object import BuiltinObjectBase
 from .property import PropertyDeclaration, builtin_property
@@ -321,9 +321,40 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
     A reference to a Node (builtin or custom).
     """
 
-    type: NodeType = builtin_property(100, is_repr=True)
-    id: UUID = builtin_property(101, is_repr=True)
-    snapshot_id: Optional[UUID] = builtin_property(102, is_repr=True)
-    definition_id: Optional[UUID] = builtin_property(103, is_repr=True)
-    space_id: Optional[UUID] = builtin_property(104, is_repr=True)
-    # store_type? external_id?
+    # identity
+    type: NodeType = builtin_property(
+        100,
+        is_repr=True,
+        description="The type of the Node.",
+    )
+    id: UUID = builtin_property(
+        101,
+        is_repr=True,
+        description="The unique id of the Node.",
+    )
+    definition_id: Optional[UUID] = builtin_property(
+        102,
+        is_repr=True,
+        description="The unique id of the custom Node definition.",
+    )
+    snapshot_id: Optional[UUID] = builtin_property(
+        103,
+        is_repr=True,
+        description="The id of the Snapshot the Node belonged to.",
+    )
+    # snapshot_time/epoch/...?
+
+    # location
+    space_id: Optional[UUID] = builtin_property(
+        110,
+        is_repr=True,
+        description="The id of the Space the Node belonged to.",
+    )
+    store_type: Optional[StoreType] = builtin_property(
+        111,
+        is_repr=True,
+        description="The type of the Store the Node belonged to.",
+    )
+
+    # external?
+    # external_id?

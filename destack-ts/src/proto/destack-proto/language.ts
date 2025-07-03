@@ -11,8 +11,8 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { Value } from "../google/protobuf/struct";
 import { Duration } from "../google/protobuf/duration";
+import { Value } from "../google/protobuf/struct";
 import { Timestamp } from "../google/protobuf/timestamp";
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
@@ -1157,9 +1157,13 @@ export interface ChangeEventProto {
      */
     debounce?: ChangeDebounceProto;
     /**
-     * @generated from protobuf field: repeated string edits_ids = 120
+     * @generated from protobuf field: repeated string edits_ids = 130
      */
     editsIds: string[];
+    /**
+     * @generated from protobuf field: repeated string nodes_ids = 131
+     */
+    nodesIds: string[];
 }
 /**
  * @generated from protobuf message symbol.destack.ChangeResultProto
@@ -3597,6 +3601,10 @@ export interface EditEventProto {
      * @generated from protobuf field: optional symbol.destack.ValueProto key = 104
      */
     key?: ValueProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value key_unpacked = 105
+     */
+    keyUnpacked?: Value;
     /**
      * @generated from protobuf field: optional symbol.destack.ValueProto value = 110
      */
@@ -8804,17 +8812,21 @@ export interface NodeReferenceProto {
      */
     id: string;
     /**
-     * @generated from protobuf field: optional string snapshot_id = 102
-     */
-    snapshotId?: string;
-    /**
-     * @generated from protobuf field: optional string definition_id = 103
+     * @generated from protobuf field: optional string definition_id = 102
      */
     definitionId?: string;
+    /**
+     * @generated from protobuf field: optional string snapshot_id = 103
+     */
+    snapshotId?: string;
     /**
      * @generated from protobuf field: optional string space_id = 104
      */
     spaceId?: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.StoreTypeProto store_type = 105
+     */
+    storeType?: StoreTypeProto;
 }
 /**
  * A Notification is a message about something.
@@ -22010,6 +22022,14 @@ export enum StoreTypeProto {
      */
     STORE_TYPE_UNSPECIFIED = 0,
     /**
+     * @generated from protobuf enum value: STORE_TYPE_LOCAL_ENTITY = 1;
+     */
+    STORE_TYPE_LOCAL_ENTITY = 1,
+    /**
+     * @generated from protobuf enum value: STORE_TYPE_LOCAL_EVENT = 2;
+     */
+    STORE_TYPE_LOCAL_EVENT = 2,
+    /**
      * @generated from protobuf enum value: STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000;
      */
     STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000,
@@ -25276,7 +25296,8 @@ class ChangeEventProto$Type extends MessageType<ChangeEventProto> {
             { no: 102, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 103, name: "origin", kind: "message", T: () => OriginProto },
             { no: 104, name: "debounce", kind: "enum", opt: true, T: () => ["symbol.destack.ChangeDebounceProto", ChangeDebounceProto] },
-            { no: 120, name: "edits_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
+            { no: 130, name: "edits_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 131, name: "nodes_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<ChangeEventProto>): ChangeEventProto {
@@ -25284,6 +25305,7 @@ class ChangeEventProto$Type extends MessageType<ChangeEventProto> {
         message.metatype = 0;
         message.id = "";
         message.editsIds = [];
+        message.nodesIds = [];
         if (value !== undefined)
             reflectionMergePartial<ChangeEventProto>(this, message, value);
         return message;
@@ -25323,8 +25345,11 @@ class ChangeEventProto$Type extends MessageType<ChangeEventProto> {
                 case /* optional symbol.destack.ChangeDebounceProto debounce */ 104:
                     message.debounce = reader.int32();
                     break;
-                case /* repeated string edits_ids */ 120:
+                case /* repeated string edits_ids */ 130:
                     message.editsIds.push(reader.string());
+                    break;
+                case /* repeated string nodes_ids */ 131:
+                    message.nodesIds.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25368,9 +25393,12 @@ class ChangeEventProto$Type extends MessageType<ChangeEventProto> {
         /* optional symbol.destack.ChangeDebounceProto debounce = 104; */
         if (message.debounce !== undefined)
             writer.tag(104, WireType.Varint).int32(message.debounce);
-        /* repeated string edits_ids = 120; */
+        /* repeated string edits_ids = 130; */
         for (let i = 0; i < message.editsIds.length; i++)
-            writer.tag(120, WireType.LengthDelimited).string(message.editsIds[i]);
+            writer.tag(130, WireType.LengthDelimited).string(message.editsIds[i]);
+        /* repeated string nodes_ids = 131; */
+        for (let i = 0; i < message.nodesIds.length; i++)
+            writer.tag(131, WireType.LengthDelimited).string(message.nodesIds[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30904,6 +30932,7 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
             { no: 102, name: "operation", kind: "enum", opt: true, T: () => ["symbol.destack.EditOperationProto", EditOperationProto] },
             { no: 103, name: "attribute", kind: "message", T: () => PropertyReferenceProto },
             { no: 104, name: "key", kind: "message", T: () => ValueProto },
+            { no: 105, name: "key_unpacked", kind: "message", T: () => Value },
             { no: 110, name: "value", kind: "message", T: () => ValueProto },
             { no: 120, name: "undo", kind: "message", T: () => EditProto },
             { no: 121, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -30957,6 +30986,9 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
                     break;
                 case /* optional symbol.destack.ValueProto key */ 104:
                     message.key = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.key);
+                    break;
+                case /* optional google.protobuf.Value key_unpacked */ 105:
+                    message.keyUnpacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.keyUnpacked);
                     break;
                 case /* optional symbol.destack.ValueProto value */ 110:
                     message.value = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.value);
@@ -31015,6 +31047,9 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
         /* optional symbol.destack.ValueProto key = 104; */
         if (message.key)
             ValueProto.internalBinaryWrite(message.key, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value key_unpacked = 105; */
+        if (message.keyUnpacked)
+            Value.internalBinaryWrite(message.keyUnpacked, writer.tag(105, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.ValueProto value = 110; */
         if (message.value)
             ValueProto.internalBinaryWrite(message.value, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
@@ -43031,9 +43066,10 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 101, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "snapshot_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 103, name: "definition_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 104, name: "space_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 102, name: "definition_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 103, name: "snapshot_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 104, name: "space_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 105, name: "store_type", kind: "enum", opt: true, T: () => ["symbol.destack.StoreTypeProto", StoreTypeProto] }
         ]);
     }
     create(value?: PartialMessage<NodeReferenceProto>): NodeReferenceProto {
@@ -43059,14 +43095,17 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
                 case /* string id */ 101:
                     message.id = reader.string();
                     break;
-                case /* optional string snapshot_id */ 102:
-                    message.snapshotId = reader.string();
-                    break;
-                case /* optional string definition_id */ 103:
+                case /* optional string definition_id */ 102:
                     message.definitionId = reader.string();
+                    break;
+                case /* optional string snapshot_id */ 103:
+                    message.snapshotId = reader.string();
                     break;
                 case /* optional string space_id */ 104:
                     message.spaceId = reader.string();
+                    break;
+                case /* optional symbol.destack.StoreTypeProto store_type */ 105:
+                    message.storeType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -43089,15 +43128,18 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
         /* string id = 101; */
         if (message.id !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.id);
-        /* optional string snapshot_id = 102; */
-        if (message.snapshotId !== undefined)
-            writer.tag(102, WireType.LengthDelimited).string(message.snapshotId);
-        /* optional string definition_id = 103; */
+        /* optional string definition_id = 102; */
         if (message.definitionId !== undefined)
-            writer.tag(103, WireType.LengthDelimited).string(message.definitionId);
+            writer.tag(102, WireType.LengthDelimited).string(message.definitionId);
+        /* optional string snapshot_id = 103; */
+        if (message.snapshotId !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.snapshotId);
         /* optional string space_id = 104; */
         if (message.spaceId !== undefined)
             writer.tag(104, WireType.LengthDelimited).string(message.spaceId);
+        /* optional symbol.destack.StoreTypeProto store_type = 105; */
+        if (message.storeType !== undefined)
+            writer.tag(105, WireType.Varint).int32(message.storeType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

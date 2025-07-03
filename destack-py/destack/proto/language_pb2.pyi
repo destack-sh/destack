@@ -1287,6 +1287,8 @@ class StoreImplementationProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper
 class StoreTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STORE_TYPE_UNSPECIFIED: _ClassVar[StoreTypeProto]
+    STORE_TYPE_LOCAL_ENTITY: _ClassVar[StoreTypeProto]
+    STORE_TYPE_LOCAL_EVENT: _ClassVar[StoreTypeProto]
     STORE_TYPE_GLOBAL_ENTITY_PRIMARY: _ClassVar[StoreTypeProto]
     STORE_TYPE_SPATIAL_ENTITY_PRIMARY: _ClassVar[StoreTypeProto]
     STORE_TYPE_SPATIAL_EVENT_PRIMARY: _ClassVar[StoreTypeProto]
@@ -2500,6 +2502,8 @@ STORE_IMPLEMENTATION_UNSPECIFIED: StoreImplementationProto
 STORE_IMPLEMENTATION_MEMORY: StoreImplementationProto
 STORE_IMPLEMENTATION_POSTGRES: StoreImplementationProto
 STORE_TYPE_UNSPECIFIED: StoreTypeProto
+STORE_TYPE_LOCAL_ENTITY: StoreTypeProto
+STORE_TYPE_LOCAL_EVENT: StoreTypeProto
 STORE_TYPE_GLOBAL_ENTITY_PRIMARY: StoreTypeProto
 STORE_TYPE_SPATIAL_ENTITY_PRIMARY: StoreTypeProto
 STORE_TYPE_SPATIAL_EVENT_PRIMARY: StoreTypeProto
@@ -3268,7 +3272,7 @@ class ChangeProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., name: _Optional[str] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., origin: _Optional[_Union[OriginProto, _Mapping]] = ..., debounce: _Optional[_Union[ChangeDebounceProto, str]] = ..., edits: _Optional[_Iterable[_Union[EditProto, _Mapping]]] = ...) -> None: ...
 
 class ChangeEventProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "node_ptr", "name", "origin", "debounce", "edits_ids")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "node_ptr", "name", "origin", "debounce", "edits_ids", "nodes_ids")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3280,6 +3284,7 @@ class ChangeEventProto(_message.Message):
     ORIGIN_FIELD_NUMBER: _ClassVar[int]
     DEBOUNCE_FIELD_NUMBER: _ClassVar[int]
     EDITS_IDS_FIELD_NUMBER: _ClassVar[int]
+    NODES_IDS_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
     parent_ptr: NodeReferenceProto
@@ -3291,7 +3296,8 @@ class ChangeEventProto(_message.Message):
     origin: OriginProto
     debounce: ChangeDebounceProto
     edits_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., origin: _Optional[_Union[OriginProto, _Mapping]] = ..., debounce: _Optional[_Union[ChangeDebounceProto, str]] = ..., edits_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    nodes_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., origin: _Optional[_Union[OriginProto, _Mapping]] = ..., debounce: _Optional[_Union[ChangeDebounceProto, str]] = ..., edits_ids: _Optional[_Iterable[str]] = ..., nodes_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ChangeResultProto(_message.Message):
     __slots__ = ("metatype", "id", "created_at", "debounce", "status", "edits", "cascaded_edits")
@@ -4569,7 +4575,7 @@ class EditProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., attribute: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., undo: _Optional[_Union[EditProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., ancestors: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EditEventProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "type", "node_ptr", "operation", "attribute", "key", "value", "undo", "snapshot_ptr", "ancestors_ids")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "type", "node_ptr", "operation", "attribute", "key", "key_unpacked", "value", "undo", "snapshot_ptr", "ancestors_ids")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4581,6 +4587,7 @@ class EditEventProto(_message.Message):
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     ATTRIBUTE_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
+    KEY_UNPACKED_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     UNDO_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4596,11 +4603,12 @@ class EditEventProto(_message.Message):
     operation: EditOperationProto
     attribute: PropertyReferenceProto
     key: ValueProto
+    key_unpacked: _struct_pb2.Value
     value: ValueProto
     undo: EditProto
     snapshot_ptr: NodeReferenceProto
     ancestors_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., attribute: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., undo: _Optional[_Union[EditProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., ancestors_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., attribute: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., key_unpacked: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., undo: _Optional[_Union[EditProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., ancestors_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EffectProto(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")
@@ -7310,20 +7318,22 @@ class NodeDefinitionReferenceProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeDefinitionTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class NodeReferenceProto(_message.Message):
-    __slots__ = ("metatype", "type", "id", "snapshot_id", "definition_id", "space_id")
+    __slots__ = ("metatype", "type", "id", "definition_id", "snapshot_id", "space_id", "store_type")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
-    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     SPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    STORE_TYPE_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     type: NodeTypeProto
     id: str
-    snapshot_id: str
     definition_id: str
+    snapshot_id: str
     space_id: str
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., definition_id: _Optional[str] = ..., space_id: _Optional[str] = ...) -> None: ...
+    store_type: StoreTypeProto
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., definition_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., space_id: _Optional[str] = ..., store_type: _Optional[_Union[StoreTypeProto, str]] = ...) -> None: ...
 
 class NotificationProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "template_ptr", "instance_root_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "status", "title", "text")

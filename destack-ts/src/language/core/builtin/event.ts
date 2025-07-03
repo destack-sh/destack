@@ -1,4 +1,9 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import {
+  packProtoJson,
+  packProtoTimestamp,
+  unpackProtoJson,
+  unpackProtoTimestamp,
+} from "@destack/grpc";
 import { Materialization, NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Metric } from "@destack/language/core/builtin/entity";
@@ -1228,6 +1233,11 @@ export class EditEvent extends Event {
   key: Value | null;
 
   /**
+   * EditEvent.keyUnpacked
+   */
+  keyUnpacked: any | null;
+
+  /**
    * EditEvent.value
    */
   value: Value | null;
@@ -1272,6 +1282,7 @@ export class EditEvent extends Event {
     operation?: EditOperation | null;
     attribute?: PropertyReference | null;
     key?: Value | null;
+    keyUnpacked?: any | null;
     value?: Value | null;
     undo?: Edit | null;
     snapshot?: Snapshot | NodeReference | null;
@@ -1334,6 +1345,8 @@ export class EditEvent extends Event {
     this.attribute = _attribute;
     let _key = options.key ?? null;
     this.key = _key;
+    let _keyUnpacked = options.keyUnpacked ?? null;
+    this.keyUnpacked = _keyUnpacked;
     let _value = options.value ?? null;
     this.value = _value;
     let _undo = options.undo ?? null;
@@ -1393,6 +1406,9 @@ export class EditEvent extends Event {
     ) {
       return false;
     }
+    if (!(this.keyUnpacked === other.keyUnpacked)) {
+      return false;
+    }
     if (
       (this.value == null) !== (other.value == null) ||
       (this.value != null && !this.value.equals(other.value))
@@ -1435,6 +1451,9 @@ export class EditEvent extends Event {
     }
     if (this.key !== null) {
       h = (h * 31 + this.key.hash()) & 0xffffffff;
+    }
+    if (this.keyUnpacked !== null) {
+      h = (h * 31 + hashString(JSON.stringify(this.keyUnpacked))) & 0xffffffff;
     }
     if (this.value !== null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
@@ -1510,6 +1529,9 @@ export class EditEvent extends Event {
     if (this.key !== null) {
       propertyReprs.push(`key=${this.key.repr()}`);
     }
+    if (this.keyUnpacked !== null) {
+      propertyReprs.push(`keyUnpacked=${this.keyUnpacked}`);
+    }
     return `<EditEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -1541,6 +1563,9 @@ export class EditEvent extends Event {
     }
     if (object.key != null) {
       objectValue["104"] = object.key.toValue();
+    }
+    if (object.keyUnpacked != null) {
+      objectValue["105"] = object.keyUnpacked;
     }
     if (object.value != null) {
       objectValue["110"] = object.value.toValue();
@@ -1586,6 +1611,8 @@ export class EditEvent extends Event {
       keyValue != undefined
         ? _Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyUnpackedValue = objectValue["105"];
+    const unpackedKeyUnpacked = keyUnpackedValue != undefined ? keyUnpackedValue : null;
     const valueValue = objectValue["110"];
     const unpackedValue =
       valueValue != undefined
@@ -1634,6 +1661,7 @@ export class EditEvent extends Event {
       operation: unpackedOperation,
       attribute: unpackedAttribute,
       key: unpackedKey,
+      keyUnpacked: unpackedKeyUnpacked,
       value: unpackedValue,
       undo: unpackedUndo,
       snapshot: unpackedSnapshotPtr,
@@ -1686,6 +1714,9 @@ export class EditEvent extends Event {
     }
     if (object.key != null) {
       objectProto.key = object.key.toProto();
+    }
+    if (object.keyUnpacked != null) {
+      objectProto.keyUnpacked = packProtoJson(object.keyUnpacked);
     }
     if (object.value != null) {
       objectProto.value = object.value.toProto();
@@ -1752,6 +1783,8 @@ export class EditEvent extends Event {
         objectProto.key != undefined
           ? _Value.fromProto(objectProto.key!, _session, _supergraph, _graph, _connection)
           : null,
+      keyUnpacked:
+        objectProto.keyUnpacked != undefined ? unpackProtoJson(objectProto.keyUnpacked!) : null,
       value:
         objectProto.value != undefined
           ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
@@ -1919,6 +1952,11 @@ export class ChangeEvent extends Event {
    */
   editsIds: Array<string>;
 
+  /**
+   * ChangeEvent.nodesIds
+   */
+  nodesIds: Array<string>;
+
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -1930,6 +1968,7 @@ export class ChangeEvent extends Event {
     origin?: Origin | null;
     debounce?: ChangeDebounce | null;
     editsIds?: Array<string>;
+    nodesIds?: Array<string>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1985,6 +2024,11 @@ export class ChangeEvent extends Event {
       _editsIds = [];
     }
     this.editsIds = _editsIds;
+    let _nodesIds = options.nodesIds ?? null;
+    if (_nodesIds === null) {
+      _nodesIds = [];
+    }
+    this.nodesIds = _nodesIds;
 
     // identity
     if (options.id == null) {
@@ -2029,6 +2073,14 @@ export class ChangeEvent extends Event {
         return false;
       }
     }
+    if (this.nodesIds.length !== other.nodesIds.length) {
+      return false;
+    }
+    for (let i = 0; i < this.nodesIds.length; i++) {
+      if (!(this.nodesIds[i] === other.nodesIds[i])) {
+        return false;
+      }
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -2052,6 +2104,11 @@ export class ChangeEvent extends Event {
     }
     if (this.editsIds && this.editsIds.length > 0) {
       for (const _item of this.editsIds) {
+        h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
+      }
+    }
+    if (this.nodesIds && this.nodesIds.length > 0) {
+      for (const _item of this.nodesIds) {
         h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
       }
     }
@@ -2152,7 +2209,14 @@ export class ChangeEvent extends Event {
       for (const item of object.editsIds) {
         packedEditsIds.push(String(item));
       }
-      objectValue["120"] = packedEditsIds;
+      objectValue["130"] = packedEditsIds;
+    }
+    if (object.nodesIds.length > 0) {
+      const packedNodesIds: any[] = [];
+      for (const item of object.nodesIds) {
+        packedNodesIds.push(String(item));
+      }
+      objectValue["131"] = packedNodesIds;
     }
     return objectValue;
   }
@@ -2176,9 +2240,15 @@ export class ChangeEvent extends Event {
     const debounceValue = objectValue["104"];
     const unpackedDebounce = debounceValue != undefined ? Number(debounceValue) : null;
     const unpackedEditsIds: any[] = [];
-    if (objectValue["120"] != undefined) {
-      for (const item of objectValue["120"]) {
+    if (objectValue["130"] != undefined) {
+      for (const item of objectValue["130"]) {
         unpackedEditsIds.push(String(item));
+      }
+    }
+    const unpackedNodesIds: any[] = [];
+    if (objectValue["131"] != undefined) {
+      for (const item of objectValue["131"]) {
+        unpackedNodesIds.push(String(item));
       }
     }
     const parentPtrValue = objectValue["3"];
@@ -2206,6 +2276,7 @@ export class ChangeEvent extends Event {
       origin: unpackedOrigin,
       debounce: unpackedDebounce,
       editsIds: unpackedEditsIds,
+      nodesIds: unpackedNodesIds,
       parent: unpackedParentPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -2264,6 +2335,13 @@ export class ChangeEvent extends Event {
       }
       objectProto.editsIds = packedEditsIds;
     }
+    if (object.nodesIds) {
+      const packedNodesIds: any[] = [];
+      for (const item of object.nodesIds) {
+        packedNodesIds.push(String(item));
+      }
+      objectProto.nodesIds = packedNodesIds;
+    }
     return objectProto as ChangeEventProto;
   }
 
@@ -2282,6 +2360,12 @@ export class ChangeEvent extends Event {
         unpackedEditsIds.push(String(item));
       }
     }
+    const unpackedNodesIds: any[] = [];
+    if (objectProto.nodesIds) {
+      for (const item of objectProto.nodesIds) {
+        unpackedNodesIds.push(String(item));
+      }
+    }
     return new ChangeEvent({
       name: objectProto.name != undefined ? objectProto.name : null,
       origin:
@@ -2291,6 +2375,7 @@ export class ChangeEvent extends Event {
       debounce:
         objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
       editsIds: unpackedEditsIds,
+      nodesIds: unpackedNodesIds,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(

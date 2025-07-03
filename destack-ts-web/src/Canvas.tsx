@@ -51,7 +51,7 @@ export const Canvas: React.FC = () => {
     const y = event.clientY - rect.top;
     return new Vector2({ x, y });
   };
-
+ 
   // begin drawing on mouse down
   const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
     const point = getMousePosition(event);

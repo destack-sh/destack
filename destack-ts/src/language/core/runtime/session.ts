@@ -260,7 +260,7 @@ export class Session {
     }
   }
 
-  /** Turn pending updates into Edits, and Edits into Changes. */
+  /** Flush pending Edits and Changes. */
   flush(): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
@@ -285,7 +285,7 @@ export class Session {
     }
   }
 
-  /** Stage pending Edits. Also stages pending Changes in the Store if possible. */
+  /** Stage pending Edits and Changes. */
   async stage(): Promise<void> {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);

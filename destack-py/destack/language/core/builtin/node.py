@@ -203,10 +203,6 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
             self._ref = self.__to_ref__()
         return self._ref
 
-    def erase(self):
-        """Erase this Node from this universe forever."""
-        self._session.erase(self)
-
     def move_to(self, parent: "Node"):
         """Move this Node to a new parent."""
         raise NotImplementedError
