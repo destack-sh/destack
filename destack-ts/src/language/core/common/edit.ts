@@ -71,6 +71,7 @@ registerEnumClass(EnumType.EDIT_OPERATION, EditOperation);
  */
 export enum ChangeStatus {
   COMPLETED = 10,
+  SKIPPED = 11,
   FAILED = 12,
   REJECTED = 13,
 

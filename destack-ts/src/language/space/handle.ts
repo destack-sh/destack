@@ -8,10 +8,10 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Node, NodeType, StructType } from "@destack/language/core";
+import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space/space";
-import { HandleProto } from "@destack/proto";
+import { HandleProto, MaterializationProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -34,6 +34,11 @@ export class Handle extends Entity implements IsGlobal {
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -77,6 +82,7 @@ export class Handle extends Entity implements IsGlobal {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -116,6 +122,14 @@ export class Handle extends Entity implements IsGlobal {
       _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Handle.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Handle.slug is required`);
@@ -230,6 +244,7 @@ export class Handle extends Entity implements IsGlobal {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -272,6 +287,7 @@ export class Handle extends Entity implements IsGlobal {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       _session,
       _graph,
@@ -299,6 +315,7 @@ export class Handle extends Entity implements IsGlobal {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -353,6 +370,7 @@ export class Handle extends Entity implements IsGlobal {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       _session,
       _graph,

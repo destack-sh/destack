@@ -8,7 +8,14 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructFrozen, StructType } from "@destack/language/core";
+import {
+  EnumType,
+  Materialization,
+  Node,
+  NodeType,
+  StructFrozen,
+  StructType,
+} from "@destack/language/core";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -27,6 +34,7 @@ import {
   GradientStopProto,
   GradientStyleProto,
   GradientTypeProto,
+  MaterializationProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashFloat, hashString } from "@destack/utils/hash";
@@ -78,6 +86,11 @@ export class GradientStyle extends Style {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -157,6 +170,7 @@ export class GradientStyle extends Style {
     id?: string;
     parent?: Scene | View | Theme | Palette | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -208,6 +222,14 @@ export class GradientStyle extends Style {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`GradientStyle.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -420,6 +442,7 @@ export class GradientStyle extends Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -522,6 +545,7 @@ export class GradientStyle extends Style {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
@@ -554,6 +578,7 @@ export class GradientStyle extends Style {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -661,6 +686,7 @@ export class GradientStyle extends Style {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,

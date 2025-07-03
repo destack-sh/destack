@@ -53,7 +53,6 @@ from .query import (
     SortMode,
     SortType,
 )
-from .spacetime import Branch, Snapshot
 from .struct import CustomStruct, CustomStructDefinition
 from .text import (
     Text,
@@ -122,7 +121,6 @@ __all__ = [
     "Align",
     "Axis2",
     "Axis3",
-    "Branch",
     "Change",
     "ChangeResult",
     "ChangeStatus",
@@ -189,7 +187,6 @@ __all__ = [
     "QueryUpdateType",
     "Select",
     "Selection",
-    "Snapshot",
     "Sort",
     "SortMode",
     "SortType",

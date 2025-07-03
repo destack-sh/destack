@@ -5,7 +5,6 @@ export * from "@destack/language/core/common/meta";
 export * from "@destack/language/core/common/metric";
 export * from "@destack/language/core/common/property";
 export * from "@destack/language/core/common/query";
-export * from "@destack/language/core/common/spacetime";
 export * from "@destack/language/core/common/struct";
 export * from "@destack/language/core/common/text";
 export * from "@destack/language/core/common/type";

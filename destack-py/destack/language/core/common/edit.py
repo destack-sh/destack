@@ -30,6 +30,8 @@ tracer = trace.get_tracer(__name__)
 
 @builtin_enum(EnumType.EDIT_TYPE)
 class EditType(Enum):
+    """The type of Edit."""
+
     CREATE = 1
     UPSERT = 2
     UPDATE = 3
@@ -52,18 +54,24 @@ CASCADING_EDIT_TYPES: tuple[EditType, ...] = (
 
 @builtin_enum(EnumType.EDIT_OPERATION)
 class EditOperation(Enum):
+    """The update operation to perform on a Node."""
+
     # direct
     SET = 1
     CLEAR = 2
 
+    # collection
+
+    # list
+    # LIST_APPEND, LIST_REMOVE, ...
+
     # set
     # SET_ADD, SET_REMOVE, ...
 
-    # list
-    # LIST_APPEND, LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
-
     # map
     # MAP_SET, MAP_REMOVE, ...
+
+    # scalar
 
     # number
     # NUMBER_INCREMENT, NUMBER_DECREMENT, ...
@@ -128,8 +136,9 @@ class ChangeStatus(Enum):
 
     # PENDING?
     COMPLETED = 10, "Completed", "The Change was applied"
-    FAILED = 12, "Failed", "Could not apply the Change."
-    REJECTED = 13, "Rejected", "Insufficient access."
+    SKIPPED = 11, "Skipped", "The Change was skipped"
+    FAILED = 12, "Failed", "Could not apply the Change"
+    REJECTED = 13, "Rejected", "Insufficient access"
 
 
 @builtin_enum(EnumType.CHANGE_DEBOUNCE)

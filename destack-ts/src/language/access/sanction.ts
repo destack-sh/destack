@@ -10,7 +10,15 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, EnumType, Event, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  Entity,
+  EnumType,
+  Event,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -18,6 +26,7 @@ import {
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
+  MaterializationProto,
   SanctionExpiredEventProto,
   SanctionGrantedEventProto,
   SanctionProto,
@@ -1893,6 +1902,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1960,6 +1974,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     id?: string;
     parent?: (Node & IsSubject) | (Node & IsJoinable) | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -2007,6 +2022,14 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Sanction.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _type = options.type;
@@ -2154,6 +2177,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2228,6 +2252,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       _session,
       _graph,
@@ -2258,6 +2283,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -2340,6 +2366,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       _session,
       _graph,

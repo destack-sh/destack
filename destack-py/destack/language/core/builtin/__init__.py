@@ -14,7 +14,7 @@ from .common import (
     EdgeType,
     EnumType,
     EnvironmentType,
-    MaterializationType,
+    Materialization,
     NodePermission,
     NodeType,
     OperatingSystem,
@@ -62,6 +62,7 @@ from .entity import (
     Metric,
     Record,
     Resource,
+    Snapshot,
 )
 from .enum import Enum, builtin_enum
 from .event import CustomEventDefinition, EditEvent, Event, MeasurementEvent, Signal
@@ -183,7 +184,7 @@ __all__ = [
     "IsSubject",
     "IsTaggable",
     "JoinablePermission",
-    "MaterializationType",
+    "Materialization",
     "MeasurementEvent",
     "Metric",
     "Node",
@@ -211,6 +212,7 @@ __all__ = [
     "RuntimeLanguage",
     "ScalarType",
     "Signal",
+    "Snapshot",
     "StoreImplementation",
     "StoreType",
     "StructBase",

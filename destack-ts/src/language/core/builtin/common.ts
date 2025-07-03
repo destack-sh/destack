@@ -14,7 +14,7 @@ export enum EnumType {
   OBJECT_DEFINITION_TYPE = 11,
   STRUCT_DEFINITION_TYPE = 12,
   PROPERTY_REFERENCE_TYPE = 13,
-  MATERIALIZATION_TYPE = 14,
+  MATERIALIZATION = 14,
   STORE_TYPE = 21,
   STORE_IMPLEMENTATION = 22,
   PLATFORM_TYPE = 30,
@@ -268,12 +268,13 @@ export enum NodeType {
   CUSTOM_ENUM_DEFINITION = 104,
   CUSTOM_PROPERTY = 105,
   CUSTOM_OPTION = 106,
-  RECORD = 200,
-  RESOURCE = 201,
-  METRIC = 202,
-  SIGNAL = 300,
-  EDIT_EVENT = 301,
-  MEASUREMENT_EVENT = 302,
+  RECORD = 1000,
+  RESOURCE = 1100,
+  METRIC = 1200,
+  SNAPSHOT = 1300,
+  SIGNAL = 2000,
+  EDIT_EVENT = 2001,
+  MEASUREMENT_EVENT = 2002,
   SPACE = 10000,
   HANDLE = 10100,
   USER = 10200,
@@ -318,8 +319,7 @@ export enum NodeType {
   FOLDER = 30000,
   TAG = 30100,
   TAGGING = 30101,
-  SNAPSHOT = 40000,
-  BRANCH = 40100,
+  BRANCH = 40000,
   FILE = 60000,
   SCRIPT = 70000,
   SERVICE = 70100,
@@ -547,18 +547,18 @@ registerEnumClass(EnumType.ENVIRONMENT_TYPE, EnvironmentType);
 
 /* ==== DESTACK_GENERATED_START:ENUM:14 ==== */
 /**
- * MaterializationType
+ * Materialization
  */
-export enum MaterializationType {
-  PARTIAL_NODE = 1,
-  PARTIAL_GRAPH = 2,
-  FULL_GRAPH = 3,
+export enum Materialization {
+  FRAGMENT = 1,
+  SUBGRAPH = 2,
+  FULL = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.MATERIALIZATION_TYPE, MaterializationType);
+registerEnumClass(EnumType.MATERIALIZATION, Materialization);
 /* ==== DESTACK_GENERATED_END:ENUM:14 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:200000 ==== */

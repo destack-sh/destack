@@ -2,9 +2,10 @@ from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Optional,
+    Union,
 )
 
-from .common import ResourceStatus, RoleType
+from .common import Materialization, ResourceStatus, RoleType
 from .node import Node, NodeType, builtin_node
 from .property import (
     builtin_property,
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
         IsSubject,
         NodeDefinitionReference,
         NodeReference,
+        Space,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -83,39 +85,39 @@ class Entity(Node):
     #  - space: (instance_id, template_id)
     # when merging: time before space (id+snapshot_id over template)
     # snapshot and template properties must be READ ONLY (no write)
-    # materialization: MaterializationType = property_(
-    #     7,
-    #     is_managed=True,
-    #     is_eq=False,
-    #     is_hash=False,
-    #     is_repr=False,
-    #     default=MaterializationType.FULL_GRAPH,
-    # )
+    materialization: Materialization = builtin_property(
+        10,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        is_repr=False,
+        default=Materialization.FULL,
+    )
     # snapshot: Optional["Snapshot"] = property_(
-    #     8,
-    #     can_write=None,
+    #     11,
+    #     is_readonly=True,
     #     is_managed=True,
     #     node_space_from="self",
     #     description="The Snapshot this Entity is part of.",
     # )
     # base: Optional["Snapshot"] = property_(
-    #     9,
-    #     can_write=None,
+    #     12,
+    #     is_readonly=True,
     #     is_managed=True,
     #     node_is_extensible=False,
     #     node_space_from="self",
     #     description="The Snapshot this Entity's snapshot is based on.",
     # )
     # instance: Optional["Entity"] = property_(
-    #     10,
-    #     can_write=None,
+    #     13,
+    #     is_readonly=True,
     #     is_managed=True,
     #     node_is_extensible=False,
     #     description="The (root) Entity in this Entity's instance tree.",
     # )
     # template: Optional["Entity"] = property_(
-    #     11,
-    #     can_write=None,
+    #     14,
+    #     is_readonly=True,
     #     is_managed=True,
     #     node_is_extensible=False,
     #     description="The template this Entity instance is based on.",
@@ -222,6 +224,21 @@ class Resource(IsDeletable, IsExtensible, Entity):
 @builtin_node(NodeType.METRIC, is_abstract=True)
 class Metric(IsSpatial, IsSourceable, Entity):
     """An Entity that represents a Metric."""
+
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+
+
+@builtin_node(NodeType.SNAPSHOT)
+class Snapshot(
+    IsSpatial,
+    IsOwnable,
+    IsDeletable,
+    Entity,
+):
+    """A Snapshot is a point in Space time."""
+
+    parent: Union["Space", None] = builtin_property_parent(node_is_extensible=False)
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

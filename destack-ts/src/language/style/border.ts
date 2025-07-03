@@ -8,7 +8,14 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructFrozen, StructType } from "@destack/language/core";
+import {
+  EnumType,
+  Materialization,
+  Node,
+  NodeType,
+  StructFrozen,
+  StructType,
+} from "@destack/language/core";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -22,7 +29,12 @@ import type { Palette } from "@destack/language/style/palette";
 import { Style } from "@destack/language/style/style";
 import type { Theme } from "@destack/language/style/theme";
 import type { View } from "@destack/language/view";
-import { BorderProto, BorderStyleProto, BorderTypeProto } from "@destack/proto";
+import {
+  BorderProto,
+  BorderStyleProto,
+  BorderTypeProto,
+  MaterializationProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -75,6 +87,11 @@ export class BorderStyle extends Style {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -163,6 +180,7 @@ export class BorderStyle extends Style {
     id?: string;
     parent?: Scene | View | Theme | Palette | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -213,6 +231,14 @@ export class BorderStyle extends Style {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`BorderStyle.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -406,6 +432,7 @@ export class BorderStyle extends Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -494,6 +521,7 @@ export class BorderStyle extends Style {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
@@ -526,6 +554,7 @@ export class BorderStyle extends Style {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -625,6 +654,7 @@ export class BorderStyle extends Style {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,

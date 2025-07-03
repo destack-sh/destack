@@ -1,6 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { ResourceStatus } from "@destack/language/core/builtin/common";
-import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import { Materialization, NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type {
@@ -29,7 +29,12 @@ import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
-import { CustomEntityDefinitionProto, CustomTraitDefinitionProto } from "@destack/proto";
+import {
+  CustomEntityDefinitionProto,
+  CustomTraitDefinitionProto,
+  MaterializationProto,
+  SnapshotProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -52,6 +57,11 @@ export abstract class Entity extends Node {
     return null;
   }
   declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -137,6 +147,11 @@ export class CustomEntityDefinition
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -285,6 +300,7 @@ export class CustomEntityDefinition
     id?: string;
     parent?: Folder | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -340,6 +356,14 @@ export class CustomEntityDefinition
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`CustomEntityDefinition.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -597,6 +621,7 @@ export class CustomEntityDefinition
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -748,6 +773,7 @@ export class CustomEntityDefinition
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
       _session,
@@ -785,6 +811,7 @@ export class CustomEntityDefinition
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -961,6 +988,7 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
       _session,
@@ -1031,6 +1059,11 @@ export class CustomTraitDefinition
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -1141,6 +1174,7 @@ export class CustomTraitDefinition
     id?: string;
     parent?: Folder | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1194,6 +1228,14 @@ export class CustomTraitDefinition
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`CustomTraitDefinition.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -1428,6 +1470,7 @@ export class CustomTraitDefinition
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1568,6 +1611,7 @@ export class CustomTraitDefinition
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
       _session,
@@ -1605,6 +1649,7 @@ export class CustomTraitDefinition
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1760,6 +1805,7 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
       _session,
@@ -1797,7 +1843,7 @@ export class CustomTraitDefinition
 registerNodeClass(NodeType.CUSTOM_TRAIT_DEFINITION, CustomTraitDefinition);
 /* ==== DESTACK_GENERATED_END:NODE:101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
 /**
  * A generic Record instance of a CustomEntityDefinition like a relational Table.
  * The Archivable, Deletable, and Ownable traits are always present for plain Records
@@ -1850,6 +1896,11 @@ export abstract class Record
    * Inlined base type of this extensible Node (if extended).
    */
   declare readonly baseType: NodeDefinitionReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -1924,9 +1975,9 @@ export abstract class Record
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RECORD, Record);
-/* ==== DESTACK_GENERATED_END:NODE:200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:201 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1100 ==== */
 /**
  * A Resource represents an external asset outside of Destack.
  * The lifecycle of a Resource may be managed by some Provisioner (Service).
@@ -1965,6 +2016,11 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
    * Inlined base type of this extensible Node (if extended).
    */
   declare readonly baseType: NodeDefinitionReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -2020,9 +2076,9 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RESOURCE, Resource);
-/* ==== DESTACK_GENERATED_END:NODE:201 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:202 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1200 ==== */
 /**
  * An Entity that represents a Metric.
  */
@@ -2052,6 +2108,11 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
     return null;
   }
   declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -2119,4 +2180,552 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.METRIC, Metric);
-/* ==== DESTACK_GENERATED_END:NODE:202 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1200 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:1300 ==== */
+/**
+ * A Snapshot is a point in Space time.
+ */
+export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsDeletable {
+  static metatype: NodeType = NodeType.SNAPSHOT;
+
+  /**
+   * Snapshot.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
+   * Entity.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Entity.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * Entity.updatedAt
+   */
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * Entity.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Node & IsOwner) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  ownedByPtr: NodeReference | null;
+
+  /**
+   * Snapshot.name
+   */
+  name: string;
+
+  /**
+   * Snapshot.icon
+   */
+  icon: Icon | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    materialization?: Materialization;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    updatedAt?: Temporal.ZonedDateTime;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
+    name: string;
+    icon?: Icon | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Snapshot.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
+    }
+    this.ownedByPtr = _ownedBy;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Snapshot.name is required`);
+    }
+    this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
+      type: NodeType.SNAPSHOT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return this.name;
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
+    return `<Snapshot '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return Snapshot.__packValue__(this);
+  }
+
+  static __packValue__(object: Snapshot): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 1300;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["10"] = object.materialization;
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.updatedByPtr != null) {
+      objectValue["23"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt != null) {
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+    }
+    if (object.ownedByPtr != null) {
+      objectValue["28"] = object.ownedByPtr.toValue();
+    }
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Snapshot {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByPtrValue = objectValue["28"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const deletedAtValue = objectValue["25"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const createdByPtrValue = objectValue["21"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["23"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Snapshot({
+      parent: unpackedParentPtr,
+      name: objectValue["101"],
+      icon: unpackedIcon,
+      space: unpackedSpacePtr,
+      ownedBy: unpackedOwnedByPtr,
+      deletedAt: unpackedDeletedAt,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Snapshot {
+    return Snapshot.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): SnapshotProto {
+    return Snapshot.__packProto__(this);
+  }
+
+  static __packProto__(object: Snapshot): SnapshotProto {
+    const objectProto: Partial<SnapshotProto> = { metatype: 1300 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    if (object.ownedByPtr != null) {
+      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    }
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    return objectProto as SnapshotProto;
+  }
+
+  static __unpackProto__(
+    objectProto: SnapshotProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Snapshot {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    return new Snapshot({
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      materialization: Number(objectProto.materialization) as Materialization,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: SnapshotProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Snapshot {
+    return Snapshot.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Snapshot {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SnapshotProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.SNAPSHOT, Snapshot);
+/* ==== DESTACK_GENERATED_END:NODE:1300 ==== */

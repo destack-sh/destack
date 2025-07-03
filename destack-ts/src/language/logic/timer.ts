@@ -8,7 +8,15 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, EnumType, Event, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  Entity,
+  EnumType,
+  Event,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import type { Schedule } from "@destack/language/logic/schedule";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -17,6 +25,7 @@ import {
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
+  MaterializationProto,
   TimerCancelledEventProto,
   TimerCompletedEventProto,
   TimerProto,
@@ -1311,6 +1320,11 @@ export class Timer extends Entity implements IsSpatial {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1363,6 +1377,7 @@ export class Timer extends Entity implements IsSpatial {
     id?: string;
     parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1409,6 +1424,14 @@ export class Timer extends Entity implements IsSpatial {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Timer.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Timer.type is required`);
@@ -1554,6 +1577,7 @@ export class Timer extends Entity implements IsSpatial {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1613,6 +1637,7 @@ export class Timer extends Entity implements IsSpatial {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       _session,
@@ -1644,6 +1669,7 @@ export class Timer extends Entity implements IsSpatial {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1708,6 +1734,7 @@ export class Timer extends Entity implements IsSpatial {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined

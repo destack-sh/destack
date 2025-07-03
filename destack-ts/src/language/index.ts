@@ -17,6 +17,7 @@ export * from "@destack/language/runtime";
 export * from "@destack/language/scene";
 export * from "@destack/language/social";
 export * from "@destack/language/space";
+export * from "@destack/language/spacetime";
 export * from "@destack/language/style";
 export * from "@destack/language/view";
 

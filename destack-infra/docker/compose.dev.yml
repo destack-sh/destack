@@ -55,18 +55,6 @@ services:
     environment:
       SCYlla_SYNC_COMMANDS: 1
 
-  elasticsearch:
-    image: elastic/elasticsearch:8.18.2
-    restart: on-failure
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - '9200:9200'   # REST
-      - '9300:9300'   # transport
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
 
   minio:
     image: minio/minio:latest
@@ -135,4 +123,3 @@ volumes:
   vault_data:
   redpanda_data:
   scylla_data:
-  elasticsearch_data:
