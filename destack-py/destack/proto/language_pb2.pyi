@@ -10159,7 +10159,7 @@ class StructProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ...) -> None: ...
 
 class StructDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "is_frozen")
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "is_frozen", "is_abstract", "is_extensible", "base_type", "extended_by", "inherits", "inherited_by")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -10168,6 +10168,12 @@ class StructDefinitionProto(_message.Message):
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     IS_FROZEN_FIELD_NUMBER: _ClassVar[int]
+    IS_ABSTRACT_FIELD_NUMBER: _ClassVar[int]
+    IS_EXTENSIBLE_FIELD_NUMBER: _ClassVar[int]
+    BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    EXTENDED_BY_FIELD_NUMBER: _ClassVar[int]
+    INHERITS_FIELD_NUMBER: _ClassVar[int]
+    INHERITED_BY_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: int
     type: StructTypeProto
@@ -10176,7 +10182,13 @@ class StructDefinitionProto(_message.Message):
     description: str
     properties: _containers.RepeatedCompositeFieldContainer[PropertyDefinitionProto]
     is_frozen: bool
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., is_frozen: bool = ...) -> None: ...
+    is_abstract: bool
+    is_extensible: bool
+    base_type: StructTypeProto
+    extended_by: _containers.RepeatedScalarFieldContainer[StructTypeProto]
+    inherits: _containers.RepeatedScalarFieldContainer[StructTypeProto]
+    inherited_by: _containers.RepeatedScalarFieldContainer[StructTypeProto]
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., is_frozen: bool = ..., is_abstract: bool = ..., is_extensible: bool = ..., base_type: _Optional[_Union[StructTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[StructTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[StructTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[StructTypeProto, str]]] = ...) -> None: ...
 
 class StructDefinitionReferenceProto(_message.Message):
     __slots__ = ("metatype", "type", "struct_type", "definition_ptr")

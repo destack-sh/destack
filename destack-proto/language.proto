@@ -5589,6 +5589,12 @@ message StructDefinitionProto {
   optional string description = 103;
   repeated PropertyDefinitionProto properties = 105;
   bool is_frozen = 110;
+  bool is_abstract = 111;
+  bool is_extensible = 112;
+  optional StructTypeProto base_type = 120;
+  repeated StructTypeProto extended_by = 121;
+  repeated StructTypeProto inherits = 122;
+  repeated StructTypeProto inherited_by = 123;
 }
 
 message StructDefinitionReferenceProto {

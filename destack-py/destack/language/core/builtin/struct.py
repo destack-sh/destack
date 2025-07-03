@@ -36,6 +36,7 @@ def builtin_struct(
     struct_type: StructType | None,
     frozen: bool = False,
     is_abstract: bool = False,
+    is_extensible: bool = False,
 ):
     """Register a class as a concrete struct for the given struct type."""
 
@@ -53,6 +54,7 @@ def builtin_struct(
         cls.__inherits__ = tuple(reversed(inherits))
         cls.__base_type__ = cls.__inherits__[-1] if cls.__inherits__ else None
         cls.__is_abstract__ = is_abstract
+        cls.__is_extensible__ = is_extensible
 
         # abstract nodes cannot extend non-abstract nodes
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
@@ -89,7 +91,7 @@ def builtin_struct(
     return decorate
 
 
-@builtin_struct(StructType.STRUCT, is_abstract=True)
+@builtin_struct(StructType.STRUCT, is_abstract=True, is_extensible=True)
 class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC):
     """A Struct is an ordered collection of Properties."""
 
@@ -100,6 +102,8 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
 
     """Whether this class is abstract (not concrete)."""
     __is_abstract__: ClassVar[bool] = False
+    """Whether this Struct can be extended by custom Structs."""
+    __is_extensible__: ClassVar[bool] = False
     """The base type this Struct extends (directly)."""
     __base_type__: ClassVar[StructType | None] = None
     """Structs that extend this Struct type (directly)."""
@@ -114,14 +118,14 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
         raise NotImplementedError  # generated
 
 
-@builtin_struct(None)
+@builtin_struct(None, is_extensible=True)
 class StructMutable[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     """A mutable Struct."""
 
     pass
 
 
-@builtin_struct(None, frozen=True, is_abstract=True)  # type: ignore (frozen can't inherit from non-frozen, but it's fine)
+@builtin_struct(None, frozen=True, is_abstract=True, is_extensible=True)  # type: ignore (frozen can't inherit from non-frozen, but it's fine)
 class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     """An immutable Struct."""
 
