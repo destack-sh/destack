@@ -346,7 +346,7 @@ def _walk_node(
                 table = context.get(rel)
                 for node_id in current_node_ids:
                     if (
-                        (row := table.rows.get(node_id)) is not None
+                        (row := table.rows_by_id.get(node_id)) is not None
                         and (parent_ptr := row.parent_ptr) is not None
                         and (parent_id := parent_ptr.id) not in nodes_by_id
                         and (where is None or _evaluate_condition(context, where, row))
@@ -434,15 +434,15 @@ def _query_node(
         if is_id_query:
             filtered_rows: list[MemoryRow] = []
             for id_val in id_values:
-                if (row := table.rows.get(id_val)) is not None:
+                if (row := table.rows_by_id.get(id_val)) is not None:
                     filtered_rows.append(row)
         else:
             filtered_rows = []
-            for row in table.rows.values():
+            for row in table.rows_by_id.values():
                 if _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
-        filtered_rows = list(table.rows.values())
+        filtered_rows = list(table.rows_by_id.values())
 
     # sort
     if sort:
@@ -476,13 +476,13 @@ def _query_scalar(
         filtered_rows: list[MemoryRow] = []
         for rel in definitions:
             table = context.get(rel)
-            for row in table.rows.values():
+            for row in table.rows_by_id.values():
                 if where is None or _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
         table = context.get(definition)
         filtered_rows = []
-        for row in table.rows.values():
+        for row in table.rows_by_id.values():
             if where is None or _evaluate_condition(context, where, row):
                 filtered_rows.append(row)
 
@@ -523,19 +523,19 @@ def _query_grouped_node(
             filtered_rows: list[MemoryRow] = []
             if isinstance(id_values, (list, tuple)):
                 for id_val in id_values:
-                    if id_val in table.rows:
-                        filtered_rows.append(table.rows[id_val])
+                    if id_val in table.rows_by_id:
+                        filtered_rows.append(table.rows_by_id[id_val])
             else:
-                if id_values in table.rows:
-                    filtered_rows.append(table.rows[id_values])
+                if id_values in table.rows_by_id:
+                    filtered_rows.append(table.rows_by_id[id_values])
         else:
             # filter rows based on where condition
             filtered_rows = []
-            for row in table.rows.values():
+            for row in table.rows_by_id.values():
                 if _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
-        filtered_rows = list(table.rows.values())
+        filtered_rows = list(table.rows_by_id.values())
 
     # group rows by group_by expressions
     groups: dict[tuple, list[MemoryRow]] = {}
@@ -593,7 +593,7 @@ def _query_grouped_scalar(
 
     # filter rows based on where condition
     filtered_nodes: list[MemoryRow] = []
-    for row in table.rows.values():
+    for row in table.rows_by_id.values():
         if where is None or _evaluate_condition(context, where, row):
             filtered_nodes.append(row)
 

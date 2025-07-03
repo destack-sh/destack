@@ -25,7 +25,7 @@ class MemoryDatabase:
         self.tables: dict[NodeType, MemoryTable] = {}
 
     def __str__(self) -> str:
-        num_nodes = sum(len(table.rows) for table in self.tables.values())
+        num_nodes = sum(len(table.rows_by_id) for table in self.tables.values())
         return f"nodes={num_nodes}, tables={len(self.tables)}"
 
     def __repr__(self) -> str:
@@ -93,7 +93,7 @@ class MemoryTable:
     __slots__ = (
         "database",
         "node_type",
-        "rows",
+        "rows_by_id",
         "rows_by_parent_id",
     )
 
@@ -104,11 +104,11 @@ class MemoryTable:
     ):
         self.database = database
         self.node_type = metatype
-        self.rows: dict[UUID, MemoryRow] = {}
+        self.rows_by_id: dict[UUID, MemoryRow] = {}
         self.rows_by_parent_id: dict[UUID, list[MemoryRow]] = defaultdict(list)
 
     def __str__(self) -> str:
-        return f"node_type={self.node_type.name}, rows={len(self.rows)}"
+        return f"node_type={self.node_type.name}, rows={len(self.rows_by_id)}"
 
     def __repr__(self) -> str:
         return f"<MemoryTable {self!s}>"

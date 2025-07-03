@@ -260,10 +260,10 @@ class Snapshot(
 ):
     """
     A Snapshot is a point in Space time.
-    Snapshots cannot be instanced or become part of any other Snapshot themselves.
+    Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
     """
 
-    parent: Union["Space", "Snapshot", None] = builtin_property_parent()
+    parent: Union["Space", "Snapshot", None] = builtin_property_parent(is_readonly=True)
 
     snapshot: "Snapshot" = builtin_property(
         11,
