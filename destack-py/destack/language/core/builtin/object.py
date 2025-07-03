@@ -495,6 +495,16 @@ def __to_ref__(self) -> "NodeReference":
         snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
     )
 """
+    elif node_type == NodeType.SNAPSHOT:
+        ref_impl = f"""\
+def __to_ref__(self) -> "NodeReference":
+    return NodeReference(
+        type=NodeType.{node_type.name},
+        id=self.id,
+        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
+        snapshot_id=self.id,
+    )
+"""
     elif TraitType.EXTENSIBLE in cls.__traits__:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":

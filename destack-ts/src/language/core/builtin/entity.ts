@@ -2757,7 +2757,7 @@ registerNodeClass(NodeType.METRIC, Metric);
 /* ==== DESTACK_GENERATED_START:NODE:1300 ==== */
 /**
  * A Snapshot is a point in Space time.
- * Snapshots cannot be instanced or become part of any other Snapshot themselves.
+ * Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
  */
 export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivable, IsDeletable {
   static metatype: NodeType = NodeType.SNAPSHOT;
@@ -3140,7 +3140,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       type: NodeType.SNAPSHOT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      snapshotId: this.id,
       _session: this._session,
       _supergraph: this._supergraph,
     });

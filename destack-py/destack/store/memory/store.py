@@ -35,7 +35,7 @@ class MemoryStore(Store):
         self.context = MemoryContext(self.database)
 
     def __str__(self) -> str:
-        num_nodes = sum(len(table.rows) for table in self.database.tables.values())
+        num_nodes = sum(len(table.rows_by_id) for table in self.database.tables.values())
         return f"nodes={num_nodes}, tables={len(self.database.tables)}"
 
     def __repr__(self) -> str:

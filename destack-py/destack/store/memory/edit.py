@@ -139,9 +139,9 @@ def _execute_data_edit(
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
             node_id = edit.node_ptr.id
-            if edit_type == EditType.UPSERT or node_id not in table.rows:
+            if edit_type == EditType.UPSERT or node_id not in table.rows_by_id:
                 row = pack_node_row(table, edit.value)
-                table.rows[node_id] = row
+                table.rows_by_id[node_id] = row
                 if row.parent_ptr is not None:
                     parent_table = context.get(row.parent_ptr)
                     parent_table.rows_by_parent_id[row.parent_ptr.id].append(row)
@@ -162,8 +162,8 @@ def _execute_data_edit(
             assert prop is not None, f"no prop for {edit!r}"
             node_id = edit.node_ptr.id
 
-            if node_id in table.rows:
-                row = table.rows[node_id]
+            if node_id in table.rows_by_id:
+                row = table.rows_by_id[node_id]
                 if edit.operation == EditOperation.SET:
                     assert edit.value is not None, f"no value for {edit!r}"
                     row.value[str(prop.id)] = edit.value.value
@@ -189,8 +189,8 @@ def _execute_data_edit(
                 f"unexpected value: {edit!r}"
             )
             node_id = edit.node_ptr.id
-            if node_id in table.rows:
-                row = table.rows[node_id]
+            if node_id in table.rows_by_id:
+                row = table.rows_by_id[node_id]
                 if row.parent_ptr is not None:
                     parent_table = context.get(row.parent_ptr)
                     parent_table.rows_by_parent_id[row.parent_ptr.id].remove(row)
@@ -229,8 +229,8 @@ def _execute_data_edit(
         # update timestamps
         for node_ptr in cascaded_node_ptrs:
             node_table = context.get(node_ptr)
-            if node_ptr.id in node_table.rows:
-                row = node_table.rows[node_ptr.id]
+            if node_ptr.id in node_table.rows_by_id:
+                row = node_table.rows_by_id[node_ptr.id]
                 if edit_type == EditType.ARCHIVE:
                     row.value["14"] = change.created_at
                 elif edit_type == EditType.UNARCHIVE:
@@ -264,7 +264,7 @@ def _execute_data_edit(
         # delete rows
         for node_ptr in cascaded_node_ptrs:
             node_table = context.get(node_ptr)
-            row = node_table.rows.pop(node_ptr.id, None)
+            row = node_table.rows_by_id.pop(node_ptr.id, None)
             if row is not None and row.parent_ptr is not None:
                 parent_table = context.get(row.parent_ptr)
                 parent_table.rows_by_parent_id[row.parent_ptr.id].remove(row)

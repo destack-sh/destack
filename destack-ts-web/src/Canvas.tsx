@@ -1,6 +1,6 @@
 import { renderStroke } from "@destack-web/shared/freehand/svg";
 import { computed, Signal, signal } from "@preact/signals-react";
-import { Easing, Line, Stroke, StrokeCap, StrokeType, Vector2 } from "destack";
+import { Easing, Line, Stroke, StrokeCap, StrokeType, Vector2f } from "destack";
 import React, { useRef } from "react";
 
 const size = signal(12);
@@ -12,7 +12,7 @@ const taperStart = signal(false);
 const taperEnd = signal(false);
 const showPoints = signal(false);
 const isDrawing = signal(false);
-const lastMousePosition = signal<Vector2 | null>(null);
+const lastMousePosition = signal<Vector2f | null>(null);
 const strokeOptions: Signal<Stroke> = computed(
   () =>
     new Stroke({
@@ -42,14 +42,14 @@ const lines = signal<Line[]>([]);
 export const Canvas: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector2 => {
+  const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector2f => {
     if (!svgRef.current) {
       throw new Error("SVG element not found");
     }
     const rect = svgRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    return new Vector2({ x, y });
+    return new Vector2f({ x, y });
   };
  
   // begin drawing on mouse down

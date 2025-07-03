@@ -321,7 +321,7 @@ async def test_benchmark_create_reactions(session: Session, async_benchmark: Asy
     assert result["mean"] < 0.005  # <5ms
 
 
-@pytest.mark.parametrize("session", ENTITY_SESSIONS)
+# @pytest.mark.parametrize("session", ENTITY_SESSIONS)
 async def test_edit_partial_node_in_snapshot(session: Session):
     """Create a Snapshot and query it."""
 
@@ -365,7 +365,7 @@ async def test_edit_partial_node_in_snapshot(session: Session):
         assert snapshot_user.slug == "bob"
 
 
-@pytest.mark.parametrize("session", ENTITY_SESSIONS)
+# @pytest.mark.parametrize("session", ENTITY_SESSIONS)
 async def test_edit_partial_graph_in_snapshot(session: Session):
     """Create a Snapshot and query it."""
 

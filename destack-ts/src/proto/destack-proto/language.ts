@@ -13423,7 +13423,7 @@ export interface SliderInputViewProto {
 }
 /**
  * A Snapshot is a point in Space time.
- * Snapshots cannot be instanced or become part of any other Snapshot themselves.
+ * Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
  *
  * @generated from protobuf message symbol.destack.SnapshotProto
  */

@@ -5366,7 +5366,7 @@ message SliderInputViewProto {
 }
 
 // A Snapshot is a point in Space time.
-// Snapshots cannot be instanced or become part of any other Snapshot themselves.
+// Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
 message SnapshotProto {
   NodeTypeProto metatype = 1;
   string id = 2;
