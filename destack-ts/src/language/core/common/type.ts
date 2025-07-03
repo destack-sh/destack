@@ -48,7 +48,167 @@ import {
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:411 ==== */
+/**
+ * Guess the type of a value or class.
+ */
+export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
+  if (valueOrType === null || valueOrType === undefined) {
+    throw new Error("null/undefined is not a valid Type");
+  }
+
+  // scalar values
+  if (isStruct(valueOrType, StructType.NODE_REFERENCE)) {
+    return new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: ScalarType.NODE_REFERENCE,
+      nodeType: valueOrType.type,
+    });
+  } else if (isNode(valueOrType)) {
+    return new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: nodeAsValue ? ScalarType.NODE_VALUE : ScalarType.NODE_REFERENCE,
+      nodeType: valueOrType.metatype,
+    });
+  } else if (isStruct(valueOrType)) {
+    return new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: ScalarType.STRUCT,
+      structType: valueOrType.metatype,
+    });
+  } else if (
+    PRIMITIVE_JS_TYPES.has(valueOrType.constructor) &&
+    valueOrType.constructor !== Object
+  ) {
+    return new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: ScalarType.PRIMITIVE,
+      primitiveType: PRIMITIVE_TYPE_BY_JS_TYPE.get(valueOrType.constructor) || null,
+    });
+  }
+
+  // collections
+  if (Array.isArray(valueOrType)) {
+    if (valueOrType.length === 0) {
+      throw new Error(`cannot infer type of empty array: ${valueOrType}`);
+    }
+    const elementType = toType(valueOrType[0]);
+    if (elementType.cardinality !== TypeCardinality.SCALAR) {
+      throw new Error(
+        `expected scalar inside array, got ${elementType.cardinality} for ${valueOrType}`,
+      );
+    }
+    return new Type({
+      cardinality: TypeCardinality.LIST,
+      scalarType: elementType.scalarType,
+      primitiveType: elementType.primitiveType,
+      enumType: elementType.enumType,
+      nodeType: elementType.nodeType,
+      structType: elementType.structType,
+      nodeConstraint: elementType.nodeConstraint,
+    });
+  } else if (valueOrType instanceof Map) {
+    if (valueOrType.size === 0) {
+      throw new Error(`cannot infer type of empty Map: ${valueOrType}`);
+    }
+    const [sampleKey, sampleValue] = Array.from(valueOrType.entries()).at(0)!;
+    const keyType = toType(sampleKey);
+    if (keyType.cardinality !== TypeCardinality.SCALAR) {
+      throw new Error(`expected scalar key in Map, got ${keyType.cardinality} for ${valueOrType}`);
+    }
+    const valueType = toType(sampleValue);
+    if (
+      valueType.cardinality !== TypeCardinality.SCALAR &&
+      valueType.cardinality !== TypeCardinality.LIST
+    ) {
+      throw new Error(
+        `expected scalar or list value in Map, got ${valueType.cardinality} for ${valueOrType}`,
+      );
+    }
+    return new Type({
+      cardinality: TypeCardinality.MAP,
+      scalarType: valueType.scalarType,
+      primitiveType: valueType.primitiveType,
+      enumType: valueType.enumType,
+      nodeType: valueType.nodeType,
+      structType: valueType.structType,
+      nodeConstraint: valueType.nodeConstraint,
+      keyType: keyType,
+    });
+  } else if (typeof valueOrType === "object" && valueOrType.constructor === Object) {
+    const keys = Object.keys(valueOrType);
+    if (keys.length === 0) {
+      throw new Error(`cannot infer type of empty object: ${valueOrType}`);
+    }
+    const sampleKey = keys[0];
+    const sampleValue = valueOrType[sampleKey];
+    const keyType = toType(sampleKey);
+    if (keyType.cardinality !== TypeCardinality.SCALAR) {
+      throw new Error(
+        `expected scalar key in object, got ${keyType.cardinality} for ${valueOrType}`,
+      );
+    }
+    const valueType = toType(sampleValue);
+    if (
+      valueType.cardinality !== TypeCardinality.SCALAR &&
+      valueType.cardinality !== TypeCardinality.LIST
+    ) {
+      throw new Error(
+        `expected scalar or list value in object, got ${valueType.cardinality} for ${valueOrType}`,
+      );
+    }
+    return new Type({
+      cardinality: TypeCardinality.MAP,
+      scalarType: valueType.scalarType,
+      primitiveType: valueType.primitiveType,
+      enumType: valueType.enumType,
+      nodeType: valueType.nodeType,
+      structType: valueType.structType,
+      nodeConstraint: valueType.nodeConstraint,
+      keyType: keyType,
+    });
+  }
+
+  throw new Error(`cannot infer type of ${valueOrType}`);
+}
+
+/* ==== DESTACK_GENERATED_START:ENUM:64 ==== */
+/**
+ * StringFormat
+ */
+export enum StringFormat {
+  NAME = 1,
+  SLUG = 2,
+  EMAIL = 3,
+  UUID = 10,
+  URL = 11,
+  EMOJI = 12,
+  MIME = 13,
+  BASE64 = 20,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.STRING_FORMAT, StringFormat);
+/* ==== DESTACK_GENERATED_END:ENUM:64 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:65 ==== */
+/**
+ * NumberFormat
+ */
+export enum NumberFormat {
+  PERCENTAGE = 1,
+  ANGLE = 2,
+  CURRENCY = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
+/* ==== DESTACK_GENERATED_END:ENUM:65 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:651 ==== */
 /**
  * The constraint of a string.
  */
@@ -178,7 +338,7 @@ export class StringConstraint extends StructFrozen {
 
   static __packValue__(object: StringConstraint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 411;
+    objectValue["1"] = 651;
     if (object.format != null) {
       objectValue["40"] = object.format;
     }
@@ -244,7 +404,7 @@ export class StringConstraint extends StructFrozen {
   }
 
   static __packProto__(object: StringConstraint): StringConstraintProto {
-    const objectProto: Partial<StringConstraintProto> = { metatype: 411 };
+    const objectProto: Partial<StringConstraintProto> = { metatype: 651 };
     if (object.format != null) {
       objectProto.format = Number(object.format) as StringFormatProto;
     }
@@ -304,9 +464,9 @@ export class StringConstraint extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRING_CONSTRAINT, StringConstraint);
-/* ==== DESTACK_GENERATED_END:STRUCT:411 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:651 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:410 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:650 ==== */
 /**
  * The constraint of a number.
  */
@@ -476,7 +636,7 @@ export class NumberConstraint extends StructFrozen {
 
   static __packValue__(object: NumberConstraint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 410;
+    objectValue["1"] = 650;
     if (object.format != null) {
       objectValue["40"] = object.format;
     }
@@ -554,7 +714,7 @@ export class NumberConstraint extends StructFrozen {
   }
 
   static __packProto__(object: NumberConstraint): NumberConstraintProto {
-    const objectProto: Partial<NumberConstraintProto> = { metatype: 410 };
+    const objectProto: Partial<NumberConstraintProto> = { metatype: 650 };
     if (object.format != null) {
       objectProto.format = Number(object.format) as NumberFormatProto;
     }
@@ -622,9 +782,9 @@ export class NumberConstraint extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NUMBER_CONSTRAINT, NumberConstraint);
-/* ==== DESTACK_GENERATED_END:STRUCT:410 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:650 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:412 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:652 ==== */
 /**
  * The constraint of a collection.
  */
@@ -726,7 +886,7 @@ export class CollectionConstraint extends StructFrozen {
 
   static __packValue__(object: CollectionConstraint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 412;
+    objectValue["1"] = 652;
     if (object.minLength != null) {
       objectValue["41"] = object.minLength;
     }
@@ -780,7 +940,7 @@ export class CollectionConstraint extends StructFrozen {
   }
 
   static __packProto__(object: CollectionConstraint): CollectionConstraintProto {
-    const objectProto: Partial<CollectionConstraintProto> = { metatype: 412 };
+    const objectProto: Partial<CollectionConstraintProto> = { metatype: 652 };
     if (object.minLength != null) {
       objectProto.minLength = object.minLength;
     }
@@ -832,9 +992,9 @@ export class CollectionConstraint extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
-/* ==== DESTACK_GENERATED_END:STRUCT:412 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:652 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:413 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:653 ==== */
 /**
  * The constraint of a node.
  */
@@ -956,7 +1116,7 @@ export class NodeConstraint extends StructFrozen {
 
   static __packValue__(object: NodeConstraint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 413;
+    objectValue["1"] = 653;
     if (object.nodeTypes.length > 0) {
       const packedNodeTypes: any[] = [];
       for (const item of object.nodeTypes) {
@@ -1020,7 +1180,7 @@ export class NodeConstraint extends StructFrozen {
   }
 
   static __packProto__(object: NodeConstraint): NodeConstraintProto {
-    const objectProto: Partial<NodeConstraintProto> = { metatype: 413 };
+    const objectProto: Partial<NodeConstraintProto> = { metatype: 653 };
     if (object.nodeTypes) {
       const packedNodeTypes: any[] = [];
       for (const item of object.nodeTypes) {
@@ -1086,9 +1246,9 @@ export class NodeConstraint extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_CONSTRAINT, NodeConstraint);
-/* ==== DESTACK_GENERATED_END:STRUCT:413 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:653 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:401 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:601 ==== */
 /**
  * A Type in the type system.
  */
@@ -1453,7 +1613,7 @@ export class Type extends StructFrozen {
 
   static __packValue__(object: Type): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 401;
+    objectValue["1"] = 601;
     objectValue["110"] = object.cardinality;
     objectValue["111"] = object.scalarType;
     if (object.primitiveType != null) {
@@ -1626,7 +1786,7 @@ export class Type extends StructFrozen {
   }
 
   static __packProto__(object: Type): TypeProto {
-    const objectProto: Partial<TypeProto> = { metatype: 401 };
+    const objectProto: Partial<TypeProto> = { metatype: 601 };
     objectProto.cardinality = Number(object.cardinality) as TypeCardinalityProto;
     objectProto.scalarType = Number(object.scalarType) as ScalarTypeProto;
     if (object.primitiveType != null) {
@@ -1795,164 +1955,4 @@ export class Type extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TYPE, Type);
-/* ==== DESTACK_GENERATED_END:STRUCT:401 ==== */
-
-/**
- * Guess the type of a value or class.
- */
-export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
-  if (valueOrType === null || valueOrType === undefined) {
-    throw new Error("null/undefined is not a valid Type");
-  }
-
-  // scalar values
-  if (isStruct(valueOrType, StructType.NODE_REFERENCE)) {
-    return new Type({
-      cardinality: TypeCardinality.SCALAR,
-      scalarType: ScalarType.NODE_REFERENCE,
-      nodeType: valueOrType.type,
-    });
-  } else if (isNode(valueOrType)) {
-    return new Type({
-      cardinality: TypeCardinality.SCALAR,
-      scalarType: nodeAsValue ? ScalarType.NODE_VALUE : ScalarType.NODE_REFERENCE,
-      nodeType: valueOrType.metatype,
-    });
-  } else if (isStruct(valueOrType)) {
-    return new Type({
-      cardinality: TypeCardinality.SCALAR,
-      scalarType: ScalarType.STRUCT,
-      structType: valueOrType.metatype,
-    });
-  } else if (
-    PRIMITIVE_JS_TYPES.has(valueOrType.constructor) &&
-    valueOrType.constructor !== Object
-  ) {
-    return new Type({
-      cardinality: TypeCardinality.SCALAR,
-      scalarType: ScalarType.PRIMITIVE,
-      primitiveType: PRIMITIVE_TYPE_BY_JS_TYPE.get(valueOrType.constructor) || null,
-    });
-  }
-
-  // collections
-  if (Array.isArray(valueOrType)) {
-    if (valueOrType.length === 0) {
-      throw new Error(`cannot infer type of empty array: ${valueOrType}`);
-    }
-    const elementType = toType(valueOrType[0]);
-    if (elementType.cardinality !== TypeCardinality.SCALAR) {
-      throw new Error(
-        `expected scalar inside array, got ${elementType.cardinality} for ${valueOrType}`,
-      );
-    }
-    return new Type({
-      cardinality: TypeCardinality.LIST,
-      scalarType: elementType.scalarType,
-      primitiveType: elementType.primitiveType,
-      enumType: elementType.enumType,
-      nodeType: elementType.nodeType,
-      structType: elementType.structType,
-      nodeConstraint: elementType.nodeConstraint,
-    });
-  } else if (valueOrType instanceof Map) {
-    if (valueOrType.size === 0) {
-      throw new Error(`cannot infer type of empty Map: ${valueOrType}`);
-    }
-    const [sampleKey, sampleValue] = Array.from(valueOrType.entries()).at(0)!;
-    const keyType = toType(sampleKey);
-    if (keyType.cardinality !== TypeCardinality.SCALAR) {
-      throw new Error(`expected scalar key in Map, got ${keyType.cardinality} for ${valueOrType}`);
-    }
-    const valueType = toType(sampleValue);
-    if (
-      valueType.cardinality !== TypeCardinality.SCALAR &&
-      valueType.cardinality !== TypeCardinality.LIST
-    ) {
-      throw new Error(
-        `expected scalar or list value in Map, got ${valueType.cardinality} for ${valueOrType}`,
-      );
-    }
-    return new Type({
-      cardinality: TypeCardinality.MAP,
-      scalarType: valueType.scalarType,
-      primitiveType: valueType.primitiveType,
-      enumType: valueType.enumType,
-      nodeType: valueType.nodeType,
-      structType: valueType.structType,
-      nodeConstraint: valueType.nodeConstraint,
-      keyType: keyType,
-    });
-  } else if (typeof valueOrType === "object" && valueOrType.constructor === Object) {
-    const keys = Object.keys(valueOrType);
-    if (keys.length === 0) {
-      throw new Error(`cannot infer type of empty object: ${valueOrType}`);
-    }
-    const sampleKey = keys[0];
-    const sampleValue = valueOrType[sampleKey];
-    const keyType = toType(sampleKey);
-    if (keyType.cardinality !== TypeCardinality.SCALAR) {
-      throw new Error(
-        `expected scalar key in object, got ${keyType.cardinality} for ${valueOrType}`,
-      );
-    }
-    const valueType = toType(sampleValue);
-    if (
-      valueType.cardinality !== TypeCardinality.SCALAR &&
-      valueType.cardinality !== TypeCardinality.LIST
-    ) {
-      throw new Error(
-        `expected scalar or list value in object, got ${valueType.cardinality} for ${valueOrType}`,
-      );
-    }
-    return new Type({
-      cardinality: TypeCardinality.MAP,
-      scalarType: valueType.scalarType,
-      primitiveType: valueType.primitiveType,
-      enumType: valueType.enumType,
-      nodeType: valueType.nodeType,
-      structType: valueType.structType,
-      nodeConstraint: valueType.nodeConstraint,
-      keyType: keyType,
-    });
-  }
-
-  throw new Error(`cannot infer type of ${valueOrType}`);
-}
-
-/* ==== DESTACK_GENERATED_START:ENUM:64 ==== */
-/**
- * StringFormat
- */
-export enum StringFormat {
-  NAME = 1,
-  SLUG = 2,
-  EMAIL = 3,
-  UUID = 10,
-  URL = 11,
-  EMOJI = 12,
-  MIME = 13,
-  BASE64 = 20,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.STRING_FORMAT, StringFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:64 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:65 ==== */
-/**
- * NumberFormat
- */
-export enum NumberFormat {
-  PERCENTAGE = 1,
-  ANGLE = 2,
-  CURRENCY = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:65 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:601 ==== */

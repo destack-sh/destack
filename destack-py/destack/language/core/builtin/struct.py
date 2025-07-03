@@ -121,7 +121,7 @@ class StructMutable[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     pass
 
 
-@builtin_struct(None, frozen=True)  # type: ignore (frozen can't inherit from non-frozen, but it's fine)
+@builtin_struct(None, frozen=True, is_abstract=True)  # type: ignore (frozen can't inherit from non-frozen, but it's fine)
 class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     """An immutable Struct."""
 

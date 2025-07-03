@@ -19,7 +19,7 @@ import type {
   Position,
   Snapshot,
   Value,
-  Vector2,
+  Vector2f,
 } from "@destack/language/core";
 import { Entity, Node, NodeType } from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
@@ -322,7 +322,7 @@ export abstract class ContainerView extends View {
   /**
    * ContainerView.skew
    */
-  declare skew: Vector2 | null;
+  declare skew: Vector2f | null;
 
   /**
    * ContainerView.scale

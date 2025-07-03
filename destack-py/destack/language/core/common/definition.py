@@ -54,14 +54,20 @@ if TYPE_CHECKING:
 _type = type
 
 
-@builtin_struct(StructType.PROPERTY_DEFINITION, frozen=True)
-class PropertyDefinition(StructFrozen):
-    """Definition of a builtin Property."""
+@builtin_struct(StructType.BUILTIN_DEFINITION, frozen=True, is_abstract=True)
+class BuiltinDefinition(StructFrozen):
+    """Definition of a builtin object."""
 
     id: int = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
+
+
+@builtin_struct(StructType.PROPERTY_DEFINITION, frozen=True)
+class PropertyDefinition(BuiltinDefinition):
+    """Definition of a builtin Property."""
+
     object: "ObjectDefinitionReference" = builtin_property(
         104, description="The object that this property is defined on."
     )
@@ -274,20 +280,22 @@ class PropertyDefinition(StructFrozen):
         return Sort.of(self, SortType.DESCENDING)
 
 
-@builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)
-class TraitDefinition(StructFrozen):
-    """Definition of a builtin Trait."""
+@builtin_struct(StructType.BUILTIN_OBJECT_DEFINITION, frozen=True, is_abstract=True)
+class BuiltinObjectDefinition(BuiltinDefinition):
+    """Definition of a builtin Object."""
 
-    id: int = builtin_property(2, is_repr=True)
-    type: TraitType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    alias: str = builtin_property(102, is_repr=True)
-    icon: "Icon | None" = builtin_property(103)
-    description: str | None = builtin_property(104, is_repr=True)
     properties: list["PropertyDefinition"] = builtin_property(105)
 
+
+@builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)
+class TraitDefinition(BuiltinObjectDefinition):
+    """Definition of a builtin Trait."""
+
+    type: TraitType = builtin_property(100, is_repr=True)
+
+    alias: str = builtin_property(110, is_repr=True)
     is_extensible: bool = builtin_property(
-        110,
+        111,
         is_repr=True,
         description="Whether this Trait can be extended by custom Nodes and custom Traits.",
     )
@@ -322,16 +330,11 @@ class TraitDefinition(StructFrozen):
 
 
 @builtin_struct(StructType.NODE_DEFINITION, frozen=True)
-class NodeDefinition(StructFrozen):
+class NodeDefinition(BuiltinObjectDefinition):
     """Definition of a builtin Node."""
 
-    id: int = builtin_property(2, is_repr=True)
     type: NodeType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
-    description: str | None = builtin_property(103, is_repr=True)
     primary_store_types: list[StoreType] = builtin_property(104)
-    properties: list["PropertyDefinition"] = builtin_property(105)
 
     is_global: bool = builtin_property(
         110,
@@ -428,17 +431,25 @@ class NodeDefinition(StructFrozen):
 
 
 @builtin_struct(StructType.STRUCT_DEFINITION, frozen=True)
-class StructDefinition(StructFrozen):
+class StructDefinition(BuiltinObjectDefinition):
     """Definition of a builtin Struct."""
 
-    id: int = builtin_property(2, is_repr=True)
     type: StructType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
-    description: str | None = builtin_property(103, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(104)
 
     is_frozen: bool = builtin_property(110)
+
+    base_type: StructType | None = builtin_property(
+        120, description="The base type this Struct extends (directly)."
+    )
+    extended_by: list[StructType] = builtin_property(
+        121, description="Structs that extend this Struct type (directly)."
+    )
+    inherits: list[StructType] = builtin_property(
+        122, description="Structs that this Struct inherits (directly and indirectly)."
+    )
+    inherited_by: list[StructType] = builtin_property(
+        123, description="Structs that inherit this Struct type (directly and indirectly)."
+    )
 
     @classmethod
     def from_struct(cls, struct_cls: _type[Struct]) -> "StructDefinition":
@@ -455,18 +466,18 @@ class StructDefinition(StructFrozen):
                 prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
             ],
             is_frozen=struct_cls.__is_frozen__,
+            base_type=struct_cls.__base_type__,
+            extended_by=list(struct_cls.__extended_by__),
+            inherits=list(struct_cls.__inherits__),
+            inherited_by=list(struct_cls.__inherited_by__),
         )
 
 
 @builtin_struct(StructType.ENUM_DEFINITION, frozen=True)
-class EnumDefinition(StructFrozen):
+class EnumDefinition(BuiltinDefinition):
     """Definition of a builtin Enum."""
 
-    id: int = builtin_property(2, is_repr=True)
     type: EnumType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
-    description: str | None = builtin_property(103, is_repr=True)
     options: list["OptionDefinition"] = builtin_property(104)
 
     @classmethod
@@ -488,14 +499,10 @@ class EnumDefinition(StructFrozen):
 
 
 @builtin_struct(StructType.OPTION_DEFINITION, frozen=True)
-class OptionDefinition(StructFrozen):
+class OptionDefinition(BuiltinDefinition):
     """Definition of a builtin Enum Option."""
 
-    id: int = builtin_property(2, is_repr=True)
     type: EnumType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
-    description: str | None = builtin_property(103, is_repr=True)
 
     @classmethod
     def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
@@ -512,14 +519,11 @@ class OptionDefinition(StructFrozen):
 
 
 @builtin_struct(StructType.PERMISSION_DEFINITION, frozen=True)
-class PermissionDefinition(StructFrozen):
+class PermissionDefinition(BuiltinDefinition):
     """Definition of a builtin Permission for a builtin Node."""
 
-    id: int = builtin_property(2, is_repr=True)
     type: EnumType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    node_type: NodeType = builtin_property(102, is_repr=True)
-    icon: "Icon | None" = builtin_property(103)
+    node_type: NodeType = builtin_property(110, is_repr=True)
 
 
 @builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)

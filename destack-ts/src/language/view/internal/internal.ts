@@ -708,10 +708,10 @@ export class InternalView extends View {
     _graph?: any | null,
     _connection?: any | null,
   ): InternalView {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
@@ -953,10 +953,10 @@ export class InternalView extends View {
     _graph?: any | null,
     _connection?: any | null,
   ): InternalView {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;

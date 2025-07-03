@@ -12,64 +12,85 @@ if TYPE_CHECKING:
     pass
 
 
-@builtin_struct(StructType.VECTOR2, frozen=True)
-class Vector2(StructFrozen):
+@builtin_struct(StructType.VECTOR, frozen=True, is_abstract=True)
+class Vector(StructFrozen):
+    """A vector."""
+
+    pass
+
+
+@builtin_struct(StructType.VECTORF, frozen=True, is_abstract=True)
+class Vectorf(Vector):
+    """A floating point vector."""
+
+    pass
+
+
+@builtin_struct(StructType.VECTORI, frozen=True, is_abstract=True)
+class Vectori(Vector):
+    """An integer vector."""
+
+    pass
+
+
+@builtin_struct(StructType.VECTOR2F, frozen=True)
+class Vector2f(Vectorf):
     """A 2D float vector."""
 
     x: float = builtin_property(101, is_repr=True)
     y: float = builtin_property(102, is_repr=True)
 
-    def __add__(self, other: "Vector2 | float") -> "Vector2":
-        if isinstance(other, Vector2):
-            return Vector2(x=self.x + other.x, y=self.y + other.y)
+    def __add__(self, other: "Vector2f | float") -> "Vector2f":
+        if isinstance(other, Vector2f):
+            return Vector2f(x=self.x + other.x, y=self.y + other.y)
         else:
-            return Vector2(x=self.x + other, y=self.y + other)
+            return Vector2f(x=self.x + other, y=self.y + other)
 
-    def __sub__(self, other: "Vector2 | float") -> "Vector2":
-        if isinstance(other, Vector2):
-            return Vector2(x=self.x - other.x, y=self.y - other.y)
+    def __sub__(self, other: "Vector2f | float") -> "Vector2f":
+        if isinstance(other, Vector2f):
+            return Vector2f(x=self.x - other.x, y=self.y - other.y)
         else:
-            return Vector2(x=self.x - other, y=self.y - other)
+            return Vector2f(x=self.x - other, y=self.y - other)
 
-    def __mul__(self, other: "Vector2 | float") -> "Vector2":
-        if isinstance(other, Vector2):
-            return Vector2(x=self.x * other.x, y=self.y * other.y)
+    def __mul__(self, other: "Vector2f | float") -> "Vector2f":
+        if isinstance(other, Vector2f):
+            return Vector2f(x=self.x * other.x, y=self.y * other.y)
         else:
-            return Vector2(x=self.x * other, y=self.y * other)
+            return Vector2f(x=self.x * other, y=self.y * other)
 
-    def __truediv__(self, other: "Vector2 | float") -> "Vector2":
-        if isinstance(other, Vector2):
-            return Vector2(x=self.x / other.x, y=self.y / other.y)
+    def __truediv__(self, other: "Vector2f | float") -> "Vector2f":
+        if isinstance(other, Vector2f):
+            return Vector2f(x=self.x / other.x, y=self.y / other.y)
         else:
-            return Vector2(x=self.x / other, y=self.y / other)
+            return Vector2f(x=self.x / other, y=self.y / other)
 
-    def __rmul__(self, other: float) -> "Vector2":
-        return Vector2(x=other * self.x, y=other * self.y)
+    def __rmul__(self, other: float) -> "Vector2f":
+        return Vector2f(x=other * self.x, y=other * self.y)
 
-    def __radd__(self, other: float) -> "Vector2":
-        return Vector2(x=other + self.x, y=other + self.y)
+    def __radd__(self, other: float) -> "Vector2f":
+        return Vector2f(x=other + self.x, y=other + self.y)
 
-    def __rsub__(self, other: float) -> "Vector2":
-        return Vector2(x=other - self.x, y=other - self.y)
+    def __rsub__(self, other: float) -> "Vector2f":
+        return Vector2f(x=other - self.x, y=other - self.y)
 
-    def __rtruediv__(self, other: float) -> "Vector2":
-        return Vector2(x=other / self.x, y=other / self.y)
+    def __rtruediv__(self, other: float) -> "Vector2f":
+        return Vector2f(x=other / self.x, y=other / self.y)
 
-    def __neg__(self) -> "Vector2":
-        return Vector2(x=-self.x, y=-self.y)
+    def __neg__(self) -> "Vector2f":
+        return Vector2f(x=-self.x, y=-self.y)
 
-    def __abs__(self) -> "Vector2":
-        return Vector2(x=abs(self.x), y=abs(self.y))
+    def __abs__(self) -> "Vector2f":
+        return Vector2f(x=abs(self.x), y=abs(self.y))
 
-    def neg(self) -> "Vector2":
+    def neg(self) -> "Vector2f":
         """Negate a vector."""
-        return Vector2(x=-self.x, y=-self.y)
+        return Vector2f(x=-self.x, y=-self.y)
 
-    def perp(self) -> "Vector2":
+    def perp(self) -> "Vector2f":
         """Get the perpendicular vector (rotated 90 degrees counterclockwise)."""
-        return Vector2(x=self.y, y=-self.x)
+        return Vector2f(x=self.y, y=-self.x)
 
-    def dot(self, other: "Vector2") -> float:
+    def dot(self, other: "Vector2f") -> float:
         """Calculate the dot product with another vector."""
         return self.x * other.x + self.y * other.y
 
@@ -77,33 +98,33 @@ class Vector2(StructFrozen):
         """Calculate the magnitude (length) of the vector."""
         return (self.x**2 + self.y**2) ** 0.5
 
-    def normalize(self) -> "Vector2":
+    def normalize(self) -> "Vector2f":
         """Return a normalized (unit) vector."""
         mag = self.magnitude()
         if mag == 0:
-            return Vector2(x=0.0, y=0.0)
-        return Vector2(x=self.x / mag, y=self.y / mag)
+            return Vector2f(x=0.0, y=0.0)
+        return Vector2f(x=self.x / mag, y=self.y / mag)
 
-    def distance(self, other: "Vector2") -> float:
+    def distance(self, other: "Vector2f") -> float:
         """Calculate the distance to another vector."""
         return (self - other).magnitude()
 
-    def distance2(self, other: "Vector2") -> float:
+    def distance2(self, other: "Vector2f") -> float:
         """Calculate the squared distance to another vector."""
         diff = self - other
         return diff.x**2 + diff.y**2
 
-    def angle(self, other: "Vector2") -> float:
+    def angle(self, other: "Vector2f") -> float:
         """Calculate the angle to another vector in radians."""
         import math
 
         return math.atan2(other.y - self.y, other.x - self.x)
 
-    def lerp(self, other: "Vector2", t: float) -> "Vector2":
+    def lerp(self, other: "Vector2f", t: float) -> "Vector2f":
         """Linear interpolation between this vector and another."""
-        return Vector2(x=self.x + (other.x - self.x) * t, y=self.y + (other.y - self.y) * t)
+        return Vector2f(x=self.x + (other.x - self.x) * t, y=self.y + (other.y - self.y) * t)
 
-    def rot_with(self, center: "Vector2", angle: float) -> "Vector2":
+    def rot_with(self, center: "Vector2f", angle: float) -> "Vector2f":
         """Rotate this vector around another point by the given angle."""
         import math
 
@@ -111,7 +132,7 @@ class Vector2(StructFrozen):
         y = self.y - center.y
         s = math.sin(angle)
         c = math.cos(angle)
-        return Vector2(x=center.x + (x * c - y * s), y=center.y + (x * s + y * c))
+        return Vector2f(x=center.x + (x * c - y * s), y=center.y + (x * s + y * c))
 
     def __iter__(self) -> Iterator[float]:
         yield self.x
@@ -129,57 +150,57 @@ class Vector2(StructFrozen):
         return 2
 
 
-@builtin_struct(StructType.VECTOR3, frozen=True)
-class Vector3(StructFrozen):
+@builtin_struct(StructType.VECTOR3F, frozen=True)
+class Vector3f(Vectorf):
     """A 3D float vector."""
 
     x: float = builtin_property(101, is_repr=True)
     y: float = builtin_property(102, is_repr=True)
     z: float = builtin_property(103, is_repr=True)
 
-    def __add__(self, other: "Vector3 | float") -> "Vector3":
-        if isinstance(other, Vector3):
-            return Vector3(x=self.x + other.x, y=self.y + other.y, z=self.z + other.z)
+    def __add__(self, other: "Vector3f | float") -> "Vector3f":
+        if isinstance(other, Vector3f):
+            return Vector3f(x=self.x + other.x, y=self.y + other.y, z=self.z + other.z)
         else:
-            return Vector3(x=self.x + other, y=self.y + other, z=self.z + other)
+            return Vector3f(x=self.x + other, y=self.y + other, z=self.z + other)
 
-    def __sub__(self, other: "Vector3 | float") -> "Vector3":
-        if isinstance(other, Vector3):
-            return Vector3(x=self.x - other.x, y=self.y - other.y, z=self.z - other.z)
+    def __sub__(self, other: "Vector3f | float") -> "Vector3f":
+        if isinstance(other, Vector3f):
+            return Vector3f(x=self.x - other.x, y=self.y - other.y, z=self.z - other.z)
         else:
-            return Vector3(x=self.x - other, y=self.y - other, z=self.z - other)
+            return Vector3f(x=self.x - other, y=self.y - other, z=self.z - other)
 
-    def __mul__(self, other: "Vector3 | float") -> "Vector3":
-        if isinstance(other, Vector3):
-            return Vector3(x=self.x * other.x, y=self.y * other.y, z=self.z * other.z)
+    def __mul__(self, other: "Vector3f | float") -> "Vector3f":
+        if isinstance(other, Vector3f):
+            return Vector3f(x=self.x * other.x, y=self.y * other.y, z=self.z * other.z)
         else:
-            return Vector3(x=self.x * other, y=self.y * other, z=self.z * other)
+            return Vector3f(x=self.x * other, y=self.y * other, z=self.z * other)
 
-    def __truediv__(self, other: "Vector3 | float") -> "Vector3":
-        if isinstance(other, Vector3):
-            return Vector3(x=self.x / other.x, y=self.y / other.y, z=self.z / other.z)
+    def __truediv__(self, other: "Vector3f | float") -> "Vector3f":
+        if isinstance(other, Vector3f):
+            return Vector3f(x=self.x / other.x, y=self.y / other.y, z=self.z / other.z)
         else:
-            return Vector3(x=self.x / other, y=self.y / other, z=self.z / other)
+            return Vector3f(x=self.x / other, y=self.y / other, z=self.z / other)
 
-    def __rmul__(self, other: float) -> "Vector3":
-        return Vector3(x=other * self.x, y=other * self.y, z=other * self.z)
+    def __rmul__(self, other: float) -> "Vector3f":
+        return Vector3f(x=other * self.x, y=other * self.y, z=other * self.z)
 
-    def __radd__(self, other: float) -> "Vector3":
-        return Vector3(x=other + self.x, y=other + self.y, z=other + self.z)
+    def __radd__(self, other: float) -> "Vector3f":
+        return Vector3f(x=other + self.x, y=other + self.y, z=other + self.z)
 
-    def __rsub__(self, other: float) -> "Vector3":
-        return Vector3(x=other - self.x, y=other - self.y, z=other - self.z)
+    def __rsub__(self, other: float) -> "Vector3f":
+        return Vector3f(x=other - self.x, y=other - self.y, z=other - self.z)
 
-    def __rtruediv__(self, other: float) -> "Vector3":
-        return Vector3(x=other / self.x, y=other / self.y, z=other / self.z)
+    def __rtruediv__(self, other: float) -> "Vector3f":
+        return Vector3f(x=other / self.x, y=other / self.y, z=other / self.z)
 
-    def __neg__(self) -> "Vector3":
-        return Vector3(x=-self.x, y=-self.y, z=-self.z)
+    def __neg__(self) -> "Vector3f":
+        return Vector3f(x=-self.x, y=-self.y, z=-self.z)
 
-    def __abs__(self) -> "Vector3":
-        return Vector3(x=abs(self.x), y=abs(self.y), z=abs(self.z))
+    def __abs__(self) -> "Vector3f":
+        return Vector3f(x=abs(self.x), y=abs(self.y), z=abs(self.z))
 
-    def dot(self, other: "Vector3") -> float:
+    def dot(self, other: "Vector3f") -> float:
         """Calculate the dot product with another vector."""
         return self.x * other.x + self.y * other.y + self.z * other.z
 
@@ -191,23 +212,23 @@ class Vector3(StructFrozen):
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2 + self.z**2
 
-    def normalize(self) -> "Vector3":
+    def normalize(self) -> "Vector3f":
         """Return a normalized (unit) vector."""
         mag = self.magnitude()
         if mag == 0:
-            return Vector3(x=0.0, y=0.0, z=0.0)
-        return Vector3(x=self.x / mag, y=self.y / mag, z=self.z / mag)
+            return Vector3f(x=0.0, y=0.0, z=0.0)
+        return Vector3f(x=self.x / mag, y=self.y / mag, z=self.z / mag)
 
-    def distance(self, other: "Vector3") -> float:
+    def distance(self, other: "Vector3f") -> float:
         """Calculate the distance to another vector."""
         return (self - other).magnitude()
 
-    def distance2(self, other: "Vector3") -> float:
+    def distance2(self, other: "Vector3f") -> float:
         """Calculate the squared distance to another vector."""
         diff = self - other
         return diff.x**2 + diff.y**2 + diff.z**2
 
-    def angle(self, other: "Vector3") -> float:
+    def angle(self, other: "Vector3f") -> float:
         """Calculate the angle to another vector in radians."""
         import math
 
@@ -217,17 +238,17 @@ class Vector3(StructFrozen):
             return 0.0
         return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
 
-    def lerp(self, other: "Vector3", t: float) -> "Vector3":
+    def lerp(self, other: "Vector3f", t: float) -> "Vector3f":
         """Linear interpolation between this vector and another."""
-        return Vector3(
+        return Vector3f(
             x=self.x + (other.x - self.x) * t,
             y=self.y + (other.y - self.y) * t,
             z=self.z + (other.z - self.z) * t,
         )
 
-    def cross(self, other: "Vector3") -> "Vector3":
+    def cross(self, other: "Vector3f") -> "Vector3f":
         """Calculate the cross product with another vector."""
-        return Vector3(
+        return Vector3f(
             x=self.y * other.z - self.z * other.y,
             y=self.z * other.x - self.x * other.z,
             z=self.x * other.y - self.y * other.x,
@@ -252,8 +273,8 @@ class Vector3(StructFrozen):
         return 3
 
 
-@builtin_struct(StructType.VECTOR4, frozen=True)
-class Vector4(StructFrozen):
+@builtin_struct(StructType.VECTOR4F, frozen=True)
+class Vector4f(Vectorf):
     """A 4D float vector."""
 
     x: float = builtin_property(101, is_repr=True)
@@ -261,57 +282,57 @@ class Vector4(StructFrozen):
     z: float = builtin_property(103, is_repr=True)
     w: float = builtin_property(104, is_repr=True)
 
-    def __add__(self, other: "Vector4 | float") -> "Vector4":
-        if isinstance(other, Vector4):
-            return Vector4(
+    def __add__(self, other: "Vector4f | float") -> "Vector4f":
+        if isinstance(other, Vector4f):
+            return Vector4f(
                 x=self.x + other.x, y=self.y + other.y, z=self.z + other.z, w=self.w + other.w
             )
         else:
-            return Vector4(x=self.x + other, y=self.y + other, z=self.z + other, w=self.w + other)
+            return Vector4f(x=self.x + other, y=self.y + other, z=self.z + other, w=self.w + other)
 
-    def __sub__(self, other: "Vector4 | float") -> "Vector4":
-        if isinstance(other, Vector4):
-            return Vector4(
+    def __sub__(self, other: "Vector4f | float") -> "Vector4f":
+        if isinstance(other, Vector4f):
+            return Vector4f(
                 x=self.x - other.x, y=self.y - other.y, z=self.z - other.z, w=self.w - other.w
             )
         else:
-            return Vector4(x=self.x - other, y=self.y - other, z=self.z - other, w=self.w - other)
+            return Vector4f(x=self.x - other, y=self.y - other, z=self.z - other, w=self.w - other)
 
-    def __mul__(self, other: "Vector4 | float") -> "Vector4":
-        if isinstance(other, Vector4):
-            return Vector4(
+    def __mul__(self, other: "Vector4f | float") -> "Vector4f":
+        if isinstance(other, Vector4f):
+            return Vector4f(
                 x=self.x * other.x, y=self.y * other.y, z=self.z * other.z, w=self.w * other.w
             )
         else:
-            return Vector4(x=self.x * other, y=self.y * other, z=self.z * other, w=self.w * other)
+            return Vector4f(x=self.x * other, y=self.y * other, z=self.z * other, w=self.w * other)
 
-    def __truediv__(self, other: "Vector4 | float") -> "Vector4":
-        if isinstance(other, Vector4):
-            return Vector4(
+    def __truediv__(self, other: "Vector4f | float") -> "Vector4f":
+        if isinstance(other, Vector4f):
+            return Vector4f(
                 x=self.x / other.x, y=self.y / other.y, z=self.z / other.z, w=self.w / other.w
             )
         else:
-            return Vector4(x=self.x / other, y=self.y / other, z=self.z / other, w=self.w / other)
+            return Vector4f(x=self.x / other, y=self.y / other, z=self.z / other, w=self.w / other)
 
-    def __rmul__(self, other: float) -> "Vector4":
-        return Vector4(x=other * self.x, y=other * self.y, z=other * self.z, w=other * self.w)
+    def __rmul__(self, other: float) -> "Vector4f":
+        return Vector4f(x=other * self.x, y=other * self.y, z=other * self.z, w=other * self.w)
 
-    def __radd__(self, other: float) -> "Vector4":
-        return Vector4(x=other + self.x, y=other + self.y, z=other + self.z, w=other + self.w)
+    def __radd__(self, other: float) -> "Vector4f":
+        return Vector4f(x=other + self.x, y=other + self.y, z=other + self.z, w=other + self.w)
 
-    def __rsub__(self, other: float) -> "Vector4":
-        return Vector4(x=other - self.x, y=other - self.y, z=other - self.z, w=other - self.w)
+    def __rsub__(self, other: float) -> "Vector4f":
+        return Vector4f(x=other - self.x, y=other - self.y, z=other - self.z, w=other - self.w)
 
-    def __rtruediv__(self, other: float) -> "Vector4":
-        return Vector4(x=other / self.x, y=other / self.y, z=other / self.z, w=other / self.w)
+    def __rtruediv__(self, other: float) -> "Vector4f":
+        return Vector4f(x=other / self.x, y=other / self.y, z=other / self.z, w=other / self.w)
 
-    def __neg__(self) -> "Vector4":
-        return Vector4(x=-self.x, y=-self.y, z=-self.z, w=-self.w)
+    def __neg__(self) -> "Vector4f":
+        return Vector4f(x=-self.x, y=-self.y, z=-self.z, w=-self.w)
 
-    def __abs__(self) -> "Vector4":
-        return Vector4(x=abs(self.x), y=abs(self.y), z=abs(self.z), w=abs(self.w))
+    def __abs__(self) -> "Vector4f":
+        return Vector4f(x=abs(self.x), y=abs(self.y), z=abs(self.z), w=abs(self.w))
 
-    def dot(self, other: "Vector4") -> float:
+    def dot(self, other: "Vector4f") -> float:
         """Calculate the dot product with another vector."""
         return self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
 
@@ -323,23 +344,23 @@ class Vector4(StructFrozen):
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2 + self.z**2 + self.w**2
 
-    def normalize(self) -> "Vector4":
+    def normalize(self) -> "Vector4f":
         """Return a normalized (unit) vector."""
         mag = self.magnitude()
         if mag == 0:
-            return Vector4(x=0.0, y=0.0, z=0.0, w=0.0)
-        return Vector4(x=self.x / mag, y=self.y / mag, z=self.z / mag, w=self.w / mag)
+            return Vector4f(x=0.0, y=0.0, z=0.0, w=0.0)
+        return Vector4f(x=self.x / mag, y=self.y / mag, z=self.z / mag, w=self.w / mag)
 
-    def distance(self, other: "Vector4") -> float:
+    def distance(self, other: "Vector4f") -> float:
         """Calculate the distance to another vector."""
         return (self - other).magnitude()
 
-    def distance2(self, other: "Vector4") -> float:
+    def distance2(self, other: "Vector4f") -> float:
         """Calculate the squared distance to another vector."""
         diff = self - other
         return diff.x**2 + diff.y**2 + diff.z**2 + diff.w**2
 
-    def angle(self, other: "Vector4") -> float:
+    def angle(self, other: "Vector4f") -> float:
         """Calculate the angle to another vector in radians."""
         import math
 
@@ -349,9 +370,9 @@ class Vector4(StructFrozen):
             return 0.0
         return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
 
-    def lerp(self, other: "Vector4", t: float) -> "Vector4":
+    def lerp(self, other: "Vector4f", t: float) -> "Vector4f":
         """Linear interpolation between this vector and another."""
-        return Vector4(
+        return Vector4f(
             x=self.x + (other.x - self.x) * t,
             y=self.y + (other.y - self.y) * t,
             z=self.z + (other.z - self.z) * t,
@@ -381,7 +402,7 @@ class Vector4(StructFrozen):
 
 
 @builtin_struct(StructType.VECTOR2I, frozen=True)
-class Vector2i(StructFrozen):
+class Vector2i(Vectori):
     """A 2D integer vector."""
 
     x: int = builtin_property(101, is_repr=True)
@@ -441,12 +462,12 @@ class Vector2i(StructFrozen):
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2
 
-    def normalize(self) -> "Vector2":
+    def normalize(self) -> "Vector2f":
         """Return a normalized (unit) vector as float vector."""
         mag = self.magnitude()
         if mag == 0:
-            return Vector2(x=0.0, y=0.0)
-        return Vector2(x=self.x / mag, y=self.y / mag)
+            return Vector2f(x=0.0, y=0.0)
+        return Vector2f(x=self.x / mag, y=self.y / mag)
 
     def distance(self, other: "Vector2i") -> float:
         """Calculate the distance to another vector."""
@@ -463,11 +484,11 @@ class Vector2i(StructFrozen):
 
         return math.atan2(other.y - self.y, other.x - self.x)
 
-    def lerp(self, other: "Vector2i", t: float) -> "Vector2":
+    def lerp(self, other: "Vector2i", t: float) -> "Vector2f":
         """Linear interpolation between this vector and another as float vector."""
-        return Vector2(x=self.x + (other.x - self.x) * t, y=self.y + (other.y - self.y) * t)
+        return Vector2f(x=self.x + (other.x - self.x) * t, y=self.y + (other.y - self.y) * t)
 
-    def rot_with(self, center: "Vector2i", angle: float) -> "Vector2":
+    def rot_with(self, center: "Vector2i", angle: float) -> "Vector2f":
         """Rotate this vector around another point by the given angle as float vector."""
         import math
 
@@ -475,7 +496,7 @@ class Vector2i(StructFrozen):
         y = self.y - center.y
         s = math.sin(angle)
         c = math.cos(angle)
-        return Vector2(x=center.x + (x * c - y * s), y=center.y + (x * s + y * c))
+        return Vector2f(x=center.x + (x * c - y * s), y=center.y + (x * s + y * c))
 
     def __iter__(self) -> Iterator[int]:
         yield self.x
@@ -494,7 +515,7 @@ class Vector2i(StructFrozen):
 
 
 @builtin_struct(StructType.VECTOR3I, frozen=True)
-class Vector3i(StructFrozen):
+class Vector3i(Vectori):
     """A 3D integer vector."""
 
     x: int = builtin_property(101, is_repr=True)
@@ -555,12 +576,12 @@ class Vector3i(StructFrozen):
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2 + self.z**2
 
-    def normalize(self) -> "Vector3":
+    def normalize(self) -> "Vector3f":
         """Return a normalized (unit) vector as float vector."""
         mag = self.magnitude()
         if mag == 0:
-            return Vector3(x=0.0, y=0.0, z=0.0)
-        return Vector3(x=self.x / mag, y=self.y / mag, z=self.z / mag)
+            return Vector3f(x=0.0, y=0.0, z=0.0)
+        return Vector3f(x=self.x / mag, y=self.y / mag, z=self.z / mag)
 
     def distance(self, other: "Vector3i") -> float:
         """Calculate the distance to another vector."""
@@ -581,9 +602,9 @@ class Vector3i(StructFrozen):
             return 0.0
         return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
 
-    def lerp(self, other: "Vector3i", t: float) -> "Vector3":
+    def lerp(self, other: "Vector3i", t: float) -> "Vector3f":
         """Linear interpolation between this vector and another as float vector."""
-        return Vector3(
+        return Vector3f(
             x=self.x + (other.x - self.x) * t,
             y=self.y + (other.y - self.y) * t,
             z=self.z + (other.z - self.z) * t,
@@ -617,7 +638,7 @@ class Vector3i(StructFrozen):
 
 
 @builtin_struct(StructType.VECTOR4I, frozen=True)
-class Vector4i(StructFrozen):
+class Vector4i(Vectori):
     """A 4D integer vector."""
 
     x: int = builtin_property(101, is_repr=True)
@@ -689,12 +710,12 @@ class Vector4i(StructFrozen):
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2 + self.z**2 + self.w**2
 
-    def normalize(self) -> "Vector4":
+    def normalize(self) -> "Vector4f":
         """Return a normalized (unit) vector as float vector."""
         mag = self.magnitude()
         if mag == 0:
-            return Vector4(x=0.0, y=0.0, z=0.0, w=0.0)
-        return Vector4(x=self.x / mag, y=self.y / mag, z=self.z / mag, w=self.w / mag)
+            return Vector4f(x=0.0, y=0.0, z=0.0, w=0.0)
+        return Vector4f(x=self.x / mag, y=self.y / mag, z=self.z / mag, w=self.w / mag)
 
     def distance(self, other: "Vector4i") -> float:
         """Calculate the distance to another vector."""
@@ -715,9 +736,9 @@ class Vector4i(StructFrozen):
             return 0.0
         return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
 
-    def lerp(self, other: "Vector4i", t: float) -> "Vector4":
+    def lerp(self, other: "Vector4i", t: float) -> "Vector4f":
         """Linear interpolation between this vector and another as float vector."""
-        return Vector4(
+        return Vector4f(
             x=self.x + (other.x - self.x) * t,
             y=self.y + (other.y - self.y) * t,
             z=self.z + (other.z - self.z) * t,
@@ -746,16 +767,16 @@ class Vector4i(StructFrozen):
         return 4
 
 
-def vector2(x: float, y: float) -> "Vector2":
-    return Vector2(x=float(x), y=float(y))
+def vector2(x: float, y: float) -> "Vector2f":
+    return Vector2f(x=float(x), y=float(y))
 
 
-def vector3(x: float, y: float, z: float) -> "Vector3":
-    return Vector3(x=float(x), y=float(y), z=float(z))
+def vector3(x: float, y: float, z: float) -> "Vector3f":
+    return Vector3f(x=float(x), y=float(y), z=float(z))
 
 
-def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
-    return Vector4(x=float(x), y=float(y), z=float(z), w=float(w))
+def vector4(x: float, y: float, z: float, w: float) -> "Vector4f":
+    return Vector4f(x=float(x), y=float(y), z=float(z), w=float(w))
 
 
 def vector2i(x: int, y: int) -> "Vector2i":

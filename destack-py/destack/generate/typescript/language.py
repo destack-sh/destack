@@ -1050,7 +1050,10 @@ def _generate_struct(definition: StructDefinition) -> str:
     proto_str = generate_object_proto(struct_cls)
     struct_parts.append(proto_str)
 
-    extends_str = f" extends {'StructFrozen' if definition.is_frozen else 'Struct'}"
+    base_cls_name = (
+        STRUCT_CLASS_BY_TYPE[definition.base_type].__name__ if definition.base_type else "Struct"
+    )
+    extends_str = f" extends {base_cls_name}"
     generic_str = " <T extends Node = Node>" if definition.name == "Query" else ""
     struct_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}

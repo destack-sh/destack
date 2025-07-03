@@ -30,7 +30,7 @@ import {
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:400 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:600 ==== */
 /**
  * A generic Value of any Type.
  */
@@ -46,11 +46,11 @@ export class Value extends StructFrozen {
   /**
    * Value.value
    */
-  readonly value: any;
+  readonly value: any | null;
 
   constructor(options: {
     type: Type;
-    value: any;
+    value?: any | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -71,10 +71,7 @@ export class Value extends StructFrozen {
       throw new Error(`Value.type is required`);
     }
     this.type = _type;
-    let _value = options.value;
-    if (_value === null) {
-      throw new Error(`Value.value is required`);
-    }
+    let _value = options.value ?? null;
     this.value = _value;
 
     // identity
@@ -119,7 +116,9 @@ export class Value extends StructFrozen {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type.hash()) & 0xffffffff;
-    h = (h * 31 + hashString(JSON.stringify(this.value))) & 0xffffffff;
+    if (this.value !== null) {
+      h = (h * 31 + hashString(JSON.stringify(this.value))) & 0xffffffff;
+    }
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -140,9 +139,11 @@ export class Value extends StructFrozen {
 
   static __packValue__(object: Value): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 400;
+    objectValue["1"] = 600;
     objectValue["100"] = object.type.toValue();
-    objectValue["110"] = object.value;
+    if (object.value != null) {
+      objectValue["110"] = object.value;
+    }
     return objectValue;
   }
 
@@ -154,9 +155,11 @@ export class Value extends StructFrozen {
     _connection?: any | null,
   ): Value {
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
+    const valueValue = objectValue["110"];
+    const unpackedValue = valueValue != undefined ? valueValue : null;
     return new Value({
       type: _Type.fromValue(objectValue["100"], _session, _supergraph, _graph, _connection),
-      value: objectValue["110"],
+      value: unpackedValue,
       _value: objectValue,
       _supergraph,
     });
@@ -181,9 +184,11 @@ export class Value extends StructFrozen {
   }
 
   static __packProto__(object: Value): ValueProto {
-    const objectProto: Partial<ValueProto> = { metatype: 400 };
+    const objectProto: Partial<ValueProto> = { metatype: 600 };
     objectProto.type = object.type.toProto();
-    objectProto.value = packProtoJson(object.value);
+    if (object.value != null) {
+      objectProto.value = packProtoJson(object.value);
+    }
     return objectProto as ValueProto;
   }
 
@@ -197,7 +202,7 @@ export class Value extends StructFrozen {
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     return new Value({
       type: _Type.fromProto(objectProto.type!, _session, _supergraph, _graph, _connection),
-      value: unpackProtoJson(objectProto.value!),
+      value: objectProto.value != undefined ? unpackProtoJson(objectProto.value!) : null,
       _proto: objectProto,
       _supergraph,
     });
@@ -234,7 +239,7 @@ export class Value extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VALUE, Value);
-/* ==== DESTACK_GENERATED_END:STRUCT:400 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:600 ==== */
 
 /**
  * Convert an arbitrary (legal) value to a Value.

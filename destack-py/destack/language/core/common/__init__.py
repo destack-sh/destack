@@ -1,3 +1,14 @@
+from .definition import (
+    BuiltinDefinition,
+    BuiltinObjectDefinition,
+    ConstantDefinition,
+    EnumDefinition,
+    NodeDefinition,
+    OptionDefinition,
+    PropertyDefinition,
+    StructDefinition,
+    TraitDefinition,
+)
 from .edit import (
     CASCADING_EDIT_TYPES,
     Change,
@@ -11,15 +22,6 @@ from .edit import (
 )
 from .enum import CustomEnumDefinition, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .meta import (
-    ConstantDefinition,
-    EnumDefinition,
-    NodeDefinition,
-    OptionDefinition,
-    PropertyDefinition,
-    StructDefinition,
-    TraitDefinition,
-)
 from .metric import (
     CounterMeasurementEvent,
     CounterMetric,
@@ -82,11 +84,11 @@ from .type import (
 from .validation import ValidationError
 from .value import Value, pack_value, to_value, unpack_value
 from .vector import (
-    Vector2,
+    Vector2f,
     Vector2i,
-    Vector3,
+    Vector3f,
     Vector3i,
-    Vector4,
+    Vector4f,
     Vector4i,
     vector2,
     vector2i,
@@ -122,6 +124,8 @@ __all__ = [
     "Align",
     "Axis2",
     "Axis3",
+    "BuiltinDefinition",
+    "BuiltinObjectDefinition",
     "Change",
     "ChangeDebounce",
     "ChangeResult",
@@ -203,11 +207,11 @@ __all__ = [
     "Type",
     "ValidationError",
     "Value",
-    "Vector2",
+    "Vector2f",
     "Vector2i",
-    "Vector3",
+    "Vector3f",
     "Vector3i",
-    "Vector4",
+    "Vector4f",
     "Vector4i",
     "icon",
     "markdown_to_text",

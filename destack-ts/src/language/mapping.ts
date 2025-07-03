@@ -126,6 +126,18 @@ import type {
   JoinablePermission,
 } from "@destack/language/core/builtin/trait";
 import type {
+  BuiltinDefinition,
+  BuiltinObjectDefinition,
+  ConstantDefinition,
+  EnumDefinition,
+  NodeDefinition,
+  OptionDefinition,
+  PermissionDefinition,
+  PropertyDefinition,
+  StructDefinition,
+  TraitDefinition,
+} from "@destack/language/core/common/definition";
+import type {
   Change,
   ChangeDebounce,
   ChangeResult,
@@ -137,16 +149,6 @@ import type {
 } from "@destack/language/core/common/edit";
 import type { CustomEnumDefinition, CustomOption } from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
-import type {
-  ConstantDefinition,
-  EnumDefinition,
-  NodeDefinition,
-  OptionDefinition,
-  PermissionDefinition,
-  PropertyDefinition,
-  StructDefinition,
-  TraitDefinition,
-} from "@destack/language/core/common/meta";
 import type {
   CounterMeasurementEvent,
   CounterMetric,
@@ -193,12 +195,15 @@ import type {
 } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
 import type {
-  Vector2,
+  Vector,
+  Vector2f,
   Vector2i,
-  Vector3,
+  Vector3f,
   Vector3i,
-  Vector4,
+  Vector4f,
   Vector4i,
+  Vectorf,
+  Vectori,
 } from "@destack/language/core/common/vector";
 import type {
   Align,
@@ -648,12 +653,9 @@ export type StructTypeMapping = {
   [StructType.STRUCT_DEFINITION_REFERENCE]: StructDefinitionReference;
   [StructType.PROPERTY_REFERENCE]: PropertyReference;
   [StructType.NODE_REFERENCE]: NodeReference;
-  [StructType.EDIT]: Edit;
-  [StructType.ORIGIN]: Origin;
-  [StructType.CHANGE]: Change;
-  [StructType.CHANGE_RESULT]: ChangeResult;
-  [StructType.ICON]: Icon;
+  [StructType.BUILTIN_DEFINITION]: BuiltinDefinition;
   [StructType.PROPERTY_DEFINITION]: PropertyDefinition;
+  [StructType.BUILTIN_OBJECT_DEFINITION]: BuiltinObjectDefinition;
   [StructType.TRAIT_DEFINITION]: TraitDefinition;
   [StructType.NODE_DEFINITION]: NodeDefinition;
   [StructType.STRUCT_DEFINITION]: StructDefinition;
@@ -661,6 +663,11 @@ export type StructTypeMapping = {
   [StructType.OPTION_DEFINITION]: OptionDefinition;
   [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
   [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
+  [StructType.EDIT]: Edit;
+  [StructType.ORIGIN]: Origin;
+  [StructType.CHANGE]: Change;
+  [StructType.CHANGE_RESULT]: ChangeResult;
+  [StructType.ICON]: Icon;
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
   [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
@@ -683,9 +690,12 @@ export type StructTypeMapping = {
   [StructType.CUSTOM_STRUCT]: CustomStruct;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;
-  [StructType.VECTOR2]: Vector2;
-  [StructType.VECTOR3]: Vector3;
-  [StructType.VECTOR4]: Vector4;
+  [StructType.VECTOR]: Vector;
+  [StructType.VECTORF]: Vectorf;
+  [StructType.VECTORI]: Vectori;
+  [StructType.VECTOR2F]: Vector2f;
+  [StructType.VECTOR3F]: Vector3f;
+  [StructType.VECTOR4F]: Vector4f;
   [StructType.VECTOR2I]: Vector2i;
   [StructType.VECTOR3I]: Vector3i;
   [StructType.VECTOR4I]: Vector4i;

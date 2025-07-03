@@ -8,7 +8,7 @@ import type {
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
 import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
-import type { PropertyDefinition } from "@destack/language/core/common/meta";
+import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";
@@ -49,7 +49,7 @@ import { assertNever } from "@destack/utils/functools";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { v4 as uuid4 } from "uuid";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:301 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:501 ==== */
 /**
  * Function
  */
@@ -180,7 +180,7 @@ export class Function extends StructFrozen {
 
   static __packValue__(object: Function): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 301;
+    objectValue["1"] = 501;
     objectValue["100"] = object.type;
     objectValue["101"] = object.left.toValue();
     if (object.right != null) {
@@ -230,7 +230,7 @@ export class Function extends StructFrozen {
   }
 
   static __packProto__(object: Function): FunctionProto {
-    const objectProto: Partial<FunctionProto> = { metatype: 301 };
+    const objectProto: Partial<FunctionProto> = { metatype: 501 };
     objectProto.type = Number(object.type) as FunctionTypeProto;
     objectProto.left = object.left.toProto();
     if (object.right != null) {
@@ -285,9 +285,9 @@ export class Function extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.FUNCTION, Function);
-/* ==== DESTACK_GENERATED_END:STRUCT:301 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:501 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:304 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:504 ==== */
 /**
  * Boolean predicate (AND, =, <, etc.).
  */
@@ -418,7 +418,7 @@ export class Condition extends StructFrozen {
 
   static __packValue__(object: Condition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 304;
+    objectValue["1"] = 504;
     objectValue["100"] = object.type;
     objectValue["101"] = object.left.toValue();
     if (object.right != null) {
@@ -468,7 +468,7 @@ export class Condition extends StructFrozen {
   }
 
   static __packProto__(object: Condition): ConditionProto {
-    const objectProto: Partial<ConditionProto> = { metatype: 304 };
+    const objectProto: Partial<ConditionProto> = { metatype: 504 };
     objectProto.type = Number(object.type) as ConditionalTypeProto;
     objectProto.left = object.left.toProto();
     if (object.right != null) {
@@ -529,9 +529,9 @@ export class Condition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CONDITION, Condition);
-/* ==== DESTACK_GENERATED_END:STRUCT:304 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:504 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:303 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:503 ==== */
 /**
  * Aggregation.
  */
@@ -646,7 +646,7 @@ export class Aggregation extends StructFrozen {
 
   static __packValue__(object: Aggregation): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 303;
+    objectValue["1"] = 503;
     objectValue["100"] = object.type;
     if (object.expression != null) {
       objectValue["101"] = object.expression.toValue();
@@ -694,7 +694,7 @@ export class Aggregation extends StructFrozen {
   }
 
   static __packProto__(object: Aggregation): AggregationProto {
-    const objectProto: Partial<AggregationProto> = { metatype: 303 };
+    const objectProto: Partial<AggregationProto> = { metatype: 503 };
     objectProto.type = Number(object.type) as AggregationTypeProto;
     if (object.expression != null) {
       objectProto.expression = object.expression.toProto();
@@ -753,9 +753,9 @@ export class Aggregation extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AGGREGATION, Aggregation);
-/* ==== DESTACK_GENERATED_END:STRUCT:303 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:503 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:300 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:500 ==== */
 /**
  * Wrapper to unify any scalar / boolean / aggregate sub-tree.
  */
@@ -950,7 +950,7 @@ export class Expression extends StructFrozen {
 
   static __packValue__(object: Expression): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 300;
+    objectValue["1"] = 500;
     objectValue["100"] = object.type;
     if (object.literal != null) {
       objectValue["101"] = object.literal.toValue();
@@ -1040,7 +1040,7 @@ export class Expression extends StructFrozen {
   }
 
   static __packProto__(object: Expression): ExpressionProto {
-    const objectProto: Partial<ExpressionProto> = { metatype: 300 };
+    const objectProto: Partial<ExpressionProto> = { metatype: 500 };
     objectProto.type = Number(object.type) as ExpressionTypeProto;
     if (object.literal != null) {
       objectProto.literal = object.literal.toProto();
@@ -1163,7 +1163,7 @@ export class Expression extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EXPRESSION, Expression);
-/* ==== DESTACK_GENERATED_END:STRUCT:300 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:500 ==== */
 
 export type ExpressionIn =
   | Value
@@ -1175,7 +1175,7 @@ export type ExpressionIn =
   | Aggregation
   | Expression;
 
-/* ==== DESTACK_GENERATED_START:STRUCT:305 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:505 ==== */
 /**
  * ORDER BY specification.
  */
@@ -1303,7 +1303,7 @@ export class Sort extends StructFrozen {
 
   static __packValue__(object: Sort): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 305;
+    objectValue["1"] = 505;
     objectValue["100"] = object.type;
     objectValue["101"] = object.by.toValue();
     if (object.mode != null) {
@@ -1350,7 +1350,7 @@ export class Sort extends StructFrozen {
   }
 
   static __packProto__(object: Sort): SortProto {
-    const objectProto: Partial<SortProto> = { metatype: 305 };
+    const objectProto: Partial<SortProto> = { metatype: 505 };
     objectProto.type = Number(object.type) as SortTypeProto;
     objectProto.by = object.by.toProto();
     if (object.mode != null) {
@@ -1402,9 +1402,9 @@ export class Sort extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SORT, Sort);
-/* ==== DESTACK_GENERATED_END:STRUCT:305 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:505 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:306 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:506 ==== */
 /**
  * Select specific Attributes.
  */
@@ -1515,7 +1515,7 @@ export class Select extends StructFrozen {
 
   static __packValue__(object: Select): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 306;
+    objectValue["1"] = 506;
     if (object.attributes.length > 0) {
       const packedAttributes: any[] = [];
       for (const item of object.attributes) {
@@ -1570,7 +1570,7 @@ export class Select extends StructFrozen {
   }
 
   static __packProto__(object: Select): SelectProto {
-    const objectProto: Partial<SelectProto> = { metatype: 306 };
+    const objectProto: Partial<SelectProto> = { metatype: 506 };
     if (object.attributes) {
       const packedAttributes: any[] = [];
       for (const item of object.attributes) {
@@ -1637,9 +1637,9 @@ export class Select extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SELECT, Select);
-/* ==== DESTACK_GENERATED_END:STRUCT:306 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:506 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:302 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:502 ==== */
 /**
  * Join a Query with another Query.
  */
@@ -1810,7 +1810,7 @@ export class Join extends StructFrozen {
 
   static __packValue__(object: Join): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 302;
+    objectValue["1"] = 502;
     objectValue["100"] = object.type;
     if (object.definition != null) {
       objectValue["101"] = object.definition.toValue();
@@ -1884,7 +1884,7 @@ export class Join extends StructFrozen {
   }
 
   static __packProto__(object: Join): JoinProto {
-    const objectProto: Partial<JoinProto> = { metatype: 302 };
+    const objectProto: Partial<JoinProto> = { metatype: 502 };
     objectProto.type = Number(object.type) as JoinTypeProto;
     if (object.definition != null) {
       objectProto.definition = object.definition.toProto();
@@ -1979,9 +1979,9 @@ export class Join extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.JOIN, Join);
-/* ==== DESTACK_GENERATED_END:STRUCT:302 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:502 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:310 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:553 ==== */
 /**
  * An update to a QueryResult.
  */
@@ -2096,7 +2096,7 @@ export class QueryUpdate extends StructFrozen {
 
   static __packValue__(object: QueryUpdate): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 310;
+    objectValue["1"] = 553;
     objectValue["100"] = object.type;
     if (object.result != null) {
       objectValue["101"] = object.result.toValue();
@@ -2144,7 +2144,7 @@ export class QueryUpdate extends StructFrozen {
   }
 
   static __packProto__(object: QueryUpdate): QueryUpdateProto {
-    const objectProto: Partial<QueryUpdateProto> = { metatype: 310 };
+    const objectProto: Partial<QueryUpdateProto> = { metatype: 553 };
     objectProto.type = Number(object.type) as QueryUpdateTypeProto;
     if (object.result != null) {
       objectProto.result = object.result.toProto();
@@ -2192,9 +2192,9 @@ export class QueryUpdate extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
-/* ==== DESTACK_GENERATED_END:STRUCT:310 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:553 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:307 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:550 ==== */
 /**
  * A GraphQL-inspired Query node (with subqueries).
  */
@@ -2554,7 +2554,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
 
   static __packValue__(object: Query): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 307;
+    objectValue["1"] = 550;
     objectValue["2"] = String(object.id);
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -2715,7 +2715,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
   }
 
   static __packProto__(object: Query): QueryProto {
-    const objectProto: Partial<QueryProto> = { metatype: 307 };
+    const objectProto: Partial<QueryProto> = { metatype: 550 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
     objectProto.name = object.name;
@@ -2939,9 +2939,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY, Query);
-/* ==== DESTACK_GENERATED_END:STRUCT:307 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:550 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:308 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:551 ==== */
 /**
  * The result of a Query.
  * For grouped queries, group results are in Query.groups.
@@ -3162,7 +3162,7 @@ export class QueryResult extends Struct {
 
   static __packValue__(object: QueryResult): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 308;
+    objectValue["1"] = 551;
     objectValue["2"] = String(object.id);
     objectValue["100"] = object.type;
     if (object.groups.length > 0) {
@@ -3269,7 +3269,7 @@ export class QueryResult extends Struct {
   }
 
   static __packProto__(object: QueryResult): QueryResultProto {
-    const objectProto: Partial<QueryResultProto> = { metatype: 308 };
+    const objectProto: Partial<QueryResultProto> = { metatype: 551 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
     if (object.groups) {
@@ -3376,9 +3376,9 @@ export class QueryResult extends Struct {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_RESULT, QueryResult);
-/* ==== DESTACK_GENERATED_END:STRUCT:308 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:551 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:309 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:552 ==== */
 /**
  * A group in a QueryResult.
  */
@@ -3542,7 +3542,7 @@ export class QueryResultGroup extends Struct {
 
   static __packValue__(object: QueryResultGroup): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 309;
+    objectValue["1"] = 552;
     objectValue["100"] = object.type;
     objectValue["101"] = object.discriminator.toValue();
     if (object.nodes.length > 0) {
@@ -3625,7 +3625,7 @@ export class QueryResultGroup extends Struct {
   }
 
   static __packProto__(object: QueryResultGroup): QueryResultGroupProto {
-    const objectProto: Partial<QueryResultGroupProto> = { metatype: 309 };
+    const objectProto: Partial<QueryResultGroupProto> = { metatype: 552 };
     objectProto.type = Number(object.type) as QueryTypeProto;
     objectProto.discriminator = object.discriminator.toProto();
     if (object.nodes) {
@@ -3708,9 +3708,9 @@ export class QueryResultGroup extends Struct {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_RESULT_GROUP, QueryResultGroup);
-/* ==== DESTACK_GENERATED_END:STRUCT:309 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:552 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:312 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:555 ==== */
 /**
  * A selection of fields from a Node.
  */
@@ -3784,7 +3784,7 @@ export class Selection extends StructFrozen {
 
   static __packValue__(object: Selection): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 312;
+    objectValue["1"] = 555;
     return objectValue;
   }
 
@@ -3820,7 +3820,7 @@ export class Selection extends StructFrozen {
   }
 
   static __packProto__(object: Selection): SelectionProto {
-    const objectProto: Partial<SelectionProto> = { metatype: 312 };
+    const objectProto: Partial<SelectionProto> = { metatype: 555 };
     return objectProto as SelectionProto;
   }
 
@@ -3858,9 +3858,9 @@ export class Selection extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SELECTION, Selection);
-/* ==== DESTACK_GENERATED_END:STRUCT:312 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:555 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:311 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:554 ==== */
 /**
  * A histogram.
  */
@@ -3998,7 +3998,7 @@ export class Histogram extends StructFrozen {
 
   static __packValue__(object: Histogram): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 311;
+    objectValue["1"] = 554;
     if (object.buckets.length > 0) {
       const packedBuckets: any[] = [];
       for (const item of object.buckets) {
@@ -4063,7 +4063,7 @@ export class Histogram extends StructFrozen {
   }
 
   static __packProto__(object: Histogram): HistogramProto {
-    const objectProto: Partial<HistogramProto> = { metatype: 311 };
+    const objectProto: Partial<HistogramProto> = { metatype: 554 };
     if (object.buckets) {
       const packedBuckets: any[] = [];
       for (const item of object.buckets) {
@@ -4130,7 +4130,7 @@ export class Histogram extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.HISTOGRAM, Histogram);
-/* ==== DESTACK_GENERATED_END:STRUCT:311 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:554 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:10108 ==== */
 /**

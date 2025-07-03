@@ -4,7 +4,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    Vector2,
+    Vector2f,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -28,9 +28,9 @@ class Arrow(StructFrozen):
     """An Arrow is a shape that represents an arrow."""
 
     start_type: ArrowHeadType = builtin_property(200)
-    start: Vector2 = builtin_property(201)
+    start: Vector2f = builtin_property(201)
     end_type: ArrowHeadType = builtin_property(210)
-    end: Vector2 = builtin_property(211)
+    end: Vector2f = builtin_property(211)
 
 
 @builtin_node(NodeType.ARROW_SHAPE, pretend_frozen=True)
@@ -39,6 +39,6 @@ class ArrowShape(Shape):
 
     # content
     start_type: ArrowHeadType = builtin_property(200)
-    start: Vector2 = builtin_property(201)
+    start: Vector2f = builtin_property(201)
     end_type: ArrowHeadType = builtin_property(210)
-    end: Vector2 = builtin_property(211)
+    end: Vector2f = builtin_property(211)

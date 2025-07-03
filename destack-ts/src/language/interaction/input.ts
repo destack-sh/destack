@@ -7,7 +7,7 @@ import type {
   Session,
   Snapshot,
   Supergraph,
-  Vector2,
+  Vector2f,
 } from "@destack/language/core";
 import { EnumType, Event, Node, NodeType, StructType } from "@destack/language/core";
 import {
@@ -233,7 +233,7 @@ export abstract class PointerEvent extends InputEvent {
   /**
    * PointerEvent.position
    */
-  declare position: Vector2;
+  declare position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -354,7 +354,7 @@ export class PointerDownEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -394,7 +394,7 @@ export class PointerDownEvent extends PointerEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -652,7 +652,7 @@ export class PointerDownEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerDownEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -679,7 +679,7 @@ export class PointerDownEvent extends PointerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new PointerDownEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -756,9 +756,9 @@ export class PointerDownEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerDownEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new PointerDownEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -940,7 +940,7 @@ export class PointerUpEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -980,7 +980,7 @@ export class PointerUpEvent extends PointerEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -1238,7 +1238,7 @@ export class PointerUpEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerUpEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1265,7 +1265,7 @@ export class PointerUpEvent extends PointerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new PointerUpEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -1336,9 +1336,9 @@ export class PointerUpEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerUpEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new PointerUpEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -1514,7 +1514,7 @@ export class PointerMoveEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -1554,7 +1554,7 @@ export class PointerMoveEvent extends PointerEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -1812,7 +1812,7 @@ export class PointerMoveEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerMoveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1839,7 +1839,7 @@ export class PointerMoveEvent extends PointerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new PointerMoveEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -1916,9 +1916,9 @@ export class PointerMoveEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerMoveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new PointerMoveEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -2100,7 +2100,7 @@ export class PointerEnterEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -2140,7 +2140,7 @@ export class PointerEnterEvent extends PointerEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -2398,7 +2398,7 @@ export class PointerEnterEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerEnterEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -2425,7 +2425,7 @@ export class PointerEnterEvent extends PointerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new PointerEnterEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -2502,9 +2502,9 @@ export class PointerEnterEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerEnterEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new PointerEnterEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -2686,7 +2686,7 @@ export class PointerOverEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -2726,7 +2726,7 @@ export class PointerOverEvent extends PointerEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -2984,7 +2984,7 @@ export class PointerOverEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerOverEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -3011,7 +3011,7 @@ export class PointerOverEvent extends PointerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new PointerOverEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -3088,9 +3088,9 @@ export class PointerOverEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerOverEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new PointerOverEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -3272,7 +3272,7 @@ export class PointerLeaveEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -3312,7 +3312,7 @@ export class PointerLeaveEvent extends PointerEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -3570,7 +3570,7 @@ export class PointerLeaveEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerLeaveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -3597,7 +3597,7 @@ export class PointerLeaveEvent extends PointerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new PointerLeaveEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -3674,9 +3674,9 @@ export class PointerLeaveEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerLeaveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new PointerLeaveEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -3858,7 +3858,7 @@ export class LongPressEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -3898,7 +3898,7 @@ export class LongPressEvent extends PointerEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -4156,7 +4156,7 @@ export class LongPressEvent extends PointerEvent {
     _connection?: any | null,
   ): LongPressEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -4183,7 +4183,7 @@ export class LongPressEvent extends PointerEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new LongPressEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -4254,9 +4254,9 @@ export class LongPressEvent extends PointerEvent {
     _connection?: any | null,
   ): LongPressEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new LongPressEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -4432,7 +4432,7 @@ export abstract class MouseEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  declare position: Vector2;
+  declare position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -4558,7 +4558,7 @@ export abstract class ClickEvent extends MouseEvent {
   /**
    * PointerEvent.position
    */
-  declare position: Vector2;
+  declare position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -4684,7 +4684,7 @@ export class LeftClickEvent extends ClickEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -4729,7 +4729,7 @@ export class LeftClickEvent extends ClickEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -4998,7 +4998,7 @@ export class LeftClickEvent extends ClickEvent {
     _connection?: any | null,
   ): LeftClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -5026,7 +5026,7 @@ export class LeftClickEvent extends ClickEvent {
         : null;
     return new LeftClickEvent({
       button: Number(objectValue["130"]),
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -5098,10 +5098,10 @@ export class LeftClickEvent extends ClickEvent {
     _connection?: any | null,
   ): LeftClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new LeftClickEvent({
       button: Number(objectProto.button) as MouseButton,
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -5277,7 +5277,7 @@ export class RightClickEvent extends ClickEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -5322,7 +5322,7 @@ export class RightClickEvent extends ClickEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -5591,7 +5591,7 @@ export class RightClickEvent extends ClickEvent {
     _connection?: any | null,
   ): RightClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -5619,7 +5619,7 @@ export class RightClickEvent extends ClickEvent {
         : null;
     return new RightClickEvent({
       button: Number(objectValue["130"]),
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -5691,10 +5691,10 @@ export class RightClickEvent extends ClickEvent {
     _connection?: any | null,
   ): RightClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new RightClickEvent({
       button: Number(objectProto.button) as MouseButton,
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -5870,7 +5870,7 @@ export class MiddleClickEvent extends ClickEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -5915,7 +5915,7 @@ export class MiddleClickEvent extends ClickEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -6184,7 +6184,7 @@ export class MiddleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): MiddleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -6212,7 +6212,7 @@ export class MiddleClickEvent extends ClickEvent {
         : null;
     return new MiddleClickEvent({
       button: Number(objectValue["130"]),
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -6290,10 +6290,10 @@ export class MiddleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): MiddleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new MiddleClickEvent({
       button: Number(objectProto.button) as MouseButton,
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -6475,7 +6475,7 @@ export class DoubleClickEvent extends ClickEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -6520,7 +6520,7 @@ export class DoubleClickEvent extends ClickEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -6789,7 +6789,7 @@ export class DoubleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): DoubleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -6817,7 +6817,7 @@ export class DoubleClickEvent extends ClickEvent {
         : null;
     return new DoubleClickEvent({
       button: Number(objectValue["130"]),
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -6895,10 +6895,10 @@ export class DoubleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): DoubleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new DoubleClickEvent({
       button: Number(objectProto.button) as MouseButton,
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -7080,7 +7080,7 @@ export class WheelEvent extends MouseEvent {
   /**
    * PointerEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   /**
    * PointerEvent.pressure
@@ -7120,7 +7120,7 @@ export class WheelEvent extends MouseEvent {
   /**
    * WheelEvent.delta
    */
-  delta: Vector2;
+  delta: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -7130,7 +7130,7 @@ export class WheelEvent extends MouseEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     pressure: number;
     shiftKey: boolean;
     altKey: boolean;
@@ -7138,7 +7138,7 @@ export class WheelEvent extends MouseEvent {
     metaKey: boolean;
     accelKey: boolean;
     button: MouseButton;
-    delta: Vector2;
+    delta: Vector2f;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -7410,7 +7410,7 @@ export class WheelEvent extends MouseEvent {
     _connection?: any | null,
   ): WheelEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -7437,9 +7437,9 @@ export class WheelEvent extends MouseEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new WheelEvent({
-      delta: _Vector2.fromValue(objectValue["140"], _session, _supergraph, _graph, _connection),
+      delta: _Vector2f.fromValue(objectValue["140"], _session, _supergraph, _graph, _connection),
       button: Number(objectValue["130"]),
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["111"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
@@ -7512,11 +7512,11 @@ export class WheelEvent extends MouseEvent {
     _connection?: any | null,
   ): WheelEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new WheelEvent({
-      delta: _Vector2.fromProto(objectProto.delta!, _session, _supergraph, _graph, _connection),
+      delta: _Vector2f.fromProto(objectProto.delta!, _session, _supergraph, _graph, _connection),
       button: Number(objectProto.button) as MouseButton,
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -9511,7 +9511,7 @@ export abstract class DragEvent extends InputEvent {
   /**
    * DragEvent.position
    */
-  declare position: Vector2;
+  declare position: Vector2f;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -9602,7 +9602,7 @@ export class DragStartEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -9612,7 +9612,7 @@ export class DragStartEvent extends DragEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -9804,7 +9804,7 @@ export class DragStartEvent extends DragEvent {
     _connection?: any | null,
   ): DragStartEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -9831,7 +9831,7 @@ export class DragStartEvent extends DragEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new DragStartEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -9890,9 +9890,9 @@ export class DragStartEvent extends DragEvent {
     _connection?: any | null,
   ): DragStartEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new DragStartEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -10062,7 +10062,7 @@ export class DragEndEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -10072,7 +10072,7 @@ export class DragEndEvent extends DragEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -10264,7 +10264,7 @@ export class DragEndEvent extends DragEvent {
     _connection?: any | null,
   ): DragEndEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -10291,7 +10291,7 @@ export class DragEndEvent extends DragEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new DragEndEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -10350,9 +10350,9 @@ export class DragEndEvent extends DragEvent {
     _connection?: any | null,
   ): DragEndEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new DragEndEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -10522,7 +10522,7 @@ export class DragOverEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -10532,7 +10532,7 @@ export class DragOverEvent extends DragEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -10724,7 +10724,7 @@ export class DragOverEvent extends DragEvent {
     _connection?: any | null,
   ): DragOverEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -10751,7 +10751,7 @@ export class DragOverEvent extends DragEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new DragOverEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -10810,9 +10810,9 @@ export class DragOverEvent extends DragEvent {
     _connection?: any | null,
   ): DragOverEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new DragOverEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -10982,7 +10982,7 @@ export class DragEnterEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -10992,7 +10992,7 @@ export class DragEnterEvent extends DragEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -11184,7 +11184,7 @@ export class DragEnterEvent extends DragEvent {
     _connection?: any | null,
   ): DragEnterEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -11211,7 +11211,7 @@ export class DragEnterEvent extends DragEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new DragEnterEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -11270,9 +11270,9 @@ export class DragEnterEvent extends DragEvent {
     _connection?: any | null,
   ): DragEnterEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new DragEnterEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -11442,7 +11442,7 @@ export class DragLeaveEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -11452,7 +11452,7 @@ export class DragLeaveEvent extends DragEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -11644,7 +11644,7 @@ export class DragLeaveEvent extends DragEvent {
     _connection?: any | null,
   ): DragLeaveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -11671,7 +11671,7 @@ export class DragLeaveEvent extends DragEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new DragLeaveEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -11730,9 +11730,9 @@ export class DragLeaveEvent extends DragEvent {
     _connection?: any | null,
   ): DragLeaveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new DragLeaveEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -11902,7 +11902,7 @@ export class DropEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  position: Vector2;
+  position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -11912,7 +11912,7 @@ export class DropEvent extends DragEvent {
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
-    position: Vector2;
+    position: Vector2f;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -12104,7 +12104,7 @@ export class DropEvent extends DragEvent {
     _connection?: any | null,
   ): DropEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -12131,7 +12131,7 @@ export class DropEvent extends DragEvent {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new DropEvent({
-      position: _Vector2.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -12190,9 +12190,9 @@ export class DropEvent extends DragEvent {
     _connection?: any | null,
   ): DropEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new DropEvent({
-      position: _Vector2.fromProto(
+      position: _Vector2f.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
