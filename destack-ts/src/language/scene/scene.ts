@@ -28,6 +28,7 @@ import {
   Distribute,
   Event,
   Layout,
+  Materialization,
   Node,
   NodeType,
   StructType,
@@ -44,6 +45,7 @@ import {
   DirectionProto,
   DistributeProto,
   LayoutProto,
+  MaterializationProto,
   SceneEnteredEventProto,
   SceneExitedEventProto,
   SceneProto,
@@ -952,6 +954,11 @@ export class Scene extends ContainerView implements IsOwnable {
   readonly baseType: NodeDefinitionReference | null;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1198,6 +1205,7 @@ export class Scene extends ContainerView implements IsOwnable {
     space?: Space | NodeReference | null;
     definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
     baseType?: NodeDefinitionReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1281,6 +1289,14 @@ export class Scene extends ContainerView implements IsOwnable {
     this.definitionPtr = _definition;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Scene.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -1773,6 +1789,7 @@ export class Scene extends ContainerView implements IsOwnable {
     if (object.baseType != null) {
       objectValue["7"] = object.baseType.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2112,6 +2129,7 @@ export class Scene extends ContainerView implements IsOwnable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       orderKey: objectValue["27"],
       script: unpackedScriptPtr,
       definition: unpackedDefinitionPtr,
@@ -2153,6 +2171,7 @@ export class Scene extends ContainerView implements IsOwnable {
     if (object.baseType != null) {
       objectProto.baseType = object.baseType.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -2439,6 +2458,7 @@ export class Scene extends ContainerView implements IsOwnable {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined

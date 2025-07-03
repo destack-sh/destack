@@ -39,7 +39,6 @@ class Store(abc.ABC):
     async def query(self, query: "Query") -> "QueryResult":
         """
         Query the Store.
-        Returns a QueryResult.
         """
         ...
 
@@ -47,11 +46,12 @@ class Store(abc.ABC):
     async def commit(self, changes: Sequence["Change"]) -> Sequence["ChangeResult"]:
         """
         Commit the Changes as individual transactions (every Change is atomic by itself).
-        Returns the ChangeResults per Change.
         """
         ...
 
     @abc.abstractmethod
     async def subscribe(self, query: "Query") -> AsyncIterator["QueryUpdate"]:
-        """Subscribe to a Query in the Store."""
+        """
+        Subscribe to a Query in the Store.
+        """
         ...

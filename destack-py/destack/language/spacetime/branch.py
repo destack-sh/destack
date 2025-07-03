@@ -1,6 +1,6 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
-from ..builtin import (
+from destack.language.core import (
     Entity,
     IsDeletable,
     IsOwnable,
@@ -12,24 +12,9 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Icon, Space
+    from destack.language import Icon, Snapshot, Space
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@builtin_node(NodeType.SNAPSHOT)
-class Snapshot(
-    IsSpatial,
-    IsOwnable,
-    IsDeletable,
-    Entity,
-):
-    """A Snapshot is a point in Space time."""
-
-    parent: Union["Space", "Branch", None] = builtin_property_parent(node_is_extensible=False)
-
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
 
 
 @builtin_node(NodeType.BRANCH)

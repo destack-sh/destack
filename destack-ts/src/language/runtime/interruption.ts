@@ -14,7 +14,14 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, EnumType, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  Entity,
+  EnumType,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -29,6 +36,7 @@ import {
   InterruptionResponseProto,
   InterruptionStatusProto,
   InterruptionTypeProto,
+  MaterializationProto,
 } from "@destack/proto";
 import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import { hashFloat, hashString } from "@destack/utils/hash";
@@ -111,6 +119,11 @@ export class Interruption extends Entity implements IsSpatial {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -232,6 +245,7 @@ export class Interruption extends Entity implements IsSpatial {
     id?: string;
     parent?: Run | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -283,6 +297,14 @@ export class Interruption extends Entity implements IsSpatial {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Interruption.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Interruption.type is required`);
@@ -474,6 +496,7 @@ export class Interruption extends Entity implements IsSpatial {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -573,6 +596,7 @@ export class Interruption extends Entity implements IsSpatial {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       _session,
       _graph,
@@ -603,6 +627,7 @@ export class Interruption extends Entity implements IsSpatial {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -725,6 +750,7 @@ export class Interruption extends Entity implements IsSpatial {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       _session,
       _graph,

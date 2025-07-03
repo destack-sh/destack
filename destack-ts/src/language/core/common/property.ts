@@ -3,6 +3,7 @@ import {
   CascadeAction,
   EdgeType,
   EnumType,
+  Materialization,
   NodeType,
   PrimitiveType,
   ScalarType,
@@ -56,6 +57,7 @@ import {
   CustomPropertyTypeProto,
   EdgeTypeProto,
   EnumTypeProto,
+  MaterializationProto,
   NodeTypeProto,
   PrimitiveTypeProto,
   ScalarTypeProto,
@@ -104,6 +106,11 @@ export class CustomProperty
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -329,6 +336,7 @@ export class CustomProperty
       | NodeReference
       | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -407,6 +415,14 @@ export class CustomProperty
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`CustomProperty.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _archivedAt = options.archivedAt ?? null;
     this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
@@ -799,6 +815,7 @@ export class CustomProperty
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1059,6 +1076,7 @@ export class CustomProperty
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
       _session,
@@ -1090,6 +1108,7 @@ export class CustomProperty
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1344,6 +1363,7 @@ export class CustomProperty
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
       _session,

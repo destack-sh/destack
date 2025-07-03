@@ -262,7 +262,7 @@ class IsExtensible(IsCustomizable):
         is_readonly=True,
         description="The definitionthis CustomEntity is an instance of.",
     )
-    base_type: "NodeDefinitionReference | None" = builtin_property(
+    base_type: Union["NodeDefinitionReference", None] = builtin_property(
         7,
         is_readonly=True,
         is_managed=True,
@@ -273,6 +273,11 @@ class IsExtensible(IsCustomizable):
     # base_traits/base_trait_types?
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None
+
+    @property
+    def is_custom(self) -> bool:
+        """Whether this Node is a custom Node."""
+        return self.definition is not None
 
 
 @builtin_trait(TraitType.ORDERED, is_extensible=True)

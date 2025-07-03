@@ -9,12 +9,19 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { ClientType, Entity, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ClientType,
+  Entity,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import type { Machine } from "@destack/language/infra";
 import type { Cursor } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { User } from "@destack/language/space/user";
-import { ClientProto, ClientTypeProto } from "@destack/proto";
+import { ClientProto, ClientTypeProto, MaterializationProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -37,6 +44,11 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -187,6 +199,7 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
   constructor(options: {
     id?: string;
     parent?: (Node & IsSubject) | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -239,6 +252,14 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
       _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Client.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _browserVersion = options.browserVersion ?? null;
@@ -465,6 +486,7 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -599,6 +621,7 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       _session,
       _graph,
@@ -626,6 +649,7 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -760,6 +784,7 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       _session,
       _graph,

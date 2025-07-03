@@ -152,9 +152,7 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
     # Spatial.space: 5
     # IsExtensible.definition: 6
     # IsExtensible.base_type: 7
-    # Entity.materialization: 10
-    # Entity.snapshot/template: 11-14
-    # Entity.set_properties: 15
+    # Entity.[*]: 10-20
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 

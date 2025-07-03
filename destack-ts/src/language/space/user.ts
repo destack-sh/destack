@@ -12,7 +12,14 @@ import type {
   Supergraph,
   Value,
 } from "@destack/language/core";
-import { Entity, EnumType, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  Entity,
+  EnumType,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import type { Cursor } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -21,7 +28,7 @@ import {
 } from "@destack/language/registry";
 import type { Handle } from "@destack/language/space/handle";
 import type { Space } from "@destack/language/space/space";
-import { UserProto, UserStatusProto } from "@destack/proto";
+import { MaterializationProto, UserProto, UserStatusProto } from "@destack/proto";
 import { base64Decode, base64Encode } from "@destack/utils";
 import { hashBool, hashBytes, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -62,6 +69,11 @@ export class User
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -181,6 +193,7 @@ export class User
   constructor(options: {
     id?: string;
     parent?: Node | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -231,6 +244,14 @@ export class User
       _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`User.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
       _customValues = new Map();
@@ -454,6 +475,7 @@ export class User
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -574,6 +596,7 @@ export class User
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       _session,
@@ -602,6 +625,7 @@ export class User
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -722,6 +746,7 @@ export class User
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined

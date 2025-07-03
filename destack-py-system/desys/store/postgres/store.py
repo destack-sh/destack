@@ -42,7 +42,7 @@ logger = structlog.get_logger(__name__)
 
 class PostgresStore(Store):
     """
-    A Store backed by a Postgres Databases.
+    A Store backed by a Postgres Database.
     """
 
     implementation: ClassVar[StoreImplementation | None] = StoreImplementation.POSTGRES

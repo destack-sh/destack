@@ -52,7 +52,7 @@ import type {
   EdgeType,
   EnumType,
   EnvironmentType,
-  MaterializationType,
+  Materialization,
   ModeType,
   NodePermission,
   NodeType,
@@ -82,6 +82,7 @@ import type {
   Metric,
   Record,
   Resource,
+  Snapshot,
 } from "@destack/language/core/builtin/entity";
 import type {
   CustomEventDefinition,
@@ -177,7 +178,6 @@ import type {
   SortMode,
   SortType,
 } from "@destack/language/core/common/query";
-import type { Branch, Snapshot } from "@destack/language/core/common/spacetime";
 import type { CustomStruct, CustomStructDefinition } from "@destack/language/core/common/struct";
 import type { Text, TextSpan, TextSpanType } from "@destack/language/core/common/text";
 import type {
@@ -355,6 +355,7 @@ import type { Organization, OrganizationStatus } from "@destack/language/space/o
 import type { Space, SpaceStatus } from "@destack/language/space/space";
 import type { Team } from "@destack/language/space/team";
 import type { User, UserStatus } from "@destack/language/space/user";
+import type { Branch } from "@destack/language/spacetime/branch";
 import type { Border, BorderStyle, BorderType } from "@destack/language/style/border";
 import type {
   Color,
@@ -439,6 +440,7 @@ export type NodeTypeMapping = {
   [NodeType.RECORD]: Record;
   [NodeType.RESOURCE]: Resource;
   [NodeType.METRIC]: Metric;
+  [NodeType.SNAPSHOT]: Snapshot;
   [NodeType.EVENT]: Event;
   [NodeType.CUSTOM_EVENT_DEFINITION]: CustomEventDefinition;
   [NodeType.SIGNAL]: Signal;
@@ -453,8 +455,6 @@ export type NodeTypeMapping = {
   [NodeType.HISTOGRAM_METRIC]: HistogramMetric;
   [NodeType.HISTOGRAM_MEASUREMENT_EVENT]: HistogramMeasurementEvent;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
-  [NodeType.SNAPSHOT]: Snapshot;
-  [NodeType.BRANCH]: Branch;
   [NodeType.CUSTOM_STRUCT_DEFINITION]: CustomStructDefinition;
   [NodeType.ENTITLEMENT_EVENT]: EntitlementEvent;
   [NodeType.ENTITLEMENT_REQUESTED_EVENT]: EntitlementRequestedEvent;
@@ -601,6 +601,7 @@ export type NodeTypeMapping = {
   [NodeType.SPACE]: Space;
   [NodeType.TEAM]: Team;
   [NodeType.USER]: User;
+  [NodeType.BRANCH]: Branch;
   [NodeType.STYLE]: Style;
   [NodeType.COLOR_STYLE]: ColorStyle;
   [NodeType.BORDER_STYLE]: BorderStyle;
@@ -724,7 +725,7 @@ export type EnumTypeMapping = {
   [EnumType.OPERATING_SYSTEM]: OperatingSystem;
   [EnumType.ENVIRONMENT_TYPE]: EnvironmentType;
   [EnumType.NODE_PERMISSION]: NodePermission;
-  [EnumType.MATERIALIZATION_TYPE]: MaterializationType;
+  [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.MODE_TYPE]: ModeType;
   [EnumType.TOOL_TYPE]: ToolType;
   [EnumType.CLOUD]: Cloud;

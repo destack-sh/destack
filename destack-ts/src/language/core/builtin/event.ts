@@ -1,5 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import { Materialization, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Entity, Metric } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
 import type {
@@ -28,6 +28,7 @@ import {
   EditEventProto,
   EditOperationProto,
   EditTypeProto,
+  MaterializationProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
@@ -142,6 +143,11 @@ export class CustomEventDefinition
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -226,6 +232,7 @@ export class CustomEventDefinition
     id?: string;
     parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -277,6 +284,14 @@ export class CustomEventDefinition
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`CustomEventDefinition.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
       _customValues = new Map();
@@ -495,6 +510,7 @@ export class CustomEventDefinition
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -616,6 +632,7 @@ export class CustomEventDefinition
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       orderKey: objectValue["27"],
@@ -654,6 +671,7 @@ export class CustomEventDefinition
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -781,6 +799,7 @@ export class CustomEventDefinition
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
@@ -828,7 +847,7 @@ export class CustomEventDefinition
 registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
 /* ==== DESTACK_GENERATED_END:NODE:102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
 /**
  * A generic Signal of a CustomEventDefinition.
  * More specific base Event types will be instanced of that base type instead.
@@ -923,9 +942,9 @@ export abstract class Signal extends Event implements IsExtensible {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SIGNAL, Signal);
-/* ==== DESTACK_GENERATED_END:NODE:300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:301 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2001 ==== */
 /**
  * A Event of an Edit. Only EditEvents of Entities are allowed.
  */
@@ -1228,7 +1247,7 @@ export class EditEvent extends Event {
 
   static __packValue__(object: EditEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 301;
+    objectValue["1"] = 2001;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1340,7 +1359,7 @@ export class EditEvent extends Event {
   }
 
   static __packProto__(object: EditEvent): EditEventProto {
-    const objectProto: Partial<EditEventProto> = { metatype: 301 };
+    const objectProto: Partial<EditEventProto> = { metatype: 2001 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1471,9 +1490,9 @@ export class EditEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
-/* ==== DESTACK_GENERATED_END:NODE:301 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:302 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2002 ==== */
 /**
  * An Event that represents a Measurement.
  */
@@ -1557,4 +1576,4 @@ export abstract class MeasurementEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEASUREMENT_EVENT, MeasurementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:302 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2002 ==== */

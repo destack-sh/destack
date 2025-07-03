@@ -26,6 +26,7 @@ import {
   Direction,
   Distribute,
   Layout,
+  Materialization,
   Node,
   NodeType,
   StructFrozen,
@@ -49,6 +50,7 @@ import {
   LayoutProto,
   LineProto,
   LineShapeProto,
+  MaterializationProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
@@ -364,6 +366,11 @@ export class LineShape extends Shape {
   readonly baseType: NodeDefinitionReference | null;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -582,6 +589,7 @@ export class LineShape extends Shape {
     space?: Space | NodeReference | null;
     definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
     baseType?: NodeDefinitionReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -665,6 +673,14 @@ export class LineShape extends Shape {
     this.definitionPtr = _definition;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`LineShape.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -1164,6 +1180,7 @@ export class LineShape extends Shape {
     if (object.baseType != null) {
       objectValue["7"] = object.baseType.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1508,6 +1525,7 @@ export class LineShape extends Shape {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       orderKey: objectValue["27"],
       script: unpackedScriptPtr,
       definition: unpackedDefinitionPtr,
@@ -1550,6 +1568,7 @@ export class LineShape extends Shape {
     if (object.baseType != null) {
       objectProto.baseType = object.baseType.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1831,6 +1850,7 @@ export class LineShape extends Shape {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined

@@ -9,6 +9,7 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  Materialization,
   NodeDefinitionReference,
   NodeReference,
   Position,
@@ -82,6 +83,11 @@ export abstract class View
    * Inlined base type of this extensible Node (if extended).
    */
   declare readonly baseType: NodeDefinitionReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
 
   /**
    * Entity.createdAt

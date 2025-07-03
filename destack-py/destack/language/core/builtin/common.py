@@ -25,7 +25,7 @@ class EnumType(Enum):
     OBJECT_DEFINITION_TYPE = 11
     STRUCT_DEFINITION_TYPE = 12
     PROPERTY_REFERENCE_TYPE = 13
-    MATERIALIZATION_TYPE = 14
+    MATERIALIZATION = 14
     STORE_TYPE = 21
     STORE_IMPLEMENTATION = 22
     PLATFORM_TYPE = 30
@@ -495,9 +495,9 @@ class TraitType(Enum):
 class NodeType(Enum):
     # meta [1-10_000]
     # root
-    NODE = 1, "Node", "Root of all Node types", "fas fa-dot"
-    ENTITY = 2, "Entity", "Is an Entity", "fas fa-dot"
-    EVENT = 3, "Event", "Is an Event", "fas fa-dot"
+    NODE = 1, "Node", "Root of all Nodes", "fas fa-dot"
+    ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
+    EVENT = 3, "Event", "Immutable record of something happening", "fas fa-dot"
     # custom
     CUSTOM_ENTITY_DEFINITION = 100, "Custom Entity Definition", None, "fas fa-table"
     CUSTOM_TRAIT_DEFINITION = 101, "Custom Trait Definition", None, "fas fa-table"
@@ -506,14 +506,15 @@ class NodeType(Enum):
     CUSTOM_ENUM_DEFINITION = 104, "Custom Enum Definition", None, "fas fa-shapes"
     CUSTOM_PROPERTY = 105, "Custom Property", None, "fas fa-triangle"
     CUSTOM_OPTION = 106, "Custom Option", None, "fas fa-circle"
-    # basic
-    RECORD = 200, "Record", "Custom Entity", "fas fa-database"
-    RESOURCE = 201, "Resource", "Is a Resource", "fas fa-dot"
-    METRIC = 202, "Metric", None, "fas fa-gauge"
+    # entity
+    RECORD = 1000, "Record", "Custom Entity", "fas fa-database"
+    RESOURCE = 1100, "Resource", "Is a Resource", "fas fa-dot"
+    METRIC = 1200, "Metric", None, "fas fa-gauge"
+    SNAPSHOT = 1300, "Snapshot", None, "fas fa-save"
     # event
-    SIGNAL = 300, "Signal", "Custom Event", "fas fa-signal"
-    EDIT_EVENT = 301, "Edit Event", None, "fas fa-file-lines"
-    MEASUREMENT_EVENT = 302, "Measurement", None, "fas fa-gauge"
+    SIGNAL = 2000, "Signal", "Custom Event", "fas fa-signal"
+    EDIT_EVENT = 2001, "Edit Event", None, "fas fa-file-lines"
+    MEASUREMENT_EVENT = 2002, "Measurement", None, "fas fa-gauge"
     # CHANGE_EVENT, QUERY_EVENT, ...
 
     # space [10_000-20_000]
@@ -590,8 +591,7 @@ class NodeType(Enum):
     TAGGING = 30_101, "Tagging", None, "fas fa-tag"
 
     # spacetime [40_000-50_000]
-    SNAPSHOT = 40_000, "Snapshot", None, "fas fa-save"
-    BRANCH = 40_100, "Branch", None, "fas fa-code-branch"
+    BRANCH = 40_000, "Branch", None, "fas fa-code-branch"
     # HISTORY, REPLAY, ...
     # FORK, ...
 
@@ -898,11 +898,13 @@ class NodePermission(Enum):
     REMOVE = 12, "Archive, Delete, Erase"
 
 
-@builtin_enum(EnumType.MATERIALIZATION_TYPE)
-class MaterializationType(Enum):
-    PARTIAL_NODE = 1, "Partial Node"
-    PARTIAL_GRAPH = 2, "Full Node, Partial Graph"
-    FULL_GRAPH = 3, "Full"
+@builtin_enum(EnumType.MATERIALIZATION)
+class Materialization(Enum):
+    """The materialization level of an Entity."""
+
+    FRAGMENT = 1, "Partial Node, Partial Graph"
+    SUBGRAPH = 2, "Full Node, Partial Graph"
+    FULL = 3, "Full Node, Full Graph"
 
 
 @builtin_enum(EnumType.MODE_TYPE)

@@ -14,7 +14,15 @@ import type {
   Session,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, EnumType, Node, NodeType, Region, StructType } from "@destack/language/core";
+import {
+  Entity,
+  EnumType,
+  Materialization,
+  Node,
+  NodeType,
+  Region,
+  StructType,
+} from "@destack/language/core";
 import type { Folder } from "@destack/language/folder";
 import type { Database } from "@destack/language/infra";
 import {
@@ -23,7 +31,7 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Handle } from "@destack/language/space/handle";
-import { RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
+import { MaterializationProto, RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -78,6 +86,11 @@ export class Space
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -209,6 +222,7 @@ export class Space
     id?: string;
     parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -262,6 +276,14 @@ export class Space
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Space.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
@@ -472,6 +494,7 @@ export class Space
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -576,6 +599,7 @@ export class Space
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       _session,
@@ -607,6 +631,7 @@ export class Space
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -736,6 +761,7 @@ export class Space
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined

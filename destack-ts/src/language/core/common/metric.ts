@@ -1,5 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import { Materialization, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { Metric } from "@destack/language/core/builtin/entity";
 import { MeasurementEvent } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
@@ -19,6 +19,7 @@ import {
   GaugeMetricProto,
   HistogramMeasurementEventProto,
   HistogramMetricProto,
+  MaterializationProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
@@ -54,6 +55,11 @@ export class GaugeMetric extends Metric {
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
@@ -120,6 +126,7 @@ export class GaugeMetric extends Metric {
     id?: string;
     parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -167,6 +174,14 @@ export class GaugeMetric extends Metric {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`GaugeMetric.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -322,6 +337,7 @@ export class GaugeMetric extends Metric {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -389,6 +405,7 @@ export class GaugeMetric extends Metric {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       orderKey: objectValue["27"],
@@ -421,6 +438,7 @@ export class GaugeMetric extends Metric {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -497,6 +515,7 @@ export class GaugeMetric extends Metric {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
@@ -1012,6 +1031,11 @@ export class CounterMetric extends Metric {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1076,6 +1100,7 @@ export class CounterMetric extends Metric {
     id?: string;
     parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1123,6 +1148,14 @@ export class CounterMetric extends Metric {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`CounterMetric.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -1278,6 +1311,7 @@ export class CounterMetric extends Metric {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1345,6 +1379,7 @@ export class CounterMetric extends Metric {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       orderKey: objectValue["27"],
@@ -1377,6 +1412,7 @@ export class CounterMetric extends Metric {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1453,6 +1489,7 @@ export class CounterMetric extends Metric {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
@@ -1968,6 +2005,11 @@ export class HistogramMetric extends Metric {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -2032,6 +2074,7 @@ export class HistogramMetric extends Metric {
     id?: string;
     parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -2079,6 +2122,14 @@ export class HistogramMetric extends Metric {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`HistogramMetric.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -2234,6 +2285,7 @@ export class HistogramMetric extends Metric {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2301,6 +2353,7 @@ export class HistogramMetric extends Metric {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       orderKey: objectValue["27"],
@@ -2333,6 +2386,7 @@ export class HistogramMetric extends Metric {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -2409,6 +2463,7 @@ export class HistogramMetric extends Metric {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined

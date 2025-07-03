@@ -13,6 +13,7 @@ import type {
   Insets,
   IsSubject,
   Layout,
+  Materialization,
   NodeDefinitionReference,
   NodeReference,
   Position,
@@ -85,6 +86,11 @@ export abstract class Shape extends ContainerView {
    * Inlined base type of this extensible Node (if extended).
    */
   declare readonly baseType: NodeDefinitionReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
 
   /**
    * Entity.createdAt

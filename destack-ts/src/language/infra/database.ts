@@ -15,6 +15,7 @@ import type {
 } from "@destack/language/core";
 import {
   EnumType,
+  Materialization,
   Node,
   NodeType,
   Region,
@@ -35,6 +36,7 @@ import {
   DatabaseInfoProto,
   DatabaseProto,
   DatabaseTypeProto,
+  MaterializationProto,
   RegionProto,
   ResourceStatusProto,
   TenancyProto,
@@ -427,6 +429,11 @@ export class Database extends Resource implements IsSpatial {
   readonly baseType: NodeDefinitionReference | null;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -526,6 +533,7 @@ export class Database extends Resource implements IsSpatial {
     space?: Space | NodeReference | null;
     definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
     baseType?: NodeDefinitionReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -588,6 +596,14 @@ export class Database extends Resource implements IsSpatial {
     this.definitionPtr = _definition;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Database.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -857,6 +873,7 @@ export class Database extends Resource implements IsSpatial {
     if (object.baseType != null) {
       objectValue["7"] = object.baseType.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -992,6 +1009,7 @@ export class Database extends Resource implements IsSpatial {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -1028,6 +1046,7 @@ export class Database extends Resource implements IsSpatial {
     if (object.baseType != null) {
       objectProto.baseType = object.baseType.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1168,6 +1187,7 @@ export class Database extends Resource implements IsSpatial {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       customValues: unpackedCustomValues,
       _session,
       _graph,

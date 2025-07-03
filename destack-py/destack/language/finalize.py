@@ -62,6 +62,8 @@ def finalize():
         else:
             raise ValueError(f"unexpected node type: {node_cls}")
         node_cls.__primary_store_types__ = tuple(primary_store_types)
+        for store_type in primary_store_types:
+            node_types_by_store_type[store_type].append(node_cls.metatype)
     for store_type in StoreType:
         NODE_TYPES_BY_PRIMARY_STORE_TYPE[store_type] = tuple(
             node_types_by_store_type.get(store_type, ())

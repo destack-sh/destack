@@ -11,7 +11,15 @@ import type {
   Supergraph,
   Text,
 } from "@destack/language/core";
-import { Entity, EnumType, Event, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  Entity,
+  EnumType,
+  Event,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -19,6 +27,7 @@ import {
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import {
+  MaterializationProto,
   NotificationDismissedEventProto,
   NotificationExpiredEventProto,
   NotificationProto,
@@ -2096,6 +2105,11 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   readonly spacePtr: NodeReference | null;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * Entity.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -2167,6 +2181,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     id?: string;
     parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
+    materialization?: Materialization;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -2214,6 +2229,14 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       _space = (_space as Node).toRef();
     }
     this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 3 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Notification.materialization is required`);
+    }
+    this.materialization = _materialization;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
@@ -2375,6 +2398,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
+    objectValue["10"] = object.materialization;
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2443,6 +2467,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      materialization: Number(objectValue["10"]),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       _session,
@@ -2474,6 +2499,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -2551,6 +2577,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined

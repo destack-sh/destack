@@ -4,6 +4,7 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  Materialization,
   NodeReference,
 } from "@destack/language/core";
 import { Entity, Node, NodeType } from "@destack/language/core";
@@ -48,6 +49,11 @@ export abstract class Style
     return null;
   }
   declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
 
   /**
    * Entity.createdAt
