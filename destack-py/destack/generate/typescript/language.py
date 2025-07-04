@@ -113,9 +113,8 @@ def _is_property_tracked(prop: PropertyDeclaration) -> bool:
         not prop.is_computed
         and not prop.is_managed
         and not prop.is_readonly
-        and prop.component.__is_node__
+        and (prop.component.__is_node__ or prop.component.__is_trait__)
         and not prop.component.__is_frozen__
-        and not prop.component.__is_abstract__
     )
 
 
@@ -180,7 +179,10 @@ def _generate_property(
     is_interface: bool,
     is_abstract: bool,
 ) -> str:
-    """Generate a Property definition."""
+    """
+    Generate a Property definition.
+    NOTE :Cleanup: typescript SDK generate_property is a bit of a mess
+    """
 
     prop_ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
     doc_str = _generate_multiline_doc(
@@ -208,6 +210,18 @@ def _generate_property(
             wrapped_node_getter_str = f"get {wrapped_ts_name}(): {wrapped_node_type_str} | null"
             if not is_effective_readonly:
                 wrapped_node_setter_str = f"set {wrapped_ts_name}(value: {wrapped_node_type_str})"
+                wrapped_prefix_str = f"{wrapped_node_getter_str}\n{wrapped_node_setter_str}"
+            else:
+                wrapped_prefix_str = wrapped_node_getter_str
+        elif is_abstract:
+            # just abstract declaration
+            wrapped_node_getter_str = (
+                f"abstract get {wrapped_ts_name}(): {wrapped_node_type_str} | null"
+            )
+            if not is_effective_readonly:
+                wrapped_node_setter_str = (
+                    f"abstract set {wrapped_ts_name}(value: {wrapped_node_type_str})"
+                )
                 wrapped_prefix_str = f"{wrapped_node_getter_str}\n{wrapped_node_setter_str}"
             else:
                 wrapped_prefix_str = wrapped_node_getter_str
@@ -283,11 +297,23 @@ set {wrapped_ts_name}(value: {wrapped_node_type_str}) {{
     prop_str = f"{internal_prop_ts_name}: {prop_type_str}"
     if is_effective_readonly and not is_tracked:
         prop_str = f"readonly {prop_str}"
-    if is_abstract and not is_interface:
+    if is_tracked and is_abstract and not is_interface:
+        prop_str = f"""\
+{doc_str}
+abstract get {prop_ts_name}(): {prop_type_str};
+abstract set {prop_ts_name}(value: {prop_type_str});
+"""
+    elif is_tracked and is_interface:
+        prop_str = f"""\
+{doc_str}
+get {prop_ts_name}(): {prop_type_str};
+set {prop_ts_name}(value: {prop_type_str});
+"""
+    elif is_abstract and not is_interface:
         prop_str = f"declare {prop_str}"
 
     # wrap get/set for tracked Node properties
-    if is_tracked:
+    if is_tracked and not is_abstract and not is_interface:
         prop_str = f"""\
 get {prop_ts_name}(): {prop_type_str} {{
     return this.{internal_prop_ts_name};

@@ -61,40 +61,13 @@ registerEnumClass(EnumType.SANCTION_TYPE, SanctionType);
 export abstract class SanctionEvent extends Event {
   static metatype: NodeType = NodeType.SANCTION_EVENT;
 
-  /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
-  /**
-   * The Snapshot this Event originated from.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
@@ -102,40 +75,13 @@ export abstract class SanctionEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
-  /**
-   * SanctionEvent.node
-   */
-  get node(): Sanction | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Sanction | null;
-    }
-    return null;
-  }
+  abstract get node(): Sanction | null;
   declare readonly nodePtr: NodeReference;
 
-  /**
-   * SanctionEvent.target
-   */
-  get target(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.targetPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get target(): (Node & IsSubject) | null;
   declare readonly targetPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */

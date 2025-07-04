@@ -66,40 +66,13 @@ registerEnumClass(EnumType.NOTIFICATION_STATUS, NotificationStatus);
 export abstract class NotificationEvent extends Event {
   static metatype: NodeType = NodeType.NOTIFICATION_EVENT;
 
-  /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
-  /**
-   * The Snapshot this Event originated from.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
@@ -107,28 +80,10 @@ export abstract class NotificationEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
-  /**
-   * NotificationEvent.node
-   */
-  get node(): Notification | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Notification | null;
-    }
-    return null;
-  }
+  abstract get node(): Notification | null;
   declare readonly nodePtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */

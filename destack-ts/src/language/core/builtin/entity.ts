@@ -57,16 +57,7 @@ import { Temporal } from "temporal-polyfill";
 export abstract class Entity extends Node {
   static metatype: NodeType = NodeType.ENTITY;
 
-  /**
-   * Node.parent
-   */
-  get parent(): Node | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
+  abstract get parent(): Node | null;
   declare readonly parentPtr: NodeReference | null;
 
   /**
@@ -74,52 +65,16 @@ export abstract class Entity extends Node {
    */
   declare readonly materialization: Materialization;
 
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
-  /**
-   * The previous Entity this Entity is based on (from another Snapshot).
-   */
-  get predecessor(): Entity | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
+  abstract get predecessor(): Entity | null;
   declare readonly predecessorPtr: NodeReference | null;
 
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Entity | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
+  abstract get template(): Entity | null;
   declare readonly templatePtr: NodeReference | null;
 
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
+  abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
@@ -127,16 +82,7 @@ export abstract class Entity extends Node {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -144,16 +90,7 @@ export abstract class Entity extends Node {
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get updatedBy(): (Node & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -2668,40 +2605,13 @@ export abstract class Record
 {
   static metatype: NodeType = NodeType.RECORD;
 
-  /**
-   * Trait.parent
-   */
-  get parent(): Node | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
+  abstract get parent(): Node | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
-  /**
-   * The CustomEntityDefinition this Record is an instance of.
-   */
-  get definition(): CustomEntityDefinition | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
-    }
-    return null;
-  }
+  abstract get definition(): CustomEntityDefinition | null;
   declare readonly definitionPtr: NodeReference;
 
   /**
@@ -2714,52 +2624,16 @@ export abstract class Record
    */
   declare readonly materialization: Materialization;
 
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
-  /**
-   * The previous Entity this Entity is based on (from another Snapshot).
-   */
-  get predecessor(): Record | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Record | null;
-    }
-    return null;
-  }
+  abstract get predecessor(): Record | null;
   declare readonly predecessorPtr: NodeReference | null;
 
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Record | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Record | null;
-    }
-    return null;
-  }
+  abstract get template(): Record | null;
   declare readonly templatePtr: NodeReference | null;
 
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
+  abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
@@ -2767,16 +2641,7 @@ export abstract class Record
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -2784,16 +2649,7 @@ export abstract class Record
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get updatedBy(): (Node & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -2809,26 +2665,19 @@ export abstract class Record
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  declare customValues: Map<string, Value>;
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  abstract get customValues(): Map<string, Value>;
+  abstract set customValues(value: Map<string, Value>);
 
+  abstract get ownedBy(): (Node & IsOwner) | null;
+  abstract set ownedBy(value: (Node & IsOwner) | null);
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Node & IsOwner) | null {
-    const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
-    }
-    return null;
-  }
-  set ownedBy(node: (Node & IsOwner) | null) {
-    if (node === null) {
-      this.ownedByPtr = null;
-    } else {
-      this.ownedByPtr = node.toRef();
-    }
-  }
-  declare ownedByPtr: NodeReference | null;
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -2845,31 +2694,10 @@ registerNodeClass(NodeType.RECORD, Record);
 export abstract class Resource extends Entity implements IsDeletable, IsExtensible {
   static metatype: NodeType = NodeType.RESOURCE;
 
-  /**
-   * Trait.parent
-   */
-  get parent(): Node | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
+  abstract get parent(): Node | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The definitionthis CustomEntity is an instance of.
-   */
-  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntityDefinition
-        | CustomEventDefinition
-        | null;
-    }
-    return null;
-  }
+  abstract get definition(): CustomEntityDefinition | CustomEventDefinition | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -2882,52 +2710,16 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
    */
   declare readonly materialization: Materialization;
 
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
-  /**
-   * The previous Entity this Entity is based on (from another Snapshot).
-   */
-  get predecessor(): Resource | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Resource | null;
-    }
-    return null;
-  }
+  abstract get predecessor(): Resource | null;
   declare readonly predecessorPtr: NodeReference | null;
 
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Resource | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Resource | null;
-    }
-    return null;
-  }
+  abstract get template(): Resource | null;
   declare readonly templatePtr: NodeReference | null;
 
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
+  abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
@@ -2935,16 +2727,7 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -2952,16 +2735,7 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get updatedBy(): (Node & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -2972,12 +2746,20 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  declare customValues: Map<string, Value>;
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  abstract get customValues(): Map<string, Value>;
+  abstract set customValues(value: Map<string, Value>);
 
   /**
    * Resource.status
    */
-  declare status: ResourceStatus;
+  /**
+   * Resource.status
+   */
+  abstract get status(): ResourceStatus;
+  abstract set status(value: ResourceStatus);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -2993,28 +2775,10 @@ registerNodeClass(NodeType.RESOURCE, Resource);
 export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
   static metatype: NodeType = NodeType.METRIC;
 
-  /**
-   * Trait.parent
-   */
-  get parent(): Node | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
+  abstract get parent(): Node | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
   /**
@@ -3022,52 +2786,16 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
    */
   declare readonly materialization: Materialization;
 
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
-  /**
-   * The previous Entity this Entity is based on (from another Snapshot).
-   */
-  get predecessor(): Metric | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Metric | null;
-    }
-    return null;
-  }
+  abstract get predecessor(): Metric | null;
   declare readonly predecessorPtr: NodeReference | null;
 
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Metric | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Metric | null;
-    }
-    return null;
-  }
+  abstract get template(): Metric | null;
   declare readonly templatePtr: NodeReference | null;
 
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
+  abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
@@ -3075,16 +2803,7 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -3092,16 +2811,7 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get updatedBy(): (Node & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -3109,27 +2819,26 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
    */
   declare readonly orderKey: string;
 
-  /**
-   * IsSourceable.source
-   */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
+  abstract get source(): Script | null;
   declare readonly sourcePtr: NodeReference | null;
 
   /**
    * Metric.name
    */
-  declare name: string;
+  /**
+   * Metric.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * Metric.icon
    */
-  declare icon: Icon | null;
+  /**
+   * Metric.icon
+   */
+  abstract get icon(): Icon | null;
+  abstract set icon(value: Icon | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

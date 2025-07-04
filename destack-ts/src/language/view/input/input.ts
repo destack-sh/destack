@@ -27,49 +27,13 @@ import { Temporal } from "temporal-polyfill";
 export abstract class InputView extends View {
   static metatype: NodeType = NodeType.INPUT_VIEW;
 
-  /**
-   * View.parent
-   */
-  get parent(): Window | Scene | Layer | ContainerView | Folder | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | Window
-        | Scene
-        | Layer
-        | ContainerView
-        | Folder
-        | null;
-    }
-    return null;
-  }
+  abstract get parent(): Window | Scene | Layer | ContainerView | Folder | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
-  /**
-   * The definitionthis CustomEntity is an instance of.
-   */
-  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntityDefinition
-        | CustomEventDefinition
-        | null;
-    }
-    return null;
-  }
+  abstract get definition(): CustomEntityDefinition | CustomEventDefinition | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -82,52 +46,16 @@ export abstract class InputView extends View {
    */
   declare readonly materialization: Materialization;
 
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
-  /**
-   * The previous Entity this Entity is based on (from another Snapshot).
-   */
-  get predecessor(): InputView | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as InputView | null;
-    }
-    return null;
-  }
+  abstract get predecessor(): InputView | null;
   declare readonly predecessorPtr: NodeReference | null;
 
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): InputView | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as InputView | null;
-    }
-    return null;
-  }
+  abstract get template(): InputView | null;
   declare readonly templatePtr: NodeReference | null;
 
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
+  abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
@@ -135,16 +63,7 @@ export abstract class InputView extends View {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -152,16 +71,7 @@ export abstract class InputView extends View {
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get updatedBy(): (Node & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -172,81 +82,114 @@ export abstract class InputView extends View {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  declare customValues: Map<string, Value>;
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  abstract get customValues(): Map<string, Value>;
+  abstract set customValues(value: Map<string, Value>);
 
   /**
    * The absolute order key of this Node in its parent.
    */
   declare readonly orderKey: string;
 
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
   /**
    * The main / root Script of this Node.
    */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  set script(node: Script | null) {
-    if (node === null) {
-      this.scriptPtr = null;
-    } else {
-      this.scriptPtr = node.toRef();
-    }
-  }
-  declare scriptPtr: NodeReference | null;
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
 
   /**
    * View.name
    */
-  declare name: string;
+  /**
+   * View.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * View.position
    */
-  declare position: Position | null;
+  /**
+   * View.position
+   */
+  abstract get position(): Position | null;
+  abstract set position(value: Position | null);
 
   /**
    * View.width
    */
-  declare width: Dimension | null;
+  /**
+   * View.width
+   */
+  abstract get width(): Dimension | null;
+  abstract set width(value: Dimension | null);
 
   /**
    * View.height
    */
-  declare height: Dimension | null;
+  /**
+   * View.height
+   */
+  abstract get height(): Dimension | null;
+  abstract set height(value: Dimension | null);
 
   /**
    * View.minWidth
    */
-  declare minWidth: Dimension | null;
+  /**
+   * View.minWidth
+   */
+  abstract get minWidth(): Dimension | null;
+  abstract set minWidth(value: Dimension | null);
 
   /**
    * View.minHeight
    */
-  declare minHeight: Dimension | null;
+  /**
+   * View.minHeight
+   */
+  abstract get minHeight(): Dimension | null;
+  abstract set minHeight(value: Dimension | null);
 
   /**
    * View.maxWidth
    */
-  declare maxWidth: Dimension | null;
+  /**
+   * View.maxWidth
+   */
+  abstract get maxWidth(): Dimension | null;
+  abstract set maxWidth(value: Dimension | null);
 
   /**
    * View.maxHeight
    */
-  declare maxHeight: Dimension | null;
+  /**
+   * View.maxHeight
+   */
+  abstract get maxHeight(): Dimension | null;
+  abstract set maxHeight(value: Dimension | null);
 
   /**
    * InputView.isVisible
    */
-  declare isVisible: boolean | null;
+  /**
+   * InputView.isVisible
+   */
+  abstract get isVisible(): boolean | null;
+  abstract set isVisible(value: boolean | null);
 
   /**
    * InputView.opacity
    */
-  declare opacity: number | null;
+  /**
+   * InputView.opacity
+   */
+  abstract get opacity(): number | null;
+  abstract set opacity(value: number | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
