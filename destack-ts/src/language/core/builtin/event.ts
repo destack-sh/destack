@@ -62,40 +62,13 @@ import { Temporal } from "temporal-polyfill";
 export abstract class Event extends Node implements IsSpatial {
   static metatype: NodeType = NodeType.EVENT;
 
-  /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
-  /**
-   * The Snapshot this Event originated from.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
@@ -103,28 +76,10 @@ export abstract class Event extends Node implements IsSpatial {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
-  /**
-   * The Node this Event is about.
-   */
-  get node(): Node | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
+  abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1162,40 +1117,13 @@ registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
 export abstract class Signal extends Event implements IsExtensible {
   static metatype: NodeType = NodeType.SIGNAL;
 
-  /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
-  /**
-   * The CustomEventDefinition this Signal is an instance of.
-   */
-  get definition(): CustomEventDefinition | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEventDefinition | null;
-    }
-    return null;
-  }
+  abstract get definition(): CustomEventDefinition | null;
   declare readonly definitionPtr: NodeReference;
 
   /**
@@ -1203,16 +1131,7 @@ export abstract class Signal extends Event implements IsExtensible {
    */
   declare readonly baseType: NodeDefinitionReference | null;
 
-  /**
-   * The Snapshot this Event originated from.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
@@ -1220,16 +1139,7 @@ export abstract class Signal extends Event implements IsExtensible {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -1237,16 +1147,7 @@ export abstract class Signal extends Event implements IsExtensible {
    */
   declare readonly customValues: Map<string, Value>;
 
-  /**
-   * The Node this Event is about.
-   */
-  get node(): Node | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
+  abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -3522,52 +3423,16 @@ registerNodeClass(NodeType.QUERY_EVENT, QueryEvent);
 export abstract class MeasurementEvent extends Event {
   static metatype: NodeType = NodeType.MEASUREMENT_EVENT;
 
-  /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
-  /**
-   * MeasurementEvent.definition
-   */
-  get definition(): Metric | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Metric | null;
-    }
-    return null;
-  }
+  abstract get definition(): Metric | null;
   declare readonly definitionPtr: NodeReference;
 
-  /**
-   * The Snapshot this Event originated from.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
@@ -3575,28 +3440,10 @@ export abstract class MeasurementEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
-  /**
-   * The Node this Event is about.
-   */
-  get node(): Node | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
-    }
-    return null;
-  }
+  abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */

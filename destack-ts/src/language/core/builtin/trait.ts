@@ -207,7 +207,11 @@ registerTraitClass(TraitType.SOURCEABLE, IsSourceable);
 export interface IsScriptable {
   get script(): Script | null;
   set script(value: Script | null);
-  scriptPtr: NodeReference | null;
+  /**
+   * The main / root Script of this Node.
+   */
+  get scriptPtr(): NodeReference | null;
+  set scriptPtr(value: NodeReference | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -249,7 +253,11 @@ registerTraitClass(TraitType.RUNNABLE, IsRunnable);
 export interface IsOwnable {
   get ownedBy(): (Node & IsOwner) | null;
   set ownedBy(value: (Node & IsOwner) | null);
-  ownedByPtr: NodeReference | null;
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedByPtr(): NodeReference | null;
+  set ownedByPtr(value: NodeReference | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -352,7 +360,11 @@ export interface IsCustomizable {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  customValues: Map<string, Value>;
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): Map<string, Value>;
+  set customValues(value: Map<string, Value>);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

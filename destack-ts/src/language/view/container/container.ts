@@ -38,49 +38,13 @@ import { Temporal } from "temporal-polyfill";
 export abstract class ContainerView extends View {
   static metatype: NodeType = NodeType.CONTAINER_VIEW;
 
-  /**
-   * View.parent
-   */
-  get parent(): Window | Scene | Layer | ContainerView | Folder | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | Window
-        | Scene
-        | Layer
-        | ContainerView
-        | Folder
-        | null;
-    }
-    return null;
-  }
+  abstract get parent(): Window | Scene | Layer | ContainerView | Folder | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
-  /**
-   * The definitionthis CustomEntity is an instance of.
-   */
-  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntityDefinition
-        | CustomEventDefinition
-        | null;
-    }
-    return null;
-  }
+  abstract get definition(): CustomEntityDefinition | CustomEventDefinition | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -93,52 +57,16 @@ export abstract class ContainerView extends View {
    */
   declare readonly materialization: Materialization;
 
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
-  /**
-   * The previous Entity this Entity is based on (from another Snapshot).
-   */
-  get predecessor(): ContainerView | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as ContainerView | null;
-    }
-    return null;
-  }
+  abstract get predecessor(): ContainerView | null;
   declare readonly predecessorPtr: NodeReference | null;
 
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): ContainerView | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as ContainerView | null;
-    }
-    return null;
-  }
+  abstract get template(): ContainerView | null;
   declare readonly templatePtr: NodeReference | null;
 
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
+  abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
@@ -146,16 +74,7 @@ export abstract class ContainerView extends View {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -163,16 +82,7 @@ export abstract class ContainerView extends View {
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get updatedBy(): (Node & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -183,166 +93,267 @@ export abstract class ContainerView extends View {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  declare customValues: Map<string, Value>;
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  abstract get customValues(): Map<string, Value>;
+  abstract set customValues(value: Map<string, Value>);
 
   /**
    * The absolute order key of this Node in its parent.
    */
   declare readonly orderKey: string;
 
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
   /**
    * The main / root Script of this Node.
    */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  set script(node: Script | null) {
-    if (node === null) {
-      this.scriptPtr = null;
-    } else {
-      this.scriptPtr = node.toRef();
-    }
-  }
-  declare scriptPtr: NodeReference | null;
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
 
   /**
    * View.name
    */
-  declare name: string;
+  /**
+   * View.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * View.position
    */
-  declare position: Position | null;
+  /**
+   * View.position
+   */
+  abstract get position(): Position | null;
+  abstract set position(value: Position | null);
 
   /**
    * View.width
    */
-  declare width: Dimension | null;
+  /**
+   * View.width
+   */
+  abstract get width(): Dimension | null;
+  abstract set width(value: Dimension | null);
 
   /**
    * View.height
    */
-  declare height: Dimension | null;
+  /**
+   * View.height
+   */
+  abstract get height(): Dimension | null;
+  abstract set height(value: Dimension | null);
 
   /**
    * View.minWidth
    */
-  declare minWidth: Dimension | null;
+  /**
+   * View.minWidth
+   */
+  abstract get minWidth(): Dimension | null;
+  abstract set minWidth(value: Dimension | null);
 
   /**
    * View.minHeight
    */
-  declare minHeight: Dimension | null;
+  /**
+   * View.minHeight
+   */
+  abstract get minHeight(): Dimension | null;
+  abstract set minHeight(value: Dimension | null);
 
   /**
    * View.maxWidth
    */
-  declare maxWidth: Dimension | null;
+  /**
+   * View.maxWidth
+   */
+  abstract get maxWidth(): Dimension | null;
+  abstract set maxWidth(value: Dimension | null);
 
   /**
    * View.maxHeight
    */
-  declare maxHeight: Dimension | null;
+  /**
+   * View.maxHeight
+   */
+  abstract get maxHeight(): Dimension | null;
+  abstract set maxHeight(value: Dimension | null);
 
   /**
    * ContainerView.layout
    */
-  declare layout: Layout | null;
+  /**
+   * ContainerView.layout
+   */
+  abstract get layout(): Layout | null;
+  abstract set layout(value: Layout | null);
 
   /**
    * ContainerView.direction
    */
-  declare direction: Direction | null;
+  /**
+   * ContainerView.direction
+   */
+  abstract get direction(): Direction | null;
+  abstract set direction(value: Direction | null);
 
   /**
    * ContainerView.distribute
    */
-  declare distribute: Distribute | null;
+  /**
+   * ContainerView.distribute
+   */
+  abstract get distribute(): Distribute | null;
+  abstract set distribute(value: Distribute | null);
 
   /**
    * ContainerView.align
    */
-  declare align: Align | null;
+  /**
+   * ContainerView.align
+   */
+  abstract get align(): Align | null;
+  abstract set align(value: Align | null);
 
   /**
    * ContainerView.gap
    */
-  declare gap: Axis2 | null;
+  /**
+   * ContainerView.gap
+   */
+  abstract get gap(): Axis2 | null;
+  abstract set gap(value: Axis2 | null);
 
   /**
    * ContainerView.padding
    */
-  declare padding: Insets | null;
+  /**
+   * ContainerView.padding
+   */
+  abstract get padding(): Insets | null;
+  abstract set padding(value: Insets | null);
 
   /**
    * ContainerView.grid
    */
-  declare grid: Grid | null;
+  /**
+   * ContainerView.grid
+   */
+  abstract get grid(): Grid | null;
+  abstract set grid(value: Grid | null);
 
   /**
    * ContainerView.gridSpan
    */
-  declare gridSpan: GridSpan | null;
+  /**
+   * ContainerView.gridSpan
+   */
+  abstract get gridSpan(): GridSpan | null;
+  abstract set gridSpan(value: GridSpan | null);
 
   /**
    * ContainerView.aspectRatio
    */
-  declare aspectRatio: number | null;
+  /**
+   * ContainerView.aspectRatio
+   */
+  abstract get aspectRatio(): number | null;
+  abstract set aspectRatio(value: number | null);
 
   /**
    * ContainerView.isWrap
    */
-  declare isWrap: boolean | null;
+  /**
+   * ContainerView.isWrap
+   */
+  abstract get isWrap(): boolean | null;
+  abstract set isWrap(value: boolean | null);
 
   /**
    * ContainerView.isVisible
    */
-  declare isVisible: boolean | null;
+  /**
+   * ContainerView.isVisible
+   */
+  abstract get isVisible(): boolean | null;
+  abstract set isVisible(value: boolean | null);
 
   /**
    * ContainerView.opacity
    */
-  declare opacity: number | null;
+  /**
+   * ContainerView.opacity
+   */
+  abstract get opacity(): number | null;
+  abstract set opacity(value: number | null);
 
   /**
    * ContainerView.fill
    */
-  declare fill: Fill | null;
+  /**
+   * ContainerView.fill
+   */
+  abstract get fill(): Fill | null;
+  abstract set fill(value: Fill | null);
 
   /**
    * ContainerView.rotation
    */
-  declare rotation: Axis3 | null;
+  /**
+   * ContainerView.rotation
+   */
+  abstract get rotation(): Axis3 | null;
+  abstract set rotation(value: Axis3 | null);
 
   /**
    * ContainerView.skew
    */
-  declare skew: Vector2f | null;
+  /**
+   * ContainerView.skew
+   */
+  abstract get skew(): Vector2f | null;
+  abstract set skew(value: Vector2f | null);
 
   /**
    * ContainerView.scale
    */
-  declare scale: number | null;
+  /**
+   * ContainerView.scale
+   */
+  abstract get scale(): number | null;
+  abstract set scale(value: number | null);
 
   /**
    * ContainerView.shadow
    */
-  declare shadow: Shadow | null;
+  /**
+   * ContainerView.shadow
+   */
+  abstract get shadow(): Shadow | null;
+  abstract set shadow(value: Shadow | null);
 
   /**
    * ContainerView.border
    */
-  declare border: Border | null;
+  /**
+   * ContainerView.border
+   */
+  abstract get border(): Border | null;
+  abstract set border(value: Border | null);
 
   /**
    * ContainerView.radius
    */
-  declare radius: Corners | null;
+  /**
+   * ContainerView.radius
+   */
+  abstract get radius(): Corners | null;
+  abstract set radius(value: Corners | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

@@ -44,40 +44,13 @@ import { Temporal } from "temporal-polyfill";
 export abstract class RoleEvent extends Event {
   static metatype: NodeType = NodeType.ROLE_EVENT;
 
-  /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
+  abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
-  /**
-   * The Snapshot this Event originated from.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
+  abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
@@ -85,40 +58,13 @@ export abstract class RoleEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
-  /**
-   * RoleEvent.node
-   */
-  get node(): Role | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | null;
-    }
-    return null;
-  }
+  abstract get node(): Role | null;
   declare readonly nodePtr: NodeReference;
 
-  /**
-   * RoleEvent.subject
-   */
-  get subject(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.subjectPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
+  abstract get subject(): (Node & IsSubject) | null;
   declare readonly subjectPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
