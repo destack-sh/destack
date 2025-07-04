@@ -10634,35 +10634,35 @@ export interface QueryProto {
      */
     definition?: NodeDefinitionReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.JoinProto join = 103
-     */
-    join?: JoinProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.SelectProto select = 104
-     */
-    select?: SelectProto;
-    /**
-     * @generated from protobuf field: repeated symbol.destack.QueryProto subqueries = 105
+     * @generated from protobuf field: repeated symbol.destack.QueryProto subqueries = 109
      */
     subqueries: QueryProto[];
     /**
-     * @generated from protobuf field: optional symbol.destack.ConditionProto where = 110
+     * @generated from protobuf field: optional symbol.destack.JoinProto join = 110
+     */
+    join?: JoinProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.SelectProto select = 111
+     */
+    select?: SelectProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.ConditionProto where = 112
      */
     where?: ConditionProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.ConditionProto having = 111
+     * @generated from protobuf field: optional symbol.destack.ConditionProto having = 113
      */
     having?: ConditionProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.ExpressionProto group_by = 112
+     * @generated from protobuf field: repeated symbol.destack.ExpressionProto group_by = 114
      */
     groupBy: ExpressionProto[];
     /**
-     * @generated from protobuf field: optional symbol.destack.AggregationProto aggregation = 113
+     * @generated from protobuf field: optional symbol.destack.AggregationProto aggregation = 115
      */
     aggregation?: AggregationProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.SortProto sort = 114
+     * @generated from protobuf field: repeated symbol.destack.SortProto sort = 116
      */
     sort: SortProto[];
     /**
@@ -10673,6 +10673,14 @@ export interface QueryProto {
      * @generated from protobuf field: optional int64 offset = 121 [jstype = JS_NUMBER]
      */
     offset?: number;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 130
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: repeated string snapshot_path = 131
+     */
+    snapshotPath: string[];
 }
 /**
  * A recorded Query.
@@ -13500,6 +13508,10 @@ export interface SnapshotProto {
      * @generated from protobuf field: string name = 101
      */
     name: string;
+    /**
+     * @generated from protobuf field: symbol.destack.SnapshotStatusProto status = 110
+     */
+    status: SnapshotStatusProto;
 }
 /**
  * @generated from protobuf message symbol.destack.SortProto
@@ -19179,6 +19191,10 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_SNAPSHOT_TYPE = 1300,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_SNAPSHOT_STATUS = 1301;
+     */
+    ENUM_TYPE_SNAPSHOT_STATUS = 1301,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 10103;
      */
     ENUM_TYPE_CONDITIONAL_TYPE = 10103,
@@ -20620,17 +20636,13 @@ export enum MaterializationProto {
      */
     MATERIALIZATION_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MATERIALIZATION_PARTIAL_NODE = 1;
+     * @generated from protobuf enum value: MATERIALIZATION_PARTIAL = 1;
      */
-    MATERIALIZATION_PARTIAL_NODE = 1,
+    MATERIALIZATION_PARTIAL = 1,
     /**
-     * @generated from protobuf enum value: MATERIALIZATION_PARTIAL_GRAPH = 2;
+     * @generated from protobuf enum value: MATERIALIZATION_FULL = 32;
      */
-    MATERIALIZATION_PARTIAL_GRAPH = 2,
-    /**
-     * @generated from protobuf enum value: MATERIALIZATION_FULL_GRAPH = 3;
-     */
-    MATERIALIZATION_FULL_GRAPH = 3
+    MATERIALIZATION_FULL = 32
 }
 /**
  * A Permission for a Membership.
@@ -22374,6 +22386,29 @@ export enum ShadowTypeProto {
      * @generated from protobuf enum value: SHADOW_TYPE_REALISTIC = 11;
      */
     SHADOW_TYPE_REALISTIC = 11
+}
+/**
+ * The status of a Snapshot.
+ *
+ * @generated from protobuf enum symbol.destack.SnapshotStatusProto
+ */
+export enum SnapshotStatusProto {
+    /**
+     * @generated from protobuf enum value: SNAPSHOT_STATUS_UNSPECIFIED = 0;
+     */
+    SNAPSHOT_STATUS_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: SNAPSHOT_STATUS_CREATING = 1;
+     */
+    SNAPSHOT_STATUS_CREATING = 1,
+    /**
+     * @generated from protobuf enum value: SNAPSHOT_STATUS_ACTIVE = 10;
+     */
+    SNAPSHOT_STATUS_ACTIVE = 10,
+    /**
+     * @generated from protobuf enum value: SNAPSHOT_STATUS_READONLY = 50;
+     */
+    SNAPSHOT_STATUS_READONLY = 50
 }
 /**
  * The type of a Snapshot.
@@ -47757,16 +47792,18 @@ class QueryProto$Type extends MessageType<QueryProto> {
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.QueryTypeProto", QueryTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "definition", kind: "message", T: () => NodeDefinitionReferenceProto },
-            { no: 103, name: "join", kind: "message", T: () => JoinProto },
-            { no: 104, name: "select", kind: "message", T: () => SelectProto },
-            { no: 105, name: "subqueries", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => QueryProto },
-            { no: 110, name: "where", kind: "message", T: () => ConditionProto },
-            { no: 111, name: "having", kind: "message", T: () => ConditionProto },
-            { no: 112, name: "group_by", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ExpressionProto },
-            { no: 113, name: "aggregation", kind: "message", T: () => AggregationProto },
-            { no: 114, name: "sort", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => SortProto },
+            { no: 109, name: "subqueries", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => QueryProto },
+            { no: 110, name: "join", kind: "message", T: () => JoinProto },
+            { no: 111, name: "select", kind: "message", T: () => SelectProto },
+            { no: 112, name: "where", kind: "message", T: () => ConditionProto },
+            { no: 113, name: "having", kind: "message", T: () => ConditionProto },
+            { no: 114, name: "group_by", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ExpressionProto },
+            { no: 115, name: "aggregation", kind: "message", T: () => AggregationProto },
+            { no: 116, name: "sort", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => SortProto },
             { no: 120, name: "limit", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
-            { no: 121, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
+            { no: 121, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 130, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 131, name: "snapshot_path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<QueryProto>): QueryProto {
@@ -47778,6 +47815,7 @@ class QueryProto$Type extends MessageType<QueryProto> {
         message.subqueries = [];
         message.groupBy = [];
         message.sort = [];
+        message.snapshotPath = [];
         if (value !== undefined)
             reflectionMergePartial<QueryProto>(this, message, value);
         return message;
@@ -47802,28 +47840,28 @@ class QueryProto$Type extends MessageType<QueryProto> {
                 case /* symbol.destack.NodeDefinitionReferenceProto definition */ 102:
                     message.definition = NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definition);
                     break;
-                case /* optional symbol.destack.JoinProto join */ 103:
-                    message.join = JoinProto.internalBinaryRead(reader, reader.uint32(), options, message.join);
-                    break;
-                case /* optional symbol.destack.SelectProto select */ 104:
-                    message.select = SelectProto.internalBinaryRead(reader, reader.uint32(), options, message.select);
-                    break;
-                case /* repeated symbol.destack.QueryProto subqueries */ 105:
+                case /* repeated symbol.destack.QueryProto subqueries */ 109:
                     message.subqueries.push(QueryProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbol.destack.ConditionProto where */ 110:
+                case /* optional symbol.destack.JoinProto join */ 110:
+                    message.join = JoinProto.internalBinaryRead(reader, reader.uint32(), options, message.join);
+                    break;
+                case /* optional symbol.destack.SelectProto select */ 111:
+                    message.select = SelectProto.internalBinaryRead(reader, reader.uint32(), options, message.select);
+                    break;
+                case /* optional symbol.destack.ConditionProto where */ 112:
                     message.where = ConditionProto.internalBinaryRead(reader, reader.uint32(), options, message.where);
                     break;
-                case /* optional symbol.destack.ConditionProto having */ 111:
+                case /* optional symbol.destack.ConditionProto having */ 113:
                     message.having = ConditionProto.internalBinaryRead(reader, reader.uint32(), options, message.having);
                     break;
-                case /* repeated symbol.destack.ExpressionProto group_by */ 112:
+                case /* repeated symbol.destack.ExpressionProto group_by */ 114:
                     message.groupBy.push(ExpressionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbol.destack.AggregationProto aggregation */ 113:
+                case /* optional symbol.destack.AggregationProto aggregation */ 115:
                     message.aggregation = AggregationProto.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
                     break;
-                case /* repeated symbol.destack.SortProto sort */ 114:
+                case /* repeated symbol.destack.SortProto sort */ 116:
                     message.sort.push(SortProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional int64 limit = 120 [jstype = JS_NUMBER] */ 120:
@@ -47831,6 +47869,12 @@ class QueryProto$Type extends MessageType<QueryProto> {
                     break;
                 case /* optional int64 offset = 121 [jstype = JS_NUMBER] */ 121:
                     message.offset = reader.int64().toNumber();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 130:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* repeated string snapshot_path */ 131:
+                    message.snapshotPath.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -47859,36 +47903,42 @@ class QueryProto$Type extends MessageType<QueryProto> {
         /* symbol.destack.NodeDefinitionReferenceProto definition = 102; */
         if (message.definition)
             NodeDefinitionReferenceProto.internalBinaryWrite(message.definition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.JoinProto join = 103; */
-        if (message.join)
-            JoinProto.internalBinaryWrite(message.join, writer.tag(103, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.SelectProto select = 104; */
-        if (message.select)
-            SelectProto.internalBinaryWrite(message.select, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.QueryProto subqueries = 105; */
+        /* repeated symbol.destack.QueryProto subqueries = 109; */
         for (let i = 0; i < message.subqueries.length; i++)
-            QueryProto.internalBinaryWrite(message.subqueries[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.ConditionProto where = 110; */
+            QueryProto.internalBinaryWrite(message.subqueries[i], writer.tag(109, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.JoinProto join = 110; */
+        if (message.join)
+            JoinProto.internalBinaryWrite(message.join, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.SelectProto select = 111; */
+        if (message.select)
+            SelectProto.internalBinaryWrite(message.select, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.ConditionProto where = 112; */
         if (message.where)
-            ConditionProto.internalBinaryWrite(message.where, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.ConditionProto having = 111; */
+            ConditionProto.internalBinaryWrite(message.where, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.ConditionProto having = 113; */
         if (message.having)
-            ConditionProto.internalBinaryWrite(message.having, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.ExpressionProto group_by = 112; */
+            ConditionProto.internalBinaryWrite(message.having, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.ExpressionProto group_by = 114; */
         for (let i = 0; i < message.groupBy.length; i++)
-            ExpressionProto.internalBinaryWrite(message.groupBy[i], writer.tag(112, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.AggregationProto aggregation = 113; */
+            ExpressionProto.internalBinaryWrite(message.groupBy[i], writer.tag(114, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.AggregationProto aggregation = 115; */
         if (message.aggregation)
-            AggregationProto.internalBinaryWrite(message.aggregation, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.SortProto sort = 114; */
+            AggregationProto.internalBinaryWrite(message.aggregation, writer.tag(115, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.SortProto sort = 116; */
         for (let i = 0; i < message.sort.length; i++)
-            SortProto.internalBinaryWrite(message.sort[i], writer.tag(114, WireType.LengthDelimited).fork(), options).join();
+            SortProto.internalBinaryWrite(message.sort[i], writer.tag(116, WireType.LengthDelimited).fork(), options).join();
         /* optional int64 limit = 120 [jstype = JS_NUMBER]; */
         if (message.limit !== undefined)
             writer.tag(120, WireType.Varint).int64(message.limit);
         /* optional int64 offset = 121 [jstype = JS_NUMBER]; */
         if (message.offset !== undefined)
             writer.tag(121, WireType.Varint).int64(message.offset);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 130; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(130, WireType.LengthDelimited).fork(), options).join();
+        /* repeated string snapshot_path = 131; */
+        for (let i = 0; i < message.snapshotPath.length; i++)
+            writer.tag(131, WireType.LengthDelimited).string(message.snapshotPath[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -54329,7 +54379,8 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
             { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.SnapshotTypeProto", SnapshotTypeProto] },
-            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 110, name: "status", kind: "enum", T: () => ["symbol.destack.SnapshotStatusProto", SnapshotStatusProto] }
         ]);
     }
     create(value?: PartialMessage<SnapshotProto>): SnapshotProto {
@@ -54339,6 +54390,7 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
         message.materialization = 0;
         message.type = 0;
         message.name = "";
+        message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<SnapshotProto>(this, message, value);
         return message;
@@ -54401,6 +54453,9 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
                     break;
                 case /* string name */ 101:
                     message.name = reader.string();
+                    break;
+                case /* symbol.destack.SnapshotStatusProto status */ 110:
+                    message.status = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -54468,6 +54523,9 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
         /* string name = 101; */
         if (message.name !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* symbol.destack.SnapshotStatusProto status = 110; */
+        if (message.status !== 0)
+            writer.tag(110, WireType.Varint).int32(message.status);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

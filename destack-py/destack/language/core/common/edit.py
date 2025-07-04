@@ -12,14 +12,16 @@ from ..builtin import (
     Enum,
     EnumType,
     Node,
+    NodeReference,
+    PropertyReference,
     StructFrozen,
     StructType,
     ValueFactory,
     builtin_enum,
     builtin_property,
     builtin_struct,
+    register_constant,
 )
-from ..builtin.relation import NodeReference, PropertyReference
 
 if TYPE_CHECKING:
     from destack.language import ClientType, IsSubject, Snapshot, Value
@@ -50,6 +52,7 @@ CASCADING_EDIT_TYPES: tuple[EditType, ...] = (
     EditType.RESTORE,
     EditType.ERASE,
 )
+register_constant("CASCADING_EDIT_TYPES", CASCADING_EDIT_TYPES)
 
 
 @builtin_enum(EnumType.EDIT_OPERATION)

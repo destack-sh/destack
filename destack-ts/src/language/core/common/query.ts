@@ -1,10 +1,11 @@
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
-import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
+import type { CustomEntityDefinition, Snapshot } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import type {
   NodeDefinitionReference,
+  NodeReference,
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
 import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
@@ -2223,6 +2224,11 @@ export class Query<T extends Node = Node> extends StructFrozen {
   readonly definition: NodeDefinitionReference;
 
   /**
+   * Query.subqueries
+   */
+  readonly subqueries: Array<Query>;
+
+  /**
    * Relative to parent Query.
    */
   readonly join: Join | null;
@@ -2231,11 +2237,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
    * Query.select
    */
   readonly select: Select | null;
-
-  /**
-   * Query.subqueries
-   */
-  readonly subqueries: Array<Query>;
 
   /**
    * Query.where
@@ -2272,14 +2273,36 @@ export class Query<T extends Node = Node> extends StructFrozen {
    */
   readonly offset: number | null;
 
+  /**
+   * The Snapshot this Query is for.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The path of Snapshots from the given Snapshot to to a full Snapshot (inclusive).
+  If Query.snapshot is set, this must contain at least one element.
+
+   */
+  readonly snapshotPath: Array<string>;
+
   constructor(options: {
     id?: string;
     type: QueryType;
     name: string;
     definition: NodeDefinitionReference;
+    subqueries?: Array<Query>;
     join?: Join | null;
     select?: Select | null;
-    subqueries?: Array<Query>;
     where?: Condition | null;
     having?: Condition | null;
     groupBy?: Array<Expression>;
@@ -2287,6 +2310,8 @@ export class Query<T extends Node = Node> extends StructFrozen {
     sort?: Array<Sort>;
     limit?: number | null;
     offset?: number | null;
+    snapshot?: Snapshot | NodeReference | null;
+    snapshotPath?: Array<string>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -2325,15 +2350,15 @@ export class Query<T extends Node = Node> extends StructFrozen {
       throw new Error(`Query.definition is required`);
     }
     this.definition = _definition;
-    let _join = options.join ?? null;
-    this.join = _join;
-    let _select = options.select ?? null;
-    this.select = _select;
     let _subqueries = options.subqueries ?? null;
     if (_subqueries === null) {
       _subqueries = [];
     }
     this.subqueries = _subqueries;
+    let _join = options.join ?? null;
+    this.join = _join;
+    let _select = options.select ?? null;
+    this.select = _select;
     let _where = options.where ?? null;
     this.where = _where;
     let _having = options.having ?? null;
@@ -2354,6 +2379,16 @@ export class Query<T extends Node = Node> extends StructFrozen {
     this.limit = _limit;
     let _offset = options.offset ?? null;
     this.offset = _offset;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
+    let _snapshotPath = options.snapshotPath ?? null;
+    if (_snapshotPath === null) {
+      _snapshotPath = [];
+    }
+    this.snapshotPath = _snapshotPath;
 
     // identity
     // @ts-expect-error(readonly)
@@ -2382,6 +2417,14 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (!this.definition.equals(other.definition)) {
       return false;
     }
+    if (this.subqueries.length !== other.subqueries.length) {
+      return false;
+    }
+    for (let i = 0; i < this.subqueries.length; i++) {
+      if (!this.subqueries[i].equals(other.subqueries[i])) {
+        return false;
+      }
+    }
     if (
       (this.join == null) !== (other.join == null) ||
       (this.join != null && !this.join.equals(other.join))
@@ -2393,14 +2436,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
       (this.select != null && !this.select.equals(other.select))
     ) {
       return false;
-    }
-    if (this.subqueries.length !== other.subqueries.length) {
-      return false;
-    }
-    for (let i = 0; i < this.subqueries.length; i++) {
-      if (!this.subqueries[i].equals(other.subqueries[i])) {
-        return false;
-      }
     }
     if (
       (this.where == null) !== (other.where == null) ||
@@ -2442,6 +2477,17 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (!(this.offset === other.offset)) {
       return false;
     }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (this.snapshotPath.length !== other.snapshotPath.length) {
+      return false;
+    }
+    for (let i = 0; i < this.snapshotPath.length; i++) {
+      if (!(this.snapshotPath[i] === other.snapshotPath[i])) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -2451,14 +2497,14 @@ export class Query<T extends Node = Node> extends StructFrozen {
       propertyReprs.push(`type=${QueryType[this.type]}`);
       propertyReprs.push(`name=${this.name}`);
       propertyReprs.push(`definition=${this.definition.repr()}`);
+      if (this.subqueries.length > 0) {
+        propertyReprs.push(`subqueries=${this.subqueries.map((_item) => _item.repr()).join(", ")}`);
+      }
       if (this.join !== null) {
         propertyReprs.push(`join=${this.join.repr()}`);
       }
       if (this.select !== null) {
         propertyReprs.push(`select=${this.select.repr()}`);
-      }
-      if (this.subqueries.length > 0) {
-        propertyReprs.push(`subqueries=${this.subqueries.map((_item) => _item.repr()).join(", ")}`);
       }
       if (this.where !== null) {
         propertyReprs.push(`where=${this.where.repr()}`);
@@ -2481,6 +2527,12 @@ export class Query<T extends Node = Node> extends StructFrozen {
       if (this.offset !== null) {
         propertyReprs.push(`offset=${this.offset}`);
       }
+      if (this.snapshot !== null) {
+        propertyReprs.push(`snapshot=${this.snapshot?.repr()}`);
+      }
+      if (this.snapshotPath.length > 0) {
+        propertyReprs.push(`snapshotPath=${this.snapshotPath.map((_item) => _item).join(", ")}`);
+      }
       // @ts-expect-error(readonly)
       this._repr = `<Query ${propertyReprs.join(" ")}>`;
     }
@@ -2498,16 +2550,16 @@ export class Query<T extends Node = Node> extends StructFrozen {
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + this.definition.hash()) & 0xffffffff;
+    if (this.subqueries && this.subqueries.length > 0) {
+      for (const _item of this.subqueries) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     if (this.join !== null) {
       h = (h * 31 + this.join.hash()) & 0xffffffff;
     }
     if (this.select !== null) {
       h = (h * 31 + this.select.hash()) & 0xffffffff;
-    }
-    if (this.subqueries && this.subqueries.length > 0) {
-      for (const _item of this.subqueries) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
     }
     if (this.where !== null) {
       h = (h * 31 + this.where.hash()) & 0xffffffff;
@@ -2534,6 +2586,14 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (this.offset !== null) {
       h = (h * 31 + hashInt(this.offset)) & 0xffffffff;
     }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPath && this.snapshotPath.length > 0) {
+      for (const _item of this.snapshotPath) {
+        h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
+      }
+    }
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -2559,47 +2619,57 @@ export class Query<T extends Node = Node> extends StructFrozen {
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
     objectValue["102"] = object.definition.toValue();
-    if (object.join != null) {
-      objectValue["103"] = object.join.toValue();
-    }
-    if (object.select != null) {
-      objectValue["104"] = object.select.toValue();
-    }
     if (object.subqueries.length > 0) {
       const packedSubqueries: any[] = [];
       for (const item of object.subqueries) {
         packedSubqueries.push(item.toValue());
       }
-      objectValue["105"] = packedSubqueries;
+      objectValue["109"] = packedSubqueries;
+    }
+    if (object.join != null) {
+      objectValue["110"] = object.join.toValue();
+    }
+    if (object.select != null) {
+      objectValue["111"] = object.select.toValue();
     }
     if (object.where != null) {
-      objectValue["110"] = object.where.toValue();
+      objectValue["112"] = object.where.toValue();
     }
     if (object.having != null) {
-      objectValue["111"] = object.having.toValue();
+      objectValue["113"] = object.having.toValue();
     }
     if (object.groupBy.length > 0) {
       const packedGroupBy: any[] = [];
       for (const item of object.groupBy) {
         packedGroupBy.push(item.toValue());
       }
-      objectValue["112"] = packedGroupBy;
+      objectValue["114"] = packedGroupBy;
     }
     if (object.aggregation != null) {
-      objectValue["113"] = object.aggregation.toValue();
+      objectValue["115"] = object.aggregation.toValue();
     }
     if (object.sort.length > 0) {
       const packedSort: any[] = [];
       for (const item of object.sort) {
         packedSort.push(item.toValue());
       }
-      objectValue["114"] = packedSort;
+      objectValue["116"] = packedSort;
     }
     if (object.limit != null) {
       objectValue["120"] = object.limit;
     }
     if (object.offset != null) {
       objectValue["121"] = object.offset;
+    }
+    if (object.snapshotPtr != null) {
+      objectValue["130"] = object.snapshotPtr.toValue();
+    }
+    if (object.snapshotPath.length > 0) {
+      const packedSnapshotPath: any[] = [];
+      for (const item of object.snapshotPath) {
+        packedSnapshotPath.push(String(item));
+      }
+      objectValue["131"] = packedSnapshotPath;
     }
     return objectValue;
   }
@@ -2614,6 +2684,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
@@ -2621,48 +2692,48 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const _Sort = STRUCT_CLASS_BY_TYPE[StructType.SORT] as typeof Sort;
     const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
-    const joinValue = objectValue["103"];
+    const unpackedSubqueries: any[] = [];
+    if (objectValue["109"] != undefined) {
+      for (const item of objectValue["109"]) {
+        unpackedSubqueries.push(_Query.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const joinValue = objectValue["110"];
     const unpackedJoin =
       joinValue != undefined
         ? _Join.fromValue(joinValue, _session, _supergraph, _graph, _connection)
         : null;
-    const selectValue = objectValue["104"];
+    const selectValue = objectValue["111"];
     const unpackedSelect =
       selectValue != undefined
         ? _Select.fromValue(selectValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedSubqueries: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
-        unpackedSubqueries.push(_Query.fromValue(item, _session, _supergraph, _graph, _connection));
-      }
-    }
-    const whereValue = objectValue["110"];
+    const whereValue = objectValue["112"];
     const unpackedWhere =
       whereValue != undefined
         ? _Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
         : null;
-    const havingValue = objectValue["111"];
+    const havingValue = objectValue["113"];
     const unpackedHaving =
       havingValue != undefined
         ? _Condition.fromValue(havingValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedGroupBy: any[] = [];
-    if (objectValue["112"] != undefined) {
-      for (const item of objectValue["112"]) {
+    if (objectValue["114"] != undefined) {
+      for (const item of objectValue["114"]) {
         unpackedGroupBy.push(
           _Expression.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const aggregationValue = objectValue["113"];
+    const aggregationValue = objectValue["115"];
     const unpackedAggregation =
       aggregationValue != undefined
         ? _Aggregation.fromValue(aggregationValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedSort: any[] = [];
-    if (objectValue["114"] != undefined) {
-      for (const item of objectValue["114"]) {
+    if (objectValue["116"] != undefined) {
+      for (const item of objectValue["116"]) {
         unpackedSort.push(_Sort.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
@@ -2670,6 +2741,17 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const unpackedLimit = limitValue != undefined ? Number(limitValue) : null;
     const offsetValue = objectValue["121"];
     const unpackedOffset = offsetValue != undefined ? Number(offsetValue) : null;
+    const snapshotPtrValue = objectValue["130"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedSnapshotPath: any[] = [];
+    if (objectValue["131"] != undefined) {
+      for (const item of objectValue["131"]) {
+        unpackedSnapshotPath.push(String(item));
+      }
+    }
     return new Query({
       id: String(objectValue["2"]),
       type: Number(objectValue["100"]),
@@ -2681,9 +2763,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
         _graph,
         _connection,
       ),
+      subqueries: unpackedSubqueries,
       join: unpackedJoin,
       select: unpackedSelect,
-      subqueries: unpackedSubqueries,
       where: unpackedWhere,
       having: unpackedHaving,
       groupBy: unpackedGroupBy,
@@ -2691,6 +2773,8 @@ export class Query<T extends Node = Node> extends StructFrozen {
       sort: unpackedSort,
       limit: unpackedLimit,
       offset: unpackedOffset,
+      snapshot: unpackedSnapshotPtr,
+      snapshotPath: unpackedSnapshotPath,
       _value: objectValue,
       _supergraph,
     });
@@ -2720,18 +2804,18 @@ export class Query<T extends Node = Node> extends StructFrozen {
     objectProto.type = Number(object.type) as QueryTypeProto;
     objectProto.name = object.name;
     objectProto.definition = object.definition.toProto();
-    if (object.join != null) {
-      objectProto.join = object.join.toProto();
-    }
-    if (object.select != null) {
-      objectProto.select = object.select.toProto();
-    }
     if (object.subqueries) {
       const packedSubqueries: any[] = [];
       for (const item of object.subqueries) {
         packedSubqueries.push(item.toProto());
       }
       objectProto.subqueries = packedSubqueries;
+    }
+    if (object.join != null) {
+      objectProto.join = object.join.toProto();
+    }
+    if (object.select != null) {
+      objectProto.select = object.select.toProto();
     }
     if (object.where != null) {
       objectProto.where = object.where.toProto();
@@ -2762,6 +2846,16 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (object.offset != null) {
       objectProto.offset = object.offset;
     }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.snapshotPath) {
+      const packedSnapshotPath: any[] = [];
+      for (const item of object.snapshotPath) {
+        packedSnapshotPath.push(String(item));
+      }
+      objectProto.snapshotPath = packedSnapshotPath;
+    }
     return objectProto as QueryProto;
   }
 
@@ -2775,6 +2869,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
@@ -2804,6 +2899,12 @@ export class Query<T extends Node = Node> extends StructFrozen {
         unpackedSort.push(_Sort.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
+    const unpackedSnapshotPath: any[] = [];
+    if (objectProto.snapshotPath) {
+      for (const item of objectProto.snapshotPath) {
+        unpackedSnapshotPath.push(String(item));
+      }
+    }
     return new Query({
       id: String(objectProto.id),
       type: Number(objectProto.type) as QueryType,
@@ -2815,6 +2916,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
         _graph,
         _connection,
       ),
+      subqueries: unpackedSubqueries,
       join:
         objectProto.join != undefined
           ? _Join.fromProto(objectProto.join!, _session, _supergraph, _graph, _connection)
@@ -2823,7 +2925,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
         objectProto.select != undefined
           ? _Select.fromProto(objectProto.select!, _session, _supergraph, _graph, _connection)
           : null,
-      subqueries: unpackedSubqueries,
       where:
         objectProto.where != undefined
           ? _Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
@@ -2846,6 +2947,17 @@ export class Query<T extends Node = Node> extends StructFrozen {
       sort: unpackedSort,
       limit: objectProto.limit != undefined ? Number(objectProto.limit) : null,
       offset: objectProto.offset != undefined ? Number(objectProto.offset) : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshotPath: unpackedSnapshotPath,
       _proto: objectProto,
       _supergraph,
     });

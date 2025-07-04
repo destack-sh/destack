@@ -1628,3 +1628,18 @@ export class ChangeResult extends StructFrozen {
 }
 registerStructClass(StructType.CHANGE_RESULT, ChangeResult);
 /* ==== DESTACK_GENERATED_END:STRUCT:302 ==== */
+
+/* ==== DESTACK_GENERATED_START:CONSTANT:CASCADING_EDIT_TYPES ==== */
+/**
+ * CASCADING_EDIT_TYPES
+ */
+// prettier-ignore
+export const CASCADING_EDIT_TYPES = [
+  (5 /* EditType.ARCHIVE */),
+  (6 /* EditType.UNARCHIVE */),
+  (7 /* EditType.DELETE */),
+  (8 /* EditType.RESTORE */),
+  (9 /* EditType.ERASE */)
+];
+
+/* ==== DESTACK_GENERATED_END:CONSTANT:CASCADING_EDIT_TYPES ==== */
