@@ -136,6 +136,7 @@ def _execute_data_edit(
             if edit_type == EditType.UPSERT or node_key not in table.rows:
                 row = pack_node_row(table, edit.value)
                 table.rows[node_key] = row
+                table.rows_by_snapshot[snapshot_id][node_key.id] = row
                 if row.parent_ptr is not None:
                     parent_table = context.get(row.parent_ptr)
                     parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
@@ -265,10 +266,14 @@ def _execute_data_edit(
             snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
             node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
             row = node_table.rows.pop(node_key, None)
-            if row is not None and row.parent_ptr is not None:
-                parent_table = context.get(row.parent_ptr)
-                parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
-                parent_table.rows_by_parent[parent_key].remove(row)
+            if row is not None:
+                node_table.rows_by_snapshot[snapshot_id].pop(node_key.id, None)
+                if not node_table.rows_by_snapshot[snapshot_id]:
+                    node_table.rows_by_snapshot.pop(snapshot_id, None)
+                if row.parent_ptr is not None:
+                    parent_table = context.get(row.parent_ptr)
+                    parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
+                    parent_table.rows_by_parent[parent_key].remove(row)
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",
