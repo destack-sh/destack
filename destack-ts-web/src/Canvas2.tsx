@@ -1,12 +1,10 @@
-import { Canvas, LineShape, NodeReference } from "destack";
+import { LineShape } from "destack";
 
 // nocheckin: reactive TS Store/Queries/Edits
-export const Canvas2: React.FC = (props: { canvas: Canvas | NodeReference }) => {
-  const { roots: lines } = useQuery({
-    query: LineShape.search({
-      where: LineShape.property("parent").eq(props.canvas),
-    }),
-  });
+export const Canvas2: React.FC = ({}) => {
+  // const { roots: lines } = useQuery({
+  //   query: LineShape.search({}),
+  // });
 
   return <div>hey</div>;
 };

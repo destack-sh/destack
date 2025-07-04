@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -15,7 +14,6 @@ from destack.language.registry import (
     NODE_TYPE_BY_CLASS,
 )
 from destack.proto import AnyNodeProto
-from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
@@ -31,10 +29,7 @@ from .property import (
     builtin_property_runtime,
 )
 from .trait import (
-    INTER_ORDER_TYPES,
     IndexIn,
-    IsOrdered,
-    IsSpatial,
 )
 
 if TYPE_CHECKING:
@@ -137,9 +132,6 @@ def builtin_node(
     return decorate
 
 
-_object_set = object.__setattr__
-
-
 @builtin_node(node_type=NodeType.NODE, root_type=None, is_abstract=True)
 class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """
@@ -209,7 +201,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     _ref: "Optional[NodeReference]" = builtin_property_runtime(default=None)
     _is_new: bool = builtin_property_runtime(default=False)
     _is_attached: bool = builtin_property_runtime(default=False)
-    _dirty: dict[str, Any] | None = builtin_property_runtime(default=None)
 
     # 20-40: node tracking
     # IsTracked.created_at/created_by/updated_at/updated_by: 20-23
@@ -220,7 +211,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     # IsOwnable.owned_by: 28
     # ...managed_by/controlled_by?
 
-    # 40-100: internal properties
+    # 40-100: more internal properties
     # ...
 
     # 100+ for general properties
@@ -233,22 +224,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     def __hash__(self):
         """Hash the Node's identity."""
         return self.id.int
-
-    def _do_set(self, key: str, value: Any):
-        """Set a Property on this Node."""
-        prop = self.__tracked_properties__.get(key)
-        if prop is not None and not self._is_new:
-            old_value = getattr(self, key)
-            if self._dirty is None:
-                self._dirty = {}
-            if prop.name not in self._dirty:
-                self._dirty[prop.name] = old_value  # type: ignore
-            if self.id not in self._session.dirty:
-                self._session.dirty[self.id] = self
-        _object_set(self, key, value)
-
-    if not TYPE_CHECKING:
-        __setattr__ = _do_set
 
     @property
     def path(self) -> str:
@@ -263,157 +238,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         if self._ref is None:
             self._ref = self.__to_ref__()
         return self._ref
-
-    def move_to(self, parent: "Node"):
-        """Move this Node to a new parent."""
-        raise NotImplementedError
-
-    def add_child(
-        self,
-        child: "Node",
-        *,
-        after: "Node | None" = None,
-        before: "Node | None" = None,
-    ) -> Self:
-        """
-        Append a Node as a child of this Node (and all its descendants).
-        If the Node is new, it will be created in this Node's session.
-        If the Node IsOrdered, it will be positioned (relative to after/before).
-        (The same applies to all descendants.)
-        """
-        from ..runtime import SingletonGraph
-
-        old_graph = child._graph
-        new_graph = self._graph
-        session = self._session
-        nodes: tuple[Node, ...] = (child, *child._graph.get_descendants(child))
-
-        assert isinstance(self, child.__parent_classes__), (
-            f"{self!r} cannot parent {child!r} (allowed: {child.__parent_types__})"
-        )
-        assert old_graph is not new_graph, f"{child!r} is already in same graph of {self!r}"
-        assert old_graph.supergraph is self._supergraph, (
-            f"{child!r} is not in supergraph of {self!r}"
-        )
-
-        # assign order
-        if isinstance(child, IsOrdered):
-            order_trait = next(
-                (trait for trait in child.__traits__ if trait in INTER_ORDER_TYPES), None
-            )
-            existing_nodes = self._graph.get_children(self, type=order_trait or child.metatype)
-            if existing_nodes:
-                order_key = get_order_key(getattr(existing_nodes[-1], "order_key", None), None)
-                child._do_set("order_key", order_key)
-
-        # promote self to polygraph if needed
-        if isinstance(new_graph, SingletonGraph):
-            new_graph = self._supergraph.promote_to_polygraph(new_graph)
-            self._graph = new_graph
-
-        # move to new graph
-        if len(nodes) == len(old_graph):  # all nodes were moved
-            self._supergraph.remove_graph(old_graph)
-        else:
-            for node in nodes:
-                old_graph.remove(node)
-        child.parent_ptr = self.to_ref()
-        for node in nodes:
-            node._graph = new_graph
-            new_graph.add(node)
-
-        # assign space
-        if isinstance(child, IsSpatial) and (
-            (isinstance(self, IsSpatial) and (space_ptr := self.space_ptr) is not None)
-            or (self.metatype == NodeType.SPACE and (space_ptr := self.to_ref()) is not None)
-        ):
-            for node in nodes:
-                if isinstance(node, IsSpatial):
-                    node.space_ptr = space_ptr
-
-        # create new nodes
-        if child._is_new and self._is_attached:
-            for node in nodes:
-                node._ref = None  # invalidate cached ref
-                session.create(node)
-
-        return self
-
-    def add_children(
-        self,
-        *children: "Node",
-        after: "Node | None" = None,
-        before: "Node | None" = None,
-    ) -> Self:
-        """
-        Append multiple Nodes as children of this Node.
-        TODO :Performance: batch Node.add_children (per type?)
-        """
-        for child in children:
-            self.add_child(child, after=after, before=before)
-        return self
-
-    def remove_child(self, child: "Node") -> Self:
-        """
-        Remove a child from this Node.
-        If the Node IsDeletable, it will be deleted; otherwise, it will be erased.
-        """
-        raise NotImplementedError
-
-    def get_children[N: Node = Node](
-        self,
-        type: NodeType | TraitType | type[N] | None = None,
-        include_deleted: bool = False,
-        include_archived: bool = False,
-    ) -> Sequence[N]:
-        """Gets the children of this Node."""
-        return self._graph.get_children(self, type=type)
-
-    def get_child[N: Node = Node](
-        self,
-        type: NodeType | type[N] | TraitType,
-        name: str,
-        include_deleted: bool = False,
-        include_archived: bool = False,
-    ) -> N | None:
-        """Gets a specific child of this Node by name."""
-        if isinstance(type, type_):
-            type = type.metatype
-        for child in self._graph.get_children(self, type=type):
-            if getattr(child, "name", None) == name:
-                return cast(N, child)
-        return None
-
-    def child[N: Node = Node](
-        self,
-        type: NodeType | type[N] | TraitType,
-        name: str,
-        include_deleted: bool = False,
-        include_archived: bool = False,
-    ) -> N:
-        """Gets a specific child of this Node by name, or raises an error if not found."""
-        child = self.get_child(type, name)
-        if child is None:
-            raise LookupError(f"no child {name} of {self!r}")
-        return cast(N, child)
-
-    def get_ancestors[N: Node = Node](
-        self,
-        type: NodeType | TraitType | type[N] | None = None,
-        include_deleted: bool = False,
-        include_archived: bool = False,
-    ) -> Sequence[N]:
-        """Gets the ancestors of this Node."""
-        return self._graph.get_ancestors(self, type=type)
-
-    def get_descendants[N: Node = Node](
-        self,
-        type: NodeType | TraitType | type[N] | None = None,
-        include_deleted: bool = False,
-        include_archived: bool = False,
-    ) -> Sequence[N]:
-        """Gets the descendants of this Node."""
-        return self._graph.get_descendants(self, type=type)
 
     @classmethod
     def from_value(
@@ -454,7 +278,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             join=Join.of(join) if join is not None else None,
             where=where,
             subqueries=to_subqueries(subqueries),
-            # limit=1?
+            limit=3,
         )
         return query  # type: ignore
 

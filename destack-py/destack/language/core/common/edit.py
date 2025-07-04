@@ -9,9 +9,9 @@ from destack.utils.uuid import UUID
 
 from ..builtin import (
     UNSET,
+    Entity,
     Enum,
     EnumType,
-    Node,
     NodeReference,
     PropertyReference,
     StructFrozen,
@@ -92,7 +92,7 @@ class EditOperation(Enum):
 @builtin_struct(StructType.EDIT, frozen=True)
 class Edit(StructFrozen):
     """
-    An Edit to a Node.
+    An Edit to an Entity.
     """
 
     id: UUID = builtin_property(
@@ -106,7 +106,7 @@ class Edit(StructFrozen):
     operation: EditOperation | None = builtin_property(
         101, is_repr=True, description="The specific Edit operation."
     )
-    node: Node = builtin_property(102, is_repr=True, description="The Node being edited.")
+    node: Entity = builtin_property(102, is_repr=True, description="The Entity being edited.")
     attribute: PropertyReference | None = builtin_property(
         103, is_repr=True, description="The Property being edited."
     )

@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -5,9 +6,12 @@ from typing import (
     Optional,
     Self,
     Union,
+    cast,
 )
 
-from .common import EnumType, ResourceStatus, RoleType, ValueFactory
+from destack.utils.fractional import get_order_key
+
+from .common import EnumType, ResourceStatus, RoleType, TraitType, ValueFactory
 from .const import ACTIVE_SNAPSHOT
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
@@ -17,10 +21,12 @@ from .property import (
     builtin_property_runtime,
 )
 from .trait import (
+    INTER_ORDER_TYPES,
     IsArchivable,
     IsCustomizable,
     IsDeletable,
     IsExtensible,
+    IsOrdered,
     IsOwnable,
     IsScriptable,
     IsSourceable,
@@ -39,6 +45,9 @@ if TYPE_CHECKING:
     )
 
 # pyright: reportIncompatibleVariableOverride=false
+
+type_ = type
+object_set_ = object.__setattr__
 
 
 @builtin_enum(EnumType.MATERIALIZATION)
@@ -134,6 +143,177 @@ class Entity(Node):
         created_by_ptr: Optional[NodeReference] = None
         updated_by_ptr: Optional[NodeReference] = None
     # revision? epoch?
+
+    _dirty: dict[str, Any] | None = builtin_property_runtime(default=None)
+
+    def _do_set(self, key: str, value: Any):
+        """Set a Property on this Node."""
+        prop = self.__tracked_properties__.get(key)
+        if prop is not None and not self._is_new:
+            old_value = getattr(self, key)
+            if self._dirty is None:
+                self._dirty = {}
+            if prop.name not in self._dirty:
+                self._dirty[prop.name] = old_value  # type: ignore
+            if self.id not in self._session.dirty:
+                self._session.dirty[self.id] = self
+        object_set_(self, key, value)
+
+    if not TYPE_CHECKING:
+        __setattr__ = _do_set
+
+    def move_to(self, parent: "Entity"):
+        """Move this Node to a new parent."""
+        raise NotImplementedError
+
+    def add_child(
+        self,
+        child: "Entity",
+        *,
+        after: "Entity | None" = None,
+        before: "Entity | None" = None,
+    ) -> Self:
+        """
+        Append a Node as a child of this Node (and all its descendants).
+        If the Node is new, it will be created in this Node's session.
+        If the Node IsOrdered, it will be positioned (relative to after/before).
+        (The same applies to all descendants.)
+        """
+        from ..runtime import SingletonGraph
+
+        old_graph = child._graph
+        new_graph = self._graph
+        session = self._session
+        nodes: tuple[Entity, ...] = (child, *child._graph.get_descendants(child))
+
+        assert isinstance(self, child.__parent_classes__), (
+            f"{self!r} cannot parent {child!r} (allowed: {child.__parent_types__})"
+        )
+        assert old_graph is not new_graph, f"{child!r} is already in same graph of {self!r}"
+        assert old_graph.supergraph is self._supergraph, (
+            f"{child!r} is not in supergraph of {self!r}"
+        )
+
+        # assign order
+        if isinstance(child, IsOrdered):
+            order_trait = next(
+                (trait for trait in child.__traits__ if trait in INTER_ORDER_TYPES), None
+            )
+            existing_nodes = self._graph.get_children(self, type=order_trait or child.metatype)
+            if existing_nodes:
+                assert isinstance(child, Entity), f"{child!r} is not an Entity"
+                order_key = get_order_key(getattr(existing_nodes[-1], "order_key", None), None)
+                child._do_set("order_key", order_key)
+
+        # promote self to polygraph if needed
+        if isinstance(new_graph, SingletonGraph):
+            new_graph = self._supergraph.promote_to_polygraph(new_graph)
+            self._graph = new_graph
+
+        # move to new graph
+        if len(nodes) == len(old_graph):  # all nodes were moved
+            self._supergraph.remove_graph(old_graph)
+        else:
+            for node in nodes:
+                old_graph.remove(node)
+        child.parent_ptr = self.to_ref()
+        for node in nodes:
+            node._graph = new_graph
+            new_graph.add(node)
+
+        # assign space
+        if isinstance(child, IsSpatial) and (
+            (isinstance(self, IsSpatial) and (space_ptr := self.space_ptr) is not None)
+            or (self.metatype == NodeType.SPACE and (space_ptr := self.to_ref()) is not None)
+        ):
+            for node in nodes:
+                if isinstance(node, IsSpatial):
+                    node.space_ptr = space_ptr
+
+        # create new nodes
+        if child._is_new and self._is_attached:
+            for node in nodes:
+                assert isinstance(node, Entity), f"{node!r} of {self!r} is not an Entity"
+                node._ref = None  # invalidate cached ref
+                session.create(node)
+
+        return self
+
+    def add_children(
+        self,
+        *children: "Entity",
+        after: "Entity | None" = None,
+        before: "Entity | None" = None,
+    ) -> Self:
+        """
+        Append multiple Nodes as children of this Node.
+        TODO :Performance: batch Node.add_children (per type?)
+        """
+        for child in children:
+            self.add_child(child, after=after, before=before)
+        return self
+
+    def remove_child(self, child: "Entity") -> Self:
+        """
+        Remove a child from this Node.
+        If the Node IsDeletable, it will be deleted; otherwise, it will be erased.
+        """
+        raise NotImplementedError
+
+    def get_children[N: Entity = Entity](
+        self,
+        type: NodeType | TraitType | type[N] | None = None,
+        include_deleted: bool = False,
+        include_archived: bool = False,
+    ) -> Sequence[N]:
+        """Gets the children of this Node."""
+        return self._graph.get_children(self, type=type)
+
+    def get_child[N: Entity = Entity](
+        self,
+        type: NodeType | type[N] | TraitType,
+        name: str,
+        include_deleted: bool = False,
+        include_archived: bool = False,
+    ) -> N | None:
+        """Gets a specific child of this Node by name."""
+        if isinstance(type, type_):
+            type = type.metatype
+        for child in self._graph.get_children(self, type=type):
+            if getattr(child, "name", None) == name:
+                return cast(N, child)
+        return None
+
+    def child[N: Entity = Entity](
+        self,
+        type: NodeType | type[N] | TraitType,
+        name: str,
+        include_deleted: bool = False,
+        include_archived: bool = False,
+    ) -> N:
+        """Gets a specific child of this Node by name, or raises an error if not found."""
+        child = self.get_child(type, name)
+        if child is None:
+            raise LookupError(f"no child {name} of {self!r}")
+        return cast(N, child)
+
+    def get_ancestors[N: Entity = Entity](
+        self,
+        type: NodeType | TraitType | type[N] | None = None,
+        include_deleted: bool = False,
+        include_archived: bool = False,
+    ) -> Sequence[N]:
+        """Gets the ancestors of this Node."""
+        return self._graph.get_ancestors(self, type=type)
+
+    def get_descendants[N: Entity = Entity](
+        self,
+        type: NodeType | TraitType | type[N] | None = None,
+        include_deleted: bool = False,
+        include_archived: bool = False,
+    ) -> Sequence[N]:
+        """Gets the descendants of this Node."""
+        return self._graph.get_descendants(self, type=type)
 
     def into(
         self,

@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { ClientType, EnumType, StructType } from "@destack/language/core/builtin/common";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
+import { Entity } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
@@ -99,7 +100,7 @@ registerEnumClass(EnumType.CHANGE_DEBOUNCE, ChangeDebounce);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:300 ==== */
 /**
- * An Edit to a Node.
+ * An Edit to an Entity.
  */
 export class Edit extends StructFrozen {
   static metatype: StructType = StructType.EDIT;
@@ -121,15 +122,15 @@ export class Edit extends StructFrozen {
   readonly operation: EditOperation | null;
 
   /**
-   * The Node being edited.
+   * The Entity being edited.
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as Node;
+      return this._supergraph.get(nodePtr.id) as Entity;
     }
     return null;
   }
@@ -179,7 +180,7 @@ export class Edit extends StructFrozen {
     id?: string;
     type: EditType;
     operation?: EditOperation | null;
-    node: Node | NodeReference;
+    node: Entity | NodeReference;
     attribute?: PropertyReference | null;
     key?: Value | null;
     value?: Value | null;

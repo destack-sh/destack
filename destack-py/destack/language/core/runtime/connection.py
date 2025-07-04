@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from destack.utils.uuid import UUID
 
@@ -165,7 +165,7 @@ class QueryResultContainer[NodeT: "Trait | Node" = Node]:
         raise KeyError(f"no subresult for {key!r} in {self!r}")
 
 
-class QueryConnection[NodeT: "Trait | Node"](QueryResultContainer[NodeT]):  # type: ignore (pyright??)
+class QueryConnection[NodeT: "Node" = Node](QueryResultContainer[NodeT]):
     """
     A connection to a Query and its result.
     """
@@ -181,7 +181,12 @@ class QueryConnection[NodeT: "Trait | Node"](QueryResultContainer[NodeT]):  # ty
     )
 
     def __init__(self, query: Query, store: "Store", session: "Session"):
-        super().__init__(connection=self, type=query.type, query=query, result=None)
+        super().__init__(
+            connection=cast(QueryConnection, self),
+            type=query.type,
+            query=query,
+            result=None,
+        )
 
         from .graph import Graph, PolyGraph
 

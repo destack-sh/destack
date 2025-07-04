@@ -1,6 +1,6 @@
+import type { Entity, Node, NodeClass } from "@destack/language/core";
 import { TypeCardinality } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
-import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { IsSubject } from "@destack/language/core/builtin/trait";
 import {
   Change,
@@ -30,7 +30,7 @@ export class Session {
   store: Store | null;
   supergraph: Supergraph;
 
-  dirty: Record<string, Node>;
+  dirty: Record<string, Entity>;
   edits: Edit[];
   changes: Change[];
 
@@ -101,8 +101,8 @@ export class Session {
     this._token = null;
   }
 
-  /** Create a new Node. */
-  create(node: Node): void {
+  /** Create a new Entity. */
+  create(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
@@ -113,8 +113,8 @@ export class Session {
     node._isAttached = true;
   }
 
-  /** Create or update a Node. */
-  upsert(node: Node): void {
+  /** Create or update an Entity. */
+  upsert(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
@@ -125,8 +125,8 @@ export class Session {
     node._isAttached = true;
   }
 
-  /** Update a Node. */
-  update(node: Node, edit: Edit): void {
+  /** Update an Entity. */
+  update(node: Entity, edit: Edit): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
@@ -136,7 +136,7 @@ export class Session {
   }
 
   /** Move a Node to a new parent. */
-  move(node: Node, parent: Node): void {
+  move(node: Entity, parent: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
@@ -146,8 +146,8 @@ export class Session {
     this.dirty[node.id] = node;
   }
 
-  /** Archive a Node. */
-  archive(node: Node): void {
+  /** Archive an Entity. */
+  archive(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
@@ -158,8 +158,8 @@ export class Session {
     this.dirty[node.id] = node;
   }
 
-  /** Unarchive a Node. */
-  unarchive(node: Node): void {
+  /** Unarchive an Entity. */
+  unarchive(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
@@ -169,8 +169,8 @@ export class Session {
     this.dirty[node.id] = node;
   }
 
-  /** Delete a Node. */
-  delete(node: Node): void {
+  /** Delete an Entity. */
+  delete(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
@@ -181,8 +181,8 @@ export class Session {
     this.dirty[node.id] = node;
   }
 
-  /** Restore a deleted Node. */
-  restore(node: Node): void {
+  /** Restore a deleted Entity. */
+  restore(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
@@ -193,7 +193,7 @@ export class Session {
   }
 
   /** Turn a dirty Node into Edits. */
-  _flushNode(node: Node): void {
+  _flushNode(node: Entity): void {
     if (node._isNew) {
       node._isNew = false;
     } else if (node._dirty != null) {
@@ -203,7 +203,7 @@ export class Session {
         const prop = (node.constructor as NodeClass).__properties__[propName];
         const propPtr = prop.toRef();
         const propType = prop.toType();
-        
+
         // undo
         let undoOperation: EditOperation;
         let oldValue: Value | null;
@@ -214,7 +214,7 @@ export class Session {
           undoOperation = EditOperation.SET;
           oldValue = toValue(propOldValue, propType);
         }
-        
+
         // do
         const propNewValue = (node as any)[propName];
         let operation: EditOperation;
@@ -226,7 +226,7 @@ export class Session {
           operation = EditOperation.SET;
           newValue = toValue(propNewValue, propType);
         }
-        
+
         // create Edits
         const undoEdit = new Edit({
           type: EditType.UPDATE,
