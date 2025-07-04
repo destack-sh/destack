@@ -164,9 +164,8 @@ export class QueryResultContainer<T extends Node = Node> {
       throw new Error(`no result for ${this.repr()}`);
     } else if (this.result.exists == null) {
       throw new Error(`no exists in ${this.repr()}`);
-    } else {
-      return this.result.exists;
     }
+    return this.result.exists;
   }
 
   /** Get the scalar value. */
@@ -177,49 +176,40 @@ export class QueryResultContainer<T extends Node = Node> {
       throw new Error(`no result for ${this.repr()}`);
     } else if (this.result.scalar == null) {
       throw new Error(`no scalar in ${this.repr()}`);
-    } else {
-      return this.result.scalar.unpack();
     }
+    return this.result.scalar.unpack();
   }
 
   /** Get the scalar value by group. */
   toScalarByGroup(): Record<string, any> {
     if (this.type !== QueryType.GROUPED_SCALAR) {
       throw new Error(`not a grouped scalar Query: ${this.query.repr()}`);
-    } else if (this.result == null) {
-      throw new Error(`no result for ${this.repr()}`);
-    } else if (this.result.scalar == null) {
-      throw new Error(`no scalar in ${this.repr()}`);
-    } else {
-      const scalarByGroup: Record<string, any> = {};
-      for (const subcontainer of this.subcontainers) {
-        if (subcontainer.discriminator == null) {
-          continue;
-        }
-        const discriminator = subcontainer.discriminator.unpack();
-        scalarByGroup[discriminator] = subcontainer.toScalar();
-      }
-      return scalarByGroup;
     }
+    const scalarByGroup: Record<string, any> = {};
+    for (const subcontainer of this.subcontainers) {
+      if (subcontainer.discriminator == null) {
+        continue;
+      }
+      const discriminator = subcontainer.discriminator.unpack();
+      scalarByGroup[discriminator] = subcontainer.toScalar();
+    }
+    return scalarByGroup;
   }
 
   /** Get the list of main Nodes by group. */
   toListByGroup(): Record<string, T[]> {
     if (this.type !== QueryType.GROUPED_NODE) {
       throw new Error(`not a grouped node Query: ${this.query.repr()}`);
-    } else if (this.result == null) {
-      throw new Error(`no result for ${this.repr()}`);
-    } else {
-      const listByGroup: Record<string, T[]> = {};
-      for (const subcontainer of this.subcontainers) {
-        if (subcontainer.discriminator == null) {
-          continue;
-        }
-        const discriminator = subcontainer.discriminator.unpack();
-        listByGroup[discriminator] = subcontainer.toList() as T[];
-      }
-      return listByGroup;
     }
+    const listByGroup: Record<string, T[]> = {};
+    for (const subcontainer of this.subcontainers) {
+      if (subcontainer.discriminator == null) {
+        continue;
+      }
+      const discriminator = subcontainer.discriminator.unpack();
+      listByGroup[discriminator] = subcontainer.toList() as T[];
+    }
+    return listByGroup;
   }
 
   /** Get a subresult by name or id. */

@@ -43,6 +43,8 @@ logger = structlog.get_logger(__name__)
 
 MAX_RECURSION_DEPTH = 100
 
+NODE_PARENT_KEY = str(NodeReference.property("parent").id)
+
 NODE_REFERENCE_TYPE_KEY = str(NodeReference.property("type").id)
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
 NODE_REFERENCE_SPACE_ID_KEY = str(NodeReference.property("space_id").id)
@@ -318,85 +320,6 @@ def _extract_id_condition(condition: Condition) -> tuple[bool, Sequence[UUID]]:
     return False, ()
 
 
-@tracer.start_as_current_span("memory.walk_node")
-def _walk_node(
-    context: MemoryContext,
-    definition: NodeDefinitionReference,
-    roots_ptr: Sequence[NodeReference],
-    roots_parents_ptr: Sequence[NodeReference],
-    direction: EdgeDirection,
-    depth: int,
-    where: Condition | None,
-    snapshot_path: Sequence[UUID],
-) -> list[NodeReference]:
-    """Get the cascaded Nodes for a query."""
-
-    nodes_by_id: dict[UUID, NodeReference] = {ptr.id: ptr for ptr in roots_ptr}
-    definitions = context.resolve(definition)
-    snapshot_id = snapshot_path[-1] if snapshot_path else None
-
-    # parent walk
-    if direction == EdgeDirection.PARENT:
-        # start with root nodes and walk up
-        current_depth = 0
-        current_node_ids: set[UUID] = {ptr.id for ptr in roots_ptr}
-        while current_depth < depth:
-            if not current_node_ids:
-                break
-
-            next_node_ids: set[UUID] = set()
-            for rel in definitions:
-                table = context.get(rel)
-                for node_id in current_node_ids:
-                    node_key = VersionedNodeKey(id=node_id, snapshot_id=snapshot_id)
-                    if (
-                        (row := table.rows.get(node_key)) is not None
-                        and (parent_ptr := row.parent_ptr) is not None
-                        and (parent_id := parent_ptr.id) not in nodes_by_id
-                        and (where is None or _evaluate_condition(context, where, row))
-                    ):
-                        nodes_by_id[parent_id] = parent_ptr
-                        next_node_ids.add(parent_id)
-
-            current_node_ids = next_node_ids
-            current_depth += 1
-
-    # child walk
-    elif direction == EdgeDirection.CHILD:
-        # start with root parents and walk down
-        current_depth = 0
-        current_parent_ids: set[UUID] = {ptr.id for ptr in roots_parents_ptr}
-
-        while current_depth < depth:
-            if not current_parent_ids:
-                break
-
-            next_parent_ids: set[UUID] = set()
-            for rel in definitions:
-                table = context.get(rel)
-                for parent_id in current_parent_ids:
-                    parent_key = VersionedNodeKey(id=parent_id, snapshot_id=snapshot_id)
-                    if children := table.rows_by_parent.get(parent_key):
-                        for row in children:
-                            if (where is None or _evaluate_condition(context, where, row)) and (
-                                node_id := row.id
-                            ) not in nodes_by_id:
-                                nodes_by_id[node_id] = row.ptr
-                                next_parent_ids.add(node_id)
-
-            current_parent_ids = next_parent_ids
-            current_depth += 1
-
-    # side walk
-    elif direction == EdgeDirection.SIDE:
-        raise NotImplementedError(f"cannot walk {definition!r} in direction: {direction!r}")
-
-    else:
-        assert_never(direction)
-
-    return list(nodes_by_id.values())
-
-
 @tracer.start_as_current_span("memory.query_node")
 def _query_node(
     context: MemoryContext,
@@ -410,7 +333,7 @@ def _query_node(
     _ignore_multi: bool = False,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
-    # fan out trait definitions
+    # fan out multi definitions
     if definition.is_multi and not _ignore_multi:
         if limit is not None or offset is not None:
             raise NotImplementedError(f"cannot limit/offset for multi definition: {definition!r}")
@@ -482,7 +405,7 @@ def _query_scalar(
     """Execute a scalar Query."""
     snapshot_id = snapshot_path[-1] if snapshot_path else None
 
-    # handle multi-definitions
+    # collect rows
     if definition.is_multi:
         definitions = context.resolve(definition)
         filtered_rows: list[MemoryRow] = []
@@ -625,9 +548,7 @@ def _query_grouped_scalar(
         if having is not None and group_rows:
             if not _evaluate_condition(context, having, group_rows[0]):
                 continue
-
         agg_result = _evaluate_aggregation(context, aggregation, group_rows)
-        # Use first element of group key as discriminator (simplified)
         discriminator = group_key[0] if group_key else None
         results.append((to_value(discriminator), to_value(agg_result)))
 
@@ -639,6 +560,85 @@ def _query_grouped_scalar(
         span="current",
     )
     return results
+
+
+@tracer.start_as_current_span("memory.walk_node")
+def _walk_node(
+    context: MemoryContext,
+    definition: NodeDefinitionReference,
+    roots_ptr: Sequence[NodeReference],
+    roots_parents_ptr: Sequence[NodeReference],
+    direction: EdgeDirection,
+    depth: int,
+    where: Condition | None,
+    snapshot_path: Sequence[UUID],
+) -> list[NodeReference]:
+    """Get the cascaded Nodes for a query."""
+
+    nodes_by_id: dict[UUID, NodeReference] = {ptr.id: ptr for ptr in roots_ptr}
+    definitions = context.resolve(definition)
+    snapshot_id = snapshot_path[-1] if snapshot_path else None
+
+    # parent walk
+    if direction == EdgeDirection.PARENT:
+        # start with root nodes and walk up
+        current_depth = 0
+        current_node_ids: set[UUID] = {ptr.id for ptr in roots_ptr}
+        while current_depth < depth:
+            if not current_node_ids:
+                break
+
+            next_node_ids: set[UUID] = set()
+            for rel in definitions:
+                table = context.get(rel)
+                for node_id in current_node_ids:
+                    node_key = VersionedNodeKey(id=node_id, snapshot_id=snapshot_id)
+                    if (
+                        (row := table.rows.get(node_key)) is not None
+                        and (parent_ptr := row.parent_ptr) is not None
+                        and (parent_id := parent_ptr.id) not in nodes_by_id
+                        and (where is None or _evaluate_condition(context, where, row))
+                    ):
+                        nodes_by_id[parent_id] = parent_ptr
+                        next_node_ids.add(parent_id)
+
+            current_node_ids = next_node_ids
+            current_depth += 1
+
+    # child walk
+    elif direction == EdgeDirection.CHILD:
+        # start with root parents and walk down
+        current_depth = 0
+        current_parent_ids: set[UUID] = {ptr.id for ptr in roots_parents_ptr}
+
+        while current_depth < depth:
+            if not current_parent_ids:
+                break
+
+            next_parent_ids: set[UUID] = set()
+            for rel in definitions:
+                table = context.get(rel)
+                for parent_id in current_parent_ids:
+                    parent_key = VersionedNodeKey(id=parent_id, snapshot_id=snapshot_id)
+                    if children := table.rows_by_parent.get(parent_key):
+                        for row in children:
+                            if (node_id := row.id) not in nodes_by_id and (
+                                where is None or _evaluate_condition(context, where, row)
+                            ):
+                                nodes_by_id[node_id] = row.ptr
+                                next_parent_ids.add(node_id)
+
+            current_parent_ids = next_parent_ids
+            current_depth += 1
+
+    # side walk
+    elif direction == EdgeDirection.SIDE:
+        raise NotImplementedError(f"cannot walk {definition!r} in direction: {direction!r}")
+
+    else:
+        assert_never(direction)
+
+    return list(nodes_by_id.values())
 
 
 @tracer.start_as_current_span("memory.query_clause")
@@ -772,7 +772,7 @@ def _execute_subquery(
         for node_value in result.nodes:
             if (
                 node_value.value is not None
-                and (parent_ptr_value := node_value.value.get("3")) is not None
+                and (parent_ptr_value := node_value.value.get(NODE_PARENT_KEY)) is not None
             ):
                 parent_id = UUID(parent_ptr_value[NODE_REFERENCE_ID_KEY])
                 if parent_id in parents_ptr:

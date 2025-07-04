@@ -3,15 +3,19 @@ import {
   AggregationType,
   Condition,
   ConditionalType,
+  EdgeDirection,
   Expression,
   ExpressionType,
   Function,
   FunctionType,
+  JoinType,
   NodeDefinitionReference,
+	Node,
   NodeReference,
   PropertyReferenceType,
   Query,
   QueryResult,
+  QueryResultGroup,
   QueryType,
   ScalarType,
   Select,
@@ -26,6 +30,8 @@ import { MemoryContext, MemoryRow } from "./core";
 import { unpackNodeRow } from "./wiring";
 
 const MAX_RECURSION_DEPTH = 100;
+
+const NODE_PARENT_KEY = String(Node.property("parent").id);
 
 const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);
 const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
@@ -439,7 +445,7 @@ function queryNode(options: {
     ignoreMulti = false,
   } = options;
 
-  // fan out trait definitions
+  // fan out multi definitions
   if (definition.isMulti && !ignoreMulti) {
     if (limit != null || offset != null) {
       throw new Error(`cannot limit/offset for multi definition: ${definition.repr()}`);
@@ -517,7 +523,7 @@ function queryScalar(options: {
   const { context, definition, aggregation, where, snapshotPath } = options;
   const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
 
-  // handle multi-definitions
+  // collect rows
   let filteredRows: MemoryRow[] = [];
   if (definition.isMulti) {
     const definitions = context.resolve(definition);
@@ -546,21 +552,282 @@ function queryScalar(options: {
 }
 
 /**
- * Execute the Query (and any subqueries).
+ * Execute a grouped node Query.
  */
-export function executeQuery(options: {
+function queryGroupedNode(options: {
+  context: MemoryContext;
+  definition: NodeDefinitionReference;
+  select?: Select | null;
+  where?: Condition | null;
+  having?: Condition | null;
+  sort?: Sort[] | null;
+  groupBy: Expression[];
+  limit?: number | null;
+  offset?: number | null;
+  snapshotPath: string[];
+}): Array<{ discriminator: Value; nodes: Value[]; nodePtrs: NodeReference[] }> {
+  const { context, definition, select, where, having, sort, groupBy, limit, offset, snapshotPath } =
+    options;
+
+  if (definition.isMulti) {
+    throw new Error("grouped node queries not supported for multi definitions");
+  }
+
+  const table = context.get(definition);
+  const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
+
+  // filter
+  let filteredRows: MemoryRow[] = [];
+  if (where != null) {
+    // filter rows based on where condition
+    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
+    for (const row of snapshotRows.values()) {
+      if (evaluateCondition({ context, condition: where, row })) {
+        filteredRows.push(row);
+      }
+    }
+  } else {
+    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
+    filteredRows = Array.from(snapshotRows.values());
+  }
+
+  // group rows by groupBy expressions
+  const groups = new Map<string, MemoryRow[]>();
+  for (const row of filteredRows) {
+    const groupKeyValues: any[] = [];
+    for (const expr of groupBy) {
+      const val = evaluateExpression({ context, expression: expr, row });
+      groupKeyValues.push(val);
+    }
+    const groupKey = JSON.stringify(groupKeyValues);
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, []);
+    }
+    groups.get(groupKey)!.push(row);
+  }
+
+  // apply having filter and collect results
+  const results: Array<{ discriminator: Value; nodes: Value[]; nodePtrs: NodeReference[] }> = [];
+  for (const [groupKey, groupRows] of groups) {
+    if (having != null && groupRows.length > 0) {
+      if (!evaluateCondition({ context, condition: having, row: groupRows[0] })) {
+        continue;
+      }
+    }
+
+    let processedRows = groupRows;
+    if (sort) {
+      processedRows = evaluateSort({ context, sort, rows: processedRows });
+    }
+    if (offset && offset > 0) {
+      processedRows = processedRows.slice(offset);
+    }
+    if (limit && limit > 0) {
+      processedRows = processedRows.slice(0, limit);
+    }
+
+    const nodes: Value[] = [];
+    const nodePtrs: NodeReference[] = [];
+    for (const row of processedRows) {
+      nodes.push(unpackNodeRow(table, row));
+      nodePtrs.push(row.ptr);
+    }
+
+    const groupKeyValues = JSON.parse(groupKey);
+    const discriminator = groupKeyValues.length > 0 ? toValue(groupKeyValues[0]) : toValue(null);
+    results.push({ discriminator, nodes, nodePtrs });
+  }
+
+  return results;
+}
+
+/**
+ * Execute a grouped scalar Query.
+ */
+function queryGroupedScalar(options: {
+  context: MemoryContext;
+  definition: NodeDefinitionReference;
+  aggregation: Aggregation;
+  where: Condition | null;
+  having: Condition | null;
+  groupBy: Expression[];
+  snapshotPath: string[];
+}): Array<{ discriminator: Value; scalar: Value }> {
+  const { context, definition, aggregation, where, having, groupBy, snapshotPath } = options;
+
+  if (definition.isMulti) {
+    throw new Error("grouped scalar queries not supported for multi definitions");
+  }
+
+  const table = context.get(definition);
+
+  // filter rows based on where condition
+  const filteredNodes: MemoryRow[] = [];
+  for (const row of table.rows.values()) {
+    if (where == null || evaluateCondition({ context, condition: where, row })) {
+      filteredNodes.push(row);
+    }
+  }
+
+  // group rows by groupBy expressions
+  const groups = new Map<string, MemoryRow[]>();
+  for (const row of filteredNodes) {
+    const groupKeyValues: any[] = [];
+    for (const expr of groupBy) {
+      const val = evaluateExpression({ context, expression: expr, row });
+      groupKeyValues.push(val);
+    }
+    const groupKey = JSON.stringify(groupKeyValues);
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, []);
+    }
+    groups.get(groupKey)!.push(row);
+  }
+
+  // apply having filter and aggregation to each group
+  const results: Array<{ discriminator: Value; scalar: Value }> = [];
+  for (const [groupKey, groupRows] of groups) {
+    if (having != null && groupRows.length > 0) {
+      if (!evaluateCondition({ context, condition: having, row: groupRows[0] })) {
+        continue;
+      }
+    }
+    const aggResult = evaluateAggregation({ context, aggregation, rows: groupRows });
+    const groupKeyValues = JSON.parse(groupKey);
+    const discriminator = groupKeyValues.length > 0 ? toValue(groupKeyValues[0]) : toValue(null);
+    results.push({ discriminator, scalar: toValue(aggResult) });
+  }
+
+  return results;
+}
+
+/**
+ * Walk nodes in a specific direction with optional recursion.
+ */
+function walkNode(options: {
+  context: MemoryContext;
+  definition: NodeDefinitionReference;
+  rootsPtrs: NodeReference[];
+  rootsParentsPtrs: NodeReference[];
+  direction: EdgeDirection;
+  depth: number;
+  where: Condition | null;
+  snapshotPath: string[];
+}): NodeReference[] {
+  const {
+    context,
+    definition,
+    rootsPtrs,
+    rootsParentsPtrs,
+    direction,
+    depth,
+    where,
+    snapshotPath,
+  } = options;
+
+  const nodesById = new Map<string, NodeReference>();
+  const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
+  const definitions = context.resolve(definition);
+
+  // parent walk
+  if (direction === EdgeDirection.PARENT) {
+    // start with root nodes and walk up
+    let currentDepth = 0;
+    let currentNodeIds = new Set<string>(rootsPtrs.map((ptr) => ptr.id));
+
+    while (currentDepth < depth) {
+      if (currentNodeIds.size === 0) {
+        break;
+      }
+
+      const nextNodeIds = new Set<string>();
+      for (const def of definitions) {
+        const table = context.get(def);
+        for (const nodeId of currentNodeIds) {
+          const nodeKey = table.createKey({ id: nodeId, snapshotId });
+          const row = table.rows.get(nodeKey);
+          if (
+            row != null &&
+            row.parentPtr != null &&
+            !nodesById.has(row.parentPtr.id) &&
+            (where == null || evaluateCondition({ context, condition: where, row }))
+          ) {
+            nodesById.set(row.parentPtr.id, row.parentPtr);
+            nextNodeIds.add(row.parentPtr.id);
+          }
+        }
+      }
+
+      currentNodeIds = nextNodeIds;
+      currentDepth++;
+    }
+  }
+
+  // child walk
+  else if (direction === EdgeDirection.CHILD) {
+    // start with root parents and walk down
+    let currentDepth = 0;
+    let currentParentIds = new Set<string>(rootsParentsPtrs.map((ptr) => ptr.id));
+
+    while (currentDepth < depth) {
+      if (currentParentIds.size === 0) {
+        break;
+      }
+
+      const nextParentIds = new Set<string>();
+      for (const def of definitions) {
+        const table = context.get(def);
+        for (const parentId of currentParentIds) {
+          const parentKey = table.createKey({ id: parentId, snapshotId });
+          const children = table.rowsByParent.get(parentKey);
+          if (children) {
+            for (const row of children) {
+              if (
+                !nodesById.has(row.id) &&
+                (where == null || evaluateCondition({ context, condition: where, row }))
+              ) {
+                nodesById.set(row.id, row.ptr);
+                nextParentIds.add(row.id);
+              }
+            }
+          }
+        }
+      }
+
+      currentParentIds = nextParentIds;
+      currentDepth++;
+    }
+  }
+
+  // side walk
+  else if (direction === EdgeDirection.SIDE) {
+    throw new Error(`cannot walk ${definition.repr()} in direction: ${direction}`);
+  }
+
+  //
+  else {
+    assertNever(direction);
+  }
+
+  return Array.from(nodesById.values());
+}
+
+/**
+ * Execute the specific Query "clause" (ignoring subqueries).
+ */
+function queryClause(options: {
   context: MemoryContext;
   query: Query;
-  where?: Condition | null;
-}): QueryResult {
-  const { context, query, where = null } = options;
+  where: Condition | null;
+}): [QueryResult, NodeReference[]] {
+  const { context, query, where } = options;
 
   // combine wheres
   const combinedWhere =
     where != null && query.where != null ? query.where.and(where) : where || query.where;
 
   let result: QueryResult;
-  let nodesPtrs: NodeReference[];
+  let nodesPtrs: NodeReference[] = [];
 
   // node
   if (query.type === QueryType.NODE) {
@@ -581,6 +848,7 @@ export function executeQuery(options: {
       nodes: nodes,
     });
   }
+
   // scalar
   else if (query.type === QueryType.SCALAR) {
     if (!query.aggregation) {
@@ -604,12 +872,214 @@ export function executeQuery(options: {
     } else if (query.aggregation.type === AggregationType.COUNT) {
       result.count = scalarResult.unpack() as number;
     }
+  }
+
+  // grouped node
+  else if (query.type === QueryType.GROUPED_NODE) {
+    if (!query.groupBy || query.groupBy.length === 0) {
+      throw new Error(`no groupBy for grouped node query: ${query.repr()}`);
+    }
+    const groupsValue = queryGroupedNode({
+      context,
+      definition: query.definition,
+      select: query.select,
+      where: combinedWhere,
+      having: query.having,
+      sort: query.sort,
+      groupBy: query.groupBy,
+      limit: query.limit,
+      offset: query.offset,
+      snapshotPath: query.snapshotPath,
+    });
+    nodesPtrs = [];
+    const groups: QueryResultGroup[] = [];
+    for (const { discriminator, nodes, nodePtrs } of groupsValue) {
+      const group = new QueryResultGroup({
+        type: QueryType.NODE,
+        discriminator,
+        nodes,
+      });
+      groups.push(group);
+      nodesPtrs.push(...nodePtrs);
+    }
+    result = new QueryResult({
+      id: query.id,
+      type: query.type,
+      groups,
+    });
+  }
+
+  // grouped scalar
+  else if (query.type === QueryType.GROUPED_SCALAR) {
+    if (!query.aggregation) {
+      throw new Error(`no aggregation for grouped scalar query: ${query.repr()}`);
+    }
+    if (!query.groupBy || query.groupBy.length === 0) {
+      throw new Error(`no groupBy for grouped scalar query: ${query.repr()}`);
+    }
+    const groupsValue = queryGroupedScalar({
+      context,
+      definition: query.definition,
+      aggregation: query.aggregation,
+      where: combinedWhere,
+      having: query.having,
+      groupBy: query.groupBy,
+      snapshotPath: query.snapshotPath,
+    });
+    nodesPtrs = [];
+    const groups: QueryResultGroup[] = [];
+    for (const { discriminator, scalar } of groupsValue) {
+      const group = new QueryResultGroup({
+        type: QueryType.SCALAR,
+        discriminator,
+        scalar,
+      });
+      groups.push(group);
+    }
+    result = new QueryResult({
+      id: query.id,
+      type: query.type,
+      groups,
+    });
   } else {
     assertNever(query.type);
   }
 
-  // TODO: execute subqueries
-  result.subresults = [];
+  return [result, nodesPtrs];
+}
+
+/**
+ * Execute a subquery to a main Query.
+ */
+function executeSubquery(options: {
+  context: MemoryContext;
+  result: QueryResult;
+  nodesPtrs: NodeReference[];
+  subquery: Query;
+}): QueryResult | null {
+  const { context, result, nodesPtrs, subquery } = options;
+
+  if (nodesPtrs.length === 0) {
+    return null;
+  }
+
+  if (!subquery.join) {
+    throw new Error(`no join for subquery ${subquery.repr()}`);
+  }
+
+  // parent join
+  if (subquery.join.type === JoinType.PARENT) {
+    // collect/walk
+    const parentsPtr = new Map<string, NodeReference>();
+    for (const nodeValue of result.nodes || []) {
+      if (nodeValue.value != null) {
+        const parentPtrValue = nodeValue.value[NODE_PARENT_KEY];
+        if (parentPtrValue != null) {
+          const parentId = parentPtrValue[NODE_REFERENCE_ID_KEY];
+          if (!parentsPtr.has(parentId)) {
+            const parentPtr = NodeReference.fromValue(parentPtrValue);
+            parentsPtr.set(parentPtr.id, parentPtr);
+          }
+        }
+      }
+    }
+    if (parentsPtr.size === 0) {
+      return null; // nothing to query here
+    }
+
+    let subqueryWhere: Condition;
+    if (subquery.join.recursive) {
+      const expandedNodesPtrs = walkNode({
+        context,
+        definition: subquery.definition,
+        rootsPtrs: Array.from(parentsPtr.values()),
+        rootsParentsPtrs: [],
+        direction: EdgeDirection.PARENT,
+        depth: subquery.join.depth || MAX_RECURSION_DEPTH,
+        where: subquery.where,
+        snapshotPath: subquery.snapshotPath,
+      });
+      const idProperty = subquery.definition.resolvePropertyOrError("id");
+      const nodeIds = expandedNodesPtrs.map((n) => n.id);
+      subqueryWhere = idProperty.in(...nodeIds);
+    } else {
+      const idProperty = subquery.definition.resolvePropertyOrError("id");
+      const parentIds = Array.from(parentsPtr.keys());
+      subqueryWhere = idProperty.in(...parentIds);
+    }
+
+    // execute subquery
+    const subresult = executeQuery({ context, query: subquery, where: subqueryWhere });
+    return subresult;
+  }
+
+  // child join
+  else if (subquery.join.type === JoinType.CHILD) {
+    // collect/walk
+    if (nodesPtrs.length === 0) {
+      return null; // nothing to query here
+    }
+
+    let subqueryWhere: Condition;
+    if (subquery.join.recursive) {
+      const expandedNodesPtrs = walkNode({
+        context,
+        definition: subquery.definition,
+        rootsPtrs: [],
+        rootsParentsPtrs: nodesPtrs,
+        direction: EdgeDirection.CHILD,
+        depth: subquery.join.depth || MAX_RECURSION_DEPTH,
+        where: subquery.where,
+        snapshotPath: subquery.snapshotPath,
+      });
+      const idProperty = subquery.definition.resolvePropertyOrError("id");
+      const nodeIds = expandedNodesPtrs.map((n) => n.id);
+      subqueryWhere = new Condition({
+        type: ConditionalType.IN,
+        left: Expression.of(idProperty),
+        right: Expression.of(toValue(nodeIds)),
+      });
+    } else {
+      const parentProperty = subquery.definition.resolvePropertyOrError("parent");
+      const nodeIds = nodesPtrs.map((n) => n.id);
+      subqueryWhere = parentProperty.in(...nodeIds);
+    }
+
+    // execute subquery
+    const subresult = executeQuery({ context, query: subquery, where: subqueryWhere });
+    return subresult;
+  }
+
+  // left join
+  else if (subquery.join.type === JoinType.LEFT) {
+    throw new Error(`left join not implemented for subquery: ${subquery.repr()}`);
+  } else {
+    assertNever(subquery.join.type);
+  }
+}
+
+/**
+ * Execute the Query (and any subqueries).
+ */
+export function executeQuery(options: {
+  context: MemoryContext;
+  query: Query;
+  where?: Condition | null;
+}): QueryResult {
+  const { context, query, where = null } = options;
+
+  // execute main query
+  const [result, nodesPtrs] = queryClause({ context, query, where });
+
+  // execute subqueries
+  const subresults: QueryResult[] = [];
+  for (const subquery of query.subqueries || []) {
+    const subresult = executeSubquery({ context, result, nodesPtrs, subquery });
+    if (subresult != null) {
+      subresults.push(subresult);
+    }
+  }
+  result.subresults = subresults;
 
   return result;
 }
