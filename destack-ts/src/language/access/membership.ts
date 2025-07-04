@@ -1520,7 +1520,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`Membership.materialization is required`);

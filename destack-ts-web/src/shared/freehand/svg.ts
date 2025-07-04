@@ -1,13 +1,13 @@
 import { averageVector2String, toDomPrecision, vector2String } from "@destack-web/shared/dom/utils";
 import { getStrokeOutlineTracks, getStrokePoints } from "@destack-web/shared/freehand/stroke";
-import { Stroke, StrokePoint, Vector2 } from "destack";
+import { Stroke, StrokePoint, Vector2f } from "destack";
 
 /**
  * Generate SVG path data for stroke with ink-like rendering.
  * Uses partitioning at elbows for more natural line appearance.
  */
 export function renderStroke(
-  points: readonly Vector2[],
+  points: readonly Vector2f[],
   stroke: Stroke,
   options: { isComplete: boolean },
 ) {

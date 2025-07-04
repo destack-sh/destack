@@ -17,6 +17,7 @@ from destack.language import (
     ExpressionType,
     Function,
     JoinType,
+    Node,
     NodeDefinitionReference,
     NodeReference,
     NodeType,
@@ -42,6 +43,8 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 MAX_RECURSION_DEPTH = 1_000
+
+NODE_PARENT_KEY = str(Node.property("parent").id)
 
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
 
@@ -823,7 +826,7 @@ async def _execute_subquery(
         for node_value in result.nodes:
             if (
                 node_value.value is not None
-                and (parent_ptr_value := node_value.value.get("3")) is not None
+                and (parent_ptr_value := node_value.value.get(NODE_PARENT_KEY)) is not None
             ):
                 parent_id = UUID(parent_ptr_value[NODE_REFERENCE_ID_KEY])
                 if parent_id in parents_ptr:

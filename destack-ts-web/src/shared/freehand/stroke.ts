@@ -1,5 +1,5 @@
 import { EASING_FUNCTIONS } from "@destack-web/shared/easings";
-import { Stroke, StrokePoint, Vector2 } from "destack";
+import { Stroke, StrokePoint, Vector2f } from "destack";
 
 const RATE_OF_PRESSURE_CHANGE = 0.275;
 
@@ -11,10 +11,10 @@ const SIMULATED_PRESSURE = 0.5;
  * Get an array of points describing a polygon that surrounds the input points.
  */
 export function getStroke(
-  points: Vector2[],
+  points: Vector2f[],
   stroke: Stroke,
   options: { isComplete: boolean },
-): Vector2[] {
+): Vector2f[] {
   const strokePoints = getStrokePoints(points, stroke, options);
   return getStrokeOutlinePoints(strokePoints, stroke, options);
 }
@@ -25,7 +25,7 @@ export function getStroke(
 export function getStrokeOutlineTracks(
   points: readonly StrokePoint[],
   stroke: Stroke,
-): { left: Vector2[]; right: Vector2[] } {
+): { left: Vector2f[]; right: Vector2f[] } {
   const { size = 16, smoothing = 0.5 } = stroke;
 
   // can't do anything with an empty array or a stroke with negative size
@@ -37,8 +37,8 @@ export function getStrokeOutlineTracks(
   const lastStrokePoint = points[points.length - 1];
   const totalLength = lastStrokePoint.runningLength;
   const minDistance2 = Math.pow(size * smoothing, 2);
-  const leftPoints: Vector2[] = [];
-  const rightPoints: Vector2[] = [];
+  const leftPoints: Vector2f[] = [];
+  const rightPoints: Vector2f[] = [];
 
   let prevVector = points[0].direction;
   let pl = points[0].point;
@@ -149,7 +149,7 @@ export function getStrokeOutlinePoints(
   points: StrokePoint[],
   stroke: Stroke,
   options: { isComplete: boolean },
-): Vector2[] {
+): Vector2f[] {
   const { size, start, end } = stroke;
 
   const capStart = start?.cap == null ? true : start.cap;
@@ -176,7 +176,7 @@ export function getStrokeOutlinePoints(
   const lastPoint =
     points.length > 1
       ? points[points.length - 1].point
-      : firstStrokePoint.point.add(new Vector2({ x: 1, y: 1 }));
+      : firstStrokePoint.point.add(new Vector2f({ x: 1, y: 1 }));
 
   // draw a dot for very short or completed strokes
   // If the line is too short to gather left or right points and if the line is not tapered on either side,
@@ -187,7 +187,7 @@ export function getStrokeOutlinePoints(
       const start = firstPoint.add(
         firstPoint.sub(lastPoint).normalize().per().mul(-firstStrokePoint.radius),
       );
-      const dotPts: Vector2[] = [];
+      const dotPts: Vector2f[] = [];
       for (let step = 1 / 13, t = step; t <= 1; t += step) {
         dotPts.push(start.rotWith(firstPoint, FIXED_PI * 2 * t));
       }
@@ -199,7 +199,7 @@ export function getStrokeOutlinePoints(
   // Unless the line has a tapered start, or unless the line has a tapered end and the line is very short,
   // draw a start cap around the first point. Use the distance between the second left and right point for
   // the cap's radius. Finally remove the first left and right points.
-  const startCap: Vector2[] = [];
+  const startCap: Vector2f[] = [];
   if (taperStart || (taperEnd && points.length === 1)) {
     // the start point is tapered, noop
   } else if (capStart) {
@@ -226,7 +226,7 @@ export function getStrokeOutlinePoints(
   // If the line does not have a tapered end, and unless the line has a tapered start and the line is very short,
   // draw a cap around the last point. Finally, remove the last left and right points. Otherwise, add the last point.
   // Note that this cap is a full-turn-and-a-half: this prevents incorrect caps on sharp end turns.
-  const endCap: Vector2[] = [];
+  const endCap: Vector2f[] = [];
   const direction = lastStrokePoint.direction.per().neg();
 
   if (taperEnd || (taperStart && points.length === 1)) {
@@ -260,7 +260,7 @@ export function getStrokeOutlinePoints(
  * Get an array of renderable StrokePoints from raw Vector2 points.
  */
 export function getStrokePoints(
-  points: readonly Vector2[],
+  points: readonly Vector2f[],
   stroke: Stroke,
   options: { isComplete: boolean },
 ): StrokePoint[] {
@@ -277,7 +277,7 @@ export function getStrokePoints(
         point: points[0],
         originalPoint: points[0],
         pressure: SIMULATED_PRESSURE,
-        direction: new Vector2({ x: 1, y: 1 }),
+        direction: new Vector2f({ x: 1, y: 1 }),
         distance: 0,
         runningLength: 0,
         radius: 1,
@@ -288,7 +288,7 @@ export function getStrokePoints(
   let pt = pts[1];
   while (pt) {
     if (pt.distance2(pts[0]) > (size / 3) ** 2) break;
-    pts[0] = new Vector2({ x: pts[0].x, y: pts[0].y });
+    pts[0] = new Vector2f({ x: pts[0].x, y: pts[0].y });
     pts.splice(1, 1);
     pt = pts[1];
   }
@@ -316,7 +316,7 @@ export function getStrokePoints(
     pts = pts.slice(0, -1);
     for (let i = 1; i < 5; i++) {
       let next = pts[0].lerp(last, i / 4);
-      next = new Vector2({ x: next.x, y: next.y });
+      next = new Vector2f({ x: next.x, y: next.y });
       pts.push(next);
     }
   }
@@ -328,7 +328,7 @@ export function getStrokePoints(
       point: pts[0],
       originalPoint: pts[0],
       pressure: SIMULATED_PRESSURE,
-      direction: new Vector2({ x: 1, y: 1 }),
+      direction: new Vector2f({ x: 1, y: 1 }),
       distance: 0,
       runningLength: 0,
       radius: 1,
@@ -337,7 +337,7 @@ export function getStrokePoints(
 
   let totalLength = 0;
   let prevPoint = strokePoints[0];
-  let point: Vector2;
+  let point: Vector2f;
   let distance: number;
 
   if (isComplete && streamline > 0) {

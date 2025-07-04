@@ -218,7 +218,7 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`Tag.materialization is required`);
@@ -922,7 +922,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`Tagging.materialization is required`);

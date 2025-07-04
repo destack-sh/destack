@@ -35,6 +35,8 @@ from destack.utils.uuid import UUID
 
 from .core import PostgresTable
 
+NODE_ID_KEY = str(Node.property("id").id)
+
 NODE_REFERENCE_TYPE_KEY = str(NodeReference.property("type").id)
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
 NODE_REFERENCE_SPACE_ID_KEY = str(NodeReference.property("space_id").id)
@@ -341,7 +343,7 @@ def unpack_node_row(table: PostgresTable, row: asyncpg.Record) -> tuple[Value, N
         cardinality=TypeCardinality.SCALAR, scalar_type=ScalarType.NODE_VALUE, node_type=node_type
     )
     value = Value(type=type, value=node_value)
-    node_ptr = NodeReference(type=node_type, id=UUID(node_value["2"]))
+    node_ptr = NodeReference(type=node_type, id=UUID(node_value[NODE_ID_KEY]))
     return value, node_ptr
 
 

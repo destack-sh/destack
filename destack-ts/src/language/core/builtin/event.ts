@@ -4,9 +4,9 @@ import {
   unpackProtoJson,
   unpackProtoTimestamp,
 } from "@destack/grpc";
-import { Materialization, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
-import { Entity, Metric } from "@destack/language/core/builtin/entity";
+import { Entity, Materialization, Metric } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
 import type {
   NodeDefinitionReference,
@@ -371,7 +371,7 @@ export class CustomEventDefinition
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`CustomEventDefinition.materialization is required`);

@@ -555,22 +555,6 @@ export enum EnvironmentType {
 registerEnumClass(EnumType.ENVIRONMENT_TYPE, EnvironmentType);
 /* ==== DESTACK_GENERATED_END:ENUM:100000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:14 ==== */
-/**
- * Materialization
- */
-export enum Materialization {
-  PARTIAL_NODE = 1,
-  PARTIAL_GRAPH = 2,
-  FULL_GRAPH = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.MATERIALIZATION, Materialization);
-/* ==== DESTACK_GENERATED_END:ENUM:14 ==== */
-
 /* ==== DESTACK_GENERATED_START:ENUM:200000 ==== */
 /**
  * ModeType

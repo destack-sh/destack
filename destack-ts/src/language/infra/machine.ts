@@ -369,7 +369,7 @@ export class Machine extends Resource implements IsSpatial {
     this.baseType = _baseType;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`Machine.materialization is required`);
@@ -420,7 +420,7 @@ export class Machine extends Resource implements IsSpatial {
     this.type = _type;
     let _version = options.version ?? null;
     if (_version === null) {
-      _version = "2025.07.03.1";
+      _version = "2025.07.03.2";
     }
     if (_version === null) {
       throw new Error(`Machine.version is required`);
