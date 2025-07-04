@@ -28,7 +28,7 @@ const sessionTest = test.extend<{ session: Session }>({
   },
 });
 
-sessionTest("entity crud operations", async ({ session }) => {
+sessionTest("create user with clients", async ({ session }) => {
   // create user
   const user = new User({
     status: UserStatus.ACTIVE,

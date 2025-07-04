@@ -347,6 +347,7 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_CASCADE_ACTION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SNAPSHOT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_SNAPSHOT_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CONDITIONAL_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_AGGREGATION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SORT_MODE: _ClassVar[EnumTypeProto]
@@ -751,9 +752,8 @@ class MachineTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class MaterializationProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MATERIALIZATION_UNSPECIFIED: _ClassVar[MaterializationProto]
-    MATERIALIZATION_PARTIAL_NODE: _ClassVar[MaterializationProto]
-    MATERIALIZATION_PARTIAL_GRAPH: _ClassVar[MaterializationProto]
-    MATERIALIZATION_FULL_GRAPH: _ClassVar[MaterializationProto]
+    MATERIALIZATION_PARTIAL: _ClassVar[MaterializationProto]
+    MATERIALIZATION_FULL: _ClassVar[MaterializationProto]
 
 class MembershipPermissionProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1242,6 +1242,13 @@ class ShadowTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SHADOW_TYPE_UNSPECIFIED: _ClassVar[ShadowTypeProto]
     SHADOW_TYPE_BOX: _ClassVar[ShadowTypeProto]
     SHADOW_TYPE_REALISTIC: _ClassVar[ShadowTypeProto]
+
+class SnapshotStatusProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SNAPSHOT_STATUS_UNSPECIFIED: _ClassVar[SnapshotStatusProto]
+    SNAPSHOT_STATUS_CREATING: _ClassVar[SnapshotStatusProto]
+    SNAPSHOT_STATUS_ACTIVE: _ClassVar[SnapshotStatusProto]
+    SNAPSHOT_STATUS_READONLY: _ClassVar[SnapshotStatusProto]
 
 class SnapshotTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1775,6 +1782,7 @@ ENUM_TYPE_EDGE_DIRECTION: EnumTypeProto
 ENUM_TYPE_CASCADE_ACTION: EnumTypeProto
 ENUM_TYPE_RESOURCE_STATUS: EnumTypeProto
 ENUM_TYPE_SNAPSHOT_TYPE: EnumTypeProto
+ENUM_TYPE_SNAPSHOT_STATUS: EnumTypeProto
 ENUM_TYPE_CONDITIONAL_TYPE: EnumTypeProto
 ENUM_TYPE_AGGREGATION_TYPE: EnumTypeProto
 ENUM_TYPE_SORT_MODE: EnumTypeProto
@@ -2098,9 +2106,8 @@ MACHINE_TYPE_MAC: MachineTypeProto
 MACHINE_TYPE_WINDOWS: MachineTypeProto
 MACHINE_TYPE_CUSTOM: MachineTypeProto
 MATERIALIZATION_UNSPECIFIED: MaterializationProto
-MATERIALIZATION_PARTIAL_NODE: MaterializationProto
-MATERIALIZATION_PARTIAL_GRAPH: MaterializationProto
-MATERIALIZATION_FULL_GRAPH: MaterializationProto
+MATERIALIZATION_PARTIAL: MaterializationProto
+MATERIALIZATION_FULL: MaterializationProto
 MEMBERSHIP_PERMISSION_UNSPECIFIED: MembershipPermissionProto
 MEMBERSHIP_PERMISSION_KICK: MembershipPermissionProto
 MEMBERSHIP_PERMISSION_BAN: MembershipPermissionProto
@@ -2484,6 +2491,10 @@ SHADOW_POSITION_INSIDE: ShadowPositionProto
 SHADOW_TYPE_UNSPECIFIED: ShadowTypeProto
 SHADOW_TYPE_BOX: ShadowTypeProto
 SHADOW_TYPE_REALISTIC: ShadowTypeProto
+SNAPSHOT_STATUS_UNSPECIFIED: SnapshotStatusProto
+SNAPSHOT_STATUS_CREATING: SnapshotStatusProto
+SNAPSHOT_STATUS_ACTIVE: SnapshotStatusProto
+SNAPSHOT_STATUS_READONLY: SnapshotStatusProto
 SNAPSHOT_TYPE_UNSPECIFIED: SnapshotTypeProto
 SNAPSHOT_TYPE_PARTIAL: SnapshotTypeProto
 SNAPSHOT_TYPE_FULL: SnapshotTypeProto
@@ -8269,15 +8280,15 @@ class PropertyReferenceProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[PropertyReferenceTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., trait_type: _Optional[_Union[TraitTypeProto, str]] = ..., struct_type: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., custom_property_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class QueryProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "definition", "join", "select", "subqueries", "where", "having", "group_by", "aggregation", "sort", "limit", "offset")
+    __slots__ = ("metatype", "id", "type", "name", "definition", "subqueries", "join", "select", "where", "having", "group_by", "aggregation", "sort", "limit", "offset", "snapshot_ptr", "snapshot_path")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    SUBQUERIES_FIELD_NUMBER: _ClassVar[int]
     JOIN_FIELD_NUMBER: _ClassVar[int]
     SELECT_FIELD_NUMBER: _ClassVar[int]
-    SUBQUERIES_FIELD_NUMBER: _ClassVar[int]
     WHERE_FIELD_NUMBER: _ClassVar[int]
     HAVING_FIELD_NUMBER: _ClassVar[int]
     GROUP_BY_FIELD_NUMBER: _ClassVar[int]
@@ -8285,14 +8296,16 @@ class QueryProto(_message.Message):
     SORT_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_PATH_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: str
     type: QueryTypeProto
     name: str
     definition: NodeDefinitionReferenceProto
+    subqueries: _containers.RepeatedCompositeFieldContainer[QueryProto]
     join: JoinProto
     select: SelectProto
-    subqueries: _containers.RepeatedCompositeFieldContainer[QueryProto]
     where: ConditionProto
     having: ConditionProto
     group_by: _containers.RepeatedCompositeFieldContainer[ExpressionProto]
@@ -8300,7 +8313,9 @@ class QueryProto(_message.Message):
     sort: _containers.RepeatedCompositeFieldContainer[SortProto]
     limit: int
     offset: int
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+    snapshot_ptr: NodeReferenceProto
+    snapshot_path: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_path: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class QueryEventProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "snapshot_ptr", "created_at", "created_by_ptr", "type", "node_ptr", "name", "definition", "join", "select", "subqueries", "where", "having", "group_by", "aggregation", "sort", "limit", "offset")
@@ -9762,7 +9777,7 @@ class SliderInputViewProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., base_type: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_root_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., position: _Optional[_Union[PositionProto, _Mapping]] = ..., width: _Optional[_Union[DimensionProto, _Mapping]] = ..., height: _Optional[_Union[DimensionProto, _Mapping]] = ..., min_width: _Optional[_Union[DimensionProto, _Mapping]] = ..., min_height: _Optional[_Union[DimensionProto, _Mapping]] = ..., max_width: _Optional[_Union[DimensionProto, _Mapping]] = ..., max_height: _Optional[_Union[DimensionProto, _Mapping]] = ..., is_visible: bool = ..., opacity: _Optional[float] = ..., value: _Optional[float] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step: _Optional[float] = ...) -> None: ...
 
 class SnapshotProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "template_ptr", "instance_root_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "owned_by_ptr", "type", "name")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "template_ptr", "instance_root_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "owned_by_ptr", "type", "name", "status")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -9781,6 +9796,7 @@ class SnapshotProto(_message.Message):
     OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
     parent_ptr: NodeReferenceProto
@@ -9799,7 +9815,8 @@ class SnapshotProto(_message.Message):
     owned_by_ptr: NodeReferenceProto
     type: SnapshotTypeProto
     name: str
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_root_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., type: _Optional[_Union[SnapshotTypeProto, str]] = ..., name: _Optional[str] = ...) -> None: ...
+    status: SnapshotStatusProto
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_root_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., type: _Optional[_Union[SnapshotTypeProto, str]] = ..., name: _Optional[str] = ..., status: _Optional[_Union[SnapshotStatusProto, str]] = ...) -> None: ...
 
 class SortProto(_message.Message):
     __slots__ = ("metatype", "type", "by", "mode")

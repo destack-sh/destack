@@ -38,6 +38,7 @@ import {
   CustomTraitDefinitionProto,
   MaterializationProto,
   SnapshotProto,
+  SnapshotStatusProto,
   SnapshotTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -2907,6 +2908,11 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
    */
   name: string;
 
+  /**
+   * Snapshot.status
+   */
+  status: SnapshotStatus;
+
   constructor(options: {
     id?: string;
     parent?: Space | Snapshot | NodeReference | null;
@@ -2925,6 +2931,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     ownedBy?: (Node & IsOwner) | NodeReference | null;
     type?: SnapshotType;
     name: string;
+    status?: SnapshotStatus;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -3020,6 +3027,14 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       throw new Error(`Snapshot.name is required`);
     }
     this.name = _name;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 10 /* SnapshotStatus.ACTIVE */;
+    }
+    if (_status === null) {
+      throw new Error(`Snapshot.status is required`);
+    }
+    this.status = _status;
 
     // identity
     if (options.id == null) {
@@ -3067,6 +3082,9 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (!(this.name === other.name)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -3094,6 +3112,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     }
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -3211,6 +3230,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     }
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
+    objectValue["110"] = object.status;
     return objectValue;
   }
 
@@ -3284,6 +3304,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       predecessor: unpackedPredecessorPtr,
       type: Number(objectValue["100"]),
       name: objectValue["101"],
+      status: Number(objectValue["110"]),
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
       archivedAt: unpackedArchivedAt,
@@ -3355,6 +3376,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     }
     objectProto.type = Number(object.type) as SnapshotTypeProto;
     objectProto.name = object.name;
+    objectProto.status = Number(object.status) as SnapshotStatusProto;
     return objectProto as SnapshotProto;
   }
 
@@ -3396,6 +3418,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
           : null,
       type: Number(objectProto.type) as SnapshotType,
       name: objectProto.name,
+      status: Number(objectProto.status) as SnapshotStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -3522,3 +3545,19 @@ export enum SnapshotType {
 }
 registerEnumClass(EnumType.SNAPSHOT_TYPE, SnapshotType);
 /* ==== DESTACK_GENERATED_END:ENUM:1300 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:1301 ==== */
+/**
+ * SnapshotStatus
+ */
+export enum SnapshotStatus {
+  CREATING = 1,
+  ACTIVE = 10,
+  READONLY = 50,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SNAPSHOT_STATUS, SnapshotStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:1301 ==== */

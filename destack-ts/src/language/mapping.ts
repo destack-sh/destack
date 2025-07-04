@@ -82,6 +82,7 @@ import type {
   Record,
   Resource,
   Snapshot,
+  SnapshotStatus,
   SnapshotType,
 } from "@destack/language/core/builtin/entity";
 import type {
@@ -763,6 +764,7 @@ export type EnumTypeMapping = {
   [EnumType.STRUCT_DEFINITION_TYPE]: StructDefinitionType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
   [EnumType.SNAPSHOT_TYPE]: SnapshotType;
+  [EnumType.SNAPSHOT_STATUS]: SnapshotStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
   [EnumType.CHANGE_STATUS]: ChangeStatus;
