@@ -5,6 +5,7 @@ import structlog
 from opentelemetry import trace
 
 from destack.language import (
+    EMPTY_DICT,
     Aggregation,
     AggregationType,
     Condition,
@@ -446,11 +447,11 @@ def _query_node(
                     filtered_rows.append(row)
         else:
             filtered_rows = []
-            for row in table.rows.values():
+            for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
                 if _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
-        filtered_rows = list(table.rows.values())
+        filtered_rows = list(table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values())
 
     # sort
     if sort:
@@ -487,18 +488,14 @@ def _query_scalar(
         filtered_rows: list[MemoryRow] = []
         for rel in definitions:
             table = context.get(rel)
-            for row in table.rows.values():
-                if row.snapshot_id == snapshot_id and (
-                    where is None or _evaluate_condition(context, where, row)
-                ):
+            for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
+                if where is None or _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
         table = context.get(definition)
         filtered_rows = []
-        for row in table.rows.values():
-            if row.snapshot_id == snapshot_id and (
-                where is None or _evaluate_condition(context, where, row)
-            ):
+        for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
+            if where is None or _evaluate_condition(context, where, row):
                 filtered_rows.append(row)
 
     # execute
@@ -547,11 +544,11 @@ def _query_grouped_node(
         else:
             # filter rows based on where condition
             filtered_rows = []
-            for row in table.rows.values():
-                if row.snapshot_id == snapshot_id and _evaluate_condition(context, where, row):
+            for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
+                if _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
-        filtered_rows = list(table.rows.values())
+        filtered_rows = list(table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values())
 
     # group rows by group_by expressions
     groups: dict[tuple, list[MemoryRow]] = {}

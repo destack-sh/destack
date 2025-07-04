@@ -101,6 +101,7 @@ class MemoryTable:
         "node_type",
         "rows",
         "rows_by_parent",
+        "rows_by_snapshot",
     )
 
     def __init__(
@@ -110,8 +111,10 @@ class MemoryTable:
     ):
         self.database = database
         self.node_type = metatype
+
         self.rows: dict[VersionedNodeKey, MemoryRow] = {}
         self.rows_by_parent: dict[VersionedNodeKey, list[MemoryRow]] = defaultdict(list)
+        self.rows_by_snapshot: dict[UUID | None, dict[UUID, MemoryRow]] = defaultdict(dict)
 
     def __str__(self) -> str:
         return f"node_type={self.node_type.name}, rows={len(self.rows)}"
