@@ -141,17 +141,65 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
   /**
    * Client.browserVersion
    */
-  browserVersion: string | null;
+  get browserVersion(): string | null {
+    return this.#browserVersion;
+  }
+  set browserVersion(value: string | null) {
+    const oldValue = this.#browserVersion;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["browserVersion"] === undefined) {
+      this._dirty["browserVersion"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#browserVersion = value;
+  }
+  #browserVersion: string | null;
 
   /**
    * Client.type
    */
-  type: ClientType;
+  get type(): ClientType {
+    return this.#type;
+  }
+  set type(value: ClientType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: ClientType;
 
   /**
    * Client.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Client.machine
@@ -170,7 +218,23 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
       this.machinePtr = node.toRef();
     }
   }
-  machinePtr: NodeReference | null;
+  get machinePtr(): NodeReference | null {
+    return this.#machinePtr;
+  }
+  set machinePtr(value: NodeReference | null) {
+    const oldValue = this.#machinePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["machinePtr"] === undefined) {
+      this._dirty["machinePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#machinePtr = value;
+  }
+  #machinePtr: NodeReference | null;
 
   /**
    * Client.user
@@ -189,22 +253,86 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
       this.userPtr = node.toRef();
     }
   }
-  userPtr: NodeReference | null;
+  get userPtr(): NodeReference | null {
+    return this.#userPtr;
+  }
+  set userPtr(value: NodeReference | null) {
+    const oldValue = this.#userPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["userPtr"] === undefined) {
+      this._dirty["userPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#userPtr = value;
+  }
+  #userPtr: NodeReference | null;
 
   /**
    * Client.accessToken
    */
-  accessToken: string | null;
+  get accessToken(): string | null {
+    return this.#accessToken;
+  }
+  set accessToken(value: string | null) {
+    const oldValue = this.#accessToken;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["accessToken"] === undefined) {
+      this._dirty["accessToken"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#accessToken = value;
+  }
+  #accessToken: string | null;
 
   /**
    * Client.seenAt
    */
-  seenAt: Temporal.ZonedDateTime | null;
+  get seenAt(): Temporal.ZonedDateTime | null {
+    return this.#seenAt;
+  }
+  set seenAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#seenAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["seenAt"] === undefined) {
+      this._dirty["seenAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#seenAt = value;
+  }
+  #seenAt: Temporal.ZonedDateTime | null;
 
   /**
    * Client.loggedInAt
    */
-  loggedInAt: Temporal.ZonedDateTime | null;
+  get loggedInAt(): Temporal.ZonedDateTime | null {
+    return this.#loggedInAt;
+  }
+  set loggedInAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#loggedInAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["loggedInAt"] === undefined) {
+      this._dirty["loggedInAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#loggedInAt = value;
+  }
+  #loggedInAt: Temporal.ZonedDateTime | null;
 
   /**
    * Client.cursor
@@ -223,27 +351,107 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
       this.cursorPtr = node.toRef();
     }
   }
-  cursorPtr: NodeReference | null;
+  get cursorPtr(): NodeReference | null {
+    return this.#cursorPtr;
+  }
+  set cursorPtr(value: NodeReference | null) {
+    const oldValue = this.#cursorPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["cursorPtr"] === undefined) {
+      this._dirty["cursorPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#cursorPtr = value;
+  }
+  #cursorPtr: NodeReference | null;
 
   /**
    * Client.deviceType
    */
-  deviceType: string | null;
+  get deviceType(): string | null {
+    return this.#deviceType;
+  }
+  set deviceType(value: string | null) {
+    const oldValue = this.#deviceType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["deviceType"] === undefined) {
+      this._dirty["deviceType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#deviceType = value;
+  }
+  #deviceType: string | null;
 
   /**
    * Client.deviceName
    */
-  deviceName: string | null;
+  get deviceName(): string | null {
+    return this.#deviceName;
+  }
+  set deviceName(value: string | null) {
+    const oldValue = this.#deviceName;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["deviceName"] === undefined) {
+      this._dirty["deviceName"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#deviceName = value;
+  }
+  #deviceName: string | null;
 
   /**
    * Client.operatingSystem
    */
-  operatingSystem: string | null;
+  get operatingSystem(): string | null {
+    return this.#operatingSystem;
+  }
+  set operatingSystem(value: string | null) {
+    const oldValue = this.#operatingSystem;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["operatingSystem"] === undefined) {
+      this._dirty["operatingSystem"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#operatingSystem = value;
+  }
+  #operatingSystem: string | null;
 
   /**
    * Client.browserName
    */
-  browserName: string | null;
+  get browserName(): string | null {
+    return this.#browserName;
+  }
+  set browserName(value: string | null) {
+    const oldValue = this.#browserName;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["browserName"] === undefined) {
+      this._dirty["browserName"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#browserName = value;
+  }
+  #browserName: string | null;
 
   constructor(options: {
     id?: string;
@@ -336,46 +544,46 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _browserVersion = options.browserVersion ?? null;
-    this.browserVersion = _browserVersion;
+    this.#browserVersion = _browserVersion;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Client.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Client.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _machine = options.machine ?? null;
     if (_machine != null && _machine.metatype != StructType.NODE_REFERENCE) {
       _machine = (_machine as Node).toRef();
     }
-    this.machinePtr = _machine;
+    this.#machinePtr = _machine;
     let _user = options.user ?? null;
     if (_user != null && _user.metatype != StructType.NODE_REFERENCE) {
       _user = (_user as Node).toRef();
     }
-    this.userPtr = _user;
+    this.#userPtr = _user;
     let _accessToken = options.accessToken ?? null;
-    this.accessToken = _accessToken;
+    this.#accessToken = _accessToken;
     let _seenAt = options.seenAt ?? null;
-    this.seenAt = _seenAt;
+    this.#seenAt = _seenAt;
     let _loggedInAt = options.loggedInAt ?? null;
-    this.loggedInAt = _loggedInAt;
+    this.#loggedInAt = _loggedInAt;
     let _cursor = options.cursor ?? null;
     if (_cursor != null && _cursor.metatype != StructType.NODE_REFERENCE) {
       _cursor = (_cursor as Node).toRef();
     }
-    this.cursorPtr = _cursor;
+    this.#cursorPtr = _cursor;
     let _deviceType = options.deviceType ?? null;
-    this.deviceType = _deviceType;
+    this.#deviceType = _deviceType;
     let _deviceName = options.deviceName ?? null;
-    this.deviceName = _deviceName;
+    this.#deviceName = _deviceName;
     let _operatingSystem = options.operatingSystem ?? null;
-    this.operatingSystem = _operatingSystem;
+    this.#operatingSystem = _operatingSystem;
     let _browserName = options.browserName ?? null;
-    this.browserName = _browserName;
+    this.#browserName = _browserName;
 
     // identity
     if (options.id == null) {
@@ -386,9 +594,7 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Client.createdAt and Client.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -411,43 +617,43 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
-    if (!(this.machinePtr?.id === other.machinePtr?.id)) {
+    if (!(this.#machinePtr?.id === other.#machinePtr?.id)) {
       return false;
     }
-    if (!(this.userPtr?.id === other.userPtr?.id)) {
+    if (!(this.#userPtr?.id === other.#userPtr?.id)) {
       return false;
     }
-    if (!(this.accessToken === other.accessToken)) {
+    if (!(this.#accessToken === other.#accessToken)) {
       return false;
     }
-    if (!(this.seenAt === other.seenAt)) {
+    if (!(this.#seenAt === other.#seenAt)) {
       return false;
     }
-    if (!(this.loggedInAt === other.loggedInAt)) {
+    if (!(this.#loggedInAt === other.#loggedInAt)) {
       return false;
     }
-    if (!(this.cursorPtr?.id === other.cursorPtr?.id)) {
+    if (!(this.#cursorPtr?.id === other.#cursorPtr?.id)) {
       return false;
     }
-    if (!(this.deviceType === other.deviceType)) {
+    if (!(this.#deviceType === other.#deviceType)) {
       return false;
     }
-    if (!(this.deviceName === other.deviceName)) {
+    if (!(this.#deviceName === other.#deviceName)) {
       return false;
     }
-    if (!(this.operatingSystem === other.operatingSystem)) {
+    if (!(this.#operatingSystem === other.#operatingSystem)) {
       return false;
     }
-    if (!(this.browserName === other.browserName)) {
+    if (!(this.#browserName === other.#browserName)) {
       return false;
     }
-    if (!(this.browserVersion === other.browserVersion)) {
+    if (!(this.#browserVersion === other.#browserVersion)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -471,40 +677,40 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.machinePtr !== null) {
-      h = (h * 31 + hashString(this.machinePtr.id)) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#machinePtr !== null) {
+      h = (h * 31 + hashString(this.#machinePtr.id)) & 0xffffffff;
     }
-    if (this.userPtr !== null) {
-      h = (h * 31 + hashString(this.userPtr.id)) & 0xffffffff;
+    if (this.#userPtr !== null) {
+      h = (h * 31 + hashString(this.#userPtr.id)) & 0xffffffff;
     }
-    if (this.accessToken !== null) {
-      h = (h * 31 + hashString(this.accessToken)) & 0xffffffff;
+    if (this.#accessToken !== null) {
+      h = (h * 31 + hashString(this.#accessToken)) & 0xffffffff;
     }
-    if (this.seenAt !== null) {
-      h = (h * 31 + hashString(this.seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.#seenAt !== null) {
+      h = (h * 31 + hashString(this.#seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.loggedInAt !== null) {
-      h = (h * 31 + hashString(this.loggedInAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.#loggedInAt !== null) {
+      h = (h * 31 + hashString(this.#loggedInAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.cursorPtr !== null) {
-      h = (h * 31 + hashString(this.cursorPtr.id)) & 0xffffffff;
+    if (this.#cursorPtr !== null) {
+      h = (h * 31 + hashString(this.#cursorPtr.id)) & 0xffffffff;
     }
-    if (this.deviceType !== null) {
-      h = (h * 31 + hashString(this.deviceType)) & 0xffffffff;
+    if (this.#deviceType !== null) {
+      h = (h * 31 + hashString(this.#deviceType)) & 0xffffffff;
     }
-    if (this.deviceName !== null) {
-      h = (h * 31 + hashString(this.deviceName)) & 0xffffffff;
+    if (this.#deviceName !== null) {
+      h = (h * 31 + hashString(this.#deviceName)) & 0xffffffff;
     }
-    if (this.operatingSystem !== null) {
-      h = (h * 31 + hashString(this.operatingSystem)) & 0xffffffff;
+    if (this.#operatingSystem !== null) {
+      h = (h * 31 + hashString(this.#operatingSystem)) & 0xffffffff;
     }
-    if (this.browserName !== null) {
-      h = (h * 31 + hashString(this.browserName)) & 0xffffffff;
+    if (this.#browserName !== null) {
+      h = (h * 31 + hashString(this.#browserName)) & 0xffffffff;
     }
-    if (this.browserVersion !== null) {
-      h = (h * 31 + hashString(this.browserVersion)) & 0xffffffff;
+    if (this.#browserVersion !== null) {
+      h = (h * 31 + hashString(this.#browserVersion)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -608,40 +814,40 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.browserVersion != null) {
-      objectValue["44"] = object.browserVersion;
+    if (object.#browserVersion != null) {
+      objectValue["44"] = object.#browserVersion;
     }
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.machinePtr != null) {
-      objectValue["110"] = object.machinePtr.toValue();
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    if (object.#machinePtr != null) {
+      objectValue["110"] = object.#machinePtr.toValue();
     }
-    if (object.userPtr != null) {
-      objectValue["111"] = object.userPtr.toValue();
+    if (object.#userPtr != null) {
+      objectValue["111"] = object.#userPtr.toValue();
     }
-    if (object.accessToken != null) {
-      objectValue["120"] = object.accessToken;
+    if (object.#accessToken != null) {
+      objectValue["120"] = object.#accessToken;
     }
-    if (object.seenAt != null) {
-      objectValue["121"] = object.seenAt.toString({ timeZoneName: "never" });
+    if (object.#seenAt != null) {
+      objectValue["121"] = object.#seenAt.toString({ timeZoneName: "never" });
     }
-    if (object.loggedInAt != null) {
-      objectValue["122"] = object.loggedInAt.toString({ timeZoneName: "never" });
+    if (object.#loggedInAt != null) {
+      objectValue["122"] = object.#loggedInAt.toString({ timeZoneName: "never" });
     }
-    if (object.cursorPtr != null) {
-      objectValue["123"] = object.cursorPtr.toValue();
+    if (object.#cursorPtr != null) {
+      objectValue["123"] = object.#cursorPtr.toValue();
     }
-    if (object.deviceType != null) {
-      objectValue["130"] = object.deviceType;
+    if (object.#deviceType != null) {
+      objectValue["130"] = object.#deviceType;
     }
-    if (object.deviceName != null) {
-      objectValue["131"] = object.deviceName;
+    if (object.#deviceName != null) {
+      objectValue["131"] = object.#deviceName;
     }
-    if (object.operatingSystem != null) {
-      objectValue["132"] = object.operatingSystem;
+    if (object.#operatingSystem != null) {
+      objectValue["132"] = object.#operatingSystem;
     }
-    if (object.browserName != null) {
-      objectValue["133"] = object.browserName;
+    if (object.#browserName != null) {
+      objectValue["133"] = object.#browserName;
     }
     return objectValue;
   }
@@ -807,40 +1013,40 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.browserVersion != null) {
-      objectProto.browserVersion = object.browserVersion;
+    if (object.#browserVersion != null) {
+      objectProto.browserVersion = object.#browserVersion;
     }
-    objectProto.type = Number(object.type) as ClientTypeProto;
-    objectProto.name = object.name;
-    if (object.machinePtr != null) {
-      objectProto.machinePtr = object.machinePtr.toProto();
+    objectProto.type = Number(object.#type) as ClientTypeProto;
+    objectProto.name = object.#name;
+    if (object.#machinePtr != null) {
+      objectProto.machinePtr = object.#machinePtr.toProto();
     }
-    if (object.userPtr != null) {
-      objectProto.userPtr = object.userPtr.toProto();
+    if (object.#userPtr != null) {
+      objectProto.userPtr = object.#userPtr.toProto();
     }
-    if (object.accessToken != null) {
-      objectProto.accessToken = object.accessToken;
+    if (object.#accessToken != null) {
+      objectProto.accessToken = object.#accessToken;
     }
-    if (object.seenAt != null) {
-      objectProto.seenAt = packProtoTimestamp(object.seenAt);
+    if (object.#seenAt != null) {
+      objectProto.seenAt = packProtoTimestamp(object.#seenAt);
     }
-    if (object.loggedInAt != null) {
-      objectProto.loggedInAt = packProtoTimestamp(object.loggedInAt);
+    if (object.#loggedInAt != null) {
+      objectProto.loggedInAt = packProtoTimestamp(object.#loggedInAt);
     }
-    if (object.cursorPtr != null) {
-      objectProto.cursorPtr = object.cursorPtr.toProto();
+    if (object.#cursorPtr != null) {
+      objectProto.cursorPtr = object.#cursorPtr.toProto();
     }
-    if (object.deviceType != null) {
-      objectProto.deviceType = object.deviceType;
+    if (object.#deviceType != null) {
+      objectProto.deviceType = object.#deviceType;
     }
-    if (object.deviceName != null) {
-      objectProto.deviceName = object.deviceName;
+    if (object.#deviceName != null) {
+      objectProto.deviceName = object.#deviceName;
     }
-    if (object.operatingSystem != null) {
-      objectProto.operatingSystem = object.operatingSystem;
+    if (object.#operatingSystem != null) {
+      objectProto.operatingSystem = object.#operatingSystem;
     }
-    if (object.browserName != null) {
-      objectProto.browserName = object.browserName;
+    if (object.#browserName != null) {
+      objectProto.browserName = object.#browserName;
     }
     return objectProto as ClientProto;
   }

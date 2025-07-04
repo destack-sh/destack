@@ -51,7 +51,7 @@ export class TextSpan extends StructFrozen {
   readonly content: string | null;
 
   /**
-   * node
+   * TextSpan.node
    */
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;

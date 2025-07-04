@@ -192,24 +192,13 @@ export class Session {
     this.dirty[node.id] = node;
   }
 
-  /** Erase a Node. */
-  erase(node: Node): void {
-    if (this.closedAt) {
-      throw new Error(`${this.repr()} is closed`);
-    }
-    this._flushNode(node);
-    const undoEdit = new Edit({ type: EditType.CREATE, node, value: toValue(node, null, true) });
-    const edit = new Edit({ type: EditType.ERASE, node, undo: undoEdit });
-    this.edits.push(edit);
-    this.dirty[node.id] = node;
-  }
-
   /** Turn a dirty Node into Edits. */
   _flushNode(node: Node): void {
     if (node._isNew) {
       node._isNew = false;
     } else if (node._dirty != null) {
       // turn dirty properties into Edits (basic SET/CLEAR operations)
+      return; // nocheckin
       const nodePtr = node.toRef();
       for (const [propName, propOldValue] of Object.entries(node._dirty)) {
         const prop = (node.constructor as NodeClass).__properties__[propName];

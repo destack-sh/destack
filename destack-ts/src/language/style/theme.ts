@@ -151,7 +151,23 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
   /**
    * Theme.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   constructor(options: {
     id?: string;
@@ -250,7 +266,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
     if (_name === null) {
       throw new Error(`Theme.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
 
     // identity
     if (options.id == null) {
@@ -261,9 +277,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Theme.createdAt and Theme.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -286,7 +300,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -310,7 +324,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -424,7 +438,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["101"] = object.name;
+    objectValue["101"] = object.#name;
     return objectValue;
   }
 
@@ -551,7 +565,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.name = object.name;
+    objectProto.name = object.#name;
     return objectProto as ThemeProto;
   }
 

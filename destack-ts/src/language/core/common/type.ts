@@ -1287,7 +1287,7 @@ export class Type extends StructFrozen {
   readonly structType: StructType | null;
 
   /**
-   * definition
+   * Type.definition
    */
   get definition():
     | CustomEntityDefinition

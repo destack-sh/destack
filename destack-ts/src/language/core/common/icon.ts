@@ -62,7 +62,7 @@ export class Icon extends StructFrozen {
   readonly vscName: string | null;
 
   /**
-   * file
+   * Icon.file
    */
   get file(): File | null {
     const nodePtr: NodeReference | null = this.filePtr;

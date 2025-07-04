@@ -124,10 +124,7 @@ export abstract class SanctionEvent extends Event {
     }
     return null;
   }
-  set node(node: Sanction) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
+  declare readonly nodePtr: NodeReference;
 
   /**
    * SanctionEvent.target
@@ -139,10 +136,7 @@ export abstract class SanctionEvent extends Event {
     }
     return null;
   }
-  set target(node: Node & IsSubject) {
-    this.targetPtr = node.toRef();
-  }
-  declare targetPtr: NodeReference;
+  declare readonly targetPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -221,10 +215,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
     }
     return null;
   }
-  set node(node: Sanction) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * SanctionEvent.target
@@ -236,10 +227,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
     }
     return null;
   }
-  set target(node: Node & IsSubject) {
-    this.targetPtr = node.toRef();
-  }
-  targetPtr: NodeReference;
+  readonly targetPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -318,7 +306,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`SanctionRequestedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -701,10 +689,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
     }
     return null;
   }
-  set node(node: Sanction) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * SanctionEvent.target
@@ -716,10 +701,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
     }
     return null;
   }
-  set target(node: Node & IsSubject) {
-    this.targetPtr = node.toRef();
-  }
-  targetPtr: NodeReference;
+  readonly targetPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -798,7 +780,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`SanctionGrantedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1181,10 +1163,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
     }
     return null;
   }
-  set node(node: Sanction) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * SanctionEvent.target
@@ -1196,10 +1175,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
     }
     return null;
   }
-  set target(node: Node & IsSubject) {
-    this.targetPtr = node.toRef();
-  }
-  targetPtr: NodeReference;
+  readonly targetPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -1278,7 +1254,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`SanctionRevokedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1661,10 +1637,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
     }
     return null;
   }
-  set node(node: Sanction) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * SanctionEvent.target
@@ -1676,10 +1649,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
     }
     return null;
   }
-  set target(node: Node & IsSubject) {
-    this.targetPtr = node.toRef();
-  }
-  targetPtr: NodeReference;
+  readonly targetPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -1758,7 +1728,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`SanctionExpiredEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2197,12 +2167,44 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   /**
    * Sanction.type
    */
-  type: SanctionType;
+  get type(): SanctionType {
+    return this.#type;
+  }
+  set type(value: SanctionType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: SanctionType;
 
   /**
    * Sanction.expiresAt
    */
-  expiresAt: Temporal.ZonedDateTime | null;
+  get expiresAt(): Temporal.ZonedDateTime | null {
+    return this.#expiresAt;
+  }
+  set expiresAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#expiresAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["expiresAt"] === undefined) {
+      this._dirty["expiresAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#expiresAt = value;
+  }
+  #expiresAt: Temporal.ZonedDateTime | null;
 
   /**
    * Sanction.target
@@ -2217,7 +2219,23 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   set target(node: Node & IsSubject) {
     this.targetPtr = node.toRef();
   }
-  targetPtr: NodeReference;
+  get targetPtr(): NodeReference {
+    return this.#targetPtr;
+  }
+  set targetPtr(value: NodeReference) {
+    const oldValue = this.#targetPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["targetPtr"] === undefined) {
+      this._dirty["targetPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#targetPtr = value;
+  }
+  #targetPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -2309,9 +2327,9 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (_type === null) {
       throw new Error(`Sanction.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _expiresAt = options.expiresAt ?? null;
-    this.expiresAt = _expiresAt;
+    this.#expiresAt = _expiresAt;
     let _target = options.target;
     if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
       _target = (_target as Node).toRef();
@@ -2319,7 +2337,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (_target === null) {
       throw new Error(`Sanction.target is required`);
     }
-    this.targetPtr = _target;
+    this.#targetPtr = _target;
 
     // identity
     if (options.id == null) {
@@ -2331,7 +2349,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `Sanction.createdAt and Sanction.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -2355,13 +2373,13 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
-    if (!(this.expiresAt === other.expiresAt)) {
+    if (!(this.#expiresAt === other.#expiresAt)) {
       return false;
     }
-    if (!(this.targetPtr.id === other.targetPtr.id)) {
+    if (!(this.#targetPtr.id === other.#targetPtr.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -2388,11 +2406,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.expiresAt !== null) {
-      h = (h * 31 + hashString(this.expiresAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    if (this.#expiresAt !== null) {
+      h = (h * 31 + hashString(this.#expiresAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#targetPtr.id)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -2499,11 +2517,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["100"] = object.type;
-    if (object.expiresAt != null) {
-      objectValue["110"] = object.expiresAt.toString({ timeZoneName: "never" });
+    objectValue["100"] = object.#type;
+    if (object.#expiresAt != null) {
+      objectValue["110"] = object.#expiresAt.toString({ timeZoneName: "never" });
     }
-    objectValue["111"] = object.targetPtr.toValue();
+    objectValue["111"] = object.#targetPtr.toValue();
     return objectValue;
   }
 
@@ -2641,11 +2659,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.type = Number(object.type) as SanctionTypeProto;
-    if (object.expiresAt != null) {
-      objectProto.expiresAt = packProtoTimestamp(object.expiresAt);
+    objectProto.type = Number(object.#type) as SanctionTypeProto;
+    if (object.#expiresAt != null) {
+      objectProto.expiresAt = packProtoTimestamp(object.#expiresAt);
     }
-    objectProto.targetPtr = object.targetPtr.toProto();
+    objectProto.targetPtr = object.#targetPtr.toProto();
     return objectProto as SanctionProto;
   }
 

@@ -164,12 +164,44 @@ export class GaugeMetric extends Metric {
   /**
    * Metric.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Metric.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -272,9 +304,9 @@ export class GaugeMetric extends Metric {
     if (_name === null) {
       throw new Error(`GaugeMetric.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -286,7 +318,7 @@ export class GaugeMetric extends Metric {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `GaugeMetric.createdAt and GaugeMetric.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -310,12 +342,12 @@ export class GaugeMetric extends Metric {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
@@ -343,9 +375,9 @@ export class GaugeMetric extends Metric {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -460,9 +492,9 @@ export class GaugeMetric extends Metric {
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
     return objectValue;
   }
@@ -597,9 +629,9 @@ export class GaugeMetric extends Metric {
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
     return objectProto as GaugeMetricProto;
   }
@@ -784,10 +816,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     }
     return null;
   }
-  set definition(node: GaugeMetric) {
-    this.definitionPtr = node.toRef();
-  }
-  definitionPtr: NodeReference;
+  readonly definitionPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -828,14 +857,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -911,7 +933,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`GaugeMeasurementEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1370,12 +1392,44 @@ export class CounterMetric extends Metric {
   /**
    * Metric.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Metric.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -1478,9 +1532,9 @@ export class CounterMetric extends Metric {
     if (_name === null) {
       throw new Error(`CounterMetric.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -1492,7 +1546,7 @@ export class CounterMetric extends Metric {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `CounterMetric.createdAt and CounterMetric.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -1516,12 +1570,12 @@ export class CounterMetric extends Metric {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
@@ -1549,9 +1603,9 @@ export class CounterMetric extends Metric {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1666,9 +1720,9 @@ export class CounterMetric extends Metric {
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
     return objectValue;
   }
@@ -1803,9 +1857,9 @@ export class CounterMetric extends Metric {
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
     return objectProto as CounterMetricProto;
   }
@@ -1990,10 +2044,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     }
     return null;
   }
-  set definition(node: CounterMetric) {
-    this.definitionPtr = node.toRef();
-  }
-  definitionPtr: NodeReference;
+  readonly definitionPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -2034,14 +2085,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -2117,7 +2161,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`CounterMeasurementEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2576,12 +2620,44 @@ export class HistogramMetric extends Metric {
   /**
    * Metric.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Metric.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -2684,9 +2760,9 @@ export class HistogramMetric extends Metric {
     if (_name === null) {
       throw new Error(`HistogramMetric.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -2698,7 +2774,7 @@ export class HistogramMetric extends Metric {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `HistogramMetric.createdAt and HistogramMetric.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -2722,12 +2798,12 @@ export class HistogramMetric extends Metric {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
@@ -2755,9 +2831,9 @@ export class HistogramMetric extends Metric {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -2872,9 +2948,9 @@ export class HistogramMetric extends Metric {
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
     return objectValue;
   }
@@ -3009,9 +3085,9 @@ export class HistogramMetric extends Metric {
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
     return objectProto as HistogramMetricProto;
   }
@@ -3196,10 +3272,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     }
     return null;
   }
-  set definition(node: HistogramMetric) {
-    this.definitionPtr = node.toRef();
-  }
-  definitionPtr: NodeReference;
+  readonly definitionPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -3240,14 +3313,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -3323,7 +3389,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`HistogramMeasurementEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =

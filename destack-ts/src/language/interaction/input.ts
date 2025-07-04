@@ -135,14 +135,7 @@ export abstract class InputEvent extends Event {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -221,49 +214,42 @@ export abstract class PointerEvent extends InputEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  declare position: Vector2f;
+  declare readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  declare pressure: number;
+  declare readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  declare shiftKey: boolean;
+  declare readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  declare altKey: boolean;
+  declare readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  declare ctrlKey: boolean;
+  declare readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  declare metaKey: boolean;
+  declare readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  declare accelKey: boolean;
+  declare readonly accelKey: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -342,49 +328,42 @@ export class PointerDownEvent extends PointerEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -493,7 +472,7 @@ export class PointerDownEvent extends PointerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`PointerDownEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -928,49 +907,42 @@ export class PointerUpEvent extends PointerEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -1079,7 +1051,7 @@ export class PointerUpEvent extends PointerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`PointerUpEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1502,49 +1474,42 @@ export class PointerMoveEvent extends PointerEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -1653,7 +1618,7 @@ export class PointerMoveEvent extends PointerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`PointerMoveEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2088,49 +2053,42 @@ export class PointerEnterEvent extends PointerEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -2239,7 +2197,7 @@ export class PointerEnterEvent extends PointerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`PointerEnterEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2674,49 +2632,42 @@ export class PointerOverEvent extends PointerEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -2825,7 +2776,7 @@ export class PointerOverEvent extends PointerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`PointerOverEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -3260,49 +3211,42 @@ export class PointerLeaveEvent extends PointerEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -3411,7 +3355,7 @@ export class PointerLeaveEvent extends PointerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`PointerLeaveEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -3846,49 +3790,42 @@ export class LongPressEvent extends PointerEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -3997,7 +3934,7 @@ export class LongPressEvent extends PointerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`LongPressEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -4420,54 +4357,47 @@ export abstract class MouseEvent extends PointerEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  declare position: Vector2f;
+  declare readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  declare pressure: number;
+  declare readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  declare shiftKey: boolean;
+  declare readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  declare altKey: boolean;
+  declare readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  declare ctrlKey: boolean;
+  declare readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  declare metaKey: boolean;
+  declare readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  declare accelKey: boolean;
+  declare readonly accelKey: boolean;
 
   /**
    * MouseEvent.button
    */
-  declare button: MouseButton;
+  declare readonly button: MouseButton;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -4546,54 +4476,47 @@ export abstract class ClickEvent extends MouseEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  declare position: Vector2f;
+  declare readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  declare pressure: number;
+  declare readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  declare shiftKey: boolean;
+  declare readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  declare altKey: boolean;
+  declare readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  declare ctrlKey: boolean;
+  declare readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  declare metaKey: boolean;
+  declare readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  declare accelKey: boolean;
+  declare readonly accelKey: boolean;
 
   /**
    * MouseEvent.button
    */
-  declare button: MouseButton;
+  declare readonly button: MouseButton;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -4672,54 +4595,47 @@ export class LeftClickEvent extends ClickEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   /**
    * MouseEvent.button
    */
-  button: MouseButton;
+  readonly button: MouseButton;
 
   constructor(options: {
     id?: string;
@@ -4834,7 +4750,7 @@ export class LeftClickEvent extends ClickEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`LeftClickEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -5265,54 +5181,47 @@ export class RightClickEvent extends ClickEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   /**
    * MouseEvent.button
    */
-  button: MouseButton;
+  readonly button: MouseButton;
 
   constructor(options: {
     id?: string;
@@ -5427,7 +5336,7 @@ export class RightClickEvent extends ClickEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RightClickEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -5858,54 +5767,47 @@ export class MiddleClickEvent extends ClickEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   /**
    * MouseEvent.button
    */
-  button: MouseButton;
+  readonly button: MouseButton;
 
   constructor(options: {
     id?: string;
@@ -6020,7 +5922,7 @@ export class MiddleClickEvent extends ClickEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`MiddleClickEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -6463,54 +6365,47 @@ export class DoubleClickEvent extends ClickEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   /**
    * MouseEvent.button
    */
-  button: MouseButton;
+  readonly button: MouseButton;
 
   constructor(options: {
     id?: string;
@@ -6625,7 +6520,7 @@ export class DoubleClickEvent extends ClickEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`DoubleClickEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -7068,59 +6963,52 @@ export class WheelEvent extends MouseEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * PointerEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   /**
    * PointerEvent.pressure
    */
-  pressure: number;
+  readonly pressure: number;
 
   /**
    * PointerEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   /**
    * PointerEvent.accelKey
    */
-  accelKey: boolean;
+  readonly accelKey: boolean;
 
   /**
    * MouseEvent.button
    */
-  button: MouseButton;
+  readonly button: MouseButton;
 
   /**
    * WheelEvent.delta
    */
-  delta: Vector2f;
+  readonly delta: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -7241,7 +7129,7 @@ export class WheelEvent extends MouseEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`WheelEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -7680,49 +7568,42 @@ export abstract class KeyboardEvent extends InputEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /**
    * KeyboardEvent.key
    */
-  declare key: string;
+  declare readonly key: string;
 
   /**
    * KeyboardEvent.code
    */
-  declare code: string;
+  declare readonly code: string;
 
   /**
    * KeyboardEvent.repeat
    */
-  declare repeat: boolean;
+  declare readonly repeat: boolean;
 
   /**
    * KeyboardEvent.shiftKey
    */
-  declare shiftKey: boolean;
+  declare readonly shiftKey: boolean;
 
   /**
    * KeyboardEvent.altKey
    */
-  declare altKey: boolean;
+  declare readonly altKey: boolean;
 
   /**
    * KeyboardEvent.ctrlKey
    */
-  declare ctrlKey: boolean;
+  declare readonly ctrlKey: boolean;
 
   /**
    * KeyboardEvent.metaKey
    */
-  declare metaKey: boolean;
+  declare readonly metaKey: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -7801,49 +7682,42 @@ export class KeyDownEvent extends KeyboardEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * KeyboardEvent.key
    */
-  key: string;
+  readonly key: string;
 
   /**
    * KeyboardEvent.code
    */
-  code: string;
+  readonly code: string;
 
   /**
    * KeyboardEvent.repeat
    */
-  repeat: boolean;
+  readonly repeat: boolean;
 
   /**
    * KeyboardEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * KeyboardEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * KeyboardEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * KeyboardEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -7952,7 +7826,7 @@ export class KeyDownEvent extends KeyboardEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`KeyDownEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -8367,49 +8241,42 @@ export class KeyUpEvent extends KeyboardEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * KeyboardEvent.key
    */
-  key: string;
+  readonly key: string;
 
   /**
    * KeyboardEvent.code
    */
-  code: string;
+  readonly code: string;
 
   /**
    * KeyboardEvent.repeat
    */
-  repeat: boolean;
+  readonly repeat: boolean;
 
   /**
    * KeyboardEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * KeyboardEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * KeyboardEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * KeyboardEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -8518,7 +8385,7 @@ export class KeyUpEvent extends KeyboardEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`KeyUpEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -8933,49 +8800,42 @@ export class KeyPressEvent extends KeyboardEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * KeyboardEvent.key
    */
-  key: string;
+  readonly key: string;
 
   /**
    * KeyboardEvent.code
    */
-  code: string;
+  readonly code: string;
 
   /**
    * KeyboardEvent.repeat
    */
-  repeat: boolean;
+  readonly repeat: boolean;
 
   /**
    * KeyboardEvent.shiftKey
    */
-  shiftKey: boolean;
+  readonly shiftKey: boolean;
 
   /**
    * KeyboardEvent.altKey
    */
-  altKey: boolean;
+  readonly altKey: boolean;
 
   /**
    * KeyboardEvent.ctrlKey
    */
-  ctrlKey: boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * KeyboardEvent.metaKey
    */
-  metaKey: boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: string;
@@ -9084,7 +8944,7 @@ export class KeyPressEvent extends KeyboardEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`KeyPressEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -9499,19 +9359,12 @@ export abstract class DragEvent extends InputEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /**
    * DragEvent.position
    */
-  declare position: Vector2f;
+  declare readonly position: Vector2f;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -9590,19 +9443,12 @@ export class DragStartEvent extends DragEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * DragEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -9675,7 +9521,7 @@ export class DragStartEvent extends DragEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`DragStartEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -10050,19 +9896,12 @@ export class DragEndEvent extends DragEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * DragEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -10135,7 +9974,7 @@ export class DragEndEvent extends DragEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`DragEndEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -10510,19 +10349,12 @@ export class DragOverEvent extends DragEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * DragEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -10595,7 +10427,7 @@ export class DragOverEvent extends DragEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`DragOverEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -10970,19 +10802,12 @@ export class DragEnterEvent extends DragEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * DragEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -11055,7 +10880,7 @@ export class DragEnterEvent extends DragEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`DragEnterEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -11430,19 +11255,12 @@ export class DragLeaveEvent extends DragEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * DragEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -11515,7 +11333,7 @@ export class DragLeaveEvent extends DragEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`DragLeaveEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -11890,19 +11708,12 @@ export class DropEvent extends DragEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * DragEvent.position
    */
-  position: Vector2f;
+  readonly position: Vector2f;
 
   constructor(options: {
     id?: string;
@@ -11975,7 +11786,7 @@ export class DropEvent extends DragEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`DropEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -12350,14 +12161,7 @@ export abstract class ClipboardEvent extends InputEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -12436,14 +12240,7 @@ export class CopyEvent extends ClipboardEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -12510,7 +12307,7 @@ export class CopyEvent extends ClipboardEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`CopyEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -12869,14 +12666,7 @@ export class CutEvent extends ClipboardEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -12943,7 +12733,7 @@ export class CutEvent extends ClipboardEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`CutEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -13302,14 +13092,7 @@ export class PasteEvent extends ClipboardEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -13376,7 +13159,7 @@ export class PasteEvent extends ClipboardEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`PasteEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -13735,14 +13518,7 @@ export abstract class FocusEvent extends InputEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -13821,14 +13597,7 @@ export class FocusInEvent extends FocusEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -13895,7 +13664,7 @@ export class FocusInEvent extends FocusEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`FocusInEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -14254,14 +14023,7 @@ export class FocusOutEvent extends FocusEvent {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -14328,7 +14090,7 @@ export class FocusOutEvent extends FocusEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`FocusOutEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =

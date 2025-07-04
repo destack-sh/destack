@@ -348,17 +348,65 @@ export class EventCursor extends Cursor {
       this.ownedByPtr = node.toRef();
     }
   }
-  ownedByPtr: NodeReference | null;
+  get ownedByPtr(): NodeReference | null {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference | null;
 
   /**
    * Cursor.status
    */
-  status: CursorStatus;
+  get status(): CursorStatus {
+    return this.#status;
+  }
+  set status(value: CursorStatus) {
+    const oldValue = this.#status;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["status"] === undefined) {
+      this._dirty["status"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#status = value;
+  }
+  #status: CursorStatus;
 
   /**
    * Cursor.activeAt
    */
-  activeAt: Temporal.ZonedDateTime | null;
+  get activeAt(): Temporal.ZonedDateTime | null {
+    return this.#activeAt;
+  }
+  set activeAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#activeAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["activeAt"] === undefined) {
+      this._dirty["activeAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#activeAt = value;
+  }
+  #activeAt: Temporal.ZonedDateTime | null;
 
   constructor(options: {
     id?: string;
@@ -447,7 +495,7 @@ export class EventCursor extends Cursor {
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* CursorStatus.CREATED */;
@@ -455,9 +503,9 @@ export class EventCursor extends Cursor {
     if (_status === null) {
       throw new Error(`EventCursor.status is required`);
     }
-    this.status = _status;
+    this.#status = _status;
     let _activeAt = options.activeAt ?? null;
-    this.activeAt = _activeAt;
+    this.#activeAt = _activeAt;
 
     // identity
     if (options.id == null) {
@@ -469,7 +517,7 @@ export class EventCursor extends Cursor {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `EventCursor.createdAt and EventCursor.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -493,16 +541,16 @@ export class EventCursor extends Cursor {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.status === other.status)) {
+    if (!(this.#status === other.#status)) {
       return false;
     }
-    if (!(this.activeAt === other.activeAt)) {
+    if (!(this.#activeAt === other.#activeAt)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -523,15 +571,15 @@ export class EventCursor extends Cursor {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.status) & 0xffffffff;
-    if (this.activeAt !== null) {
-      h = (h * 31 + hashString(this.activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + this.#status) & 0xffffffff;
+    if (this.#activeAt !== null) {
+      h = (h * 31 + hashString(this.#activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.#ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -638,12 +686,12 @@ export class EventCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.ownedByPtr != null) {
-      objectValue["28"] = object.ownedByPtr.toValue();
+    if (object.#ownedByPtr != null) {
+      objectValue["28"] = object.#ownedByPtr.toValue();
     }
-    objectValue["101"] = object.status;
-    if (object.activeAt != null) {
-      objectValue["110"] = object.activeAt.toString({ timeZoneName: "never" });
+    objectValue["101"] = object.#status;
+    if (object.#activeAt != null) {
+      objectValue["110"] = object.#activeAt.toString({ timeZoneName: "never" });
     }
     return objectValue;
   }
@@ -772,12 +820,12 @@ export class EventCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    if (object.#ownedByPtr != null) {
+      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     }
-    objectProto.status = Number(object.status) as CursorStatusProto;
-    if (object.activeAt != null) {
-      objectProto.activeAt = packProtoTimestamp(object.activeAt);
+    objectProto.status = Number(object.#status) as CursorStatusProto;
+    if (object.#activeAt != null) {
+      objectProto.activeAt = packProtoTimestamp(object.#activeAt);
     }
     return objectProto as EventCursorProto;
   }
@@ -1052,22 +1100,86 @@ export class ScreenCursor extends Cursor {
       this.ownedByPtr = node.toRef();
     }
   }
-  ownedByPtr: NodeReference | null;
+  get ownedByPtr(): NodeReference | null {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference | null;
 
   /**
    * Cursor.status
    */
-  status: CursorStatus;
+  get status(): CursorStatus {
+    return this.#status;
+  }
+  set status(value: CursorStatus) {
+    const oldValue = this.#status;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["status"] === undefined) {
+      this._dirty["status"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#status = value;
+  }
+  #status: CursorStatus;
 
   /**
    * Cursor.activeAt
    */
-  activeAt: Temporal.ZonedDateTime | null;
+  get activeAt(): Temporal.ZonedDateTime | null {
+    return this.#activeAt;
+  }
+  set activeAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#activeAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["activeAt"] === undefined) {
+      this._dirty["activeAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#activeAt = value;
+  }
+  #activeAt: Temporal.ZonedDateTime | null;
 
   /**
    * ScreenCursor.position
    */
-  position: Vector2i | null;
+  get position(): Vector2i | null {
+    return this.#position;
+  }
+  set position(value: Vector2i | null) {
+    const oldValue = this.#position;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["position"] === undefined) {
+      this._dirty["position"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#position = value;
+  }
+  #position: Vector2i | null;
 
   constructor(options: {
     id?: string;
@@ -1157,7 +1269,7 @@ export class ScreenCursor extends Cursor {
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* CursorStatus.CREATED */;
@@ -1165,11 +1277,11 @@ export class ScreenCursor extends Cursor {
     if (_status === null) {
       throw new Error(`ScreenCursor.status is required`);
     }
-    this.status = _status;
+    this.#status = _status;
     let _activeAt = options.activeAt ?? null;
-    this.activeAt = _activeAt;
+    this.#activeAt = _activeAt;
     let _position = options.position ?? null;
-    this.position = _position;
+    this.#position = _position;
 
     // identity
     if (options.id == null) {
@@ -1181,7 +1293,7 @@ export class ScreenCursor extends Cursor {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `ScreenCursor.createdAt and ScreenCursor.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -1206,21 +1318,21 @@ export class ScreenCursor extends Cursor {
       return false;
     }
     if (
-      (this.position == null) !== (other.position == null) ||
-      (this.position != null && !this.position.equals(other.position))
+      (this.#position == null) !== (other.#position == null) ||
+      (this.#position != null && !this.#position.equals(other.#position))
     ) {
       return false;
     }
-    if (!(this.status === other.status)) {
+    if (!(this.#status === other.#status)) {
       return false;
     }
-    if (!(this.activeAt === other.activeAt)) {
+    if (!(this.#activeAt === other.#activeAt)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -1241,18 +1353,18 @@ export class ScreenCursor extends Cursor {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.position !== null) {
-      h = (h * 31 + this.position.hash()) & 0xffffffff;
+    if (this.#position !== null) {
+      h = (h * 31 + this.#position.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this.status) & 0xffffffff;
-    if (this.activeAt !== null) {
-      h = (h * 31 + hashString(this.activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + this.#status) & 0xffffffff;
+    if (this.#activeAt !== null) {
+      h = (h * 31 + hashString(this.#activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.#ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -1359,15 +1471,15 @@ export class ScreenCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.ownedByPtr != null) {
-      objectValue["28"] = object.ownedByPtr.toValue();
+    if (object.#ownedByPtr != null) {
+      objectValue["28"] = object.#ownedByPtr.toValue();
     }
-    objectValue["101"] = object.status;
-    if (object.activeAt != null) {
-      objectValue["110"] = object.activeAt.toString({ timeZoneName: "never" });
+    objectValue["101"] = object.#status;
+    if (object.#activeAt != null) {
+      objectValue["110"] = object.#activeAt.toString({ timeZoneName: "never" });
     }
-    if (object.position != null) {
-      objectValue["120"] = object.position.toValue();
+    if (object.#position != null) {
+      objectValue["120"] = object.#position.toValue();
     }
     return objectValue;
   }
@@ -1503,15 +1615,15 @@ export class ScreenCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    if (object.#ownedByPtr != null) {
+      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     }
-    objectProto.status = Number(object.status) as CursorStatusProto;
-    if (object.activeAt != null) {
-      objectProto.activeAt = packProtoTimestamp(object.activeAt);
+    objectProto.status = Number(object.#status) as CursorStatusProto;
+    if (object.#activeAt != null) {
+      objectProto.activeAt = packProtoTimestamp(object.#activeAt);
     }
-    if (object.position != null) {
-      objectProto.position = object.position.toProto();
+    if (object.#position != null) {
+      objectProto.position = object.#position.toProto();
     }
     return objectProto as ScreenCursorProto;
   }
@@ -1791,17 +1903,65 @@ export class ThreadCursor extends Cursor {
       this.ownedByPtr = node.toRef();
     }
   }
-  ownedByPtr: NodeReference | null;
+  get ownedByPtr(): NodeReference | null {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference | null;
 
   /**
    * Cursor.status
    */
-  status: CursorStatus;
+  get status(): CursorStatus {
+    return this.#status;
+  }
+  set status(value: CursorStatus) {
+    const oldValue = this.#status;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["status"] === undefined) {
+      this._dirty["status"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#status = value;
+  }
+  #status: CursorStatus;
 
   /**
    * Cursor.activeAt
    */
-  activeAt: Temporal.ZonedDateTime | null;
+  get activeAt(): Temporal.ZonedDateTime | null {
+    return this.#activeAt;
+  }
+  set activeAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#activeAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["activeAt"] === undefined) {
+      this._dirty["activeAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#activeAt = value;
+  }
+  #activeAt: Temporal.ZonedDateTime | null;
 
   constructor(options: {
     id?: string;
@@ -1890,7 +2050,7 @@ export class ThreadCursor extends Cursor {
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* CursorStatus.CREATED */;
@@ -1898,9 +2058,9 @@ export class ThreadCursor extends Cursor {
     if (_status === null) {
       throw new Error(`ThreadCursor.status is required`);
     }
-    this.status = _status;
+    this.#status = _status;
     let _activeAt = options.activeAt ?? null;
-    this.activeAt = _activeAt;
+    this.#activeAt = _activeAt;
 
     // identity
     if (options.id == null) {
@@ -1912,7 +2072,7 @@ export class ThreadCursor extends Cursor {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `ThreadCursor.createdAt and ThreadCursor.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -1936,16 +2096,16 @@ export class ThreadCursor extends Cursor {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.status === other.status)) {
+    if (!(this.#status === other.#status)) {
       return false;
     }
-    if (!(this.activeAt === other.activeAt)) {
+    if (!(this.#activeAt === other.#activeAt)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -1966,15 +2126,15 @@ export class ThreadCursor extends Cursor {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.status) & 0xffffffff;
-    if (this.activeAt !== null) {
-      h = (h * 31 + hashString(this.activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + this.#status) & 0xffffffff;
+    if (this.#activeAt !== null) {
+      h = (h * 31 + hashString(this.#activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.#ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -2081,12 +2241,12 @@ export class ThreadCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.ownedByPtr != null) {
-      objectValue["28"] = object.ownedByPtr.toValue();
+    if (object.#ownedByPtr != null) {
+      objectValue["28"] = object.#ownedByPtr.toValue();
     }
-    objectValue["101"] = object.status;
-    if (object.activeAt != null) {
-      objectValue["110"] = object.activeAt.toString({ timeZoneName: "never" });
+    objectValue["101"] = object.#status;
+    if (object.#activeAt != null) {
+      objectValue["110"] = object.#activeAt.toString({ timeZoneName: "never" });
     }
     return objectValue;
   }
@@ -2215,12 +2375,12 @@ export class ThreadCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    if (object.#ownedByPtr != null) {
+      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     }
-    objectProto.status = Number(object.status) as CursorStatusProto;
-    if (object.activeAt != null) {
-      objectProto.activeAt = packProtoTimestamp(object.activeAt);
+    objectProto.status = Number(object.#status) as CursorStatusProto;
+    if (object.#activeAt != null) {
+      objectProto.activeAt = packProtoTimestamp(object.#activeAt);
     }
     return objectProto as ThreadCursorProto;
   }

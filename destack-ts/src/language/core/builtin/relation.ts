@@ -62,7 +62,7 @@ export class NodeDefinitionReference extends StructFrozen {
   readonly nodeType: NodeType;
 
   /**
-   * definition
+   * NodeDefinitionReference.definition
    */
   get definition(): CustomEntityDefinition | CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -391,7 +391,7 @@ export class ObjectDefinitionReference extends StructFrozen {
   readonly structType: StructType | null;
 
   /**
-   * definition
+   * ObjectDefinitionReference.definition
    */
   get definition():
     | CustomEntityDefinition
@@ -1219,7 +1219,7 @@ export class StructDefinitionReference extends StructFrozen {
   readonly structType: StructType | null;
 
   /**
-   * definition
+   * StructDefinitionReference.definition
    */
   get definition(): CustomStructDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;

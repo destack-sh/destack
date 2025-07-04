@@ -122,10 +122,7 @@ export abstract class TimerEvent extends Event {
     }
     return null;
   }
-  set node(node: Timer) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
+  declare readonly nodePtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -204,10 +201,7 @@ export class TimerStartedEvent extends TimerEvent {
     }
     return null;
   }
-  set node(node: Timer) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -277,7 +271,7 @@ export class TimerStartedEvent extends TimerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`TimerStartedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -640,10 +634,7 @@ export class TimerCompletedEvent extends TimerEvent {
     }
     return null;
   }
-  set node(node: Timer) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -713,7 +704,7 @@ export class TimerCompletedEvent extends TimerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`TimerCompletedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1076,10 +1067,7 @@ export class TimerCancelledEvent extends TimerEvent {
     }
     return null;
   }
-  set node(node: Timer) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -1149,7 +1137,7 @@ export class TimerCancelledEvent extends TimerEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`TimerCancelledEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1563,17 +1551,65 @@ export class Timer extends Entity implements IsSpatial {
   /**
    * Timer.type
    */
-  type: TimerType;
+  get type(): TimerType {
+    return this.#type;
+  }
+  set type(value: TimerType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: TimerType;
 
   /**
    * Timer.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Timer.schedule
    */
-  schedule: Schedule | null;
+  get schedule(): Schedule | null {
+    return this.#schedule;
+  }
+  set schedule(value: Schedule | null) {
+    const oldValue = this.#schedule;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["schedule"] === undefined) {
+      this._dirty["schedule"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#schedule = value;
+  }
+  #schedule: Schedule | null;
 
   constructor(options: {
     id?: string;
@@ -1662,14 +1698,14 @@ export class Timer extends Entity implements IsSpatial {
     if (_type === null) {
       throw new Error(`Timer.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Timer.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _schedule = options.schedule ?? null;
-    this.schedule = _schedule;
+    this.#schedule = _schedule;
 
     // identity
     if (options.id == null) {
@@ -1680,9 +1716,7 @@ export class Timer extends Entity implements IsSpatial {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Timer.createdAt and Timer.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1705,15 +1739,15 @@ export class Timer extends Entity implements IsSpatial {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.schedule == null) !== (other.schedule == null) ||
-      (this.schedule != null && !this.schedule.equals(other.schedule))
+      (this.#schedule == null) !== (other.#schedule == null) ||
+      (this.#schedule != null && !this.#schedule.equals(other.#schedule))
     ) {
       return false;
     }
@@ -1738,10 +1772,10 @@ export class Timer extends Entity implements IsSpatial {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.schedule !== null) {
-      h = (h * 31 + this.schedule.hash()) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#schedule !== null) {
+      h = (h * 31 + this.#schedule.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1849,10 +1883,10 @@ export class Timer extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.schedule != null) {
-      objectValue["110"] = object.schedule.toValue();
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    if (object.#schedule != null) {
+      objectValue["110"] = object.#schedule.toValue();
     }
     return objectValue;
   }
@@ -1977,10 +2011,10 @@ export class Timer extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.type = Number(object.type) as TimerTypeProto;
-    objectProto.name = object.name;
-    if (object.schedule != null) {
-      objectProto.schedule = object.schedule.toProto();
+    objectProto.type = Number(object.#type) as TimerTypeProto;
+    objectProto.name = object.#name;
+    if (object.#schedule != null) {
+      objectProto.schedule = object.#schedule.toProto();
     }
     return objectProto as TimerProto;
   }

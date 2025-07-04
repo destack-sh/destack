@@ -230,22 +230,86 @@ export class FillStyle extends Style {
   /**
    * FillStyle.type
    */
-  type: FillType;
+  get type(): FillType {
+    return this.#type;
+  }
+  set type(value: FillType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: FillType;
 
   /**
    * Style.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * FillStyle.color
    */
-  color: Color | null;
+  get color(): Color | null {
+    return this.#color;
+  }
+  set color(value: Color | null) {
+    const oldValue = this.#color;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["color"] === undefined) {
+      this._dirty["color"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#color = value;
+  }
+  #color: Color | null;
 
   /**
    * FillStyle.gradient
    */
-  gradient: Gradient | null;
+  get gradient(): Gradient | null {
+    return this.#gradient;
+  }
+  set gradient(value: Gradient | null) {
+    const oldValue = this.#gradient;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["gradient"] === undefined) {
+      this._dirty["gradient"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#gradient = value;
+  }
+  #gradient: Gradient | null;
 
   /**
    * FillStyle.image
@@ -264,17 +328,65 @@ export class FillStyle extends Style {
       this.imagePtr = node.toRef();
     }
   }
-  imagePtr: NodeReference | null;
+  get imagePtr(): NodeReference | null {
+    return this.#imagePtr;
+  }
+  set imagePtr(value: NodeReference | null) {
+    const oldValue = this.#imagePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["imagePtr"] === undefined) {
+      this._dirty["imagePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#imagePtr = value;
+  }
+  #imagePtr: NodeReference | null;
 
   /**
    * FillStyle.position
    */
-  position: FillPosition | null;
+  get position(): FillPosition | null {
+    return this.#position;
+  }
+  set position(value: FillPosition | null) {
+    const oldValue = this.#position;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["position"] === undefined) {
+      this._dirty["position"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#position = value;
+  }
+  #position: FillPosition | null;
 
   /**
    * FillStyle.size
    */
-  size: FillSize | null;
+  get size(): FillSize | null {
+    return this.#size;
+  }
+  set size(value: FillSize | null) {
+    const oldValue = this.#size;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["size"] === undefined) {
+      this._dirty["size"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#size = value;
+  }
+  #size: FillSize | null;
 
   constructor(options: {
     id?: string;
@@ -379,25 +491,25 @@ export class FillStyle extends Style {
     if (_type === null) {
       throw new Error(`FillStyle.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`FillStyle.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _color = options.color ?? null;
-    this.color = _color;
+    this.#color = _color;
     let _gradient = options.gradient ?? null;
-    this.gradient = _gradient;
+    this.#gradient = _gradient;
     let _image = options.image ?? null;
     if (_image != null && _image.metatype != StructType.NODE_REFERENCE) {
       _image = (_image as Node).toRef();
     }
-    this.imagePtr = _image;
+    this.#imagePtr = _image;
     let _position = options.position ?? null;
-    this.position = _position;
+    this.#position = _position;
     let _size = options.size ?? null;
-    this.size = _size;
+    this.#size = _size;
 
     // identity
     if (options.id == null) {
@@ -409,7 +521,7 @@ export class FillStyle extends Style {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `FillStyle.createdAt and FillStyle.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -433,31 +545,31 @@ export class FillStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
     if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
+      (this.#color == null) !== (other.#color == null) ||
+      (this.#color != null && !this.#color.equals(other.#color))
     ) {
       return false;
     }
     if (
-      (this.gradient == null) !== (other.gradient == null) ||
-      (this.gradient != null && !this.gradient.equals(other.gradient))
+      (this.#gradient == null) !== (other.#gradient == null) ||
+      (this.#gradient != null && !this.#gradient.equals(other.#gradient))
     ) {
       return false;
     }
-    if (!(this.imagePtr?.id === other.imagePtr?.id)) {
+    if (!(this.#imagePtr?.id === other.#imagePtr?.id)) {
       return false;
     }
-    if (!(this.position === other.position)) {
+    if (!(this.#position === other.#position)) {
       return false;
     }
-    if (!(this.size === other.size)) {
+    if (!(this.#size === other.#size)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -481,26 +593,26 @@ export class FillStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    if (this.#color !== null) {
+      h = (h * 31 + this.#color.hash()) & 0xffffffff;
     }
-    if (this.gradient !== null) {
-      h = (h * 31 + this.gradient.hash()) & 0xffffffff;
+    if (this.#gradient !== null) {
+      h = (h * 31 + this.#gradient.hash()) & 0xffffffff;
     }
-    if (this.imagePtr !== null) {
-      h = (h * 31 + hashString(this.imagePtr.id)) & 0xffffffff;
+    if (this.#imagePtr !== null) {
+      h = (h * 31 + hashString(this.#imagePtr.id)) & 0xffffffff;
     }
-    if (this.position !== null) {
-      h = (h * 31 + this.position) & 0xffffffff;
+    if (this.#position !== null) {
+      h = (h * 31 + this.#position) & 0xffffffff;
     }
-    if (this.size !== null) {
-      h = (h * 31 + this.size) & 0xffffffff;
+    if (this.#size !== null) {
+      h = (h * 31 + this.#size) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -627,22 +739,22 @@ export class FillStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.color != null) {
-      objectValue["200"] = object.color.toValue();
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    if (object.#color != null) {
+      objectValue["200"] = object.#color.toValue();
     }
-    if (object.gradient != null) {
-      objectValue["201"] = object.gradient.toValue();
+    if (object.#gradient != null) {
+      objectValue["201"] = object.#gradient.toValue();
     }
-    if (object.imagePtr != null) {
-      objectValue["202"] = object.imagePtr.toValue();
+    if (object.#imagePtr != null) {
+      objectValue["202"] = object.#imagePtr.toValue();
     }
-    if (object.position != null) {
-      objectValue["203"] = object.position;
+    if (object.#position != null) {
+      objectValue["203"] = object.#position;
     }
-    if (object.size != null) {
-      objectValue["204"] = object.size;
+    if (object.#size != null) {
+      objectValue["204"] = object.#size;
     }
     return objectValue;
   }
@@ -797,22 +909,22 @@ export class FillStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.type) as FillTypeProto;
-    objectProto.name = object.name;
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
+    objectProto.type = Number(object.#type) as FillTypeProto;
+    objectProto.name = object.#name;
+    if (object.#color != null) {
+      objectProto.color = object.#color.toProto();
     }
-    if (object.gradient != null) {
-      objectProto.gradient = object.gradient.toProto();
+    if (object.#gradient != null) {
+      objectProto.gradient = object.#gradient.toProto();
     }
-    if (object.imagePtr != null) {
-      objectProto.imagePtr = object.imagePtr.toProto();
+    if (object.#imagePtr != null) {
+      objectProto.imagePtr = object.#imagePtr.toProto();
     }
-    if (object.position != null) {
-      objectProto.position = Number(object.position) as FillPositionProto;
+    if (object.#position != null) {
+      objectProto.position = Number(object.#position) as FillPositionProto;
     }
-    if (object.size != null) {
-      objectProto.size = Number(object.size) as FillSizeProto;
+    if (object.#size != null) {
+      objectProto.size = Number(object.#size) as FillSizeProto;
     }
     return objectProto as FillStyleProto;
   }
@@ -981,7 +1093,7 @@ export class Fill extends StructFrozen {
   readonly type: FillType;
 
   /**
-   * style
+   * Fill.style
    */
   get style(): FillStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
@@ -1006,7 +1118,7 @@ export class Fill extends StructFrozen {
   readonly gradient: Gradient | null;
 
   /**
-   * image
+   * Fill.image
    */
   get image(): File | null {
     const nodePtr: NodeReference | null = this.imagePtr;

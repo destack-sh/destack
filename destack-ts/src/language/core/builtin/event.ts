@@ -125,14 +125,7 @@ export abstract class Event extends Node implements IsSpatial {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -265,7 +258,23 @@ export class CustomEventDefinition
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  customValues: Map<string, Value>;
+  get customValues(): Map<string, Value> {
+    return this.#customValues;
+  }
+  set customValues(value: Map<string, Value>) {
+    const oldValue = this.#customValues;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["customValues"] === undefined) {
+      this._dirty["customValues"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#customValues = value;
+  }
+  #customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -275,17 +284,65 @@ export class CustomEventDefinition
   /**
    * CustomEventDefinition.baseType
    */
-  baseType: NodeDefinitionReference | null;
+  get baseType(): NodeDefinitionReference | null {
+    return this.#baseType;
+  }
+  set baseType(value: NodeDefinitionReference | null) {
+    const oldValue = this.#baseType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["baseType"] === undefined) {
+      this._dirty["baseType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#baseType = value;
+  }
+  #baseType: NodeDefinitionReference | null;
 
   /**
    * CustomEventDefinition.baseTraits
    */
-  baseTraits: Array<NodeDefinitionReference>;
+  get baseTraits(): Array<NodeDefinitionReference> {
+    return this.#baseTraits;
+  }
+  set baseTraits(value: Array<NodeDefinitionReference>) {
+    const oldValue = this.#baseTraits;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["baseTraits"] === undefined) {
+      this._dirty["baseTraits"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#baseTraits = value;
+  }
+  #baseTraits: Array<NodeDefinitionReference>;
 
   /**
    * CustomEventDefinition.isAbstract
    */
-  isAbstract: boolean;
+  get isAbstract(): boolean {
+    return this.#isAbstract;
+  }
+  set isAbstract(value: boolean) {
+    const oldValue = this.#isAbstract;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["isAbstract"] === undefined) {
+      this._dirty["isAbstract"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#isAbstract = value;
+  }
+  #isAbstract: boolean;
 
   /**
    * IsSourceable.source
@@ -302,12 +359,44 @@ export class CustomEventDefinition
   /**
    * CustomEventDefinition.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * CustomEventDefinition.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -401,7 +490,7 @@ export class CustomEventDefinition
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.customValues = _customValues;
+    this.#customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -411,12 +500,12 @@ export class CustomEventDefinition
     }
     this.orderKey = _orderKey;
     let _baseType = options.baseType ?? null;
-    this.baseType = _baseType;
+    this.#baseType = _baseType;
     let _baseTraits = options.baseTraits ?? null;
     if (_baseTraits === null) {
       _baseTraits = [];
     }
-    this.baseTraits = _baseTraits;
+    this.#baseTraits = _baseTraits;
     let _isAbstract = options.isAbstract ?? null;
     if (_isAbstract === null) {
       _isAbstract = false;
@@ -424,7 +513,7 @@ export class CustomEventDefinition
     if (_isAbstract === null) {
       throw new Error(`CustomEventDefinition.isAbstract is required`);
     }
-    this.isAbstract = _isAbstract;
+    this.#isAbstract = _isAbstract;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -434,9 +523,9 @@ export class CustomEventDefinition
     if (_name === null) {
       throw new Error(`CustomEventDefinition.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -448,7 +537,7 @@ export class CustomEventDefinition
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `CustomEventDefinition.createdAt and CustomEventDefinition.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -473,28 +562,28 @@ export class CustomEventDefinition
       return false;
     }
     if (
-      (this.baseType == null) !== (other.baseType == null) ||
-      (this.baseType != null && !this.baseType.equals(other.baseType))
+      (this.#baseType == null) !== (other.#baseType == null) ||
+      (this.#baseType != null && !this.#baseType.equals(other.#baseType))
     ) {
       return false;
     }
-    if (this.baseTraits.length !== other.baseTraits.length) {
+    if (this.#baseTraits.length !== other.#baseTraits.length) {
       return false;
     }
-    for (let i = 0; i < this.baseTraits.length; i++) {
-      if (!this.baseTraits[i].equals(other.baseTraits[i])) {
+    for (let i = 0; i < this.#baseTraits.length; i++) {
+      if (!this.#baseTraits[i].equals(other.#baseTraits[i])) {
         return false;
       }
     }
-    if (!(this.isAbstract === other.isAbstract)) {
+    if (!(this.#isAbstract === other.#isAbstract)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
@@ -504,14 +593,14 @@ export class CustomEventDefinition
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
       return false;
     }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
+    for (const key in this.#customValues) {
+      if (!(key in other.#customValues)) {
         return false;
       }
-      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
         return false;
       }
     }
@@ -533,18 +622,18 @@ export class CustomEventDefinition
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.baseType !== null) {
-      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
+    if (this.#baseType !== null) {
+      h = (h * 31 + this.#baseType.hash()) & 0xffffffff;
     }
-    if (this.baseTraits && this.baseTraits.length > 0) {
-      for (const _item of this.baseTraits) {
+    if (this.#baseTraits && this.#baseTraits.length > 0) {
+      for (const _item of this.#baseTraits) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashBool(this.#isAbstract)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -552,8 +641,8 @@ export class CustomEventDefinition
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
+    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.#customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -661,31 +750,31 @@ export class CustomEventDefinition
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.customValues.size > 0) {
+    if (object.#customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    if (object.baseType != null) {
-      objectValue["40"] = object.baseType.toValue();
+    if (object.#baseType != null) {
+      objectValue["40"] = object.#baseType.toValue();
     }
-    if (object.baseTraits.length > 0) {
+    if (object.#baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
-      for (const item of object.baseTraits) {
+      for (const item of object.#baseTraits) {
         packedBaseTraits.push(item.toValue());
       }
       objectValue["41"] = packedBaseTraits;
     }
-    objectValue["45"] = object.isAbstract;
+    objectValue["45"] = object.#isAbstract;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
     return objectValue;
   }
@@ -858,30 +947,30 @@ export class CustomEventDefinition
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.customValues) {
+    if (object.#customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    if (object.baseType != null) {
-      objectProto.baseType = object.baseType.toProto();
+    if (object.#baseType != null) {
+      objectProto.baseType = object.#baseType.toProto();
     }
-    if (object.baseTraits) {
+    if (object.#baseTraits) {
       const packedBaseTraits: any[] = [];
-      for (const item of object.baseTraits) {
+      for (const item of object.#baseTraits) {
         packedBaseTraits.push(item.toProto());
       }
       objectProto.baseTraits = packedBaseTraits;
     }
-    objectProto.isAbstract = object.isAbstract;
+    objectProto.isAbstract = object.#isAbstract;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
     return objectProto as CustomEventDefinitionProto;
   }
@@ -1146,7 +1235,7 @@ export abstract class Signal extends Event implements IsExtensible {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  declare customValues: Map<string, Value>;
+  declare readonly customValues: Map<string, Value>;
 
   /**
    * The Node this Event is about.
@@ -1158,14 +1247,7 @@ export abstract class Signal extends Event implements IsExtensible {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -1237,7 +1319,7 @@ export class EditEvent extends Event {
   /**
    * EditEvent.type
    */
-  type: EditType;
+  readonly type: EditType;
 
   /**
    * EditEvent.node
@@ -1249,45 +1331,42 @@ export class EditEvent extends Event {
     }
     return null;
   }
-  set node(node: Entity) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * EditEvent.operation
    */
-  operation: EditOperation | null;
+  readonly operation: EditOperation | null;
 
   /**
    * EditEvent.attribute
    */
-  attribute: PropertyReference | null;
+  readonly attribute: PropertyReference | null;
 
   /**
    * EditEvent.key
    */
-  key: Value | null;
+  readonly key: Value | null;
 
   /**
    * EditEvent.keyUnpacked
    */
-  keyUnpacked: any | null;
+  readonly keyUnpacked: any | null;
 
   /**
    * EditEvent.value
    */
-  value: Value | null;
+  readonly value: Value | null;
 
   /**
    * The inverse Edit *if* it cannot be unambiguously derived from the Edit).
    */
-  undo: Edit | null;
+  readonly undo: Edit | null;
 
   /**
    * EditEvent.ancestorsIds
    */
-  ancestorsIds: Array<string>;
+  readonly ancestorsIds: Array<string>;
 
   constructor(options: {
     id?: string;
@@ -1387,7 +1466,7 @@ export class EditEvent extends Event {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`EditEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1954,39 +2033,32 @@ export class ChangeEvent extends Event {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * ChangeEvent.name
    */
-  name: string | null;
+  readonly name: string | null;
 
   /**
    * ChangeEvent.origin
    */
-  origin: Origin | null;
+  readonly origin: Origin | null;
 
   /**
    * ChangeEvent.debounce
    */
-  debounce: ChangeDebounce | null;
+  readonly debounce: ChangeDebounce | null;
 
   /**
    * ChangeEvent.editsIds
    */
-  editsIds: Array<string>;
+  readonly editsIds: Array<string>;
 
   /**
    * ChangeEvent.nodesIds
    */
-  nodesIds: Array<string>;
+  readonly nodesIds: Array<string>;
 
   constructor(options: {
     id?: string;
@@ -2074,7 +2146,7 @@ export class ChangeEvent extends Event {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`ChangeEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2576,7 +2648,7 @@ export class QueryEvent extends Event {
   /**
    * QueryEvent.type
    */
-  type: QueryType;
+  readonly type: QueryType;
 
   /**
    * The Node this Event is about.
@@ -2588,74 +2660,67 @@ export class QueryEvent extends Event {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * Name for this subquery. Must be unique within the parent Query.
    */
-  name: string;
+  readonly name: string;
 
   /**
    * QueryEvent.definition
    */
-  definition: NodeDefinitionReference;
+  readonly definition: NodeDefinitionReference;
 
   /**
    * Relative to parent Query.
    */
-  join: Join | null;
+  readonly join: Join | null;
 
   /**
    * QueryEvent.select
    */
-  select: Select | null;
+  readonly select: Select | null;
 
   /**
    * QueryEvent.subqueries
    */
-  subqueries: Array<Query>;
+  readonly subqueries: Array<Query>;
 
   /**
    * QueryEvent.where
    */
-  where: Condition | null;
+  readonly where: Condition | null;
 
   /**
    * QueryEvent.having
    */
-  having: Condition | null;
+  readonly having: Condition | null;
 
   /**
    * QueryEvent.groupBy
    */
-  groupBy: Array<Expression>;
+  readonly groupBy: Array<Expression>;
 
   /**
    * QueryEvent.aggregation
    */
-  aggregation: Aggregation | null;
+  readonly aggregation: Aggregation | null;
 
   /**
    * QueryEvent.sort
    */
-  sort: Array<Sort>;
+  readonly sort: Array<Sort>;
 
   /**
    * QueryEvent.limit
    */
-  limit: number | null;
+  readonly limit: number | null;
 
   /**
    * QueryEvent.offset
    */
-  offset: number | null;
+  readonly offset: number | null;
 
   constructor(options: {
     id?: string;
@@ -2779,7 +2844,7 @@ export class QueryEvent extends Event {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`QueryEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -3532,14 +3597,7 @@ export abstract class MeasurementEvent extends Event {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  declare nodePtr: NodeReference | null;
+  declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

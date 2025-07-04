@@ -182,7 +182,23 @@ export class Action
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  customValues: Map<string, Value>;
+  get customValues(): Map<string, Value> {
+    return this.#customValues;
+  }
+  set customValues(value: Map<string, Value>) {
+    const oldValue = this.#customValues;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["customValues"] === undefined) {
+      this._dirty["customValues"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#customValues = value;
+  }
+  #customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -204,22 +220,86 @@ export class Action
   /**
    * Action.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Action.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   /**
    * Action.text
    */
-  text: Text | null;
+  get text(): Text | null {
+    return this.#text;
+  }
+  set text(value: Text | null) {
+    const oldValue = this.#text;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["text"] === undefined) {
+      this._dirty["text"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#text = value;
+  }
+  #text: Text | null;
 
   /**
    * Action.cardinality
    */
-  cardinality: ActionCardinality;
+  get cardinality(): ActionCardinality {
+    return this.#cardinality;
+  }
+  set cardinality(value: ActionCardinality) {
+    const oldValue = this.#cardinality;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["cardinality"] === undefined) {
+      this._dirty["cardinality"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#cardinality = value;
+  }
+  #cardinality: ActionCardinality;
 
   constructor(options: {
     id?: string;
@@ -315,7 +395,7 @@ export class Action
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.customValues = _customValues;
+    this.#customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -333,11 +413,11 @@ export class Action
     if (_name === null) {
       throw new Error(`Action.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
     let _text = options.text ?? null;
-    this.text = _text;
+    this.#text = _text;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
       _cardinality = 1 /* ActionCardinality.UNARY */;
@@ -345,7 +425,7 @@ export class Action
     if (_cardinality === null) {
       throw new Error(`Action.cardinality is required`);
     }
-    this.cardinality = _cardinality;
+    this.#cardinality = _cardinality;
 
     // identity
     if (options.id == null) {
@@ -356,9 +436,7 @@ export class Action
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Action.createdAt and Action.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -381,22 +459,22 @@ export class Action
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
     if (
-      (this.text == null) !== (other.text == null) ||
-      (this.text != null && !this.text.equals(other.text))
+      (this.#text == null) !== (other.#text == null) ||
+      (this.#text != null && !this.#text.equals(other.#text))
     ) {
       return false;
     }
-    if (!(this.cardinality === other.cardinality)) {
+    if (!(this.#cardinality === other.#cardinality)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -405,14 +483,14 @@ export class Action
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
       return false;
     }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
+    for (const key in this.#customValues) {
+      if (!(key in other.#customValues)) {
         return false;
       }
-      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
         return false;
       }
     }
@@ -437,22 +515,22 @@ export class Action
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
-    if (this.text !== null) {
-      h = (h * 31 + this.text.hash()) & 0xffffffff;
+    if (this.#text !== null) {
+      h = (h * 31 + this.#text.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this.cardinality) & 0xffffffff;
+    h = (h * 31 + this.#cardinality) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
+    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.#customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -563,9 +641,9 @@ export class Action
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.customValues.size > 0) {
+    if (object.#customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -574,14 +652,14 @@ export class Action
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
-    if (object.text != null) {
-      objectValue["104"] = object.text.toValue();
+    if (object.#text != null) {
+      objectValue["104"] = object.#text.toValue();
     }
-    objectValue["110"] = object.cardinality;
+    objectValue["110"] = object.#cardinality;
     return objectValue;
   }
 
@@ -739,9 +817,9 @@ export class Action
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.customValues) {
+    if (object.#customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -749,14 +827,14 @@ export class Action
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
-    if (object.text != null) {
-      objectProto.text = object.text.toProto();
+    if (object.#text != null) {
+      objectProto.text = object.#text.toProto();
     }
-    objectProto.cardinality = Number(object.cardinality) as ActionCardinalityProto;
+    objectProto.cardinality = Number(object.#cardinality) as ActionCardinalityProto;
     return objectProto as ActionProto;
   }
 

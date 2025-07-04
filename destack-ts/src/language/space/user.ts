@@ -161,32 +161,128 @@ export class User
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  customValues: Map<string, Value>;
+  get customValues(): Map<string, Value> {
+    return this.#customValues;
+  }
+  set customValues(value: Map<string, Value>) {
+    const oldValue = this.#customValues;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["customValues"] === undefined) {
+      this._dirty["customValues"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#customValues = value;
+  }
+  #customValues: Map<string, Value>;
 
   /**
    * User.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * User.slug
    */
-  slug: string;
+  get slug(): string {
+    return this.#slug;
+  }
+  set slug(value: string) {
+    const oldValue = this.#slug;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["slug"] === undefined) {
+      this._dirty["slug"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#slug = value;
+  }
+  #slug: string;
 
   /**
    * User.status
    */
-  readonly status: UserStatus;
+  get status(): UserStatus {
+    return this.#status;
+  }
+  set status(value: UserStatus) {
+    const oldValue = this.#status;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["status"] === undefined) {
+      this._dirty["status"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#status = value;
+  }
+  #status: UserStatus;
 
   /**
    * User.lastLoggedInAt
    */
-  readonly lastLoggedInAt: Temporal.ZonedDateTime | null;
+  get lastLoggedInAt(): Temporal.ZonedDateTime | null {
+    return this.#lastLoggedInAt;
+  }
+  set lastLoggedInAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#lastLoggedInAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["lastLoggedInAt"] === undefined) {
+      this._dirty["lastLoggedInAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#lastLoggedInAt = value;
+  }
+  #lastLoggedInAt: Temporal.ZonedDateTime | null;
 
   /**
    * User.isStaff
    */
-  readonly isStaff: boolean;
+  get isStaff(): boolean {
+    return this.#isStaff;
+  }
+  set isStaff(value: boolean) {
+    const oldValue = this.#isStaff;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["isStaff"] === undefined) {
+      this._dirty["isStaff"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#isStaff = value;
+  }
+  #isStaff: boolean;
 
   /**
    * User.space
@@ -198,7 +294,23 @@ export class User
     }
     return null;
   }
-  readonly spacePtr: NodeReference;
+  get spacePtr(): NodeReference {
+    return this.#spacePtr;
+  }
+  set spacePtr(value: NodeReference) {
+    const oldValue = this.#spacePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["spacePtr"] === undefined) {
+      this._dirty["spacePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#spacePtr = value;
+  }
+  #spacePtr: NodeReference;
 
   /**
    * User.handle
@@ -210,7 +322,23 @@ export class User
     }
     return null;
   }
-  readonly handlePtr: NodeReference | null;
+  get handlePtr(): NodeReference | null {
+    return this.#handlePtr;
+  }
+  set handlePtr(value: NodeReference | null) {
+    const oldValue = this.#handlePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["handlePtr"] === undefined) {
+      this._dirty["handlePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#handlePtr = value;
+  }
+  #handlePtr: NodeReference | null;
 
   /**
    * User.cursor
@@ -222,22 +350,86 @@ export class User
     }
     return null;
   }
-  readonly cursorPtr: NodeReference | null;
+  get cursorPtr(): NodeReference | null {
+    return this.#cursorPtr;
+  }
+  set cursorPtr(value: NodeReference | null) {
+    const oldValue = this.#cursorPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["cursorPtr"] === undefined) {
+      this._dirty["cursorPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#cursorPtr = value;
+  }
+  #cursorPtr: NodeReference | null;
 
   /**
    * User.email
    */
-  readonly email: string | null;
+  get email(): string | null {
+    return this.#email;
+  }
+  set email(value: string | null) {
+    const oldValue = this.#email;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["email"] === undefined) {
+      this._dirty["email"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#email = value;
+  }
+  #email: string | null;
 
   /**
    * User.passwordSalt
    */
-  readonly passwordSalt: Uint8Array | null;
+  get passwordSalt(): Uint8Array | null {
+    return this.#passwordSalt;
+  }
+  set passwordSalt(value: Uint8Array | null) {
+    const oldValue = this.#passwordSalt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["passwordSalt"] === undefined) {
+      this._dirty["passwordSalt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#passwordSalt = value;
+  }
+  #passwordSalt: Uint8Array | null;
 
   /**
    * User.passwordHash
    */
-  readonly passwordHash: Uint8Array | null;
+  get passwordHash(): Uint8Array | null {
+    return this.#passwordHash;
+  }
+  set passwordHash(value: Uint8Array | null) {
+    const oldValue = this.#passwordHash;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["passwordHash"] === undefined) {
+      this._dirty["passwordHash"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#passwordHash = value;
+  }
+  #passwordHash: Uint8Array | null;
 
   constructor(options: {
     id?: string;
@@ -329,17 +521,17 @@ export class User
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.customValues = _customValues;
+    this.#customValues = _customValues;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`User.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`User.slug is required`);
     }
-    this.slug = _slug;
+    this.#slug = _slug;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 2 /* UserStatus.CREATING */;
@@ -347,9 +539,9 @@ export class User
     if (_status === null) {
       throw new Error(`User.status is required`);
     }
-    this.status = _status;
+    this.#status = _status;
     let _lastLoggedInAt = options.lastLoggedInAt ?? null;
-    this.lastLoggedInAt = _lastLoggedInAt;
+    this.#lastLoggedInAt = _lastLoggedInAt;
     let _isStaff = options.isStaff ?? null;
     if (_isStaff === null) {
       _isStaff = false;
@@ -357,7 +549,7 @@ export class User
     if (_isStaff === null) {
       throw new Error(`User.isStaff is required`);
     }
-    this.isStaff = _isStaff;
+    this.#isStaff = _isStaff;
     let _space = options.space;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -365,23 +557,23 @@ export class User
     if (_space === null) {
       throw new Error(`User.space is required`);
     }
-    this.spacePtr = _space;
+    this.#spacePtr = _space;
     let _handle = options.handle ?? null;
     if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
       _handle = (_handle as Node).toRef();
     }
-    this.handlePtr = _handle;
+    this.#handlePtr = _handle;
     let _cursor = options.cursor ?? null;
     if (_cursor != null && _cursor.metatype != StructType.NODE_REFERENCE) {
       _cursor = (_cursor as Node).toRef();
     }
-    this.cursorPtr = _cursor;
+    this.#cursorPtr = _cursor;
     let _email = options.email ?? null;
-    this.email = _email;
+    this.#email = _email;
     let _passwordSalt = options.passwordSalt ?? null;
-    this.passwordSalt = _passwordSalt;
+    this.#passwordSalt = _passwordSalt;
     let _passwordHash = options.passwordHash ?? null;
-    this.passwordHash = _passwordHash;
+    this.#passwordHash = _passwordHash;
 
     // identity
     if (options.id == null) {
@@ -392,9 +584,7 @@ export class User
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`User.createdAt and User.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -417,41 +607,41 @@ export class User
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
-    if (!(this.slug === other.slug)) {
+    if (!(this.#slug === other.#slug)) {
       return false;
     }
-    if (!(this.status === other.status)) {
+    if (!(this.#status === other.#status)) {
       return false;
     }
-    if (!(this.lastLoggedInAt === other.lastLoggedInAt)) {
+    if (!(this.#lastLoggedInAt === other.#lastLoggedInAt)) {
       return false;
     }
-    if (!(this.isStaff === other.isStaff)) {
+    if (!(this.#isStaff === other.#isStaff)) {
       return false;
     }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
+    if (!(this.#spacePtr.id === other.#spacePtr.id)) {
       return false;
     }
-    if (!(this.handlePtr?.id === other.handlePtr?.id)) {
+    if (!(this.#handlePtr?.id === other.#handlePtr?.id)) {
       return false;
     }
-    if (!(this.cursorPtr?.id === other.cursorPtr?.id)) {
+    if (!(this.#cursorPtr?.id === other.#cursorPtr?.id)) {
       return false;
     }
-    if (!(this.email === other.email)) {
+    if (!(this.#email === other.#email)) {
       return false;
     }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
       return false;
     }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
+    for (const key in this.#customValues) {
+      if (!(key in other.#customValues)) {
         return false;
       }
-      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
         return false;
       }
     }
@@ -473,32 +663,33 @@ export class User
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.slug)) & 0xffffffff;
-    h = (h * 31 + this.status) & 0xffffffff;
-    if (this.lastLoggedInAt !== null) {
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
+    h = (h * 31 + this.#status) & 0xffffffff;
+    if (this.#lastLoggedInAt !== null) {
       h =
-        (h * 31 + hashString(this.lastLoggedInAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+        (h * 31 + hashString(this.#lastLoggedInAt.toString({ timeZoneName: "never" }))) &
+        0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isStaff)) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.handlePtr !== null) {
-      h = (h * 31 + hashString(this.handlePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.#isStaff)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#spacePtr.id)) & 0xffffffff;
+    if (this.#handlePtr !== null) {
+      h = (h * 31 + hashString(this.#handlePtr.id)) & 0xffffffff;
     }
-    if (this.cursorPtr !== null) {
-      h = (h * 31 + hashString(this.cursorPtr.id)) & 0xffffffff;
+    if (this.#cursorPtr !== null) {
+      h = (h * 31 + hashString(this.#cursorPtr.id)) & 0xffffffff;
     }
-    if (this.email !== null) {
-      h = (h * 31 + hashString(this.email)) & 0xffffffff;
+    if (this.#email !== null) {
+      h = (h * 31 + hashString(this.#email)) & 0xffffffff;
     }
-    if (this.passwordSalt !== null) {
-      h = (h * 31 + hashBytes(this.passwordSalt)) & 0xffffffff;
+    if (this.#passwordSalt !== null) {
+      h = (h * 31 + hashBytes(this.#passwordSalt)) & 0xffffffff;
     }
-    if (this.passwordHash !== null) {
-      h = (h * 31 + hashBytes(this.passwordHash)) & 0xffffffff;
+    if (this.#passwordHash !== null) {
+      h = (h * 31 + hashBytes(this.#passwordHash)) & 0xffffffff;
     }
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
+    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.#customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -594,35 +785,35 @@ export class User
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.customValues.size > 0) {
+    if (object.#customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
-    objectValue["101"] = object.name;
-    objectValue["102"] = object.slug;
-    objectValue["110"] = object.status;
-    if (object.lastLoggedInAt != null) {
-      objectValue["111"] = object.lastLoggedInAt.toString({ timeZoneName: "never" });
+    objectValue["101"] = object.#name;
+    objectValue["102"] = object.#slug;
+    objectValue["110"] = object.#status;
+    if (object.#lastLoggedInAt != null) {
+      objectValue["111"] = object.#lastLoggedInAt.toString({ timeZoneName: "never" });
     }
-    objectValue["112"] = object.isStaff;
-    objectValue["120"] = object.spacePtr.toValue();
-    if (object.handlePtr != null) {
-      objectValue["121"] = object.handlePtr.toValue();
+    objectValue["112"] = object.#isStaff;
+    objectValue["120"] = object.#spacePtr.toValue();
+    if (object.#handlePtr != null) {
+      objectValue["121"] = object.#handlePtr.toValue();
     }
-    if (object.cursorPtr != null) {
-      objectValue["122"] = object.cursorPtr.toValue();
+    if (object.#cursorPtr != null) {
+      objectValue["122"] = object.#cursorPtr.toValue();
     }
-    if (object.email != null) {
-      objectValue["130"] = object.email;
+    if (object.#email != null) {
+      objectValue["130"] = object.#email;
     }
-    if (object.passwordSalt != null) {
-      objectValue["131"] = base64Encode(object.passwordSalt);
+    if (object.#passwordSalt != null) {
+      objectValue["131"] = base64Encode(object.#passwordSalt);
     }
-    if (object.passwordHash != null) {
-      objectValue["132"] = base64Encode(object.passwordHash);
+    if (object.#passwordHash != null) {
+      objectValue["132"] = base64Encode(object.#passwordHash);
     }
     return objectValue;
   }
@@ -780,34 +971,34 @@ export class User
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.customValues) {
+    if (object.#customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.name = object.name;
-    objectProto.slug = object.slug;
-    objectProto.status = Number(object.status) as UserStatusProto;
-    if (object.lastLoggedInAt != null) {
-      objectProto.lastLoggedInAt = packProtoTimestamp(object.lastLoggedInAt);
+    objectProto.name = object.#name;
+    objectProto.slug = object.#slug;
+    objectProto.status = Number(object.#status) as UserStatusProto;
+    if (object.#lastLoggedInAt != null) {
+      objectProto.lastLoggedInAt = packProtoTimestamp(object.#lastLoggedInAt);
     }
-    objectProto.isStaff = object.isStaff;
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.handlePtr != null) {
-      objectProto.handlePtr = object.handlePtr.toProto();
+    objectProto.isStaff = object.#isStaff;
+    objectProto.spacePtr = object.#spacePtr.toProto();
+    if (object.#handlePtr != null) {
+      objectProto.handlePtr = object.#handlePtr.toProto();
     }
-    if (object.cursorPtr != null) {
-      objectProto.cursorPtr = object.cursorPtr.toProto();
+    if (object.#cursorPtr != null) {
+      objectProto.cursorPtr = object.#cursorPtr.toProto();
     }
-    if (object.email != null) {
-      objectProto.email = object.email;
+    if (object.#email != null) {
+      objectProto.email = object.#email;
     }
-    if (object.passwordSalt != null) {
-      objectProto.passwordSalt = object.passwordSalt;
+    if (object.#passwordSalt != null) {
+      objectProto.passwordSalt = object.#passwordSalt;
     }
-    if (object.passwordHash != null) {
-      objectProto.passwordHash = object.passwordHash;
+    if (object.#passwordHash != null) {
+      objectProto.passwordHash = object.#passwordHash;
     }
     return objectProto as UserProto;
   }

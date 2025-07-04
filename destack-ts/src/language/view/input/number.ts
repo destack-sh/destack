@@ -179,7 +179,23 @@ export class NumberInputView extends InputView {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  customValues: Map<string, Value>;
+  get customValues(): Map<string, Value> {
+    return this.#customValues;
+  }
+  set customValues(value: Map<string, Value>) {
+    const oldValue = this.#customValues;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["customValues"] === undefined) {
+      this._dirty["customValues"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#customValues = value;
+  }
+  #customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -203,67 +219,275 @@ export class NumberInputView extends InputView {
       this.scriptPtr = node.toRef();
     }
   }
-  scriptPtr: NodeReference | null;
+  get scriptPtr(): NodeReference | null {
+    return this.#scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const oldValue = this.#scriptPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["scriptPtr"] === undefined) {
+      this._dirty["scriptPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#scriptPtr = value;
+  }
+  #scriptPtr: NodeReference | null;
 
   /**
    * View.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * View.position
    */
-  position: Position | null;
+  get position(): Position | null {
+    return this.#position;
+  }
+  set position(value: Position | null) {
+    const oldValue = this.#position;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["position"] === undefined) {
+      this._dirty["position"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#position = value;
+  }
+  #position: Position | null;
 
   /**
    * View.width
    */
-  width: Dimension | null;
+  get width(): Dimension | null {
+    return this.#width;
+  }
+  set width(value: Dimension | null) {
+    const oldValue = this.#width;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["width"] === undefined) {
+      this._dirty["width"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#width = value;
+  }
+  #width: Dimension | null;
 
   /**
    * View.height
    */
-  height: Dimension | null;
+  get height(): Dimension | null {
+    return this.#height;
+  }
+  set height(value: Dimension | null) {
+    const oldValue = this.#height;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["height"] === undefined) {
+      this._dirty["height"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#height = value;
+  }
+  #height: Dimension | null;
 
   /**
    * View.minWidth
    */
-  minWidth: Dimension | null;
+  get minWidth(): Dimension | null {
+    return this.#minWidth;
+  }
+  set minWidth(value: Dimension | null) {
+    const oldValue = this.#minWidth;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["minWidth"] === undefined) {
+      this._dirty["minWidth"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#minWidth = value;
+  }
+  #minWidth: Dimension | null;
 
   /**
    * View.minHeight
    */
-  minHeight: Dimension | null;
+  get minHeight(): Dimension | null {
+    return this.#minHeight;
+  }
+  set minHeight(value: Dimension | null) {
+    const oldValue = this.#minHeight;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["minHeight"] === undefined) {
+      this._dirty["minHeight"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#minHeight = value;
+  }
+  #minHeight: Dimension | null;
 
   /**
    * View.maxWidth
    */
-  maxWidth: Dimension | null;
+  get maxWidth(): Dimension | null {
+    return this.#maxWidth;
+  }
+  set maxWidth(value: Dimension | null) {
+    const oldValue = this.#maxWidth;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["maxWidth"] === undefined) {
+      this._dirty["maxWidth"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#maxWidth = value;
+  }
+  #maxWidth: Dimension | null;
 
   /**
    * View.maxHeight
    */
-  maxHeight: Dimension | null;
+  get maxHeight(): Dimension | null {
+    return this.#maxHeight;
+  }
+  set maxHeight(value: Dimension | null) {
+    const oldValue = this.#maxHeight;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["maxHeight"] === undefined) {
+      this._dirty["maxHeight"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#maxHeight = value;
+  }
+  #maxHeight: Dimension | null;
 
   /**
    * InputView.isVisible
    */
-  isVisible: boolean | null;
+  get isVisible(): boolean | null {
+    return this.#isVisible;
+  }
+  set isVisible(value: boolean | null) {
+    const oldValue = this.#isVisible;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["isVisible"] === undefined) {
+      this._dirty["isVisible"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#isVisible = value;
+  }
+  #isVisible: boolean | null;
 
   /**
    * InputView.opacity
    */
-  opacity: number | null;
+  get opacity(): number | null {
+    return this.#opacity;
+  }
+  set opacity(value: number | null) {
+    const oldValue = this.#opacity;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["opacity"] === undefined) {
+      this._dirty["opacity"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#opacity = value;
+  }
+  #opacity: number | null;
 
   /**
    * NumberInputView.value
    */
-  value: number | null;
+  get value(): number | null {
+    return this.#value;
+  }
+  set value(value: number | null) {
+    const oldValue = this.#value;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["value"] === undefined) {
+      this._dirty["value"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#value = value;
+  }
+  #value: number | null;
 
   /**
    * NumberInputView.placeholder
    */
-  placeholder: string | null;
+  get placeholder(): string | null {
+    return this.#placeholder;
+  }
+  set placeholder(value: string | null) {
+    const oldValue = this.#placeholder;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["placeholder"] === undefined) {
+      this._dirty["placeholder"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#placeholder = value;
+  }
+  #placeholder: string | null;
 
   constructor(options: {
     id?: string;
@@ -376,7 +600,7 @@ export class NumberInputView extends InputView {
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.customValues = _customValues;
+    this.#customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -389,34 +613,34 @@ export class NumberInputView extends InputView {
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
-    this.scriptPtr = _script;
+    this.#scriptPtr = _script;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`NumberInputView.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _position = options.position ?? null;
-    this.position = _position;
+    this.#position = _position;
     let _width = options.width ?? null;
-    this.width = _width;
+    this.#width = _width;
     let _height = options.height ?? null;
-    this.height = _height;
+    this.#height = _height;
     let _minWidth = options.minWidth ?? null;
-    this.minWidth = _minWidth;
+    this.#minWidth = _minWidth;
     let _minHeight = options.minHeight ?? null;
-    this.minHeight = _minHeight;
+    this.#minHeight = _minHeight;
     let _maxWidth = options.maxWidth ?? null;
-    this.maxWidth = _maxWidth;
+    this.#maxWidth = _maxWidth;
     let _maxHeight = options.maxHeight ?? null;
-    this.maxHeight = _maxHeight;
+    this.#maxHeight = _maxHeight;
     let _isVisible = options.isVisible ?? null;
-    this.isVisible = _isVisible;
+    this.#isVisible = _isVisible;
     let _opacity = options.opacity ?? null;
-    this.opacity = _opacity;
+    this.#opacity = _opacity;
     let _value = options.value ?? null;
-    this.value = _value;
+    this.#value = _value;
     let _placeholder = options.placeholder ?? null;
-    this.placeholder = _placeholder;
+    this.#placeholder = _placeholder;
 
     // identity
     if (options.id == null) {
@@ -428,7 +652,7 @@ export class NumberInputView extends InputView {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `NumberInputView.createdAt and NumberInputView.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -453,67 +677,67 @@ export class NumberInputView extends InputView {
       return false;
     }
     if (
-      (this.value == null) !== (other.value == null) ||
-      (this.value != null &&
-        !(this.value === other.value || Math.abs(this.value - other.value) < 1e-10))
+      (this.#value == null) !== (other.#value == null) ||
+      (this.#value != null &&
+        !(this.#value === other.#value || Math.abs(this.#value - other.#value) < 1e-10))
     ) {
       return false;
     }
-    if (!(this.placeholder === other.placeholder)) {
+    if (!(this.#placeholder === other.#placeholder)) {
       return false;
     }
-    if (!(this.isVisible === other.isVisible)) {
+    if (!(this.#isVisible === other.#isVisible)) {
       return false;
     }
     if (
-      (this.opacity == null) !== (other.opacity == null) ||
-      (this.opacity != null &&
-        !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+      (this.#opacity == null) !== (other.#opacity == null) ||
+      (this.#opacity != null &&
+        !(this.#opacity === other.#opacity || Math.abs(this.#opacity - other.#opacity) < 1e-10))
     ) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.position == null) !== (other.position == null) ||
-      (this.position != null && !this.position.equals(other.position))
-    ) {
-      return false;
-    }
-    if (
-      (this.width == null) !== (other.width == null) ||
-      (this.width != null && !this.width.equals(other.width))
+      (this.#position == null) !== (other.#position == null) ||
+      (this.#position != null && !this.#position.equals(other.#position))
     ) {
       return false;
     }
     if (
-      (this.height == null) !== (other.height == null) ||
-      (this.height != null && !this.height.equals(other.height))
+      (this.#width == null) !== (other.#width == null) ||
+      (this.#width != null && !this.#width.equals(other.#width))
     ) {
       return false;
     }
     if (
-      (this.minWidth == null) !== (other.minWidth == null) ||
-      (this.minWidth != null && !this.minWidth.equals(other.minWidth))
+      (this.#height == null) !== (other.#height == null) ||
+      (this.#height != null && !this.#height.equals(other.#height))
     ) {
       return false;
     }
     if (
-      (this.minHeight == null) !== (other.minHeight == null) ||
-      (this.minHeight != null && !this.minHeight.equals(other.minHeight))
+      (this.#minWidth == null) !== (other.#minWidth == null) ||
+      (this.#minWidth != null && !this.#minWidth.equals(other.#minWidth))
     ) {
       return false;
     }
     if (
-      (this.maxWidth == null) !== (other.maxWidth == null) ||
-      (this.maxWidth != null && !this.maxWidth.equals(other.maxWidth))
+      (this.#minHeight == null) !== (other.#minHeight == null) ||
+      (this.#minHeight != null && !this.#minHeight.equals(other.#minHeight))
     ) {
       return false;
     }
     if (
-      (this.maxHeight == null) !== (other.maxHeight == null) ||
-      (this.maxHeight != null && !this.maxHeight.equals(other.maxHeight))
+      (this.#maxWidth == null) !== (other.#maxWidth == null) ||
+      (this.#maxWidth != null && !this.#maxWidth.equals(other.#maxWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.#maxHeight == null) !== (other.#maxHeight == null) ||
+      (this.#maxHeight != null && !this.#maxHeight.equals(other.#maxHeight))
     ) {
       return false;
     }
@@ -532,7 +756,7 @@ export class NumberInputView extends InputView {
     if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+    if (!(this.#scriptPtr?.id === other.#scriptPtr?.id)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -544,14 +768,14 @@ export class NumberInputView extends InputView {
     ) {
       return false;
     }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
       return false;
     }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
+    for (const key in this.#customValues) {
+      if (!(key in other.#customValues)) {
         return false;
       }
-      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
         return false;
       }
     }
@@ -561,42 +785,42 @@ export class NumberInputView extends InputView {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.value !== null) {
-      h = (h * 31 + hashFloat(this.value)) & 0xffffffff;
+    if (this.#value !== null) {
+      h = (h * 31 + hashFloat(this.#value)) & 0xffffffff;
     }
-    if (this.placeholder !== null) {
-      h = (h * 31 + hashString(this.placeholder)) & 0xffffffff;
+    if (this.#placeholder !== null) {
+      h = (h * 31 + hashString(this.#placeholder)) & 0xffffffff;
     }
-    if (this.isVisible !== null) {
-      h = (h * 31 + hashBool(this.isVisible)) & 0xffffffff;
+    if (this.#isVisible !== null) {
+      h = (h * 31 + hashBool(this.#isVisible)) & 0xffffffff;
     }
-    if (this.opacity !== null) {
-      h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
+    if (this.#opacity !== null) {
+      h = (h * 31 + hashFloat(this.#opacity)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.position !== null) {
-      h = (h * 31 + this.position.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#position !== null) {
+      h = (h * 31 + this.#position.hash()) & 0xffffffff;
     }
-    if (this.width !== null) {
-      h = (h * 31 + this.width.hash()) & 0xffffffff;
+    if (this.#width !== null) {
+      h = (h * 31 + this.#width.hash()) & 0xffffffff;
     }
-    if (this.height !== null) {
-      h = (h * 31 + this.height.hash()) & 0xffffffff;
+    if (this.#height !== null) {
+      h = (h * 31 + this.#height.hash()) & 0xffffffff;
     }
-    if (this.minWidth !== null) {
-      h = (h * 31 + this.minWidth.hash()) & 0xffffffff;
+    if (this.#minWidth !== null) {
+      h = (h * 31 + this.#minWidth.hash()) & 0xffffffff;
     }
-    if (this.minHeight !== null) {
-      h = (h * 31 + this.minHeight.hash()) & 0xffffffff;
+    if (this.#minHeight !== null) {
+      h = (h * 31 + this.#minHeight.hash()) & 0xffffffff;
     }
-    if (this.maxWidth !== null) {
-      h = (h * 31 + this.maxWidth.hash()) & 0xffffffff;
+    if (this.#maxWidth !== null) {
+      h = (h * 31 + this.#maxWidth.hash()) & 0xffffffff;
     }
-    if (this.maxHeight !== null) {
-      h = (h * 31 + this.maxHeight.hash()) & 0xffffffff;
+    if (this.#maxHeight !== null) {
+      h = (h * 31 + this.#maxHeight.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -622,8 +846,8 @@ export class NumberInputView extends InputView {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.scriptPtr !== null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    if (this.#scriptPtr !== null) {
+      h = (h * 31 + hashString(this.#scriptPtr.id)) & 0xffffffff;
     }
     if (this.definitionPtr !== null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -635,8 +859,8 @@ export class NumberInputView extends InputView {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
+    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.#customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -729,50 +953,50 @@ export class NumberInputView extends InputView {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.customValues.size > 0) {
+    if (object.#customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    if (object.scriptPtr != null) {
-      objectValue["70"] = object.scriptPtr.toValue();
+    if (object.#scriptPtr != null) {
+      objectValue["70"] = object.#scriptPtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.position != null) {
-      objectValue["110"] = object.position.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#position != null) {
+      objectValue["110"] = object.#position.toValue();
     }
-    if (object.width != null) {
-      objectValue["111"] = object.width.toValue();
+    if (object.#width != null) {
+      objectValue["111"] = object.#width.toValue();
     }
-    if (object.height != null) {
-      objectValue["112"] = object.height.toValue();
+    if (object.#height != null) {
+      objectValue["112"] = object.#height.toValue();
     }
-    if (object.minWidth != null) {
-      objectValue["113"] = object.minWidth.toValue();
+    if (object.#minWidth != null) {
+      objectValue["113"] = object.#minWidth.toValue();
     }
-    if (object.minHeight != null) {
-      objectValue["114"] = object.minHeight.toValue();
+    if (object.#minHeight != null) {
+      objectValue["114"] = object.#minHeight.toValue();
     }
-    if (object.maxWidth != null) {
-      objectValue["115"] = object.maxWidth.toValue();
+    if (object.#maxWidth != null) {
+      objectValue["115"] = object.#maxWidth.toValue();
     }
-    if (object.maxHeight != null) {
-      objectValue["116"] = object.maxHeight.toValue();
+    if (object.#maxHeight != null) {
+      objectValue["116"] = object.#maxHeight.toValue();
     }
-    if (object.isVisible != null) {
-      objectValue["160"] = object.isVisible;
+    if (object.#isVisible != null) {
+      objectValue["160"] = object.#isVisible;
     }
-    if (object.opacity != null) {
-      objectValue["161"] = object.opacity;
+    if (object.#opacity != null) {
+      objectValue["161"] = object.#opacity;
     }
-    if (object.value != null) {
-      objectValue["250"] = object.value;
+    if (object.#value != null) {
+      objectValue["250"] = object.#value;
     }
-    if (object.placeholder != null) {
-      objectValue["251"] = object.placeholder;
+    if (object.#placeholder != null) {
+      objectValue["251"] = object.#placeholder;
     }
     return objectValue;
   }
@@ -999,49 +1223,49 @@ export class NumberInputView extends InputView {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.customValues) {
+    if (object.#customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
+    if (object.#scriptPtr != null) {
+      objectProto.scriptPtr = object.#scriptPtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.position != null) {
-      objectProto.position = object.position.toProto();
+    objectProto.name = object.#name;
+    if (object.#position != null) {
+      objectProto.position = object.#position.toProto();
     }
-    if (object.width != null) {
-      objectProto.width = object.width.toProto();
+    if (object.#width != null) {
+      objectProto.width = object.#width.toProto();
     }
-    if (object.height != null) {
-      objectProto.height = object.height.toProto();
+    if (object.#height != null) {
+      objectProto.height = object.#height.toProto();
     }
-    if (object.minWidth != null) {
-      objectProto.minWidth = object.minWidth.toProto();
+    if (object.#minWidth != null) {
+      objectProto.minWidth = object.#minWidth.toProto();
     }
-    if (object.minHeight != null) {
-      objectProto.minHeight = object.minHeight.toProto();
+    if (object.#minHeight != null) {
+      objectProto.minHeight = object.#minHeight.toProto();
     }
-    if (object.maxWidth != null) {
-      objectProto.maxWidth = object.maxWidth.toProto();
+    if (object.#maxWidth != null) {
+      objectProto.maxWidth = object.#maxWidth.toProto();
     }
-    if (object.maxHeight != null) {
-      objectProto.maxHeight = object.maxHeight.toProto();
+    if (object.#maxHeight != null) {
+      objectProto.maxHeight = object.#maxHeight.toProto();
     }
-    if (object.isVisible != null) {
-      objectProto.isVisible = object.isVisible;
+    if (object.#isVisible != null) {
+      objectProto.isVisible = object.#isVisible;
     }
-    if (object.opacity != null) {
-      objectProto.opacity = object.opacity;
+    if (object.#opacity != null) {
+      objectProto.opacity = object.#opacity;
     }
-    if (object.value != null) {
-      objectProto.value = object.value;
+    if (object.#value != null) {
+      objectProto.value = object.#value;
     }
-    if (object.placeholder != null) {
-      objectProto.placeholder = object.placeholder;
+    if (object.#placeholder != null) {
+      objectProto.placeholder = object.#placeholder;
     }
     return objectProto as NumberInputViewProto;
   }

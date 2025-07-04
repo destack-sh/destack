@@ -224,52 +224,212 @@ export class CustomProperty
   /**
    * CustomProperty.isStatic
    */
-  isStatic: boolean | null;
+  get isStatic(): boolean | null {
+    return this.#isStatic;
+  }
+  set isStatic(value: boolean | null) {
+    const oldValue = this.#isStatic;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["isStatic"] === undefined) {
+      this._dirty["isStatic"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#isStatic = value;
+  }
+  #isStatic: boolean | null;
 
   /**
    * CustomProperty.type
    */
-  type: CustomPropertyType;
+  get type(): CustomPropertyType {
+    return this.#type;
+  }
+  set type(value: CustomPropertyType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: CustomPropertyType;
 
   /**
    * CustomProperty.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * CustomProperty.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   /**
    * CustomProperty.cardinality
    */
-  cardinality: TypeCardinality;
+  get cardinality(): TypeCardinality {
+    return this.#cardinality;
+  }
+  set cardinality(value: TypeCardinality) {
+    const oldValue = this.#cardinality;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["cardinality"] === undefined) {
+      this._dirty["cardinality"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#cardinality = value;
+  }
+  #cardinality: TypeCardinality;
 
   /**
    * CustomProperty.scalarType
    */
-  scalarType: ScalarType;
+  get scalarType(): ScalarType {
+    return this.#scalarType;
+  }
+  set scalarType(value: ScalarType) {
+    const oldValue = this.#scalarType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["scalarType"] === undefined) {
+      this._dirty["scalarType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#scalarType = value;
+  }
+  #scalarType: ScalarType;
 
   /**
    * CustomProperty.primitiveType
    */
-  primitiveType: PrimitiveType | null;
+  get primitiveType(): PrimitiveType | null {
+    return this.#primitiveType;
+  }
+  set primitiveType(value: PrimitiveType | null) {
+    const oldValue = this.#primitiveType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["primitiveType"] === undefined) {
+      this._dirty["primitiveType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#primitiveType = value;
+  }
+  #primitiveType: PrimitiveType | null;
 
   /**
    * CustomProperty.enumType
    */
-  enumType: EnumType | null;
+  get enumType(): EnumType | null {
+    return this.#enumType;
+  }
+  set enumType(value: EnumType | null) {
+    const oldValue = this.#enumType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["enumType"] === undefined) {
+      this._dirty["enumType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#enumType = value;
+  }
+  #enumType: EnumType | null;
 
   /**
    * CustomProperty.nodeType
    */
-  nodeType: NodeType | null;
+  get nodeType(): NodeType | null {
+    return this.#nodeType;
+  }
+  set nodeType(value: NodeType | null) {
+    const oldValue = this.#nodeType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["nodeType"] === undefined) {
+      this._dirty["nodeType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#nodeType = value;
+  }
+  #nodeType: NodeType | null;
 
   /**
    * CustomProperty.structType
    */
-  structType: StructType | null;
+  get structType(): StructType | null {
+    return this.#structType;
+  }
+  set structType(value: StructType | null) {
+    const oldValue = this.#structType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["structType"] === undefined) {
+      this._dirty["structType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#structType = value;
+  }
+  #structType: StructType | null;
 
   /**
    * CustomProperty.definition
@@ -308,72 +468,296 @@ export class CustomProperty
       this.definitionPtr = node.toRef();
     }
   }
-  definitionPtr: NodeReference | null;
+  get definitionPtr(): NodeReference | null {
+    return this.#definitionPtr;
+  }
+  set definitionPtr(value: NodeReference | null) {
+    const oldValue = this.#definitionPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["definitionPtr"] === undefined) {
+      this._dirty["definitionPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#definitionPtr = value;
+  }
+  #definitionPtr: NodeReference | null;
 
   /**
    * CustomProperty.keyType
    */
-  keyType: Type | null;
+  get keyType(): Type | null {
+    return this.#keyType;
+  }
+  set keyType(value: Type | null) {
+    const oldValue = this.#keyType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["keyType"] === undefined) {
+      this._dirty["keyType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#keyType = value;
+  }
+  #keyType: Type | null;
 
   /**
    * CustomProperty.value
    */
-  value: Value | null;
+  get value(): Value | null {
+    return this.#value;
+  }
+  set value(value: Value | null) {
+    const oldValue = this.#value;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["value"] === undefined) {
+      this._dirty["value"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#value = value;
+  }
+  #value: Value | null;
 
   /**
    * CustomProperty.valueFactory
    */
-  valueFactory: ValueFactory | null;
+  get valueFactory(): ValueFactory | null {
+    return this.#valueFactory;
+  }
+  set valueFactory(value: ValueFactory | null) {
+    const oldValue = this.#valueFactory;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["valueFactory"] === undefined) {
+      this._dirty["valueFactory"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#valueFactory = value;
+  }
+  #valueFactory: ValueFactory | null;
 
   /**
    * CustomProperty.collectionConstraint
    */
-  collectionConstraint: CollectionConstraint | null;
+  get collectionConstraint(): CollectionConstraint | null {
+    return this.#collectionConstraint;
+  }
+  set collectionConstraint(value: CollectionConstraint | null) {
+    const oldValue = this.#collectionConstraint;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["collectionConstraint"] === undefined) {
+      this._dirty["collectionConstraint"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#collectionConstraint = value;
+  }
+  #collectionConstraint: CollectionConstraint | null;
 
   /**
    * CustomProperty.stringConstraint
    */
-  stringConstraint: StringConstraint | null;
+  get stringConstraint(): StringConstraint | null {
+    return this.#stringConstraint;
+  }
+  set stringConstraint(value: StringConstraint | null) {
+    const oldValue = this.#stringConstraint;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["stringConstraint"] === undefined) {
+      this._dirty["stringConstraint"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#stringConstraint = value;
+  }
+  #stringConstraint: StringConstraint | null;
 
   /**
    * CustomProperty.numberConstraint
    */
-  numberConstraint: NumberConstraint | null;
+  get numberConstraint(): NumberConstraint | null {
+    return this.#numberConstraint;
+  }
+  set numberConstraint(value: NumberConstraint | null) {
+    const oldValue = this.#numberConstraint;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["numberConstraint"] === undefined) {
+      this._dirty["numberConstraint"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#numberConstraint = value;
+  }
+  #numberConstraint: NumberConstraint | null;
 
   /**
    * CustomProperty.nodeConstraint
    */
-  nodeConstraint: NodeConstraint | null;
+  get nodeConstraint(): NodeConstraint | null {
+    return this.#nodeConstraint;
+  }
+  set nodeConstraint(value: NodeConstraint | null) {
+    const oldValue = this.#nodeConstraint;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["nodeConstraint"] === undefined) {
+      this._dirty["nodeConstraint"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#nodeConstraint = value;
+  }
+  #nodeConstraint: NodeConstraint | null;
 
   /**
    * CustomProperty.edgeType
    */
-  edgeType: EdgeType | null;
+  get edgeType(): EdgeType | null {
+    return this.#edgeType;
+  }
+  set edgeType(value: EdgeType | null) {
+    const oldValue = this.#edgeType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["edgeType"] === undefined) {
+      this._dirty["edgeType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#edgeType = value;
+  }
+  #edgeType: EdgeType | null;
 
   /**
    * CustomProperty.cascade
    */
-  cascade: CascadeAction | null;
+  get cascade(): CascadeAction | null {
+    return this.#cascade;
+  }
+  set cascade(value: CascadeAction | null) {
+    const oldValue = this.#cascade;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["cascade"] === undefined) {
+      this._dirty["cascade"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#cascade = value;
+  }
+  #cascade: CascadeAction | null;
 
   /**
    * CustomProperty.isRequired
    */
-  isRequired: boolean | null;
+  get isRequired(): boolean | null {
+    return this.#isRequired;
+  }
+  set isRequired(value: boolean | null) {
+    const oldValue = this.#isRequired;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["isRequired"] === undefined) {
+      this._dirty["isRequired"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#isRequired = value;
+  }
+  #isRequired: boolean | null;
 
   /**
    * CustomProperty.isUnique
    */
-  isUnique: boolean | null;
+  get isUnique(): boolean | null {
+    return this.#isUnique;
+  }
+  set isUnique(value: boolean | null) {
+    const oldValue = this.#isUnique;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["isUnique"] === undefined) {
+      this._dirty["isUnique"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#isUnique = value;
+  }
+  #isUnique: boolean | null;
 
   /**
    * CustomProperty.isComputed
    */
-  isComputed: boolean | null;
+  get isComputed(): boolean | null {
+    return this.#isComputed;
+  }
+  set isComputed(value: boolean | null) {
+    const oldValue = this.#isComputed;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["isComputed"] === undefined) {
+      this._dirty["isComputed"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#isComputed = value;
+  }
+  #isComputed: boolean | null;
 
   /**
    * CustomProperty.isReadonly
    */
-  isReadonly: boolean | null;
+  get isReadonly(): boolean | null {
+    return this.#isReadonly;
+  }
+  set isReadonly(value: boolean | null) {
+    const oldValue = this.#isReadonly;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["isReadonly"] === undefined) {
+      this._dirty["isReadonly"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#isReadonly = value;
+  }
+  #isReadonly: boolean | null;
 
   constructor(options: {
     id?: string;
@@ -513,7 +897,7 @@ export class CustomProperty
     }
     this.sourcePtr = _source;
     let _isStatic = options.isStatic ?? null;
-    this.isStatic = _isStatic;
+    this.#isStatic = _isStatic;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 1 /* CustomPropertyType.MEMBER */;
@@ -521,14 +905,14 @@ export class CustomProperty
     if (_type === null) {
       throw new Error(`CustomProperty.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`CustomProperty.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
       _cardinality = 1 /* TypeCardinality.SCALAR */;
@@ -536,51 +920,51 @@ export class CustomProperty
     if (_cardinality === null) {
       throw new Error(`CustomProperty.cardinality is required`);
     }
-    this.cardinality = _cardinality;
+    this.#cardinality = _cardinality;
     let _scalarType = options.scalarType;
     if (_scalarType === null) {
       throw new Error(`CustomProperty.scalarType is required`);
     }
-    this.scalarType = _scalarType;
+    this.#scalarType = _scalarType;
     let _primitiveType = options.primitiveType ?? null;
-    this.primitiveType = _primitiveType;
+    this.#primitiveType = _primitiveType;
     let _enumType = options.enumType ?? null;
-    this.enumType = _enumType;
+    this.#enumType = _enumType;
     let _nodeType = options.nodeType ?? null;
-    this.nodeType = _nodeType;
+    this.#nodeType = _nodeType;
     let _structType = options.structType ?? null;
-    this.structType = _structType;
+    this.#structType = _structType;
     let _definition = options.definition ?? null;
     if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.#definitionPtr = _definition;
     let _keyType = options.keyType ?? null;
-    this.keyType = _keyType;
+    this.#keyType = _keyType;
     let _value = options.value ?? null;
-    this.value = _value;
+    this.#value = _value;
     let _valueFactory = options.valueFactory ?? null;
-    this.valueFactory = _valueFactory;
+    this.#valueFactory = _valueFactory;
     let _collectionConstraint = options.collectionConstraint ?? null;
-    this.collectionConstraint = _collectionConstraint;
+    this.#collectionConstraint = _collectionConstraint;
     let _stringConstraint = options.stringConstraint ?? null;
-    this.stringConstraint = _stringConstraint;
+    this.#stringConstraint = _stringConstraint;
     let _numberConstraint = options.numberConstraint ?? null;
-    this.numberConstraint = _numberConstraint;
+    this.#numberConstraint = _numberConstraint;
     let _nodeConstraint = options.nodeConstraint ?? null;
-    this.nodeConstraint = _nodeConstraint;
+    this.#nodeConstraint = _nodeConstraint;
     let _edgeType = options.edgeType ?? null;
-    this.edgeType = _edgeType;
+    this.#edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
-    this.cascade = _cascade;
+    this.#cascade = _cascade;
     let _isRequired = options.isRequired ?? null;
-    this.isRequired = _isRequired;
+    this.#isRequired = _isRequired;
     let _isUnique = options.isUnique ?? null;
-    this.isUnique = _isUnique;
+    this.#isUnique = _isUnique;
     let _isComputed = options.isComputed ?? null;
-    this.isComputed = _isComputed;
+    this.#isComputed = _isComputed;
     let _isReadonly = options.isReadonly ?? null;
-    this.isReadonly = _isReadonly;
+    this.#isReadonly = _isReadonly;
 
     // identity
     if (options.id == null) {
@@ -592,7 +976,7 @@ export class CustomProperty
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `CustomProperty.createdAt and CustomProperty.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -616,98 +1000,98 @@ export class CustomProperty
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
-    if (!(this.cardinality === other.cardinality)) {
+    if (!(this.#cardinality === other.#cardinality)) {
       return false;
     }
-    if (!(this.scalarType === other.scalarType)) {
+    if (!(this.#scalarType === other.#scalarType)) {
       return false;
     }
-    if (!(this.primitiveType === other.primitiveType)) {
+    if (!(this.#primitiveType === other.#primitiveType)) {
       return false;
     }
-    if (!(this.enumType === other.enumType)) {
+    if (!(this.#enumType === other.#enumType)) {
       return false;
     }
-    if (!(this.nodeType === other.nodeType)) {
+    if (!(this.#nodeType === other.#nodeType)) {
       return false;
     }
-    if (!(this.structType === other.structType)) {
+    if (!(this.#structType === other.#structType)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
-    if (
-      (this.keyType == null) !== (other.keyType == null) ||
-      (this.keyType != null && !this.keyType.equals(other.keyType))
-    ) {
+    if (!(this.#definitionPtr?.id === other.#definitionPtr?.id)) {
       return false;
     }
     if (
-      (this.value == null) !== (other.value == null) ||
-      (this.value != null && !this.value.equals(other.value))
-    ) {
-      return false;
-    }
-    if (!(this.valueFactory === other.valueFactory)) {
-      return false;
-    }
-    if (
-      (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
-      (this.collectionConstraint != null &&
-        !this.collectionConstraint.equals(other.collectionConstraint))
+      (this.#keyType == null) !== (other.#keyType == null) ||
+      (this.#keyType != null && !this.#keyType.equals(other.#keyType))
     ) {
       return false;
     }
     if (
-      (this.stringConstraint == null) !== (other.stringConstraint == null) ||
-      (this.stringConstraint != null && !this.stringConstraint.equals(other.stringConstraint))
+      (this.#value == null) !== (other.#value == null) ||
+      (this.#value != null && !this.#value.equals(other.#value))
+    ) {
+      return false;
+    }
+    if (!(this.#valueFactory === other.#valueFactory)) {
+      return false;
+    }
+    if (
+      (this.#collectionConstraint == null) !== (other.#collectionConstraint == null) ||
+      (this.#collectionConstraint != null &&
+        !this.#collectionConstraint.equals(other.#collectionConstraint))
     ) {
       return false;
     }
     if (
-      (this.numberConstraint == null) !== (other.numberConstraint == null) ||
-      (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
+      (this.#stringConstraint == null) !== (other.#stringConstraint == null) ||
+      (this.#stringConstraint != null && !this.#stringConstraint.equals(other.#stringConstraint))
     ) {
       return false;
     }
     if (
-      (this.nodeConstraint == null) !== (other.nodeConstraint == null) ||
-      (this.nodeConstraint != null && !this.nodeConstraint.equals(other.nodeConstraint))
+      (this.#numberConstraint == null) !== (other.#numberConstraint == null) ||
+      (this.#numberConstraint != null && !this.#numberConstraint.equals(other.#numberConstraint))
     ) {
       return false;
     }
-    if (!(this.edgeType === other.edgeType)) {
+    if (
+      (this.#nodeConstraint == null) !== (other.#nodeConstraint == null) ||
+      (this.#nodeConstraint != null && !this.#nodeConstraint.equals(other.#nodeConstraint))
+    ) {
       return false;
     }
-    if (!(this.cascade === other.cascade)) {
+    if (!(this.#edgeType === other.#edgeType)) {
       return false;
     }
-    if (!(this.isRequired === other.isRequired)) {
+    if (!(this.#cascade === other.#cascade)) {
       return false;
     }
-    if (!(this.isUnique === other.isUnique)) {
+    if (!(this.#isRequired === other.#isRequired)) {
       return false;
     }
-    if (!(this.isComputed === other.isComputed)) {
+    if (!(this.#isUnique === other.#isUnique)) {
       return false;
     }
-    if (!(this.isReadonly === other.isReadonly)) {
+    if (!(this.#isComputed === other.#isComputed)) {
       return false;
     }
-    if (!(this.isStatic === other.isStatic)) {
+    if (!(this.#isReadonly === other.#isReadonly)) {
+      return false;
+    }
+    if (!(this.#isStatic === other.#isStatic)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -737,69 +1121,69 @@ export class CustomProperty
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this.cardinality) & 0xffffffff;
-    h = (h * 31 + this.scalarType) & 0xffffffff;
-    if (this.primitiveType !== null) {
-      h = (h * 31 + this.primitiveType) & 0xffffffff;
+    h = (h * 31 + this.#cardinality) & 0xffffffff;
+    h = (h * 31 + this.#scalarType) & 0xffffffff;
+    if (this.#primitiveType !== null) {
+      h = (h * 31 + this.#primitiveType) & 0xffffffff;
     }
-    if (this.enumType !== null) {
-      h = (h * 31 + this.enumType) & 0xffffffff;
+    if (this.#enumType !== null) {
+      h = (h * 31 + this.#enumType) & 0xffffffff;
     }
-    if (this.nodeType !== null) {
-      h = (h * 31 + this.nodeType) & 0xffffffff;
+    if (this.#nodeType !== null) {
+      h = (h * 31 + this.#nodeType) & 0xffffffff;
     }
-    if (this.structType !== null) {
-      h = (h * 31 + this.structType) & 0xffffffff;
+    if (this.#structType !== null) {
+      h = (h * 31 + this.#structType) & 0xffffffff;
     }
-    if (this.definitionPtr !== null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.#definitionPtr !== null) {
+      h = (h * 31 + hashString(this.#definitionPtr.id)) & 0xffffffff;
     }
-    if (this.keyType !== null) {
-      h = (h * 31 + this.keyType.hash()) & 0xffffffff;
+    if (this.#keyType !== null) {
+      h = (h * 31 + this.#keyType.hash()) & 0xffffffff;
     }
-    if (this.value !== null) {
-      h = (h * 31 + this.value.hash()) & 0xffffffff;
+    if (this.#value !== null) {
+      h = (h * 31 + this.#value.hash()) & 0xffffffff;
     }
-    if (this.valueFactory !== null) {
-      h = (h * 31 + this.valueFactory) & 0xffffffff;
+    if (this.#valueFactory !== null) {
+      h = (h * 31 + this.#valueFactory) & 0xffffffff;
     }
-    if (this.collectionConstraint !== null) {
-      h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
+    if (this.#collectionConstraint !== null) {
+      h = (h * 31 + this.#collectionConstraint.hash()) & 0xffffffff;
     }
-    if (this.stringConstraint !== null) {
-      h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
+    if (this.#stringConstraint !== null) {
+      h = (h * 31 + this.#stringConstraint.hash()) & 0xffffffff;
     }
-    if (this.numberConstraint !== null) {
-      h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
+    if (this.#numberConstraint !== null) {
+      h = (h * 31 + this.#numberConstraint.hash()) & 0xffffffff;
     }
-    if (this.nodeConstraint !== null) {
-      h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
+    if (this.#nodeConstraint !== null) {
+      h = (h * 31 + this.#nodeConstraint.hash()) & 0xffffffff;
     }
-    if (this.edgeType !== null) {
-      h = (h * 31 + this.edgeType) & 0xffffffff;
+    if (this.#edgeType !== null) {
+      h = (h * 31 + this.#edgeType) & 0xffffffff;
     }
-    if (this.cascade !== null) {
-      h = (h * 31 + this.cascade) & 0xffffffff;
+    if (this.#cascade !== null) {
+      h = (h * 31 + this.#cascade) & 0xffffffff;
     }
-    if (this.isRequired !== null) {
-      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    if (this.#isRequired !== null) {
+      h = (h * 31 + hashBool(this.#isRequired)) & 0xffffffff;
     }
-    if (this.isUnique !== null) {
-      h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
+    if (this.#isUnique !== null) {
+      h = (h * 31 + hashBool(this.#isUnique)) & 0xffffffff;
     }
-    if (this.isComputed !== null) {
-      h = (h * 31 + hashBool(this.isComputed)) & 0xffffffff;
+    if (this.#isComputed !== null) {
+      h = (h * 31 + hashBool(this.#isComputed)) & 0xffffffff;
     }
-    if (this.isReadonly !== null) {
-      h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
+    if (this.#isReadonly !== null) {
+      h = (h * 31 + hashBool(this.#isReadonly)) & 0xffffffff;
     }
-    if (this.isStatic !== null) {
-      h = (h * 31 + hashBool(this.isStatic)) & 0xffffffff;
+    if (this.#isStatic !== null) {
+      h = (h * 31 + hashBool(this.#isStatic)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -943,69 +1327,69 @@ export class CustomProperty
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    if (object.isStatic != null) {
-      objectValue["84"] = object.isStatic;
+    if (object.#isStatic != null) {
+      objectValue["84"] = object.#isStatic;
     }
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
-    objectValue["110"] = object.cardinality;
-    objectValue["111"] = object.scalarType;
-    if (object.primitiveType != null) {
-      objectValue["112"] = object.primitiveType;
+    objectValue["110"] = object.#cardinality;
+    objectValue["111"] = object.#scalarType;
+    if (object.#primitiveType != null) {
+      objectValue["112"] = object.#primitiveType;
     }
-    if (object.enumType != null) {
-      objectValue["113"] = object.enumType;
+    if (object.#enumType != null) {
+      objectValue["113"] = object.#enumType;
     }
-    if (object.nodeType != null) {
-      objectValue["114"] = object.nodeType;
+    if (object.#nodeType != null) {
+      objectValue["114"] = object.#nodeType;
     }
-    if (object.structType != null) {
-      objectValue["115"] = object.structType;
+    if (object.#structType != null) {
+      objectValue["115"] = object.#structType;
     }
-    if (object.definitionPtr != null) {
-      objectValue["116"] = object.definitionPtr.toValue();
+    if (object.#definitionPtr != null) {
+      objectValue["116"] = object.#definitionPtr.toValue();
     }
-    if (object.keyType != null) {
-      objectValue["117"] = object.keyType.toValue();
+    if (object.#keyType != null) {
+      objectValue["117"] = object.#keyType.toValue();
     }
-    if (object.value != null) {
-      objectValue["120"] = object.value.toValue();
+    if (object.#value != null) {
+      objectValue["120"] = object.#value.toValue();
     }
-    if (object.valueFactory != null) {
-      objectValue["121"] = object.valueFactory;
+    if (object.#valueFactory != null) {
+      objectValue["121"] = object.#valueFactory;
     }
-    if (object.collectionConstraint != null) {
-      objectValue["130"] = object.collectionConstraint.toValue();
+    if (object.#collectionConstraint != null) {
+      objectValue["130"] = object.#collectionConstraint.toValue();
     }
-    if (object.stringConstraint != null) {
-      objectValue["131"] = object.stringConstraint.toValue();
+    if (object.#stringConstraint != null) {
+      objectValue["131"] = object.#stringConstraint.toValue();
     }
-    if (object.numberConstraint != null) {
-      objectValue["132"] = object.numberConstraint.toValue();
+    if (object.#numberConstraint != null) {
+      objectValue["132"] = object.#numberConstraint.toValue();
     }
-    if (object.nodeConstraint != null) {
-      objectValue["133"] = object.nodeConstraint.toValue();
+    if (object.#nodeConstraint != null) {
+      objectValue["133"] = object.#nodeConstraint.toValue();
     }
-    if (object.edgeType != null) {
-      objectValue["140"] = object.edgeType;
+    if (object.#edgeType != null) {
+      objectValue["140"] = object.#edgeType;
     }
-    if (object.cascade != null) {
-      objectValue["141"] = object.cascade;
+    if (object.#cascade != null) {
+      objectValue["141"] = object.#cascade;
     }
-    if (object.isRequired != null) {
-      objectValue["150"] = object.isRequired;
+    if (object.#isRequired != null) {
+      objectValue["150"] = object.#isRequired;
     }
-    if (object.isUnique != null) {
-      objectValue["151"] = object.isUnique;
+    if (object.#isUnique != null) {
+      objectValue["151"] = object.#isUnique;
     }
-    if (object.isComputed != null) {
-      objectValue["152"] = object.isComputed;
+    if (object.#isComputed != null) {
+      objectValue["152"] = object.#isComputed;
     }
-    if (object.isReadonly != null) {
-      objectValue["153"] = object.isReadonly;
+    if (object.#isReadonly != null) {
+      objectValue["153"] = object.#isReadonly;
     }
     return objectValue;
   }
@@ -1272,69 +1656,69 @@ export class CustomProperty
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    if (object.isStatic != null) {
-      objectProto.isStatic = object.isStatic;
+    if (object.#isStatic != null) {
+      objectProto.isStatic = object.#isStatic;
     }
-    objectProto.type = Number(object.type) as CustomPropertyTypeProto;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.type = Number(object.#type) as CustomPropertyTypeProto;
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
-    objectProto.cardinality = Number(object.cardinality) as TypeCardinalityProto;
-    objectProto.scalarType = Number(object.scalarType) as ScalarTypeProto;
-    if (object.primitiveType != null) {
-      objectProto.primitiveType = Number(object.primitiveType) as PrimitiveTypeProto;
+    objectProto.cardinality = Number(object.#cardinality) as TypeCardinalityProto;
+    objectProto.scalarType = Number(object.#scalarType) as ScalarTypeProto;
+    if (object.#primitiveType != null) {
+      objectProto.primitiveType = Number(object.#primitiveType) as PrimitiveTypeProto;
     }
-    if (object.enumType != null) {
-      objectProto.enumType = Number(object.enumType) as EnumTypeProto;
+    if (object.#enumType != null) {
+      objectProto.enumType = Number(object.#enumType) as EnumTypeProto;
     }
-    if (object.nodeType != null) {
-      objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
+    if (object.#nodeType != null) {
+      objectProto.nodeType = Number(object.#nodeType) as NodeTypeProto;
     }
-    if (object.structType != null) {
-      objectProto.structType = Number(object.structType) as StructTypeProto;
+    if (object.#structType != null) {
+      objectProto.structType = Number(object.#structType) as StructTypeProto;
     }
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.#definitionPtr != null) {
+      objectProto.definitionPtr = object.#definitionPtr.toProto();
     }
-    if (object.keyType != null) {
-      objectProto.keyType = object.keyType.toProto();
+    if (object.#keyType != null) {
+      objectProto.keyType = object.#keyType.toProto();
     }
-    if (object.value != null) {
-      objectProto.value = object.value.toProto();
+    if (object.#value != null) {
+      objectProto.value = object.#value.toProto();
     }
-    if (object.valueFactory != null) {
-      objectProto.valueFactory = Number(object.valueFactory) as ValueFactoryProto;
+    if (object.#valueFactory != null) {
+      objectProto.valueFactory = Number(object.#valueFactory) as ValueFactoryProto;
     }
-    if (object.collectionConstraint != null) {
-      objectProto.collectionConstraint = object.collectionConstraint.toProto();
+    if (object.#collectionConstraint != null) {
+      objectProto.collectionConstraint = object.#collectionConstraint.toProto();
     }
-    if (object.stringConstraint != null) {
-      objectProto.stringConstraint = object.stringConstraint.toProto();
+    if (object.#stringConstraint != null) {
+      objectProto.stringConstraint = object.#stringConstraint.toProto();
     }
-    if (object.numberConstraint != null) {
-      objectProto.numberConstraint = object.numberConstraint.toProto();
+    if (object.#numberConstraint != null) {
+      objectProto.numberConstraint = object.#numberConstraint.toProto();
     }
-    if (object.nodeConstraint != null) {
-      objectProto.nodeConstraint = object.nodeConstraint.toProto();
+    if (object.#nodeConstraint != null) {
+      objectProto.nodeConstraint = object.#nodeConstraint.toProto();
     }
-    if (object.edgeType != null) {
-      objectProto.edgeType = Number(object.edgeType) as EdgeTypeProto;
+    if (object.#edgeType != null) {
+      objectProto.edgeType = Number(object.#edgeType) as EdgeTypeProto;
     }
-    if (object.cascade != null) {
-      objectProto.cascade = Number(object.cascade) as CascadeActionProto;
+    if (object.#cascade != null) {
+      objectProto.cascade = Number(object.#cascade) as CascadeActionProto;
     }
-    if (object.isRequired != null) {
-      objectProto.isRequired = object.isRequired;
+    if (object.#isRequired != null) {
+      objectProto.isRequired = object.#isRequired;
     }
-    if (object.isUnique != null) {
-      objectProto.isUnique = object.isUnique;
+    if (object.#isUnique != null) {
+      objectProto.isUnique = object.#isUnique;
     }
-    if (object.isComputed != null) {
-      objectProto.isComputed = object.isComputed;
+    if (object.#isComputed != null) {
+      objectProto.isComputed = object.#isComputed;
     }
-    if (object.isReadonly != null) {
-      objectProto.isReadonly = object.isReadonly;
+    if (object.#isReadonly != null) {
+      objectProto.isReadonly = object.#isReadonly;
     }
     return objectProto as CustomPropertyProto;
   }

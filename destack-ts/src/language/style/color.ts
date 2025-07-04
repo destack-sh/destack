@@ -56,7 +56,7 @@ export class Color extends StructFrozen {
   readonly type: ColorType;
 
   /**
-   * style
+   * Color.style
    */
   get style(): ColorStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
@@ -613,52 +613,212 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.type
    */
-  type: ColorType;
+  get type(): ColorType {
+    return this.#type;
+  }
+  set type(value: ColorType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: ColorType;
 
   /**
    * Style.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * ColorStyle.hue
    */
-  hue: ColorHue | null;
+  get hue(): ColorHue | null {
+    return this.#hue;
+  }
+  set hue(value: ColorHue | null) {
+    const oldValue = this.#hue;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["hue"] === undefined) {
+      this._dirty["hue"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#hue = value;
+  }
+  #hue: ColorHue | null;
 
   /**
    * ColorStyle.shade
    */
-  shade: ColorShade | null;
+  get shade(): ColorShade | null {
+    return this.#shade;
+  }
+  set shade(value: ColorShade | null) {
+    const oldValue = this.#shade;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["shade"] === undefined) {
+      this._dirty["shade"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#shade = value;
+  }
+  #shade: ColorShade | null;
 
   /**
    * ColorStyle.intent
    */
-  intent: ColorIntent | null;
+  get intent(): ColorIntent | null {
+    return this.#intent;
+  }
+  set intent(value: ColorIntent | null) {
+    const oldValue = this.#intent;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["intent"] === undefined) {
+      this._dirty["intent"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#intent = value;
+  }
+  #intent: ColorIntent | null;
 
   /**
    * ColorStyle.x
    */
-  x: number | null;
+  get x(): number | null {
+    return this.#x;
+  }
+  set x(value: number | null) {
+    const oldValue = this.#x;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["x"] === undefined) {
+      this._dirty["x"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#x = value;
+  }
+  #x: number | null;
 
   /**
    * ColorStyle.y
    */
-  y: number | null;
+  get y(): number | null {
+    return this.#y;
+  }
+  set y(value: number | null) {
+    const oldValue = this.#y;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["y"] === undefined) {
+      this._dirty["y"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#y = value;
+  }
+  #y: number | null;
 
   /**
    * ColorStyle.z
    */
-  z: number | null;
+  get z(): number | null {
+    return this.#z;
+  }
+  set z(value: number | null) {
+    const oldValue = this.#z;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["z"] === undefined) {
+      this._dirty["z"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#z = value;
+  }
+  #z: number | null;
 
   /**
    * ColorStyle.alpha
    */
-  alpha: number | null;
+  get alpha(): number | null {
+    return this.#alpha;
+  }
+  set alpha(value: number | null) {
+    const oldValue = this.#alpha;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["alpha"] === undefined) {
+      this._dirty["alpha"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#alpha = value;
+  }
+  #alpha: number | null;
 
   /**
    * ColorStyle.dark
    */
-  dark: Color | null;
+  get dark(): Color | null {
+    return this.#dark;
+  }
+  set dark(value: Color | null) {
+    const oldValue = this.#dark;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["dark"] === undefined) {
+      this._dirty["dark"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#dark = value;
+  }
+  #dark: Color | null;
 
   constructor(options: {
     id?: string;
@@ -766,28 +926,28 @@ export class ColorStyle extends Style {
     if (_type === null) {
       throw new Error(`ColorStyle.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`ColorStyle.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _hue = options.hue ?? null;
-    this.hue = _hue;
+    this.#hue = _hue;
     let _shade = options.shade ?? null;
-    this.shade = _shade;
+    this.#shade = _shade;
     let _intent = options.intent ?? null;
-    this.intent = _intent;
+    this.#intent = _intent;
     let _x = options.x ?? null;
-    this.x = _x;
+    this.#x = _x;
     let _y = options.y ?? null;
-    this.y = _y;
+    this.#y = _y;
     let _z = options.z ?? null;
-    this.z = _z;
+    this.#z = _z;
     let _alpha = options.alpha ?? null;
-    this.alpha = _alpha;
+    this.#alpha = _alpha;
     let _dark = options.dark ?? null;
-    this.dark = _dark;
+    this.#dark = _dark;
 
     // identity
     if (options.id == null) {
@@ -799,7 +959,7 @@ export class ColorStyle extends Style {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `ColorStyle.createdAt and ColorStyle.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -823,50 +983,50 @@ export class ColorStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
-    if (!(this.hue === other.hue)) {
+    if (!(this.#hue === other.#hue)) {
       return false;
     }
-    if (!(this.shade === other.shade)) {
+    if (!(this.#shade === other.#shade)) {
       return false;
     }
-    if (!(this.intent === other.intent)) {
+    if (!(this.#intent === other.#intent)) {
       return false;
     }
     if (
-      (this.x == null) !== (other.x == null) ||
-      (this.x != null && !(this.x === other.x || Math.abs(this.x - other.x) < 1e-10))
+      (this.#x == null) !== (other.#x == null) ||
+      (this.#x != null && !(this.#x === other.#x || Math.abs(this.#x - other.#x) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.y == null) !== (other.y == null) ||
-      (this.y != null && !(this.y === other.y || Math.abs(this.y - other.y) < 1e-10))
+      (this.#y == null) !== (other.#y == null) ||
+      (this.#y != null && !(this.#y === other.#y || Math.abs(this.#y - other.#y) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.z == null) !== (other.z == null) ||
-      (this.z != null && !(this.z === other.z || Math.abs(this.z - other.z) < 1e-10))
+      (this.#z == null) !== (other.#z == null) ||
+      (this.#z != null && !(this.#z === other.#z || Math.abs(this.#z - other.#z) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.alpha == null) !== (other.alpha == null) ||
-      (this.alpha != null &&
-        !(this.alpha === other.alpha || Math.abs(this.alpha - other.alpha) < 1e-10))
+      (this.#alpha == null) !== (other.#alpha == null) ||
+      (this.#alpha != null &&
+        !(this.#alpha === other.#alpha || Math.abs(this.#alpha - other.#alpha) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.dark == null) !== (other.dark == null) ||
-      (this.dark != null && !this.dark.equals(other.dark))
+      (this.#dark == null) !== (other.#dark == null) ||
+      (this.#dark != null && !this.#dark.equals(other.#dark))
     ) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -893,32 +1053,32 @@ export class ColorStyle extends Style {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.hue !== null) {
-      h = (h * 31 + this.hue) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    if (this.#hue !== null) {
+      h = (h * 31 + this.#hue) & 0xffffffff;
     }
-    if (this.shade !== null) {
-      h = (h * 31 + this.shade) & 0xffffffff;
+    if (this.#shade !== null) {
+      h = (h * 31 + this.#shade) & 0xffffffff;
     }
-    if (this.intent !== null) {
-      h = (h * 31 + this.intent) & 0xffffffff;
+    if (this.#intent !== null) {
+      h = (h * 31 + this.#intent) & 0xffffffff;
     }
-    if (this.x !== null) {
-      h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
+    if (this.#x !== null) {
+      h = (h * 31 + hashFloat(this.#x)) & 0xffffffff;
     }
-    if (this.y !== null) {
-      h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
+    if (this.#y !== null) {
+      h = (h * 31 + hashFloat(this.#y)) & 0xffffffff;
     }
-    if (this.z !== null) {
-      h = (h * 31 + hashFloat(this.z)) & 0xffffffff;
+    if (this.#z !== null) {
+      h = (h * 31 + hashFloat(this.#z)) & 0xffffffff;
     }
-    if (this.alpha !== null) {
-      h = (h * 31 + hashFloat(this.alpha)) & 0xffffffff;
+    if (this.#alpha !== null) {
+      h = (h * 31 + hashFloat(this.#alpha)) & 0xffffffff;
     }
-    if (this.dark !== null) {
-      h = (h * 31 + this.dark.hash()) & 0xffffffff;
+    if (this.#dark !== null) {
+      h = (h * 31 + this.#dark.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1051,31 +1211,31 @@ export class ColorStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.hue != null) {
-      objectValue["200"] = object.hue;
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    if (object.#hue != null) {
+      objectValue["200"] = object.#hue;
     }
-    if (object.shade != null) {
-      objectValue["201"] = object.shade;
+    if (object.#shade != null) {
+      objectValue["201"] = object.#shade;
     }
-    if (object.intent != null) {
-      objectValue["202"] = object.intent;
+    if (object.#intent != null) {
+      objectValue["202"] = object.#intent;
     }
-    if (object.x != null) {
-      objectValue["203"] = object.x;
+    if (object.#x != null) {
+      objectValue["203"] = object.#x;
     }
-    if (object.y != null) {
-      objectValue["204"] = object.y;
+    if (object.#y != null) {
+      objectValue["204"] = object.#y;
     }
-    if (object.z != null) {
-      objectValue["205"] = object.z;
+    if (object.#z != null) {
+      objectValue["205"] = object.#z;
     }
-    if (object.alpha != null) {
-      objectValue["206"] = object.alpha;
+    if (object.#alpha != null) {
+      objectValue["206"] = object.#alpha;
     }
-    if (object.dark != null) {
-      objectValue["207"] = object.dark.toValue();
+    if (object.#dark != null) {
+      objectValue["207"] = object.#dark.toValue();
     }
     return objectValue;
   }
@@ -1232,31 +1392,31 @@ export class ColorStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.type) as ColorTypeProto;
-    objectProto.name = object.name;
-    if (object.hue != null) {
-      objectProto.hue = Number(object.hue) as ColorHueProto;
+    objectProto.type = Number(object.#type) as ColorTypeProto;
+    objectProto.name = object.#name;
+    if (object.#hue != null) {
+      objectProto.hue = Number(object.#hue) as ColorHueProto;
     }
-    if (object.shade != null) {
-      objectProto.shade = Number(object.shade) as ColorShadeProto;
+    if (object.#shade != null) {
+      objectProto.shade = Number(object.#shade) as ColorShadeProto;
     }
-    if (object.intent != null) {
-      objectProto.intent = Number(object.intent) as ColorIntentProto;
+    if (object.#intent != null) {
+      objectProto.intent = Number(object.#intent) as ColorIntentProto;
     }
-    if (object.x != null) {
-      objectProto.x = object.x;
+    if (object.#x != null) {
+      objectProto.x = object.#x;
     }
-    if (object.y != null) {
-      objectProto.y = object.y;
+    if (object.#y != null) {
+      objectProto.y = object.#y;
     }
-    if (object.z != null) {
-      objectProto.z = object.z;
+    if (object.#z != null) {
+      objectProto.z = object.#z;
     }
-    if (object.alpha != null) {
-      objectProto.alpha = object.alpha;
+    if (object.#alpha != null) {
+      objectProto.alpha = object.#alpha;
     }
-    if (object.dark != null) {
-      objectProto.dark = object.dark.toProto();
+    if (object.#dark != null) {
+      objectProto.dark = object.#dark.toProto();
     }
     return objectProto as ColorStyleProto;
   }

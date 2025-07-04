@@ -2308,8 +2308,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
 
   /**
    * The path of Snapshots from the given Snapshot to to a full Snapshot (inclusive).
-  If Query.snapshot is set, this must contain at least one element.
-
+   * If Query.snapshot is set, this must contain at least one element.
    */
   readonly snapshotPath: Array<string>;
 

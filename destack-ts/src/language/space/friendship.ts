@@ -143,7 +143,23 @@ export class Friendship extends Entity implements IsGlobal {
     }
     return null;
   }
-  readonly userAPtr: NodeReference;
+  get userAPtr(): NodeReference {
+    return this.#userAPtr;
+  }
+  set userAPtr(value: NodeReference) {
+    const oldValue = this.#userAPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["userAPtr"] === undefined) {
+      this._dirty["userAPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#userAPtr = value;
+  }
+  #userAPtr: NodeReference;
 
   /**
    * Friendship.userB
@@ -155,7 +171,23 @@ export class Friendship extends Entity implements IsGlobal {
     }
     return null;
   }
-  readonly userBPtr: NodeReference;
+  get userBPtr(): NodeReference {
+    return this.#userBPtr;
+  }
+  set userBPtr(value: NodeReference) {
+    const oldValue = this.#userBPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["userBPtr"] === undefined) {
+      this._dirty["userBPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#userBPtr = value;
+  }
+  #userBPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -240,7 +272,7 @@ export class Friendship extends Entity implements IsGlobal {
     if (_userA === null) {
       throw new Error(`Friendship.userA is required`);
     }
-    this.userAPtr = _userA;
+    this.#userAPtr = _userA;
     let _userB = options.userB;
     if (_userB != null && _userB.metatype != StructType.NODE_REFERENCE) {
       _userB = (_userB as Node).toRef();
@@ -248,7 +280,7 @@ export class Friendship extends Entity implements IsGlobal {
     if (_userB === null) {
       throw new Error(`Friendship.userB is required`);
     }
-    this.userBPtr = _userB;
+    this.#userBPtr = _userB;
 
     // identity
     if (options.id == null) {
@@ -260,7 +292,7 @@ export class Friendship extends Entity implements IsGlobal {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `Friendship.createdAt and Friendship.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -284,10 +316,10 @@ export class Friendship extends Entity implements IsGlobal {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.userAPtr.id === other.userAPtr.id)) {
+    if (!(this.#userAPtr.id === other.#userAPtr.id)) {
       return false;
     }
-    if (!(this.userBPtr.id === other.userBPtr.id)) {
+    if (!(this.#userBPtr.id === other.#userBPtr.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -308,8 +340,8 @@ export class Friendship extends Entity implements IsGlobal {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.userAPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.userBPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#userAPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#userBPtr.id)) & 0xffffffff;
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -400,8 +432,8 @@ export class Friendship extends Entity implements IsGlobal {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["40"] = object.userAPtr.toValue();
-    objectValue["41"] = object.userBPtr.toValue();
+    objectValue["40"] = object.#userAPtr.toValue();
+    objectValue["41"] = object.#userBPtr.toValue();
     return objectValue;
   }
 
@@ -521,8 +553,8 @@ export class Friendship extends Entity implements IsGlobal {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.userAPtr = object.userAPtr.toProto();
-    objectProto.userBPtr = object.userBPtr.toProto();
+    objectProto.userAPtr = object.#userAPtr.toProto();
+    objectProto.userBPtr = object.#userBPtr.toProto();
     return objectProto as FriendshipProto;
   }
 
@@ -722,10 +754,7 @@ export abstract class FriendshipInviteEvent extends Event {
     }
     return null;
   }
-  set node(node: FriendshipInvite) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
+  declare readonly nodePtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -804,10 +833,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
     }
     return null;
   }
-  set node(node: FriendshipInvite) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -877,7 +903,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`FriendshipInviteSentEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1240,10 +1266,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
     }
     return null;
   }
-  set node(node: FriendshipInvite) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -1313,7 +1336,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`FriendshipInviteRescindedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1678,10 +1701,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
     }
     return null;
   }
-  set node(node: FriendshipInvite) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -1751,7 +1771,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`FriendshipInviteAcceptedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2114,10 +2134,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
     }
     return null;
   }
-  set node(node: FriendshipInvite) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -2187,7 +2204,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`FriendshipInviteRejectedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2599,7 +2616,23 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   set ownedBy(node: Node & IsSubject) {
     this.ownedByPtr = node.toRef();
   }
-  ownedByPtr: NodeReference;
+  get ownedByPtr(): NodeReference {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -2683,7 +2716,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     if (_ownedBy === null) {
       throw new Error(`FriendshipInvite.ownedBy is required`);
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
 
     // identity
     if (options.id == null) {
@@ -2695,7 +2728,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `FriendshipInvite.createdAt and FriendshipInvite.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -2719,7 +2752,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.ownedByPtr.id === other.ownedByPtr.id)) {
+    if (!(this.#ownedByPtr.id === other.#ownedByPtr.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -2740,7 +2773,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -2830,7 +2863,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["28"] = object.ownedByPtr.toValue();
+    objectValue["28"] = object.#ownedByPtr.toValue();
     return objectValue;
   }
 
@@ -2949,7 +2982,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     return objectProto as FriendshipInviteProto;
   }
 
