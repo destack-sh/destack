@@ -592,7 +592,7 @@ export function toSubqueries(subqueries: WithSubqueries<Record<string, any>>): Q
     if (!isStruct(subquery, StructType.QUERY)) {
       continue;
     }
-    if (subquery.join === undefined) {
+    if (subquery.join == null) {
       const join = new _Join({ type: JoinType.CHILD });
       // @ts-expect-error(readonly)
       subquery.join = join;

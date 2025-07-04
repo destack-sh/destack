@@ -315,6 +315,28 @@ export class NodeDefinitionReference extends StructFrozen {
     }
   }
 
+  /** Resolve a Property in this definition. */
+  resolveProperty(name: string): PropertyDefinition | null {
+    if (this.type == NodeDefinitionType.BUILTIN) {
+      const nodeClass = NODE_CLASS_BY_TYPE[this.nodeType];
+      const nodeDefinition = nodeClass.__definition__;
+      return nodeDefinition.resolveProperty(name);
+    } else if (this.type == NodeDefinitionType.CUSTOM) {
+      throw new Error(`unexpected node definition reference: ${this.repr()}`);
+    } else {
+      assertNever(this.type);
+    }
+  }
+
+  /** Resolve a Property in this definition (error if not found). */
+  resolvePropertyOrError(name: string): PropertyDefinition {
+    const property = this.resolveProperty(name);
+    if (property == null) {
+      throw new Error(`could not find property ${name} in ${this.repr()}`);
+    }
+    return property;
+  }
+
   static of(base: NodeType | NodeClass | CustomEventDefinition | CustomEntityDefinition) {
     if (typeof base == "number") {
       return new NodeDefinitionReference({ type: NodeDefinitionType.BUILTIN, nodeType: base });
