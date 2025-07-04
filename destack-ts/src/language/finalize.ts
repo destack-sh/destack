@@ -9,6 +9,7 @@ import {
 import {
   NODE_CLASS_BY_TYPE,
   NODE_TYPES_BY_PRIMARY_STORE_TYPE,
+  PARENT_TYPES_BY_NODE_TYPE,
   STRUCT_CLASS_BY_TYPE,
   TRAIT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
@@ -35,18 +36,37 @@ export function finalize(): void {
       );
     }
     nodeClass.__definition__ = nodeDefinition;
+
+    // properties
     nodeClass.__properties__ = {};
     nodeClass.__propertiesById__ = {};
     for (const propertyDefinition of nodeDefinition.properties) {
       nodeClass.__properties__[propertyDefinition.name] = propertyDefinition;
       nodeClass.__propertiesById__[propertyDefinition.id] = propertyDefinition;
     }
+
+    // primary store
     for (const storeType of nodeDefinition.primaryStoreTypes) {
       if (!NODE_TYPES_BY_PRIMARY_STORE_TYPE[storeType]) {
         NODE_TYPES_BY_PRIMARY_STORE_TYPE[storeType] = [];
       }
       NODE_TYPES_BY_PRIMARY_STORE_TYPE[storeType].push(nodeDefinition.type);
     }
+  }
+  // index node parent types
+  for (const nodeDefinition of NODE_DEFINITIONS) {
+    const parentTypes: NodeType[] = [];
+    for (const parentType of nodeDefinition.parentTypes) {
+      const parentDefinition = NODE_CLASS_BY_TYPE[parentType].__definition__;
+      parentTypes.push(parentType);
+      // include subtypes
+      for (const parentSubtype of parentDefinition.inheritedBy) {
+        if (!parentTypes.includes(parentSubtype)) {
+          parentTypes.push(parentSubtype);
+        }
+      }
+    }
+    PARENT_TYPES_BY_NODE_TYPE[nodeDefinition.type] = parentTypes;
   }
 
   // traits

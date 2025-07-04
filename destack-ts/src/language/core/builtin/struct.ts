@@ -10,8 +10,8 @@ import { AnyStructProto } from "@destack/proto";
 
 /** A Struct is an ordered collection of Properties. */
 export abstract class Struct extends BuiltinObject {
-  static readonly __isStruct__: boolean = true;
   static readonly metatype: StructType;
+  static readonly __isStruct__: boolean = true;
   static readonly __definition__: StructDefinition;
 
   constructor(_session: Session | null, _supergraph: Supergraph | null) {

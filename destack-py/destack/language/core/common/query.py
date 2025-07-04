@@ -98,14 +98,16 @@ class Condition(StructFrozen):
     left: "Expression" = builtin_property(101, is_repr=True)
     right: Optional["Expression"] = builtin_property(102, is_repr=True)
 
-    def __or__(self, other: "Condition") -> "Condition":
+    def __or__(self, right: "Condition") -> "Condition":
+        """OR two Conditions."""
         return Condition(
-            type=ConditionalType.OR, left=Expression.of(self), right=Expression.of(other)
+            type=ConditionalType.OR, left=Expression.of(self), right=Expression.of(right)
         )
 
-    def __and__(self, other: "Condition") -> "Condition":
+    def __and__(self, right: "Condition") -> "Condition":
+        """AND two Conditions."""
         return Condition(
-            type=ConditionalType.AND, left=Expression.of(self), right=Expression.of(other)
+            type=ConditionalType.AND, left=Expression.of(self), right=Expression.of(right)
         )
 
     @classmethod

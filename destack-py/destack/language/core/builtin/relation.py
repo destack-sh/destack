@@ -270,13 +270,6 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
         description="custom Property of a custom Node or Struct",
     )
 
-    def resolve_or_error(self) -> "PropertyDefinition | CustomProperty":
-        """Resolves the property reference to a Property."""
-        resolved = self.resolve()
-        if resolved is None:
-            raise ValueError(f"could not resolve {self!r}")
-        return resolved
-
     def resolve(self) -> "PropertyDefinition | CustomProperty | None":
         """Resolves the property reference to a Property."""
         if self.type == PropertyReferenceType.BUILTIN:
@@ -297,6 +290,13 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
             return prop
         else:
             return None
+
+    def resolve_or_error(self) -> "PropertyDefinition | CustomProperty":
+        """Resolves the property reference to a Property."""
+        resolved = self.resolve()
+        if resolved is None:
+            raise ValueError(f"could not resolve {self!r}")
+        return resolved
 
     @staticmethod
     def of(

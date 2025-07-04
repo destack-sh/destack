@@ -516,6 +516,24 @@ export class Condition extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
+  /** OR two Conditions. */
+  or(right: Condition): Condition {
+    return new Condition({
+      type: ConditionalType.OR,
+      left: Expression.of(this),
+      right: Expression.of(right),
+    });
+  }
+
+  /** AND two Conditions. */
+  and(right: Condition): Condition {
+    return new Condition({
+      type: ConditionalType.AND,
+      left: Expression.of(this),
+      right: Expression.of(right),
+    });
+  }
+
   /** Make a Condition from a shorthand expression. */
   static of(
     attribute: CustomProperty | PropertyReference | PropertyDefinition,

@@ -10,15 +10,14 @@ import type {
   TraitType,
 } from "@destack/language/core/builtin";
 
+// basic class/type mappings
+
 export const NODE_CLASS_BY_TYPE: Record<NodeType, NodeClass> = {} as any;
 export const NODE_TYPE_BY_CLASS: Map<NodeClass, NodeType> = new Map();
 export function registerNodeClass(nodeType: NodeType, nodeClass: NodeClass): void {
   NODE_CLASS_BY_TYPE[nodeType] = nodeClass;
   NODE_TYPE_BY_CLASS.set(nodeClass, nodeType);
 }
-
-export const NODE_TYPES_BY_PRIMARY_STORE_TYPE: Record<StoreType, NodeType[]> = {} as any;
-export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {} as any;
 
 export const TRAIT_CLASS_BY_TYPE: Record<TraitType, TraitClass> = {} as any;
 export const TRAIT_TYPE_BY_CLASS: Map<TraitClass, TraitType> = new Map();
@@ -40,3 +39,10 @@ export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): voi
   ENUM_CLASS_BY_TYPE[enumType] = enumClass;
   ENUM_TYPE_BY_CLASS.set(enumClass, enumType);
 }
+
+// extra mappings
+
+export const NODE_TYPES_BY_PRIMARY_STORE_TYPE: Record<StoreType, NodeType[]> = {} as any;
+export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {} as any;
+
+export const PARENT_TYPES_BY_NODE_TYPE: Record<NodeType, NodeType[]> = {} as any;

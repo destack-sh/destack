@@ -29,6 +29,7 @@ import {
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
 import {
   NODE_CLASS_BY_TYPE,
+  PARENT_TYPES_BY_NODE_TYPE,
   registerNodeClass,
   STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
@@ -43,8 +44,8 @@ export type NodeFilter = {
 
 /** A Node is a collection of properties with an identity. */
 export abstract class Node extends BuiltinObject {
-  static readonly __isNode__: boolean = true;
   static readonly metatype: NodeType = NodeType.NODE;
+  static readonly __isNode__: boolean = true;
   static readonly __definition__: NodeDefinition;
 
   readonly id: string;
@@ -171,14 +172,18 @@ export abstract class Node extends BuiltinObject {
     const nodes: Node[] = [child, ...child._graph.getDescendants(child)];
 
     // validate parent-child definitionship
-    if (!child.__parentTypes__.includes(this.metatype)) {
-      throw new Error(`${this} cannot parent ${child} (allowed: ${child.__parentTypes__})`);
-    }
-    if (oldGraph === newGraph) {
-      throw new Error(`${child} is already in same graph of ${this}`);
-    }
-    if (oldGraph.supergraph !== this._supergraph) {
-      throw new Error(`${child} is not in supergraph of ${this}`);
+    if (!PARENT_TYPES_BY_NODE_TYPE[child.metatype].includes(this.metatype)) {
+      throw new Error(
+        `${this.repr()} cannot parent ${child.repr()} (allowed: ${PARENT_TYPES_BY_NODE_TYPE[
+          child.metatype
+        ]
+          .map((type) => NodeType[type])
+          .join(", ")})`,
+      );
+    } else if (oldGraph === newGraph) {
+      throw new Error(`${child.repr()} is already in same graph of ${this.repr()}`);
+    } else if (oldGraph.supergraph !== this._supergraph) {
+      throw new Error(`${child.repr()} is not in supergraph of ${this.repr()}`);
     }
 
     // assign order
