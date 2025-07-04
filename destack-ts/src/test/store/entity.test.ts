@@ -65,17 +65,19 @@ sessionTest("create user with clients", async ({ session }) => {
   expect(userUnpackedBySlug.name).toBe("Fluff");
   expect(userUnpackedBySlug.slug).toBe("flotothemoon");
   expect(userUnpackedBySlug.status).toBe(UserStatus.ACTIVE);
-
+  
   // create clients
   const clientA = new Client({ type: ClientType.WEB, name: "Client A" });
   const clientB = new Client({ type: ClientType.WEB, name: "Client B" });
   user.addChildren([clientA, clientB]);
   await session.commit();
-
+  
   // query clients
   const clients = await Client.search({ sort: [Client.property("name").desc()] }).executeList();
-  expect(clients).toEqual([clientB, clientA]);
-
+  expect(clients).toHaveLength(2);
+  expect(clients[0].equals(clientB));
+  expect(clients[1].equals(clientA)); 
+  
   // query user with clients as children
   const connection = await User.get({
     where: User.property("id").eq(user.id),
@@ -84,15 +86,19 @@ sessionTest("create user with clients", async ({ session }) => {
   const userUnpackedWithClients = connection.toOne();
   expect(userUnpackedWithClients.equals(user));
   const clientsUnpacked = userUnpackedWithClients.getChildren(Client);
-  expect(clientsUnpacked).toEqual([clientA, clientB]);
-
+  expect(clientsUnpacked).toHaveLength(2);
+  expect(clientsUnpacked[0].equals(clientA));
+  expect(clientsUnpacked[1].equals(clientB));
+  
   // query clients with user as parent
   const clientConnection = await Client.search({
     where: Client.property("parent").eq(user),
     Parent: User.get({ join: Join.of(JoinType.PARENT) }),
   }).execute();
   const clientsUnpackedWithParent = clientConnection.toList();
-  expect(clientsUnpackedWithParent).toEqual([clientA, clientB]);
+  expect(clientsUnpackedWithParent).toHaveLength(2);
+  expect(clientsUnpackedWithParent[0].equals(clientA));
+  expect(clientsUnpackedWithParent[1].equals(clientB));
 });
 
 sessionTest("create star", async ({ session }) => {
