@@ -198,13 +198,12 @@ export class Session {
       node._isNew = false;
     } else if (node._dirty != null) {
       // turn dirty properties into Edits (basic SET/CLEAR operations)
-      return; // nocheckin
       const nodePtr = node.toRef();
       for (const [propName, propOldValue] of Object.entries(node._dirty)) {
         const prop = (node.constructor as NodeClass).__properties__[propName];
         const propPtr = prop.toRef();
         const propType = prop.toType();
-
+        
         // undo
         let undoOperation: EditOperation;
         let oldValue: Value | null;
@@ -215,7 +214,7 @@ export class Session {
           undoOperation = EditOperation.SET;
           oldValue = toValue(propOldValue, propType);
         }
-
+        
         // do
         const propNewValue = (node as any)[propName];
         let operation: EditOperation;
@@ -227,7 +226,7 @@ export class Session {
           operation = EditOperation.SET;
           newValue = toValue(propNewValue, propType);
         }
-
+        
         // create Edits
         const undoEdit = new Edit({
           type: EditType.UPDATE,

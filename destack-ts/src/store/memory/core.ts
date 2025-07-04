@@ -118,9 +118,9 @@ export class MemoryTable {
     return `<MemoryTable ${this.toString()}>`;
   }
 
-  // utility method to create a key from VersionedNodeKey
-  createKey(key: VersionedNodeKey): string {
-    return `${key.id}:${key.snapshotId || "null"}`;
+  /** Convert a VersionedNodeKey to a string key. */
+  getNodeKey(nodeKey: VersionedNodeKey): string {
+    return `${nodeKey.id}:${nodeKey.snapshotId || "<root>"}`;
   }
 }
 

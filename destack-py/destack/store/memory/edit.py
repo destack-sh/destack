@@ -185,12 +185,15 @@ def _execute_data_edit(
             snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
             node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
             if row := table.rows.get(node_key):
+                # remove from old parent
                 if row.parent_ptr is not None:
                     parent_table = context.get(row.parent_ptr)
                     parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
                     parent_table.rows_by_parent[parent_key].remove(row)
-                row.parent_ptr = edit.value.value
+                # update parent pointer
+                row.parent_ptr = NodeReference.from_value(edit.value.value)
                 row.value[NODE_PARENT_KEY] = edit.value.value
+                # add to new parent
                 if row.parent_ptr is not None:
                     parent_table = context.get(row.parent_ptr)
                     parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)

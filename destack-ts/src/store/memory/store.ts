@@ -50,7 +50,7 @@ export class MemoryStore extends Store {
   async commit(changes: Change[]): Promise<ChangeResult[]> {
     const results: ChangeResult[] = [];
     for (const change of changes) {
-      const [edits, cascadedEdits] = executeChange({
+      const { edits, cascadedEdits } = executeChange({
         database: this.database,
         context: this.context,
         change,

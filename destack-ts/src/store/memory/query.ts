@@ -432,7 +432,7 @@ function queryNode(options: {
   offset: number | null;
   snapshotPath: string[];
   ignoreMulti?: boolean;
-}): [Value[], NodeReference[]] {
+}): { nodes: Value[]; nodePtrs: NodeReference[] } {
   const {
     context,
     definition,
@@ -454,7 +454,7 @@ function queryNode(options: {
     const allValues: Value[] = [];
     const allPtrs: NodeReference[] = [];
     for (const subdefinition of subdefinitions) {
-      const [values, ptrs] = queryNode({
+      const { nodes, nodePtrs } = queryNode({
         context,
         definition: subdefinition,
         select,
@@ -465,10 +465,10 @@ function queryNode(options: {
         snapshotPath,
         ignoreMulti: true,
       });
-      allValues.push(...values);
-      allPtrs.push(...ptrs);
+      allValues.push(...nodes);
+      allPtrs.push(...nodePtrs);
     }
-    return [allValues, allPtrs];
+    return { nodes: allValues, nodePtrs: allPtrs };
   }
 
   const table = context.get(definition);
@@ -507,7 +507,7 @@ function queryNode(options: {
     ptrs.push(row.ptr);
   }
 
-  return [values, ptrs];
+  return { nodes: values, nodePtrs: ptrs };
 }
 
 /**
@@ -744,7 +744,7 @@ function walkNode(options: {
       for (const def of definitions) {
         const table = context.get(def);
         for (const nodeId of currentNodeIds) {
-          const nodeKey = table.createKey({ id: nodeId, snapshotId });
+          const nodeKey = table.getNodeKey({ id: nodeId, snapshotId });
           const row = table.rows.get(nodeKey);
           if (
             row != null &&
@@ -778,7 +778,7 @@ function walkNode(options: {
       for (const def of definitions) {
         const table = context.get(def);
         for (const parentId of currentParentIds) {
-          const parentKey = table.createKey({ id: parentId, snapshotId });
+          const parentKey = table.getNodeKey({ id: parentId, snapshotId });
           const children = table.rowsByParent.get(parentKey);
           if (children) {
             for (const row of children) {
@@ -819,7 +819,7 @@ function queryClause(options: {
   context: MemoryContext;
   query: Query;
   where: Condition | null;
-}): [QueryResult, NodeReference[]] {
+}): { result: QueryResult; nodesPtrs: NodeReference[] } {
   const { context, query, where } = options;
 
   // combine wheres
@@ -831,7 +831,7 @@ function queryClause(options: {
 
   // node
   if (query.type === QueryType.NODE) {
-    const [nodes, ptrs] = queryNode({
+    const { nodes, nodePtrs } = queryNode({
       context,
       definition: query.definition,
       select: query.select,
@@ -841,7 +841,7 @@ function queryClause(options: {
       offset: query.offset,
       snapshotPath: query.snapshotPath,
     });
-    nodesPtrs = ptrs;
+    nodesPtrs = nodePtrs;
     result = new QueryResult({
       id: query.id,
       type: query.type,
@@ -945,7 +945,7 @@ function queryClause(options: {
     assertNever(query.type);
   }
 
-  return [result, nodesPtrs];
+  return { result, nodesPtrs };
 }
 
 /**
@@ -1069,7 +1069,7 @@ export function executeQuery(options: {
   const { context, query, where = null } = options;
 
   // execute main query
-  const [result, nodesPtrs] = queryClause({ context, query, where });
+  const { result, nodesPtrs } = queryClause({ context, query, where });
 
   // execute subqueries
   const subresults: QueryResult[] = [];
