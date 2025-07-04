@@ -6,7 +6,9 @@ from ..builtin import (
     Enum,
     EnumType,
     Node,
+    NodeReference,
     PropertyDeclaration,
+    Snapshot,
     StructFrozen,
     StructMutable,
     StructType,
@@ -340,24 +342,41 @@ class Query[RootT: "Trait | Node"](StructFrozen):
         is_repr=True,
     )
     definition: NodeDefinitionReference = builtin_property(102, is_repr=True)
-    join: Optional[Join] = builtin_property(
-        103, description="Relative to parent Query.", is_repr=True
-    )
-    select: Optional[Select] = builtin_property(104, is_repr=True)
-    subqueries: list["Query"] = builtin_property(105, is_repr=True)
+    subqueries: list["Query"] = builtin_property(109, is_repr=True)
     # is_live/refreshing/routing/area/...
 
     # content
-    where: Optional[Condition] = builtin_property(110, is_repr=True)
-    having: Optional[Condition] = builtin_property(111, is_repr=True)
-    group_by: list[Expression] = builtin_property(112, is_repr=True)
-    aggregation: Optional[Aggregation] = builtin_property(113, is_repr=True)
-    sort: list[Sort] = builtin_property(114, is_repr=True)
+    join: Optional[Join] = builtin_property(
+        110, description="Relative to parent Query.", is_repr=True
+    )
+    select: Optional[Select] = builtin_property(111, is_repr=True)
+    where: Optional[Condition] = builtin_property(112, is_repr=True)
+    having: Optional[Condition] = builtin_property(113, is_repr=True)
+    group_by: list[Expression] = builtin_property(114, is_repr=True)
+    aggregation: Optional[Aggregation] = builtin_property(115, is_repr=True)
+    sort: list[Sort] = builtin_property(116, is_repr=True)
 
     # pagination
     limit: Optional[int] = builtin_property(120, is_repr=True)
     offset: Optional[int] = builtin_property(121, is_repr=True)
     # count?
+
+    # materialization
+    snapshot: Optional["Snapshot"] = builtin_property(
+        130,
+        is_repr=True,
+        description="The Snapshot this Query is for.",
+    )
+    snapshot_path: list[UUID] = builtin_property(
+        131,
+        is_repr=True,
+        description="""\
+The path of Snapshots from the given Snapshot to to a full Snapshot (inclusive).
+If Query.snapshot is set, this must contain at least one element.
+""",
+    )
+    if TYPE_CHECKING:
+        snapshot_ptr: Optional[NodeReference] = None
 
     async def execute(self) -> "QueryConnection[RootT]":
         """Execute the Query."""

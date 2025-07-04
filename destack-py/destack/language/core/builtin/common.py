@@ -47,6 +47,7 @@ class EnumType(Enum):
     CASCADE_ACTION = 69
     RESOURCE_STATUS = 1100
     SNAPSHOT_TYPE = 1300
+    SNAPSHOT_STATUS = 1301
 
     # query
     CONDITIONAL_TYPE = 10_103
@@ -902,15 +903,6 @@ class EnvironmentType(Enum):
     TEST = 5, "Test", "Active in test", "fas fa-flask"
     STAGING = 7, "Staging", "Active in staging", "fas fa-globe"
     PRODUCTION = 10, "Production", "Active in production", "fas fa-globe"
-
-
-@builtin_enum(EnumType.MATERIALIZATION)
-class Materialization(Enum):
-    """The materialization level of an Entity."""
-
-    PARTIAL_NODE = 1, "Partial Node, Partial Graph"
-    PARTIAL_GRAPH = 2, "Full Node, Partial Graph"
-    FULL_GRAPH = 3, "Full Node, Full Graph"
 
 
 @builtin_enum(EnumType.MODE_TYPE)

@@ -14,7 +14,6 @@ from .common import (
     EdgeType,
     EnumType,
     EnvironmentType,
-    Materialization,
     NodeType,
     OperatingSystem,
     PlatformType,
@@ -61,10 +60,12 @@ from .entity import (
     CustomEntityDefinition,
     CustomTraitDefinition,
     Entity,
+    Materialization,
     Metric,
     Record,
     Resource,
     Snapshot,
+    SnapshotStatus,
     SnapshotType,
 )
 from .enum import Enum, builtin_enum
@@ -216,6 +217,7 @@ __all__ = [
     "ScalarType",
     "Signal",
     "Snapshot",
+    "SnapshotStatus",
     "SnapshotType",
     "StoreImplementation",
     "StoreType",
