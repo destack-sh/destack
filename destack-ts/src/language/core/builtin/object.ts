@@ -141,8 +141,8 @@ export abstract class BuiltinObject {
 
 /** A BuiltinObject constructor/class. */
 export type BuiltinObjectClass<
-  ObjectT extends BuiltinObject,
-  ProtoT extends AnyStructProto | AnyNodeProto,
+  ObjectT extends BuiltinObject = BuiltinObject,
+  ProtoT extends AnyStructProto | AnyNodeProto = AnyStructProto | AnyNodeProto,
 > = {
   __properties__: Record<string, PropertyDefinition>;
   __propertiesById__: Record<number, PropertyDefinition>;

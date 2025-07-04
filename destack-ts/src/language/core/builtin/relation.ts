@@ -13,12 +13,15 @@ import type { CustomEventDefinition } from "@destack/language/core/builtin/event
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
+import { PropertyDefinition } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStructDefinition } from "@destack/language/core/common/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
+  NODE_CLASS_BY_TYPE,
   STRUCT_CLASS_BY_TYPE,
+  TRAIT_CLASS_BY_TYPE,
   registerEnumClass,
   registerStructClass,
 } from "@destack/language/registry";
@@ -298,6 +301,19 @@ export class NodeDefinitionReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
+
+  /** Whether this definition references multiple Node definitions. */
+  get isMulti(): boolean {
+    if (this.type == NodeDefinitionType.BUILTIN) {
+      const nodeClass = NODE_CLASS_BY_TYPE[this.nodeType];
+      const nodeDefinition = nodeClass.__definition__;
+      return nodeDefinition.traits.includes(TraitType.EXTENSIBLE);
+    } else if (this.type == NodeDefinitionType.CUSTOM) {
+      throw new Error(`unexpected node definition reference: ${this.repr()}`);
+    } else {
+      assertNever(this.type);
+    }
+  }
 
   static of(base: NodeType | NodeClass | CustomEventDefinition | CustomEntityDefinition) {
     if (typeof base == "number") {
@@ -1039,6 +1055,40 @@ export class PropertyReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
+
+  /** Resolve the property reference to a PropertyDefinition or CustomProperty. */
+  resolve(): PropertyDefinition | CustomProperty | null {
+    if (this.type == PropertyReferenceType.BUILTIN) {
+      if (this.id == null) {
+        throw new Error(`no id for builtin property reference ${this.repr()}`);
+      }
+      if (this.nodeType) {
+        const nodeClass = NODE_CLASS_BY_TYPE[this.nodeType];
+        return nodeClass.__propertiesById__[this.id];
+      } else if (this.traitType) {
+        const traitClass = TRAIT_CLASS_BY_TYPE[this.traitType];
+        return traitClass.__propertiesById__[this.id];
+      } else if (this.structType) {
+        const structClass = STRUCT_CLASS_BY_TYPE[this.structType];
+        return structClass.__propertiesById__[this.id];
+      } else {
+        return Node.__propertiesById__[this.id];
+      }
+    } else if (this.type == PropertyReferenceType.CUSTOM) {
+      return this.customProperty;
+    } else {
+      assertNever(this.type);
+    }
+  }
+
+  /** Resolve the property reference to a PropertyDefinition or CustomProperty. */
+  resolveOrError(): PropertyDefinition | CustomProperty {
+    const resolved = this.resolve();
+    if (resolved == null) {
+      throw new Error(`could not resolve property reference ${this.repr()}`);
+    }
+    return resolved;
+  }
 
   static of(attribute: CustomProperty | PropertyReference): PropertyReference {
     if (isStruct(attribute, StructType.PROPERTY_REFERENCE)) {

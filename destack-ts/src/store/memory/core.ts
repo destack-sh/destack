@@ -1,5 +1,4 @@
 import {
-  Edit,
   Materialization,
   NodeDefinitionReference,
   NodeDefinitionType,
@@ -7,6 +6,7 @@ import {
   NodeType,
 } from "@destack/language";
 import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
+import { assertNever } from "@destack/utils";
 
 export interface VersionedNodeKey {
   id: string;
@@ -48,14 +48,8 @@ export class MemoryContext {
     return `<MemoryContext ${this.toString()}>`;
   }
 
-  apply(edits: Edit[]): Edit[] {
-    // Apply the Edits to the context. Returns the Edits that were applied.
-    // TODO: Implement this method
-    return edits;
-  }
-
+  /** Expand the specific Definitions for a NodeDefinitionReference. */
   resolve(definition: NodeDefinitionReference): NodeDefinitionReference[] {
-    // Expand the specific Definitions for a NodeDefinitionReference.
     if (definition.type === NodeDefinitionType.BUILTIN) {
       if (!definition.nodeType) {
         throw new Error(`no node_type for ${definition.repr()}`);
@@ -80,12 +74,11 @@ export class MemoryContext {
     } else if (definition.type === NodeDefinitionType.CUSTOM) {
       throw new Error(`cannot resolve ${definition.repr()}`);
     } else {
-      // exhaustive check
-      const _: never = definition.type;
-      throw new Error(`Unknown definition type: ${definition.type}`);
+      assertNever(definition.type);
     }
   }
 
+  /** Get the (single) Table for a node / definition. Doesn't work for multi-definitions. */
   get(definition: NodeDefinitionReference | NodeReference): MemoryTable {
     const nodeType = definition instanceof NodeReference ? definition.type : definition.nodeType;
     if (!nodeType) {

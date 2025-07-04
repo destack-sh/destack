@@ -21,6 +21,7 @@ import {
   toValue,
 } from "@destack/language";
 
+import { assertNever } from "@destack/utils";
 import { MemoryContext, MemoryRow } from "./core";
 import { unpackNodeRow } from "./wiring";
 
@@ -84,7 +85,7 @@ function evaluateExpression(options: {
     // Aggregations need to be handled at a higher level with multiple rows
     throw new Error(`aggregation cannot be evaluated on single row: ${expression.repr()}`);
   } else {
-    throw new Error(`Unknown expression type: ${expression.type}`);
+    assertNever(expression.type);
   }
 }
 
@@ -235,7 +236,7 @@ function evaluateCondition(options: {
     const leftVal = evaluateExpression({ context, expression: condition.left, row });
     return leftVal == null;
   } else {
-    throw new Error(`Unknown condition type: ${condition.type}`);
+    assertNever(condition.type);
   }
 }
 
@@ -339,7 +340,7 @@ function evaluateFunction(options: {
     const rightVal = evaluateExpression({ context, expression: func.right, row });
     return Math.pow(leftVal, rightVal);
   } else {
-    throw new Error(`Unknown function type: ${func.type}`);
+    assertNever(func.type);
   }
 }
 
@@ -408,7 +409,7 @@ function evaluateAggregation(options: {
     }
     return count > 0 ? total / count : null;
   } else {
-    throw new Error(`Unknown aggregation type: ${aggregation.type}`);
+    assertNever(aggregation.type);
   }
 }
 
@@ -443,13 +444,13 @@ function queryNode(options: {
     if (limit != null || offset != null) {
       throw new Error(`cannot limit/offset for multi definition: ${definition.repr()}`);
     }
-    const definitions = context.resolve(definition);
+    const subdefinitions = context.resolve(definition);
     const allValues: Value[] = [];
     const allPtrs: NodeReference[] = [];
-    for (const rel of definitions) {
+    for (const subdefinition of subdefinitions) {
       const [values, ptrs] = queryNode({
         context,
-        definition: rel,
+        definition: subdefinition,
         select,
         where,
         sort,
@@ -506,7 +507,13 @@ function queryNode(options: {
 /**
  * Execute a scalar Query.
  */
-function queryScalar(options: QueryScalarOptions): Value {
+function queryScalar(options: {
+  context: MemoryContext;
+  definition: NodeDefinitionReference;
+  aggregation: Aggregation;
+  where?: Condition | null;
+  snapshotPath: string[];
+}): Value {
   const { context, definition, aggregation, where, snapshotPath } = options;
   const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
 
@@ -544,7 +551,7 @@ function queryScalar(options: QueryScalarOptions): Value {
 export function executeQuery(options: {
   context: MemoryContext;
   query: Query;
-  where: Condition | null;
+  where?: Condition | null;
 }): QueryResult {
   const { context, query, where = null } = options;
 
@@ -597,10 +604,8 @@ export function executeQuery(options: {
     } else if (query.aggregation.type === AggregationType.COUNT) {
       result.count = scalarResult.unpack() as number;
     }
-  }
-  // TODO: Add support for grouped queries
-  else {
-    throw new Error(`Query type ${query.type} not yet implemented`);
+  } else {
+    assertNever(query.type);
   }
 
   // TODO: execute subqueries

@@ -59,11 +59,12 @@ export abstract class Graph {
 
   /** Find leaf Nodes in the graph. */
   abstract getLeaves(): Node[];
-  abstract getLeaves<N extends Node>(classOrTrait: NodeClass<N>): N[];
+  abstract getLeaves<N extends Node>(classOrTrait: NodeClass<N>, options?: { node?: Node }): N[];
   abstract getLeaves<T extends TraitType>(
     classOrTrait: TraitClass<any, T>,
+    options?: { node?: Node },
   ): (Node & TraitTypeMapping[T])[];
-  abstract getLeaves(classOrTrait?: NodeClass | TraitClass): Node[];
+  abstract getLeaves(classOrTrait?: NodeClass | TraitClass, options?: { node?: Node }): Node[];
 
   /**
    * Collect child Nodes (one level down).
@@ -260,14 +261,20 @@ export class PolyGraph extends Graph {
     );
   }
 
-  override getLeaves(classOrTrait?: NodeClass | TraitClass): Node[] {
-    const nodeTypes = expandNodeTypes(classOrTrait);
-    if (nodeTypes === null) {
-      return this.nodes.filter((node) => !this.nodesByParent.has(node.id));
+  override getLeaves(classOrTrait?: NodeClass | TraitClass, options?: { node?: Node }): Node[] {
+    if (options?.node == null) {
+      const nodeTypes = expandNodeTypes(classOrTrait);
+
+      if (nodeTypes === null) {
+        return this.nodes.filter((node) => !this.nodesByParent.has(node.id));
+      }
+      return this.nodes.filter(
+        (node) => !this.nodesByParent.has(node.id) && nodeTypes.includes(node.metatype),
+      );
+    } else {
+      const descendants = this.getDescendants(options.node, classOrTrait);
+      return descendants.filter((node) => !this.nodesByParent.has(node.id));
     }
-    return this.nodes.filter(
-      (node) => !this.nodesByParent.has(node.id) && nodeTypes.includes(node.metatype),
-    );
   }
 
   override getChildren(node: Node, classOrTrait?: NodeClass | TraitClass): Node[] {

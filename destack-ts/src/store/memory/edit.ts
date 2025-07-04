@@ -46,7 +46,7 @@ interface ExecuteCascadeOptions {
  */
 export function executeChange(options: ExecuteChangeOptions): [Edit[], Edit[]] {
   const { database, context, change } = options;
-  
+
   if (!change.edits || change.edits.length === 0) {
     throw new Error(`no Edits in ${change.repr()}`);
   }
@@ -139,8 +139,7 @@ function optimizeChange(options: { context: MemoryContext; edits: Edit[] }): Edi
  * Get the cascaded Nodes for an Edit.
  */
 function executeCascade(options: ExecuteCascadeOptions): NodeReference[] {
-  // TODO: Implement cascading logic
-  throw new Error("Not implemented");
+  throw new Error("not implemented");
 }
 
 /**
@@ -162,22 +161,22 @@ function executeDataEdit(options: ExecuteDataEditOptions): [Edit[], Edit[]] {
 
       if (editType === EditType.UPSERT || !table.rows.has(nodeKeyStr)) {
         const row = packNodeRow(table, edit.value);
-        
+
         // Set row in main table
         table.rows.set(nodeKeyStr, row);
-        
+
         // Update rowsBySnapshot
         if (!table.rowsBySnapshot.has(snapshotId)) {
           table.rowsBySnapshot.set(snapshotId, new Map());
         }
         table.rowsBySnapshot.get(snapshotId)!.set(nodeKey.id, row);
-        
+
         // Update parent-child relationships
         if (row.parentPtr) {
           const parentTable = context.get(row.parentPtr);
           const parentKey: VersionedNodeKey = { id: row.parentPtr.id, snapshotId };
           const parentKeyStr = parentTable.createKey(parentKey);
-          
+
           if (!parentTable.rowsByParent.has(parentKeyStr)) {
             parentTable.rowsByParent.set(parentKeyStr, []);
           }
@@ -198,7 +197,7 @@ function executeDataEdit(options: ExecuteDataEditOptions): [Edit[], Edit[]] {
       const nodeKey: VersionedNodeKey = { id: edit.nodePtr.id, snapshotId };
       const nodeKeyStr = table.createKey(nodeKey);
       const row = table.rows.get(nodeKeyStr);
-      
+
       if (row) {
         if (edit.operation === EditOperation.SET) {
           if (!edit.value) {
@@ -228,7 +227,7 @@ function executeDataEdit(options: ExecuteDataEditOptions): [Edit[], Edit[]] {
       const nodeKey: VersionedNodeKey = { id: edit.nodePtr.id, snapshotId };
       const nodeKeyStr = table.createKey(nodeKey);
       const row = table.rows.get(nodeKeyStr);
-      
+
       if (row) {
         // Remove from old parent
         if (row.parentPtr) {
@@ -243,17 +242,17 @@ function executeDataEdit(options: ExecuteDataEditOptions): [Edit[], Edit[]] {
             }
           }
         }
-        
+
         // Update parent pointer
         row.parentPtr = edit.value.value as NodeReference;
         row.value[NODE_PARENT_KEY] = edit.value.value;
-        
+
         // Add to new parent
         if (row.parentPtr) {
           const parentTable = context.get(row.parentPtr);
           const parentKey: VersionedNodeKey = { id: row.parentPtr.id, snapshotId };
           const parentKeyStr = parentTable.createKey(parentKey);
-          
+
           if (!parentTable.rowsByParent.has(parentKeyStr)) {
             parentTable.rowsByParent.set(parentKeyStr, []);
           }
@@ -278,8 +277,8 @@ function executeDataEdit(options: ExecuteDataEditOptions): [Edit[], Edit[]] {
       table,
       nodePtrs: edits.map((edit) => edit.nodePtr),
     });
-    const cascadedEdits = cascadedNodePtrs.map((nodePtr) => 
-      new Edit({ type: editType, node: nodePtr })
+    const cascadedEdits = cascadedNodePtrs.map(
+      (nodePtr) => new Edit({ type: editType, node: nodePtr }),
     );
 
     // update timestamps
@@ -289,7 +288,7 @@ function executeDataEdit(options: ExecuteDataEditOptions): [Edit[], Edit[]] {
       const nodeKey: VersionedNodeKey = { id: nodePtr.id, snapshotId };
       const nodeKeyStr = nodeTable.createKey(nodeKey);
       const row = nodeTable.rows.get(nodeKeyStr);
-      
+
       if (row) {
         if (editType === EditType.ARCHIVE) {
           row.value[ARCHIVED_AT_KEY] = change.createdAt;
@@ -315,8 +314,8 @@ function executeDataEdit(options: ExecuteDataEditOptions): [Edit[], Edit[]] {
       table,
       nodePtrs: edits.map((edit) => edit.nodePtr),
     });
-    const cascadedEdits = cascadedNodePtrs.map((nodePtr) => 
-      new Edit({ type: editType, node: nodePtr })
+    const cascadedEdits = cascadedNodePtrs.map(
+      (nodePtr) => new Edit({ type: editType, node: nodePtr }),
     );
 
     // delete rows
@@ -326,12 +325,11 @@ function executeDataEdit(options: ExecuteDataEditOptions): [Edit[], Edit[]] {
       const nodeKey: VersionedNodeKey = { id: nodePtr.id, snapshotId };
       const nodeKeyStr = nodeTable.createKey(nodeKey);
       const row = nodeTable.rows.get(nodeKeyStr);
-      
+
       if (row) {
-        // Remove from main table
+        // remove from main table
         nodeTable.rows.delete(nodeKeyStr);
-        
-        // Remove from rowsBySnapshot
+        // remove from rowsBySnapshot
         const snapshotRows = nodeTable.rowsBySnapshot.get(snapshotId);
         if (snapshotRows) {
           snapshotRows.delete(nodeKey.id);
@@ -339,8 +337,7 @@ function executeDataEdit(options: ExecuteDataEditOptions): [Edit[], Edit[]] {
             nodeTable.rowsBySnapshot.delete(snapshotId);
           }
         }
-        
-        // Remove from parent's children
+        // remove from parent's children
         if (row.parentPtr) {
           const parentTable = context.get(row.parentPtr);
           const parentKey: VersionedNodeKey = { id: row.parentPtr.id, snapshotId };
