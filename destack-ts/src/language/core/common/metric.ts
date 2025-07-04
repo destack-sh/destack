@@ -1,7 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Materialization, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
-import { Entity, Metric } from "@destack/language/core/builtin/entity";
+import { Entity, Materialization, Metric } from "@destack/language/core/builtin/entity";
 import { MeasurementEvent } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
@@ -229,7 +229,7 @@ export class GaugeMetric extends Metric {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`GaugeMetric.materialization is required`);
@@ -1435,7 +1435,7 @@ export class CounterMetric extends Metric {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`CounterMetric.materialization is required`);
@@ -2641,7 +2641,7 @@ export class HistogramMetric extends Metric {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`HistogramMetric.materialization is required`);

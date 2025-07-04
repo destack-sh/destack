@@ -1,7 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Materialization, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
-import { Entity } from "@destack/language/core/builtin/entity";
+import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
@@ -245,7 +245,7 @@ export class CustomEnumDefinition
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`CustomEnumDefinition.materialization is required`);
@@ -1059,7 +1059,7 @@ export class CustomOption
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`CustomOption.materialization is required`);

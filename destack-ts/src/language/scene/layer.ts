@@ -508,7 +508,7 @@ export class Layer extends ContainerView implements IsOwnable {
     this.baseType = _baseType;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`Layer.materialization is required`);

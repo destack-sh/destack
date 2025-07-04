@@ -1,11 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { ResourceStatus } from "@destack/language/core/builtin/common";
-import {
-  EnumType,
-  Materialization,
-  NodeType,
-  StructType,
-} from "@destack/language/core/builtin/common";
+import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type {
@@ -468,7 +463,7 @@ export class CustomEntityDefinition
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`CustomEntityDefinition.materialization is required`);
@@ -1525,7 +1520,7 @@ export class CustomTraitDefinition
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`CustomTraitDefinition.materialization is required`);
@@ -2971,7 +2966,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`Snapshot.materialization is required`);
@@ -3497,6 +3492,21 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
 }
 registerNodeClass(NodeType.SNAPSHOT, Snapshot);
 /* ==== DESTACK_GENERATED_END:NODE:1300 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:14 ==== */
+/**
+ * Materialization
+ */
+export enum Materialization {
+  PARTIAL = 1,
+  FULL = 32,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.MATERIALIZATION, Materialization);
+/* ==== DESTACK_GENERATED_END:ENUM:14 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:1300 ==== */
 /**

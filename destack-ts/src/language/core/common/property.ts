@@ -3,7 +3,6 @@ import {
   CascadeAction,
   EdgeType,
   EnumType,
-  Materialization,
   NodeType,
   PrimitiveType,
   ScalarType,
@@ -16,7 +15,7 @@ import type {
   CustomTraitDefinition,
   Snapshot,
 } from "@destack/language/core/builtin/entity";
-import { Entity } from "@destack/language/core/builtin/entity";
+import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
@@ -470,7 +469,7 @@ export class CustomProperty
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`CustomProperty.materialization is required`);

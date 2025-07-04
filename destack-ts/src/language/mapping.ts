@@ -52,7 +52,6 @@ import type {
   EdgeType,
   EnumType,
   EnvironmentType,
-  Materialization,
   ModeType,
   NodeType,
   OperatingSystem,
@@ -78,6 +77,7 @@ import type {
   CustomEntityDefinition,
   CustomTraitDefinition,
   Entity,
+  Materialization,
   Metric,
   Record,
   Resource,
@@ -739,7 +739,6 @@ export type EnumTypeMapping = {
   [EnumType.PLATFORM_TYPE]: PlatformType;
   [EnumType.OPERATING_SYSTEM]: OperatingSystem;
   [EnumType.ENVIRONMENT_TYPE]: EnvironmentType;
-  [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.MODE_TYPE]: ModeType;
   [EnumType.TOOL_TYPE]: ToolType;
   [EnumType.CLOUD]: Cloud;
@@ -758,6 +757,7 @@ export type EnumTypeMapping = {
   [EnumType.CLIENT_TYPE]: ClientType;
   [EnumType.TENANCY]: Tenancy;
   [EnumType.JOINABLE_PERMISSION]: JoinablePermission;
+  [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.NODE_DEFINITION_TYPE]: NodeDefinitionType;
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
   [EnumType.STRUCT_DEFINITION_TYPE]: StructDefinitionType;

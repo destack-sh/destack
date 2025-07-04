@@ -238,7 +238,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     this.parentPtr = _parent;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.FULL_GRAPH */;
+      _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
       throw new Error(`Organization.materialization is required`);
