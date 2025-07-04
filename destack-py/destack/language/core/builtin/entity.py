@@ -7,7 +7,7 @@ from typing import (
     Union,
 )
 
-from .common import EnumType, Materialization, ResourceStatus, RoleType, ValueFactory
+from .common import EnumType, ResourceStatus, RoleType, ValueFactory
 from .const import ACTIVE_SNAPSHOT
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
@@ -41,6 +41,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
+@builtin_enum(EnumType.MATERIALIZATION)
+class Materialization(Enum):
+    """The materialization level of an Entity."""
+
+    PARTIAL = 1, "Partial Node"
+    FULL = 32, "Full Node"
+
+
 @builtin_node(NodeType.ENTITY, is_abstract=True)
 class Entity(Node):
     """
@@ -50,11 +58,12 @@ class Entity(Node):
     # 10-20: entity materialization
     materialization: Materialization = builtin_property(
         10,
+        is_readonly=True,
         is_managed=True,
         is_eq=False,
         is_hash=False,
         is_repr=False,
-        default=Materialization.FULL_GRAPH,
+        default=Materialization.FULL,
     )
     snapshot: Optional["Snapshot"] = builtin_property(
         11,
@@ -130,7 +139,7 @@ class Entity(Node):
         self,
         snapshot: "Snapshot",
         *,
-        materialization: Materialization = Materialization.PARTIAL_NODE,
+        materialization: Materialization = Materialization.PARTIAL,
     ) -> "Self":
         """
         Turn this Entity into its corresponding Entity in the given Snapshot.
@@ -250,6 +259,15 @@ class SnapshotType(Enum):
     FULL = 2, "Full", "A full Snapshot (full Nodes, full Graph)"
 
 
+@builtin_enum(EnumType.SNAPSHOT_STATUS)
+class SnapshotStatus(Enum):
+    """The status of a Snapshot."""
+
+    CREATING = 1
+    ACTIVE = 10
+    READONLY = 50
+
+
 @builtin_node(NodeType.SNAPSHOT)
 class Snapshot(
     IsSpatial,
@@ -288,13 +306,15 @@ class Snapshot(
     )
     name: str = builtin_property(101, is_repr=True)
 
+    status: SnapshotStatus = builtin_property(110, default=SnapshotStatus.ACTIVE)
+
     _token: Any | None = builtin_property_runtime()
 
     def into(
         self,
         snapshot: "Snapshot",
         *,
-        materialization: Materialization = Materialization.FULL_GRAPH,
+        materialization: Materialization = Materialization.FULL,
     ) -> "Self":
         if snapshot.id == self.id:
             return self

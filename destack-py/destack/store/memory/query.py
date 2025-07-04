@@ -34,7 +34,7 @@ from destack.language import (
 )
 from destack.utils.uuid import UUID
 
-from .core import MemoryContext, MemoryRow
+from .core import MemoryContext, MemoryRow, VersionedNodeKey
 from .wiring import unpack_node_row
 
 tracer = trace.get_tracer(__name__)
@@ -289,7 +289,7 @@ def _evaluate_aggregation(
         assert_never(aggregation.type)
 
 
-def _is_id_condition(condition: Condition) -> tuple[bool, Sequence[UUID]]:
+def _extract_id_condition(condition: Condition) -> tuple[bool, Sequence[UUID]]:
     """Check if condition is id = value or id IN values and return the value(s)."""
     if (
         (condition.type == ConditionalType.EQUALS or condition.type == ConditionalType.IN)
@@ -326,11 +326,13 @@ def _walk_node(
     direction: EdgeDirection,
     depth: int,
     where: Condition | None,
+    snapshot_path: Sequence[UUID],
 ) -> list[NodeReference]:
     """Get the cascaded Nodes for a query."""
 
     nodes_by_id: dict[UUID, NodeReference] = {ptr.id: ptr for ptr in roots_ptr}
     definitions = context.resolve(definition)
+    snapshot_id = snapshot_path[-1] if snapshot_path else None
 
     # parent walk
     if direction == EdgeDirection.PARENT:
@@ -345,8 +347,9 @@ def _walk_node(
             for rel in definitions:
                 table = context.get(rel)
                 for node_id in current_node_ids:
+                    node_key = VersionedNodeKey(id=node_id, snapshot_id=snapshot_id)
                     if (
-                        (row := table.rows_by_id.get(node_id)) is not None
+                        (row := table.rows.get(node_key)) is not None
                         and (parent_ptr := row.parent_ptr) is not None
                         and (parent_id := parent_ptr.id) not in nodes_by_id
                         and (where is None or _evaluate_condition(context, where, row))
@@ -371,7 +374,8 @@ def _walk_node(
             for rel in definitions:
                 table = context.get(rel)
                 for parent_id in current_parent_ids:
-                    if children := table.rows_by_parent_id.get(parent_id):
+                    parent_key = VersionedNodeKey(id=parent_id, snapshot_id=snapshot_id)
+                    if children := table.rows_by_parent.get(parent_key):
                         for row in children:
                             if (where is None or _evaluate_condition(context, where, row)) and (
                                 node_id := row.id
@@ -401,6 +405,7 @@ def _query_node(
     sort: Sequence[Sort] | None,
     limit: int | None,
     offset: int | None,
+    snapshot_path: Sequence[UUID],
     _ignore_multi: bool = False,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
@@ -420,6 +425,7 @@ def _query_node(
                 sort=sort,
                 limit=limit,
                 offset=offset,
+                snapshot_path=snapshot_path,
                 _ignore_multi=True,
             )
             all_values.extend(values)
@@ -427,22 +433,24 @@ def _query_node(
         return all_values, all_ptrs
 
     table = context.get(definition)
+    snapshot_id = snapshot_path[-1] if snapshot_path else None
 
     # filter
     if where is not None:
-        is_id_query, id_values = _is_id_condition(where)
+        is_id_query, id_values = _extract_id_condition(where)
         if is_id_query:
             filtered_rows: list[MemoryRow] = []
             for id_val in id_values:
-                if (row := table.rows_by_id.get(id_val)) is not None:
+                node_key = VersionedNodeKey(id=id_val, snapshot_id=snapshot_id)
+                if (row := table.rows.get(node_key)) is not None:
                     filtered_rows.append(row)
         else:
             filtered_rows = []
-            for row in table.rows_by_id.values():
+            for row in table.rows.values():
                 if _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
-        filtered_rows = list(table.rows_by_id.values())
+        filtered_rows = list(table.rows.values())
 
     # sort
     if sort:
@@ -468,22 +476,29 @@ def _query_scalar(
     definition: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
+    snapshot_path: Sequence[UUID],
 ) -> Value:
     """Execute a scalar Query."""
+    snapshot_id = snapshot_path[-1] if snapshot_path else None
+
     # handle multi-definitions
     if definition.is_multi:
         definitions = context.resolve(definition)
         filtered_rows: list[MemoryRow] = []
         for rel in definitions:
             table = context.get(rel)
-            for row in table.rows_by_id.values():
-                if where is None or _evaluate_condition(context, where, row):
+            for row in table.rows.values():
+                if row.snapshot_id == snapshot_id and (
+                    where is None or _evaluate_condition(context, where, row)
+                ):
                     filtered_rows.append(row)
     else:
         table = context.get(definition)
         filtered_rows = []
-        for row in table.rows_by_id.values():
-            if where is None or _evaluate_condition(context, where, row):
+        for row in table.rows.values():
+            if row.snapshot_id == snapshot_id and (
+                where is None or _evaluate_condition(context, where, row)
+            ):
                 filtered_rows.append(row)
 
     # execute
@@ -509,33 +524,34 @@ def _query_grouped_node(
     group_by: Sequence[Expression],
     limit: int | None,
     offset: int | None,
+    snapshot_path: Sequence[UUID],
 ) -> list[tuple[Value, list[Value], list[NodeReference]]]:
     """Execute a grouped node Query."""
     if definition.is_multi:
         raise NotImplementedError("grouped node queries not supported for multi definitions")
 
     table = context.get(definition)
+    snapshot_id = snapshot_path[-1] if snapshot_path else None
 
     # filter
     if where is not None:
-        is_id_query, id_values = _is_id_condition(where)
+        is_id_query, node_ids = _extract_id_condition(where)
         if is_id_query:
             filtered_rows: list[MemoryRow] = []
-            if isinstance(id_values, (list, tuple)):
-                for id_val in id_values:
-                    if id_val in table.rows_by_id:
-                        filtered_rows.append(table.rows_by_id[id_val])
-            else:
-                if id_values in table.rows_by_id:
-                    filtered_rows.append(table.rows_by_id[id_values])
+            for node_id in node_ids:
+                node_key = VersionedNodeKey(id=node_id, snapshot_id=snapshot_id)
+                if (row := table.rows.get(node_key)) is not None and _evaluate_condition(
+                    context, where, row
+                ):
+                    filtered_rows.append(row)
         else:
             # filter rows based on where condition
             filtered_rows = []
-            for row in table.rows_by_id.values():
-                if _evaluate_condition(context, where, row):
+            for row in table.rows.values():
+                if row.snapshot_id == snapshot_id and _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
-        filtered_rows = list(table.rows_by_id.values())
+        filtered_rows = list(table.rows.values())
 
     # group rows by group_by expressions
     groups: dict[tuple, list[MemoryRow]] = {}
@@ -584,6 +600,7 @@ def _query_grouped_scalar(
     where: Condition | None,
     having: Condition | None,
     group_by: Sequence[Expression],
+    snapshot_path: Sequence[UUID],
 ) -> list[tuple[Value, Value]]:
     """Execute a grouped scalar Query."""
     if definition.is_multi:
@@ -593,7 +610,7 @@ def _query_grouped_scalar(
 
     # filter rows based on where condition
     filtered_nodes: list[MemoryRow] = []
-    for row in table.rows_by_id.values():
+    for row in table.rows.values():
         if where is None or _evaluate_condition(context, where, row):
             filtered_nodes.append(row)
 
@@ -629,7 +646,9 @@ def _query_grouped_scalar(
 
 @tracer.start_as_current_span("memory.query_clause")
 def _query_clause(
-    context: MemoryContext, query: Query, where: Condition | None
+    context: MemoryContext,
+    query: Query,
+    where: Condition | None,
 ) -> tuple[QueryResult, Sequence[NodeReference]]:
     """Execute the specific Query "clause" (ignoring subqueries)."""
 
@@ -652,6 +671,7 @@ def _query_clause(
             sort=query.sort,
             limit=query.limit,
             offset=query.offset,
+            snapshot_path=query.snapshot_path,
         )
         result = QueryResult(id=query.id, type=query.type, nodes=nodes)
 
@@ -663,6 +683,7 @@ def _query_clause(
             definition=query.definition,
             aggregation=query.aggregation,
             where=combined_where,
+            snapshot_path=query.snapshot_path,
         )
         nodes_ptr = []
         result = QueryResult(id=query.id, type=query.type, scalar=scalar_result)
@@ -684,6 +705,7 @@ def _query_clause(
             group_by=query.group_by,
             limit=query.limit,
             offset=query.offset,
+            snapshot_path=query.snapshot_path,
         )
         nodes_ptr = []
         groups: list[QueryResultGroup] = []
@@ -708,6 +730,7 @@ def _query_clause(
             where=combined_where,
             having=query.having,
             group_by=query.group_by,
+            snapshot_path=query.snapshot_path,
         )
         nodes_ptr = []
         groups: list[QueryResultGroup] = []
@@ -770,6 +793,7 @@ def _execute_subquery(
                 direction=EdgeDirection.PARENT,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
+                snapshot_path=subquery.snapshot_path,
             )
             subquery_where = subquery.definition.resolve_property_or_error("id").in_(
                 *(n.id for n in expanded_nodes_ptr)
@@ -797,6 +821,7 @@ def _execute_subquery(
                 direction=EdgeDirection.CHILD,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
+                snapshot_path=subquery.snapshot_path,
             )
             subquery_where = Condition(
                 type=ConditionalType.IN,
@@ -824,7 +849,9 @@ def _execute_subquery(
 
 @tracer.start_as_current_span("memory.query")
 def execute_query(
-    context: MemoryContext, query: Query, where: Condition | None = None
+    context: MemoryContext,
+    query: Query,
+    where: Condition | None = None,
 ) -> QueryResult:
     """Execute the Query (and any subqueries)."""
 

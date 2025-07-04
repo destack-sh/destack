@@ -9,16 +9,25 @@ from destack.language import (
     CASCADING_EDIT_TYPES,
     Change,
     Edit,
+    EditOperation,
     EditType,
+    IsArchivable,
+    IsDeletable,
+    Node,
     NodeReference,
     NodeType,
 )
-from destack.language.core.common.edit import EditOperation
 
-from .core import MemoryContext, MemoryDatabase, MemoryTable
+from .core import MemoryContext, MemoryDatabase, MemoryTable, VersionedNodeKey
+from .wiring import pack_node_row
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
+
+NODE_PARENT_KEY = str(Node.property("parent").id)
+
+ARCHIVED_AT_KEY = str(IsArchivable.property("archived_at").id)
+DELETED_AT_KEY = str(IsDeletable.property("deleted_at").id)
 
 
 @tracer.start_as_current_span("memory.execute_change")
@@ -103,16 +112,6 @@ def _execute_cascade(
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("memory.execute_schema_edits")
-def _execute_schema_edits(
-    database: MemoryDatabase,
-    context: MemoryContext,
-    edits: Sequence[Edit],
-) -> None:
-    """Execute the Edits against the schema (schema only, no data)."""
-    raise NotImplementedError
-
-
 @tracer.start_as_current_span("memory.execute_data_edit")
 def _execute_data_edit(
     database: MemoryDatabase,
@@ -124,27 +123,23 @@ def _execute_data_edit(
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:
     """
     Execute the Edits to the data (data only, no schema).
-    Returns the Edits and any cascaded Edits.
+    Returns the applied Edits and any cascaded Edits.
     """
     from destack.language import ScalarType
-    from destack.language.registry import NODE_CLASS_BY_TYPE
-
-    from .wiring import pack_node_row
-
-    node_type = table.node_type
-    node_cls = NODE_CLASS_BY_TYPE[node_type]
 
     # create/upsert
     if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
-            node_id = edit.node_ptr.id
-            if edit_type == EditType.UPSERT or node_id not in table.rows_by_id:
+            snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
+            node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
+            if edit_type == EditType.UPSERT or node_key not in table.rows:
                 row = pack_node_row(table, edit.value)
-                table.rows_by_id[node_id] = row
+                table.rows[node_key] = row
                 if row.parent_ptr is not None:
                     parent_table = context.get(row.parent_ptr)
-                    parent_table.rows_by_parent_id[row.parent_ptr.id].append(row)
+                    parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
+                    parent_table.rows_by_parent[parent_key].append(row)
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",
@@ -157,13 +152,12 @@ def _execute_data_edit(
     # update
     elif edit_type == EditType.UPDATE:
         for edit in edits:
+            snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
             assert edit.attribute is not None, f"no prop_ptr for {edit!r}"
             prop = edit.attribute.resolve()
             assert prop is not None, f"no prop for {edit!r}"
-            node_id = edit.node_ptr.id
-
-            if node_id in table.rows_by_id:
-                row = table.rows_by_id[node_id]
+            node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
+            if row := table.rows.get(node_key):
                 if edit.operation == EditOperation.SET:
                     assert edit.value is not None, f"no value for {edit!r}"
                     row.value[str(prop.id)] = edit.value.value
@@ -182,23 +176,24 @@ def _execute_data_edit(
 
     # move
     elif edit_type == EditType.MOVE:
-        parent_prop = node_cls.__parent_property__
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
             assert edit.value.type.scalar_type == ScalarType.NODE_REFERENCE, (
                 f"unexpected value: {edit!r}"
             )
-            node_id = edit.node_ptr.id
-            if node_id in table.rows_by_id:
-                row = table.rows_by_id[node_id]
+            snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
+            node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
+            if row := table.rows.get(node_key):
                 if row.parent_ptr is not None:
                     parent_table = context.get(row.parent_ptr)
-                    parent_table.rows_by_parent_id[row.parent_ptr.id].remove(row)
+                    parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
+                    parent_table.rows_by_parent[parent_key].remove(row)
                 row.parent_ptr = edit.value.value
-                row.value[str(parent_prop.id)] = edit.value.value
+                row.value[NODE_PARENT_KEY] = edit.value.value
                 if row.parent_ptr is not None:
                     parent_table = context.get(row.parent_ptr)
-                    parent_table.rows_by_parent_id[row.parent_ptr.id].append(row)
+                    parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
+                    parent_table.rows_by_parent[parent_key].append(row)
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",
@@ -229,16 +224,19 @@ def _execute_data_edit(
         # update timestamps
         for node_ptr in cascaded_node_ptrs:
             node_table = context.get(node_ptr)
-            if node_ptr.id in node_table.rows_by_id:
-                row = node_table.rows_by_id[node_ptr.id]
+            snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
+            node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
+            if row := node_table.rows.get(node_key):
                 if edit_type == EditType.ARCHIVE:
-                    row.value["14"] = change.created_at
+                    row.value[ARCHIVED_AT_KEY] = change.created_at
                 elif edit_type == EditType.UNARCHIVE:
-                    row.value.pop("14", None)
+                    row.value.pop(ARCHIVED_AT_KEY, None)
                 elif edit_type == EditType.DELETE:
-                    row.value["15"] = change.created_at
+                    row.value[DELETED_AT_KEY] = change.created_at
                 elif edit_type == EditType.RESTORE:
-                    row.value.pop("15", None)
+                    row.value.pop(DELETED_AT_KEY, None)
+                else:
+                    assert_never(edit_type)
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",
@@ -264,10 +262,13 @@ def _execute_data_edit(
         # delete rows
         for node_ptr in cascaded_node_ptrs:
             node_table = context.get(node_ptr)
-            row = node_table.rows_by_id.pop(node_ptr.id, None)
+            snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
+            node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
+            row = node_table.rows.pop(node_key, None)
             if row is not None and row.parent_ptr is not None:
                 parent_table = context.get(row.parent_ptr)
-                parent_table.rows_by_parent_id[row.parent_ptr.id].remove(row)
+                parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
+                parent_table.rows_by_parent[parent_key].remove(row)
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",

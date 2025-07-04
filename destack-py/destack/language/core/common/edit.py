@@ -119,6 +119,8 @@ class Edit(StructFrozen):
     )
     snapshot: Optional["Snapshot"] = builtin_property(121)
     ancestors: list[UUID] = builtin_property(122)
+    if TYPE_CHECKING:
+        snapshot_ptr: NodeReference | None = None
 
 
 @builtin_struct(StructType.ORIGIN, frozen=True)

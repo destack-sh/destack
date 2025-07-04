@@ -1,9 +1,10 @@
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Any, assert_never
+from typing import Any, NamedTuple, assert_never
 
 from destack.language import (
     Edit,
+    Materialization,
     NodeDefinitionReference,
     NodeDefinitionType,
     NodeReference,
@@ -16,6 +17,11 @@ from destack.language.registry import (
 from destack.utils.uuid import UUID
 
 
+class VersionedNodeKey(NamedTuple):
+    id: UUID
+    snapshot_id: UUID | None
+
+
 class MemoryDatabase:
     """In-memory database of Nodes."""
 
@@ -25,7 +31,7 @@ class MemoryDatabase:
         self.tables: dict[NodeType, MemoryTable] = {}
 
     def __str__(self) -> str:
-        num_nodes = sum(len(table.rows_by_id) for table in self.tables.values())
+        num_nodes = sum(len(table.rows) for table in self.tables.values())
         return f"nodes={num_nodes}, tables={len(self.tables)}"
 
     def __repr__(self) -> str:
@@ -93,8 +99,8 @@ class MemoryTable:
     __slots__ = (
         "database",
         "node_type",
-        "rows_by_id",
-        "rows_by_parent_id",
+        "rows",
+        "rows_by_parent",
     )
 
     def __init__(
@@ -104,11 +110,11 @@ class MemoryTable:
     ):
         self.database = database
         self.node_type = metatype
-        self.rows_by_id: dict[UUID, MemoryRow] = {}
-        self.rows_by_parent_id: dict[UUID, list[MemoryRow]] = defaultdict(list)
+        self.rows: dict[VersionedNodeKey, MemoryRow] = {}
+        self.rows_by_parent: dict[VersionedNodeKey, list[MemoryRow]] = defaultdict(list)
 
     def __str__(self) -> str:
-        return f"node_type={self.node_type.name}, rows={len(self.rows_by_id)}"
+        return f"node_type={self.node_type.name}, rows={len(self.rows)}"
 
     def __repr__(self) -> str:
         return f"<MemoryTable {self!s}>"
@@ -117,13 +123,24 @@ class MemoryTable:
 class MemoryRow:
     """In-memory row of a Node."""
 
-    __slots__ = ("id", "metatype", "parent_ptr", "ptr", "table", "value")
+    __slots__ = (
+        "id",
+        "materialization",
+        "metatype",
+        "parent_ptr",
+        "ptr",
+        "snapshot_id",
+        "table",
+        "value",
+    )
 
     def __init__(
         self,
         table: "MemoryTable",
         metatype: NodeType,
         id: UUID,
+        snapshot_id: UUID | None,
+        materialization: Materialization,
         ptr: NodeReference,
         parent_ptr: NodeReference | None,
         value: dict[str, Any],
@@ -131,6 +148,8 @@ class MemoryRow:
         self.table = table
         self.metatype = metatype
         self.id = id
+        self.snapshot_id = snapshot_id
+        self.materialization = materialization
         self.ptr = ptr
         self.parent_ptr = parent_ptr
         self.value = value
