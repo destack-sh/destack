@@ -11,7 +11,7 @@ from opentelemetry import trace
 
 from destack.utils.uuid import UUID
 
-from ..builtin import ACTIVE_SESSION, IsSubject, Node, TypeCardinality
+from ..builtin import ACTIVE_SESSION, Entity, IsSubject, TypeCardinality
 from ..common import (
     Change,
     ChangeResult,
@@ -70,7 +70,7 @@ class Session:
         self.supergraph = Supergraph(self)
 
         # transaction (pending)
-        self.dirty: dict[UUID, Node] = {}
+        self.dirty: dict[UUID, Entity] = {}
         self.edits: list[Edit] = []
         self.changes: list[Change] = []
 
@@ -111,8 +111,8 @@ class Session:
             self._token = None
         self.closed_at = self.oracle.utc()
 
-    def create(self, node: Node):
-        """Creates a new Node."""
+    def create(self, node: Entity):
+        """Creates a new Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.CREATE, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
@@ -120,8 +120,8 @@ class Session:
         node._is_new = False
         node._is_attached = True
 
-    def upsert(self, node: Node):
-        """Creates or updates a Node."""
+    def upsert(self, node: Entity):
+        """Creates or updates an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.UPSERT, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
@@ -129,23 +129,23 @@ class Session:
         node._is_new = False
         node._is_attached = True
 
-    def update(self, node: Node, edit: Edit):
-        """Updates a Node."""
+    def update(self, node: Entity, edit: Edit):
+        """Updates an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
         self.edits.append(edit)
         self.dirty[node.id] = node
 
-    def move(self, node: Node, parent: Node):
-        """Moves a Node to a new parent."""
+    def move(self, node: Entity, parent: Entity):
+        """Moves an Entity to a new parent."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
         edit = Edit(type=EditType.MOVE, node=node, value=to_value(parent))
         self.edits.append(edit)
         self.dirty[node.id] = node
 
-    def archive(self, node: Node):
-        """Archives a Node."""
+    def archive(self, node: Entity):
+        """Archives an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
         undo_edit = Edit(
@@ -155,16 +155,16 @@ class Session:
         self.edits.append(edit)
         self.dirty[node.id] = node
 
-    def unarchive(self, node: Node):
-        """Unarchives a Node."""
+    def unarchive(self, node: Entity):
+        """Unarchives an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
         edit = Edit(type=EditType.UNARCHIVE, node=node)
         self.edits.append(edit)
         self.dirty[node.id] = node
 
-    def delete(self, node: Node):
-        """Deletes a Node."""
+    def delete(self, node: Entity):
+        """Deletes an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
         undo_edit = Edit(type=EditType.RESTORE, node=node, value=to_value(node, node_as_value=True))
@@ -172,16 +172,16 @@ class Session:
         self.edits.append(edit)
         self.dirty[node.id] = node
 
-    def restore(self, node: Node):
-        """Restores a deleted Node."""
+    def restore(self, node: Entity):
+        """Restores a deleted Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
         edit = Edit(type=EditType.RESTORE, node=node)
         self.edits.append(edit)
         self.dirty[node.id] = node
 
-    def _flush_node(self, node: Node):
-        """Turn a dirty Node into Edits."""
+    def _flush_node(self, node: Entity):
+        """Turn a dirty Entity into Edits."""
         if node._is_new:
             node._is_new = False
         elif node._dirty is not None:

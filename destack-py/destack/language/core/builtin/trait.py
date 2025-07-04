@@ -147,11 +147,17 @@ class IsArchivable(Trait):
 
     def archive(self):
         """Archive this Node."""
+        from destack.language.core.builtin import Entity
+
+        assert isinstance(self, Entity), f"{self!r} is not an Entity"
         assert not self.archived_at, f"{self!r} is already archived"
         self._session.archive(self)
 
     def unarchive(self):
         """Unarchive this Node."""
+        from destack.language.core.builtin import Entity
+
+        assert isinstance(self, Entity), f"{self!r} is not an Entity"
         assert self.archived_at, f"{self!r} is not archived"
         self._session.unarchive(self)
 
@@ -164,11 +170,17 @@ class IsDeletable(Trait):
 
     def delete(self):
         """Delete this Node."""
+        from destack.language.core.builtin import Entity
+
+        assert isinstance(self, Entity), f"{self!r} is not an Entity"
         assert not self.deleted_at, f"{self!r} is already deleted"
         self._session.delete(self)
 
     def restore(self):
         """Restore this deleted Node from the trash."""
+        from destack.language.core.builtin import Entity
+
+        assert isinstance(self, Entity), f"{self!r} is not an Entity"
         assert self.deleted_at, f"{self!r} is not deleted"
         self._session.restore(self)
 

@@ -7,7 +7,6 @@ import type {
 } from "@destack/language/core/builtin/relation";
 import { isStruct } from "@destack/language/core/builtin/struct";
 import type { TraitClass } from "@destack/language/core/builtin/trait";
-import { INTER_ORDER_TYPES, IsOrdered, IsSpatial } from "@destack/language/core/builtin/trait";
 import type {
   Aggregation,
   Condition,
@@ -27,13 +26,7 @@ import {
   Supergraph,
 } from "@destack/language/core/runtime";
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
-import {
-  NODE_CLASS_BY_TYPE,
-  PARENT_TYPES_BY_NODE_TYPE,
-  registerNodeClass,
-  STRUCT_CLASS_BY_TYPE,
-} from "@destack/language/registry";
-import { getOrderKey } from "@destack/utils";
+import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { Casing, toCasing } from "@destack/utils/string";
 import { v4 as uuid4 } from "uuid";
 
@@ -66,7 +59,6 @@ export abstract class Node extends BuiltinObject {
   _ref: NodeReference | null;
   _isNew: boolean;
   _isAttached: boolean;
-  _dirty: Record<string, any> | null;
 
   constructor(
     id: string | null,
@@ -92,7 +84,6 @@ export abstract class Node extends BuiltinObject {
     this._connection = _connection;
     this._hash = this.id;
     this._ref = null;
-    this._dirty = null;
     this._isNew = _isNew;
     this._isAttached = _isAttached;
   }
@@ -154,131 +145,6 @@ export abstract class Node extends BuiltinObject {
       this._ref = this.__toRef__();
     }
     return this._ref;
-  }
-
-  _doSet(key: string, value: any): void {
-    const prop = (this.constructor as NodeClass).__properties__[key];
-    if (prop != null && !this._isNew) {
-      const oldValue = (this as any)[key];
-      if (this._dirty == null) {
-        this._dirty = {};
-      }
-      if (this._dirty[prop.name] === undefined) {
-        this._dirty[prop.name] = oldValue;
-      }
-      if (!this._session.dirty[this.id]) {
-        this._session.dirty[this.id] = this;
-      }
-    }
-    (this as any)[key] = value;
-  }
-
-  moveTo(parent: Node): void {
-    throw new Error("not implemented");
-  }
-
-  /** Append a child to this Node. */
-  addChild(child: Node, options?: { after?: Node; before?: Node }): this {
-    const oldGraph = child._graph;
-    const newGraph = this._graph;
-    const session = this._session;
-    const nodes: Node[] = [child, ...child._graph.getDescendants(child)];
-
-    // validate parent-child definitionship
-    if (!PARENT_TYPES_BY_NODE_TYPE[child.metatype].includes(this.metatype)) {
-      throw new Error(
-        `${this.repr()} cannot parent ${child.repr()} (allowed: ${PARENT_TYPES_BY_NODE_TYPE[
-          child.metatype
-        ]
-          .map((type) => NodeType[type])
-          .join(", ")})`,
-      );
-    } else if (oldGraph === newGraph) {
-      throw new Error(`${child.repr()} is already in same graph of ${this.repr()}`);
-    } else if (oldGraph.supergraph !== this._supergraph) {
-      throw new Error(`${child.repr()} is not in supergraph of ${this.repr()}`);
-    }
-
-    // assign order
-    if (hasTrait(child, TraitType.ORDERED)) {
-      const orderType = child.__inherits__.find((type) => type in INTER_ORDER_TYPES);
-      const peerClass = orderType
-        ? NODE_CLASS_BY_TYPE[orderType]
-        : (child.constructor as NodeClass);
-      const existingNodes = this._graph.getChildren(this, peerClass) as (Node & IsOrdered)[];
-      if (existingNodes.length > 0) {
-        const orderKey = getOrderKey(existingNodes[existingNodes.length - 1].orderKey, null);
-        // @ts-expect-error(readonly)
-        (child as unknown as Node & IsOrdered).orderKey = orderKey;
-      }
-    }
-
-    // promote self to polygraph if needed
-    if (newGraph instanceof SingletonGraph) {
-      const promotedGraph = this._supergraph.promoteToPolygraph(newGraph);
-      this._graph = promotedGraph;
-    }
-
-    // move to new graph
-    if (nodes.length === oldGraph.size) {
-      // all nodes were moved
-      this._supergraph.removeGraph(oldGraph);
-    } else {
-      for (const node of nodes) {
-        oldGraph.remove(node);
-      }
-    }
-
-    // set parent reference
-    (child as any).parentPtr = this.toRef();
-    for (const node of nodes) {
-      node._graph = this._graph;
-      this._graph.add(node);
-    }
-
-    // assign space for spatial nodes
-    if (hasTrait(child, TraitType.SPATIAL)) {
-      let spacePtr: NodeReference | null = null;
-      if (
-        hasTrait(this, TraitType.SPATIAL) &&
-        (this as unknown as Node & IsSpatial).spacePtr != null
-      ) {
-        spacePtr = (this as unknown as Node & IsSpatial).spacePtr;
-      } else if (this.metatype === NodeType.SPACE) {
-        spacePtr = this.toRef();
-      }
-      if (spacePtr) {
-        for (const node of nodes) {
-          if (hasTrait(node, TraitType.SPATIAL)) {
-            // @ts-expect-error(readonly)
-            (node as unknown as Node & Spatial).spacePtr = spacePtr;
-          }
-        }
-      }
-    }
-
-    // create new nodes if needed
-    if (child._isNew && this._isAttached) {
-      for (const node of nodes) {
-        node._ref = null; // invalidate cached ref
-        session.create(node);
-      }
-    }
-
-    return this;
-  }
-
-  /** Append multiple children to this Node. */
-  addChildren(children: Node[], options?: { after?: Node; before?: Node }): this {
-    for (const child of children) {
-      this.addChild(child, options);
-    }
-    return this;
-  }
-
-  /** Remove a child from this Node. */
-  removeChild(child: Node): void {
-    throw new Error("not implemented");
   }
 
   /** Get the children of this Node. */

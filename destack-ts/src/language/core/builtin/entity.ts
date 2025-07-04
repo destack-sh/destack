@@ -1,8 +1,9 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { ResourceStatus } from "@destack/language/core/builtin/common";
-import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { EnumType, NodeType, StructType, TraitType } from "@destack/language/core/builtin/common";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
-import { Node } from "@destack/language/core/builtin/node";
+import type { NodeClass } from "@destack/language/core/builtin/node";
+import { Node, hasTrait } from "@destack/language/core/builtin/node";
 import type {
   NodeDefinitionReference,
   NodeReference,
@@ -20,14 +21,18 @@ import type {
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
+import { INTER_ORDER_TYPES, IsOrdered } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import { SingletonGraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import {
+  NODE_CLASS_BY_TYPE,
+  PARENT_TYPES_BY_NODE_TYPE,
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
@@ -41,7 +46,7 @@ import {
   SnapshotStatusProto,
   SnapshotTypeProto,
 } from "@destack/proto";
-import { base64Decode } from "@destack/utils";
+import { base64Decode, getOrderKey } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -152,7 +157,134 @@ export abstract class Entity extends Node {
   declare readonly updatedByPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  _dirty: { [K: string]: any } | null = null;
+
+  _doSet(key: string, value: any): void {
+    const prop = (this.constructor as NodeClass).__properties__[key];
+    if (prop != null && !this._isNew) {
+      const oldValue = (this as any)[key];
+      if (this._dirty == null) {
+        this._dirty = {};
+      }
+      if (this._dirty[prop.name] === undefined) {
+        this._dirty[prop.name] = oldValue;
+      }
+      if (!this._session.dirty[this.id]) {
+        this._session.dirty[this.id] = this;
+      }
+    }
+    (this as any)[key] = value;
+  }
+
+  moveTo(parent: Entity): void {
+    throw new Error("not implemented");
+  }
+
+  /** Append a child to this Entity. */
+  addChild(child: Entity, options?: { after?: Node; before?: Node }): this {
+    const oldGraph = child._graph;
+    const newGraph = this._graph;
+    const session = this._session;
+    const nodes: Entity[] = [child, ...(child._graph.getDescendants(child) as Entity[])];
+
+    // validate parent-child definitionship
+    if (!PARENT_TYPES_BY_NODE_TYPE[child.metatype].includes(this.metatype)) {
+      throw new Error(
+        `${this.repr()} cannot parent ${child.repr()} (allowed: ${PARENT_TYPES_BY_NODE_TYPE[
+          child.metatype
+        ]
+          .map((type) => NodeType[type])
+          .join(", ")})`,
+      );
+    } else if (oldGraph === newGraph) {
+      throw new Error(`${child.repr()} is already in same graph of ${this.repr()}`);
+    } else if (oldGraph.supergraph !== this._supergraph) {
+      throw new Error(`${child.repr()} is not in supergraph of ${this.repr()}`);
+    }
+
+    // assign order
+    if (hasTrait(child, TraitType.ORDERED)) {
+      const orderType = child.__inherits__.find((type) => type in INTER_ORDER_TYPES);
+      const peerClass = orderType
+        ? NODE_CLASS_BY_TYPE[orderType]
+        : (child.constructor as NodeClass);
+      const existingNodes = this._graph.getChildren(this, peerClass) as (Node & IsOrdered)[];
+      if (existingNodes.length > 0) {
+        const orderKey = getOrderKey(existingNodes[existingNodes.length - 1].orderKey, null);
+        // @ts-expect-error(readonly)
+        (child as unknown as Node & IsOrdered).orderKey = orderKey;
+      }
+    }
+
+    // promote self to polygraph if needed
+    if (newGraph instanceof SingletonGraph) {
+      const promotedGraph = this._supergraph.promoteToPolygraph(newGraph);
+      this._graph = promotedGraph;
+    }
+
+    // move to new graph
+    if (nodes.length === oldGraph.size) {
+      // all nodes were moved
+      this._supergraph.removeGraph(oldGraph);
+    } else {
+      for (const node of nodes) {
+        oldGraph.remove(node);
+      }
+    }
+
+    // set parent reference
+    (child as any).parentPtr = this.toRef();
+    for (const node of nodes) {
+      node._graph = this._graph;
+      this._graph.add(node);
+    }
+
+    // assign space for spatial nodes
+    if (hasTrait(child, TraitType.SPATIAL)) {
+      let spacePtr: NodeReference | null = null;
+      if (
+        hasTrait(this, TraitType.SPATIAL) &&
+        (this as unknown as Node & IsSpatial).spacePtr != null
+      ) {
+        spacePtr = (this as unknown as Node & IsSpatial).spacePtr;
+      } else if (this.metatype === NodeType.SPACE) {
+        spacePtr = this.toRef();
+      }
+      if (spacePtr) {
+        for (const node of nodes) {
+          if (hasTrait(node, TraitType.SPATIAL)) {
+            // @ts-expect-error(readonly)
+            (node as unknown as Node & Spatial).spacePtr = spacePtr;
+          }
+        }
+      }
+    }
+
+    // create new nodes if needed
+    if (child._isNew && this._isAttached) {
+      for (const node of nodes) {
+        node._ref = null; // invalidate cached ref
+        session.create(node);
+      }
+    }
+
+    return this;
+  }
+
+  /** Append multiple children to this Entity. */
+  addChildren(children: Entity[], options?: { after?: Node; before?: Node }): this {
+    for (const child of children) {
+      this.addChild(child, options);
+    }
+    return this;
+  }
+
+  /** Remove a child from this Entity. */
+  removeChild(child: Entity): void {
+    throw new Error("not implemented");
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITY, Entity);

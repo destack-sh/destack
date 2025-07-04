@@ -178,7 +178,7 @@ def _execute_data_edit(
     # move
     elif edit_type == EditType.MOVE:
         for edit in edits:
-            assert edit.value is not None, f"no value for {edit!r}"
+            assert edit.value is not None and edit.value.value is not None, f"no value for {edit!r}"
             assert edit.value.type.scalar_type == ScalarType.NODE_REFERENCE, (
                 f"unexpected value: {edit!r}"
             )

@@ -6,6 +6,7 @@ from pytest_lazy_fixtures import lf
 from destack.language import (
     Client,
     ClientType,
+    Entity,
     Folder,
     FolderType,
     FrameView,
@@ -39,7 +40,7 @@ ENTITY_SESSIONS = (lf("memory_session"), lf("postgres_session"))
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_roundtrip_create_node(node: Node, session: Session):
     assert session.store is not None, f"no store in session: {session!r}"
-    if node.metatype not in session.store.node_types:
+    if node.metatype not in session.store.node_types or not isinstance(node, Entity):
         return  # ignore custom/excluded nodes
 
     session.upsert(node)
