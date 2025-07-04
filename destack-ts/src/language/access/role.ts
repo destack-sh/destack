@@ -107,10 +107,7 @@ export abstract class RoleEvent extends Event {
     }
     return null;
   }
-  set node(node: Role) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
+  declare readonly nodePtr: NodeReference;
 
   /**
    * RoleEvent.subject
@@ -122,10 +119,7 @@ export abstract class RoleEvent extends Event {
     }
     return null;
   }
-  set subject(node: Node & IsSubject) {
-    this.subjectPtr = node.toRef();
-  }
-  declare subjectPtr: NodeReference;
+  declare readonly subjectPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -204,10 +198,7 @@ export class RoleAssignedEvent extends RoleEvent {
     }
     return null;
   }
-  set node(node: Role) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RoleEvent.subject
@@ -219,10 +210,7 @@ export class RoleAssignedEvent extends RoleEvent {
     }
     return null;
   }
-  set subject(node: Node & IsSubject) {
-    this.subjectPtr = node.toRef();
-  }
-  subjectPtr: NodeReference;
+  readonly subjectPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -301,7 +289,7 @@ export class RoleAssignedEvent extends RoleEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RoleAssignedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -684,10 +672,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     }
     return null;
   }
-  set node(node: Role) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RoleEvent.subject
@@ -699,10 +684,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     }
     return null;
   }
-  set subject(node: Node & IsSubject) {
-    this.subjectPtr = node.toRef();
-  }
-  subjectPtr: NodeReference;
+  readonly subjectPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -781,7 +763,7 @@ export class RoleUnassignedEvent extends RoleEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RoleUnassignedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1225,17 +1207,65 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   /**
    * Role.type
    */
-  type: RoleType;
+  get type(): RoleType {
+    return this.#type;
+  }
+  set type(value: RoleType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: RoleType;
 
   /**
    * Role.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Role.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -1336,14 +1366,14 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     if (_type === null) {
       throw new Error(`Role.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Role.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -1354,9 +1384,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Role.createdAt and Role.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1379,15 +1407,15 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
@@ -1415,10 +1443,10 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1531,10 +1559,10 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
     return objectValue;
   }
@@ -1670,10 +1698,10 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.type) as RoleTypeProto;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.type = Number(object.#type) as RoleTypeProto;
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
     return objectProto as RoleProto;
   }

@@ -109,10 +109,7 @@ export abstract class InviteEvent extends Event {
     }
     return null;
   }
-  set node(node: Invite) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
+  declare readonly nodePtr: NodeReference;
 
   /**
    * InviteEvent.joinable
@@ -124,10 +121,7 @@ export abstract class InviteEvent extends Event {
     }
     return null;
   }
-  set joinable(node: Node & IsJoinable) {
-    this.joinablePtr = node.toRef();
-  }
-  declare joinablePtr: NodeReference;
+  declare readonly joinablePtr: NodeReference;
 
   /**
    * InviteEvent.member
@@ -139,10 +133,7 @@ export abstract class InviteEvent extends Event {
     }
     return null;
   }
-  set member(node: Node & IsSubject) {
-    this.memberPtr = node.toRef();
-  }
-  declare memberPtr: NodeReference;
+  declare readonly memberPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -221,10 +212,7 @@ export class InviteSentEvent extends InviteEvent {
     }
     return null;
   }
-  set node(node: Invite) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * InviteEvent.joinable
@@ -236,10 +224,7 @@ export class InviteSentEvent extends InviteEvent {
     }
     return null;
   }
-  set joinable(node: Node & IsJoinable) {
-    this.joinablePtr = node.toRef();
-  }
-  joinablePtr: NodeReference;
+  readonly joinablePtr: NodeReference;
 
   /**
    * InviteEvent.member
@@ -251,10 +236,7 @@ export class InviteSentEvent extends InviteEvent {
     }
     return null;
   }
-  set member(node: Node & IsSubject) {
-    this.memberPtr = node.toRef();
-  }
-  memberPtr: NodeReference;
+  readonly memberPtr: NodeReference;
 
   /**
    * InviteSentEvent.role
@@ -266,15 +248,12 @@ export class InviteSentEvent extends InviteEvent {
     }
     return null;
   }
-  set role(node: Role) {
-    this.rolePtr = node.toRef();
-  }
-  rolePtr: NodeReference;
+  readonly rolePtr: NodeReference;
 
   /**
    * InviteSentEvent.roleType
    */
-  roleType: RoleType;
+  readonly roleType: RoleType;
 
   constructor(options: {
     id?: string;
@@ -377,7 +356,7 @@ export class InviteSentEvent extends InviteEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`InviteSentEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -796,10 +775,7 @@ export class InviteRescindedEvent extends InviteEvent {
     }
     return null;
   }
-  set node(node: Invite) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * InviteEvent.joinable
@@ -811,10 +787,7 @@ export class InviteRescindedEvent extends InviteEvent {
     }
     return null;
   }
-  set joinable(node: Node & IsJoinable) {
-    this.joinablePtr = node.toRef();
-  }
-  joinablePtr: NodeReference;
+  readonly joinablePtr: NodeReference;
 
   /**
    * InviteEvent.member
@@ -826,10 +799,7 @@ export class InviteRescindedEvent extends InviteEvent {
     }
     return null;
   }
-  set member(node: Node & IsSubject) {
-    this.memberPtr = node.toRef();
-  }
-  memberPtr: NodeReference;
+  readonly memberPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -917,7 +887,7 @@ export class InviteRescindedEvent extends InviteEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`InviteRescindedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1320,10 +1290,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     }
     return null;
   }
-  set node(node: Invite) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * InviteEvent.joinable
@@ -1335,10 +1302,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     }
     return null;
   }
-  set joinable(node: Node & IsJoinable) {
-    this.joinablePtr = node.toRef();
-  }
-  joinablePtr: NodeReference;
+  readonly joinablePtr: NodeReference;
 
   /**
    * InviteEvent.member
@@ -1350,10 +1314,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     }
     return null;
   }
-  set member(node: Node & IsSubject) {
-    this.memberPtr = node.toRef();
-  }
-  memberPtr: NodeReference;
+  readonly memberPtr: NodeReference;
 
   /**
    * InviteAcceptedEvent.role
@@ -1365,15 +1326,12 @@ export class InviteAcceptedEvent extends InviteEvent {
     }
     return null;
   }
-  set role(node: Role) {
-    this.rolePtr = node.toRef();
-  }
-  rolePtr: NodeReference;
+  readonly rolePtr: NodeReference;
 
   /**
    * InviteAcceptedEvent.roleType
    */
-  roleType: RoleType;
+  readonly roleType: RoleType;
 
   constructor(options: {
     id?: string;
@@ -1476,7 +1434,7 @@ export class InviteAcceptedEvent extends InviteEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`InviteAcceptedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1907,10 +1865,7 @@ export class InviteRejectedEvent extends InviteEvent {
     }
     return null;
   }
-  set node(node: Invite) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * InviteEvent.joinable
@@ -1922,10 +1877,7 @@ export class InviteRejectedEvent extends InviteEvent {
     }
     return null;
   }
-  set joinable(node: Node & IsJoinable) {
-    this.joinablePtr = node.toRef();
-  }
-  joinablePtr: NodeReference;
+  readonly joinablePtr: NodeReference;
 
   /**
    * InviteEvent.member
@@ -1937,10 +1889,7 @@ export class InviteRejectedEvent extends InviteEvent {
     }
     return null;
   }
-  set member(node: Node & IsSubject) {
-    this.memberPtr = node.toRef();
-  }
-  memberPtr: NodeReference;
+  readonly memberPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -2028,7 +1977,7 @@ export class InviteRejectedEvent extends InviteEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`InviteRejectedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2501,7 +2450,23 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
       this.ownedByPtr = node.toRef();
     }
   }
-  ownedByPtr: NodeReference | null;
+  get ownedByPtr(): NodeReference | null {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference | null;
 
   /**
    * Invite.member
@@ -2516,7 +2481,23 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   set member(node: Node & IsSubject) {
     this.memberPtr = node.toRef();
   }
-  memberPtr: NodeReference;
+  get memberPtr(): NodeReference {
+    return this.#memberPtr;
+  }
+  set memberPtr(value: NodeReference) {
+    const oldValue = this.#memberPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["memberPtr"] === undefined) {
+      this._dirty["memberPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#memberPtr = value;
+  }
+  #memberPtr: NodeReference;
 
   /**
    * Invite.role
@@ -2535,12 +2516,44 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
       this.rolePtr = node.toRef();
     }
   }
-  rolePtr: NodeReference | null;
+  get rolePtr(): NodeReference | null {
+    return this.#rolePtr;
+  }
+  set rolePtr(value: NodeReference | null) {
+    const oldValue = this.#rolePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["rolePtr"] === undefined) {
+      this._dirty["rolePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#rolePtr = value;
+  }
+  #rolePtr: NodeReference | null;
 
   /**
    * Invite.roleType
    */
-  roleType: RoleType | null;
+  get roleType(): RoleType | null {
+    return this.#roleType;
+  }
+  set roleType(value: RoleType | null) {
+    const oldValue = this.#roleType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["roleType"] === undefined) {
+      this._dirty["roleType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#roleType = value;
+  }
+  #roleType: RoleType | null;
 
   constructor(options: {
     id?: string;
@@ -2633,7 +2646,7 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
     let _member = options.member;
     if (_member != null && _member.metatype != StructType.NODE_REFERENCE) {
       _member = (_member as Node).toRef();
@@ -2641,14 +2654,14 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     if (_member === null) {
       throw new Error(`Invite.member is required`);
     }
-    this.memberPtr = _member;
+    this.#memberPtr = _member;
     let _role = options.role ?? null;
     if (_role != null && _role.metatype != StructType.NODE_REFERENCE) {
       _role = (_role as Node).toRef();
     }
-    this.rolePtr = _role;
+    this.#rolePtr = _role;
     let _roleType = options.roleType ?? null;
-    this.roleType = _roleType;
+    this.#roleType = _roleType;
 
     // identity
     if (options.id == null) {
@@ -2659,9 +2672,7 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Invite.createdAt and Invite.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2684,19 +2695,19 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.memberPtr.id === other.memberPtr.id)) {
+    if (!(this.#memberPtr.id === other.#memberPtr.id)) {
       return false;
     }
-    if (!(this.rolePtr?.id === other.rolePtr?.id)) {
+    if (!(this.#rolePtr?.id === other.#rolePtr?.id)) {
       return false;
     }
-    if (!(this.roleType === other.roleType)) {
+    if (!(this.#roleType === other.#roleType)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -2720,18 +2731,18 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    if (this.rolePtr !== null) {
-      h = (h * 31 + hashString(this.rolePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#memberPtr.id)) & 0xffffffff;
+    if (this.#rolePtr !== null) {
+      h = (h * 31 + hashString(this.#rolePtr.id)) & 0xffffffff;
     }
-    if (this.roleType !== null) {
-      h = (h * 31 + this.roleType) & 0xffffffff;
+    if (this.#roleType !== null) {
+      h = (h * 31 + this.#roleType) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.#ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -2844,15 +2855,15 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.ownedByPtr != null) {
-      objectValue["28"] = object.ownedByPtr.toValue();
+    if (object.#ownedByPtr != null) {
+      objectValue["28"] = object.#ownedByPtr.toValue();
     }
-    objectValue["110"] = object.memberPtr.toValue();
-    if (object.rolePtr != null) {
-      objectValue["111"] = object.rolePtr.toValue();
+    objectValue["110"] = object.#memberPtr.toValue();
+    if (object.#rolePtr != null) {
+      objectValue["111"] = object.#rolePtr.toValue();
     }
-    if (object.roleType != null) {
-      objectValue["112"] = object.roleType;
+    if (object.#roleType != null) {
+      objectValue["112"] = object.#roleType;
     }
     return objectValue;
   }
@@ -2999,15 +3010,15 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    if (object.#ownedByPtr != null) {
+      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     }
-    objectProto.memberPtr = object.memberPtr.toProto();
-    if (object.rolePtr != null) {
-      objectProto.rolePtr = object.rolePtr.toProto();
+    objectProto.memberPtr = object.#memberPtr.toProto();
+    if (object.#rolePtr != null) {
+      objectProto.rolePtr = object.#rolePtr.toProto();
     }
-    if (object.roleType != null) {
-      objectProto.roleType = Number(object.roleType) as RoleTypeProto;
+    if (object.#roleType != null) {
+      objectProto.roleType = Number(object.#roleType) as RoleTypeProto;
     }
     return objectProto as InviteProto;
   }

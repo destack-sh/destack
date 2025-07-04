@@ -16,6 +16,7 @@ from destack.language import (
     Function,
     FunctionType,
     JoinType,
+    Node,
     NodeDefinitionReference,
     NodeReference,
     PrimitiveType,
@@ -43,7 +44,7 @@ logger = structlog.get_logger(__name__)
 
 MAX_RECURSION_DEPTH = 100
 
-NODE_PARENT_KEY = str(NodeReference.property("parent").id)
+NODE_PARENT_KEY = str(Node.property("parent").id)
 
 NODE_REFERENCE_TYPE_KEY = str(NodeReference.property("type").id)
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)

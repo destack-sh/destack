@@ -87,10 +87,7 @@ export class SpanEvent extends Event {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -160,7 +157,7 @@ export class SpanEvent extends Event {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`SpanEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =

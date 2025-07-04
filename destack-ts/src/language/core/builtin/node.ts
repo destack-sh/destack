@@ -156,8 +156,21 @@ export abstract class Node extends BuiltinObject {
     return this._ref;
   }
 
-  erase(): void {
-    this._session.erase(this);
+  _doSet(key: string, value: any): void {
+    const prop = (this.constructor as NodeClass).__properties__[key];
+    if (prop != null && !this._isNew) {
+      const oldValue = (this as any)[key];
+      if (this._dirty == null) {
+        this._dirty = {};
+      }
+      if (this._dirty[prop.name] === undefined) {
+        this._dirty[prop.name] = oldValue;
+      }
+      if (!this._session.dirty[this.id]) {
+        this._session.dirty[this.id] = this;
+      }
+    }
+    (this as any)[key] = value;
   }
 
   moveTo(parent: Node): void {

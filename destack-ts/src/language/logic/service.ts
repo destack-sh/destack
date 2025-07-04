@@ -189,7 +189,23 @@ export class Service
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  customValues: Map<string, Value>;
+  get customValues(): Map<string, Value> {
+    return this.#customValues;
+  }
+  set customValues(value: Map<string, Value>) {
+    const oldValue = this.#customValues;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["customValues"] === undefined) {
+      this._dirty["customValues"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#customValues = value;
+  }
+  #customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -213,7 +229,23 @@ export class Service
       this.ownedByPtr = node.toRef();
     }
   }
-  ownedByPtr: NodeReference | null;
+  get ownedByPtr(): NodeReference | null {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference | null;
 
   /**
    * IsSourceable.source
@@ -244,17 +276,65 @@ export class Service
       this.scriptPtr = node.toRef();
     }
   }
-  scriptPtr: NodeReference | null;
+  get scriptPtr(): NodeReference | null {
+    return this.#scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const oldValue = this.#scriptPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["scriptPtr"] === undefined) {
+      this._dirty["scriptPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#scriptPtr = value;
+  }
+  #scriptPtr: NodeReference | null;
 
   /**
    * Service.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Service.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -359,7 +439,7 @@ export class Service
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.customValues = _customValues;
+    this.#customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -372,7 +452,7 @@ export class Service
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -382,14 +462,14 @@ export class Service
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
-    this.scriptPtr = _script;
+    this.#scriptPtr = _script;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Service.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -400,9 +480,7 @@ export class Service
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Service.createdAt and Service.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -425,22 +503,22 @@ export class Service
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+    if (!(this.#scriptPtr?.id === other.#scriptPtr?.id)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -467,14 +545,14 @@ export class Service
     if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
       return false;
     }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
       return false;
     }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
+    for (const key in this.#customValues) {
+      if (!(key in other.#customValues)) {
         return false;
       }
-      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
         return false;
       }
     }
@@ -484,9 +562,9 @@ export class Service
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -494,11 +572,11 @@ export class Service
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.#ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     }
-    if (this.scriptPtr !== null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    if (this.#scriptPtr !== null) {
+      h = (h * 31 + hashString(this.#scriptPtr.id)) & 0xffffffff;
     }
     if (this.definitionPtr !== null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -533,8 +611,8 @@ export class Service
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
+    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.#customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -631,26 +709,26 @@ export class Service
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.customValues.size > 0) {
+    if (object.#customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    if (object.ownedByPtr != null) {
-      objectValue["28"] = object.ownedByPtr.toValue();
+    if (object.#ownedByPtr != null) {
+      objectValue["28"] = object.#ownedByPtr.toValue();
     }
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    if (object.scriptPtr != null) {
-      objectValue["70"] = object.scriptPtr.toValue();
+    if (object.#scriptPtr != null) {
+      objectValue["70"] = object.#scriptPtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
     return objectValue;
   }
@@ -840,25 +918,25 @@ export class Service
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.customValues) {
+    if (object.#customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    if (object.#ownedByPtr != null) {
+      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
+    if (object.#scriptPtr != null) {
+      objectProto.scriptPtr = object.#scriptPtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
     return objectProto as ServiceProto;
   }

@@ -352,107 +352,443 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  customValues: Map<string, Value>;
+  get customValues(): Map<string, Value> {
+    return this.#customValues;
+  }
+  set customValues(value: Map<string, Value>) {
+    const oldValue = this.#customValues;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["customValues"] === undefined) {
+      this._dirty["customValues"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#customValues = value;
+  }
+  #customValues: Map<string, Value>;
 
   /**
    * Resource.status
    */
-  status: ResourceStatus;
+  get status(): ResourceStatus {
+    return this.#status;
+  }
+  set status(value: ResourceStatus) {
+    const oldValue = this.#status;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["status"] === undefined) {
+      this._dirty["status"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#status = value;
+  }
+  #status: ResourceStatus;
 
   /**
    * File.type
    */
-  type: FileType;
+  get type(): FileType {
+    return this.#type;
+  }
+  set type(value: FileType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: FileType;
 
   /**
    * File.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * File.source
    */
-  source: FileSource;
+  get source(): FileSource {
+    return this.#source;
+  }
+  set source(value: FileSource) {
+    const oldValue = this.#source;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["source"] === undefined) {
+      this._dirty["source"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#source = value;
+  }
+  #source: FileSource;
 
   /**
    * File.mimeType
    */
-  mimeType: string | null;
+  get mimeType(): string | null {
+    return this.#mimeType;
+  }
+  set mimeType(value: string | null) {
+    const oldValue = this.#mimeType;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["mimeType"] === undefined) {
+      this._dirty["mimeType"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#mimeType = value;
+  }
+  #mimeType: string | null;
 
   /**
    * File.format
    */
-  format: FileFormat | null;
+  get format(): FileFormat | null {
+    return this.#format;
+  }
+  set format(value: FileFormat | null) {
+    const oldValue = this.#format;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["format"] === undefined) {
+      this._dirty["format"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#format = value;
+  }
+  #format: FileFormat | null;
 
   /**
    * File.size
    */
-  size: number | null;
+  get size(): number | null {
+    return this.#size;
+  }
+  set size(value: number | null) {
+    const oldValue = this.#size;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["size"] === undefined) {
+      this._dirty["size"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#size = value;
+  }
+  #size: number | null;
 
   /**
    * File.sha256
    */
-  sha256: string | null;
+  get sha256(): string | null {
+    return this.#sha256;
+  }
+  set sha256(value: string | null) {
+    const oldValue = this.#sha256;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["sha256"] === undefined) {
+      this._dirty["sha256"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#sha256 = value;
+  }
+  #sha256: string | null;
 
   /**
    * File.width
    */
-  width: number | null;
+  get width(): number | null {
+    return this.#width;
+  }
+  set width(value: number | null) {
+    const oldValue = this.#width;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["width"] === undefined) {
+      this._dirty["width"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#width = value;
+  }
+  #width: number | null;
 
   /**
    * File.height
    */
-  height: number | null;
+  get height(): number | null {
+    return this.#height;
+  }
+  set height(value: number | null) {
+    const oldValue = this.#height;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["height"] === undefined) {
+      this._dirty["height"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#height = value;
+  }
+  #height: number | null;
 
   /**
    * File.aspectRatio
    */
-  aspectRatio: number | null;
+  get aspectRatio(): number | null {
+    return this.#aspectRatio;
+  }
+  set aspectRatio(value: number | null) {
+    const oldValue = this.#aspectRatio;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["aspectRatio"] === undefined) {
+      this._dirty["aspectRatio"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#aspectRatio = value;
+  }
+  #aspectRatio: number | null;
 
   /**
    * File.codec
    */
-  codec: string | null;
+  get codec(): string | null {
+    return this.#codec;
+  }
+  set codec(value: string | null) {
+    const oldValue = this.#codec;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["codec"] === undefined) {
+      this._dirty["codec"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#codec = value;
+  }
+  #codec: string | null;
 
   /**
    * File.duration
    */
-  duration: Temporal.Duration | null;
+  get duration(): Temporal.Duration | null {
+    return this.#duration;
+  }
+  set duration(value: Temporal.Duration | null) {
+    const oldValue = this.#duration;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["duration"] === undefined) {
+      this._dirty["duration"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#duration = value;
+  }
+  #duration: Temporal.Duration | null;
 
   /**
    * File.url
    */
-  url: string | null;
+  get url(): string | null {
+    return this.#url;
+  }
+  set url(value: string | null) {
+    const oldValue = this.#url;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["url"] === undefined) {
+      this._dirty["url"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#url = value;
+  }
+  #url: string | null;
 
   /**
    * File.contentUrl
    */
-  contentUrl: string | null;
+  get contentUrl(): string | null {
+    return this.#contentUrl;
+  }
+  set contentUrl(value: string | null) {
+    const oldValue = this.#contentUrl;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["contentUrl"] === undefined) {
+      this._dirty["contentUrl"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#contentUrl = value;
+  }
+  #contentUrl: string | null;
 
   /**
    * File.thumbnailUrl
    */
-  thumbnailUrl: string | null;
+  get thumbnailUrl(): string | null {
+    return this.#thumbnailUrl;
+  }
+  set thumbnailUrl(value: string | null) {
+    const oldValue = this.#thumbnailUrl;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["thumbnailUrl"] === undefined) {
+      this._dirty["thumbnailUrl"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#thumbnailUrl = value;
+  }
+  #thumbnailUrl: string | null;
 
   /**
    * File.faviconUrl
    */
-  faviconUrl: string | null;
+  get faviconUrl(): string | null {
+    return this.#faviconUrl;
+  }
+  set faviconUrl(value: string | null) {
+    const oldValue = this.#faviconUrl;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["faviconUrl"] === undefined) {
+      this._dirty["faviconUrl"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#faviconUrl = value;
+  }
+  #faviconUrl: string | null;
 
   /**
    * File.thumbnailWidth
    */
-  thumbnailWidth: number | null;
+  get thumbnailWidth(): number | null {
+    return this.#thumbnailWidth;
+  }
+  set thumbnailWidth(value: number | null) {
+    const oldValue = this.#thumbnailWidth;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["thumbnailWidth"] === undefined) {
+      this._dirty["thumbnailWidth"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#thumbnailWidth = value;
+  }
+  #thumbnailWidth: number | null;
 
   /**
    * File.thumbnailHeight
    */
-  thumbnailHeight: number | null;
+  get thumbnailHeight(): number | null {
+    return this.#thumbnailHeight;
+  }
+  set thumbnailHeight(value: number | null) {
+    const oldValue = this.#thumbnailHeight;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["thumbnailHeight"] === undefined) {
+      this._dirty["thumbnailHeight"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#thumbnailHeight = value;
+  }
+  #thumbnailHeight: number | null;
 
   /**
    * File.content
    */
-  content: Uint8Array | null;
+  get content(): Uint8Array | null {
+    return this.#content;
+  }
+  set content(value: Uint8Array | null) {
+    const oldValue = this.#content;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["content"] === undefined) {
+      this._dirty["content"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#content = value;
+  }
+  #content: Uint8Array | null;
 
   constructor(options: {
     id?: string;
@@ -571,7 +907,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.customValues = _customValues;
+    this.#customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* ResourceStatus.PENDING */;
@@ -579,54 +915,54 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     if (_status === null) {
       throw new Error(`File.status is required`);
     }
-    this.status = _status;
+    this.#status = _status;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`File.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`File.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _source = options.source;
     if (_source === null) {
       throw new Error(`File.source is required`);
     }
-    this.source = _source;
+    this.#source = _source;
     let _mimeType = options.mimeType ?? null;
-    this.mimeType = _mimeType;
+    this.#mimeType = _mimeType;
     let _format = options.format ?? null;
-    this.format = _format;
+    this.#format = _format;
     let _size = options.size ?? null;
-    this.size = _size;
+    this.#size = _size;
     let _sha256 = options.sha256 ?? null;
-    this.sha256 = _sha256;
+    this.#sha256 = _sha256;
     let _width = options.width ?? null;
-    this.width = _width;
+    this.#width = _width;
     let _height = options.height ?? null;
-    this.height = _height;
+    this.#height = _height;
     let _aspectRatio = options.aspectRatio ?? null;
-    this.aspectRatio = _aspectRatio;
+    this.#aspectRatio = _aspectRatio;
     let _codec = options.codec ?? null;
-    this.codec = _codec;
+    this.#codec = _codec;
     let _duration = options.duration ?? null;
-    this.duration = _duration;
+    this.#duration = _duration;
     let _url = options.url ?? null;
-    this.url = _url;
+    this.#url = _url;
     let _contentUrl = options.contentUrl ?? null;
-    this.contentUrl = _contentUrl;
+    this.#contentUrl = _contentUrl;
     let _thumbnailUrl = options.thumbnailUrl ?? null;
-    this.thumbnailUrl = _thumbnailUrl;
+    this.#thumbnailUrl = _thumbnailUrl;
     let _faviconUrl = options.faviconUrl ?? null;
-    this.faviconUrl = _faviconUrl;
+    this.#faviconUrl = _faviconUrl;
     let _thumbnailWidth = options.thumbnailWidth ?? null;
-    this.thumbnailWidth = _thumbnailWidth;
+    this.#thumbnailWidth = _thumbnailWidth;
     let _thumbnailHeight = options.thumbnailHeight ?? null;
-    this.thumbnailHeight = _thumbnailHeight;
+    this.#thumbnailHeight = _thumbnailHeight;
     let _content = options.content ?? null;
-    this.content = _content;
+    this.#content = _content;
 
     // identity
     if (options.id == null) {
@@ -637,9 +973,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`File.createdAt and File.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -662,74 +996,74 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
-    if (!(this.source === other.source)) {
+    if (!(this.#source === other.#source)) {
       return false;
     }
-    if (!(this.mimeType === other.mimeType)) {
+    if (!(this.#mimeType === other.#mimeType)) {
       return false;
     }
-    if (!(this.format === other.format)) {
+    if (!(this.#format === other.#format)) {
       return false;
     }
-    if (!(this.size === other.size)) {
+    if (!(this.#size === other.#size)) {
       return false;
     }
-    if (!(this.sha256 === other.sha256)) {
+    if (!(this.#sha256 === other.#sha256)) {
       return false;
     }
-    if (!(this.width === other.width)) {
+    if (!(this.#width === other.#width)) {
       return false;
     }
-    if (!(this.height === other.height)) {
+    if (!(this.#height === other.#height)) {
       return false;
     }
     if (
-      (this.aspectRatio == null) !== (other.aspectRatio == null) ||
-      (this.aspectRatio != null &&
+      (this.#aspectRatio == null) !== (other.#aspectRatio == null) ||
+      (this.#aspectRatio != null &&
         !(
-          this.aspectRatio === other.aspectRatio ||
-          Math.abs(this.aspectRatio - other.aspectRatio) < 1e-10
+          this.#aspectRatio === other.#aspectRatio ||
+          Math.abs(this.#aspectRatio - other.#aspectRatio) < 1e-10
         ))
     ) {
       return false;
     }
-    if (!(this.codec === other.codec)) {
+    if (!(this.#codec === other.#codec)) {
       return false;
     }
-    if (!(this.duration === other.duration)) {
+    if (!(this.#duration === other.#duration)) {
       return false;
     }
-    if (!(this.url === other.url)) {
+    if (!(this.#url === other.#url)) {
       return false;
     }
-    if (!(this.contentUrl === other.contentUrl)) {
+    if (!(this.#contentUrl === other.#contentUrl)) {
       return false;
     }
-    if (!(this.thumbnailUrl === other.thumbnailUrl)) {
+    if (!(this.#thumbnailUrl === other.#thumbnailUrl)) {
       return false;
     }
-    if (!(this.faviconUrl === other.faviconUrl)) {
+    if (!(this.#faviconUrl === other.#faviconUrl)) {
       return false;
     }
-    if (!(this.thumbnailWidth === other.thumbnailWidth)) {
+    if (!(this.#thumbnailWidth === other.#thumbnailWidth)) {
       return false;
     }
-    if (!(this.thumbnailHeight === other.thumbnailHeight)) {
+    if (!(this.#thumbnailHeight === other.#thumbnailHeight)) {
       return false;
     }
-    if (!(this.content === other.content)) {
+    if (!(this.#content === other.#content)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.status === other.status)) {
+    if (!(this.#status === other.#status)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -753,14 +1087,14 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
       return false;
     }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
       return false;
     }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
+    for (const key in this.#customValues) {
+      if (!(key in other.#customValues)) {
         return false;
       }
-      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
         return false;
       }
     }
@@ -770,61 +1104,61 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    h = (h * 31 + this.source) & 0xffffffff;
-    if (this.mimeType !== null) {
-      h = (h * 31 + hashString(this.mimeType)) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + this.#source) & 0xffffffff;
+    if (this.#mimeType !== null) {
+      h = (h * 31 + hashString(this.#mimeType)) & 0xffffffff;
     }
-    if (this.format !== null) {
-      h = (h * 31 + this.format) & 0xffffffff;
+    if (this.#format !== null) {
+      h = (h * 31 + this.#format) & 0xffffffff;
     }
-    if (this.size !== null) {
-      h = (h * 31 + hashInt(this.size)) & 0xffffffff;
+    if (this.#size !== null) {
+      h = (h * 31 + hashInt(this.#size)) & 0xffffffff;
     }
-    if (this.sha256 !== null) {
-      h = (h * 31 + hashString(this.sha256)) & 0xffffffff;
+    if (this.#sha256 !== null) {
+      h = (h * 31 + hashString(this.#sha256)) & 0xffffffff;
     }
-    if (this.width !== null) {
-      h = (h * 31 + hashInt(this.width)) & 0xffffffff;
+    if (this.#width !== null) {
+      h = (h * 31 + hashInt(this.#width)) & 0xffffffff;
     }
-    if (this.height !== null) {
-      h = (h * 31 + hashInt(this.height)) & 0xffffffff;
+    if (this.#height !== null) {
+      h = (h * 31 + hashInt(this.#height)) & 0xffffffff;
     }
-    if (this.aspectRatio !== null) {
-      h = (h * 31 + hashFloat(this.aspectRatio)) & 0xffffffff;
+    if (this.#aspectRatio !== null) {
+      h = (h * 31 + hashFloat(this.#aspectRatio)) & 0xffffffff;
     }
-    if (this.codec !== null) {
-      h = (h * 31 + hashString(this.codec)) & 0xffffffff;
+    if (this.#codec !== null) {
+      h = (h * 31 + hashString(this.#codec)) & 0xffffffff;
     }
-    if (this.duration !== null) {
-      h = (h * 31 + hashFloat(this.duration.total("seconds"))) & 0xffffffff;
+    if (this.#duration !== null) {
+      h = (h * 31 + hashFloat(this.#duration.total("seconds"))) & 0xffffffff;
     }
-    if (this.url !== null) {
-      h = (h * 31 + hashString(this.url)) & 0xffffffff;
+    if (this.#url !== null) {
+      h = (h * 31 + hashString(this.#url)) & 0xffffffff;
     }
-    if (this.contentUrl !== null) {
-      h = (h * 31 + hashString(this.contentUrl)) & 0xffffffff;
+    if (this.#contentUrl !== null) {
+      h = (h * 31 + hashString(this.#contentUrl)) & 0xffffffff;
     }
-    if (this.thumbnailUrl !== null) {
-      h = (h * 31 + hashString(this.thumbnailUrl)) & 0xffffffff;
+    if (this.#thumbnailUrl !== null) {
+      h = (h * 31 + hashString(this.#thumbnailUrl)) & 0xffffffff;
     }
-    if (this.faviconUrl !== null) {
-      h = (h * 31 + hashString(this.faviconUrl)) & 0xffffffff;
+    if (this.#faviconUrl !== null) {
+      h = (h * 31 + hashString(this.#faviconUrl)) & 0xffffffff;
     }
-    if (this.thumbnailWidth !== null) {
-      h = (h * 31 + hashInt(this.thumbnailWidth)) & 0xffffffff;
+    if (this.#thumbnailWidth !== null) {
+      h = (h * 31 + hashInt(this.#thumbnailWidth)) & 0xffffffff;
     }
-    if (this.thumbnailHeight !== null) {
-      h = (h * 31 + hashInt(this.thumbnailHeight)) & 0xffffffff;
+    if (this.#thumbnailHeight !== null) {
+      h = (h * 31 + hashInt(this.#thumbnailHeight)) & 0xffffffff;
     }
-    if (this.content !== null) {
-      h = (h * 31 + hashBytes(this.content)) & 0xffffffff;
+    if (this.#content !== null) {
+      h = (h * 31 + hashBytes(this.#content)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.status) & 0xffffffff;
+    h = (h * 31 + this.#status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -858,8 +1192,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
+    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.#customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -966,64 +1300,64 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.customValues.size > 0) {
+    if (object.#customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
-    objectValue["90"] = object.status;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    objectValue["110"] = object.source;
-    if (object.mimeType != null) {
-      objectValue["111"] = object.mimeType;
+    objectValue["90"] = object.#status;
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    objectValue["110"] = object.#source;
+    if (object.#mimeType != null) {
+      objectValue["111"] = object.#mimeType;
     }
-    if (object.format != null) {
-      objectValue["112"] = object.format;
+    if (object.#format != null) {
+      objectValue["112"] = object.#format;
     }
-    if (object.size != null) {
-      objectValue["113"] = object.size;
+    if (object.#size != null) {
+      objectValue["113"] = object.#size;
     }
-    if (object.sha256 != null) {
-      objectValue["114"] = object.sha256;
+    if (object.#sha256 != null) {
+      objectValue["114"] = object.#sha256;
     }
-    if (object.width != null) {
-      objectValue["115"] = object.width;
+    if (object.#width != null) {
+      objectValue["115"] = object.#width;
     }
-    if (object.height != null) {
-      objectValue["116"] = object.height;
+    if (object.#height != null) {
+      objectValue["116"] = object.#height;
     }
-    if (object.aspectRatio != null) {
-      objectValue["117"] = object.aspectRatio;
+    if (object.#aspectRatio != null) {
+      objectValue["117"] = object.#aspectRatio;
     }
-    if (object.codec != null) {
-      objectValue["118"] = object.codec;
+    if (object.#codec != null) {
+      objectValue["118"] = object.#codec;
     }
-    if (object.duration != null) {
-      objectValue["119"] = timedeltaToISOFormat(object.duration);
+    if (object.#duration != null) {
+      objectValue["119"] = timedeltaToISOFormat(object.#duration);
     }
-    if (object.url != null) {
-      objectValue["120"] = object.url;
+    if (object.#url != null) {
+      objectValue["120"] = object.#url;
     }
-    if (object.contentUrl != null) {
-      objectValue["121"] = object.contentUrl;
+    if (object.#contentUrl != null) {
+      objectValue["121"] = object.#contentUrl;
     }
-    if (object.thumbnailUrl != null) {
-      objectValue["122"] = object.thumbnailUrl;
+    if (object.#thumbnailUrl != null) {
+      objectValue["122"] = object.#thumbnailUrl;
     }
-    if (object.faviconUrl != null) {
-      objectValue["123"] = object.faviconUrl;
+    if (object.#faviconUrl != null) {
+      objectValue["123"] = object.#faviconUrl;
     }
-    if (object.thumbnailWidth != null) {
-      objectValue["124"] = object.thumbnailWidth;
+    if (object.#thumbnailWidth != null) {
+      objectValue["124"] = object.#thumbnailWidth;
     }
-    if (object.thumbnailHeight != null) {
-      objectValue["125"] = object.thumbnailHeight;
+    if (object.#thumbnailHeight != null) {
+      objectValue["125"] = object.#thumbnailHeight;
     }
-    if (object.content != null) {
-      objectValue["126"] = base64Encode(object.content);
+    if (object.#content != null) {
+      objectValue["126"] = base64Encode(object.#content);
     }
     return objectValue;
   }
@@ -1241,63 +1575,63 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.customValues) {
+    if (object.#customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.status = Number(object.status) as ResourceStatusProto;
-    objectProto.type = Number(object.type) as FileTypeProto;
-    objectProto.name = object.name;
-    objectProto.source = Number(object.source) as FileSourceProto;
-    if (object.mimeType != null) {
-      objectProto.mimeType = object.mimeType;
+    objectProto.status = Number(object.#status) as ResourceStatusProto;
+    objectProto.type = Number(object.#type) as FileTypeProto;
+    objectProto.name = object.#name;
+    objectProto.source = Number(object.#source) as FileSourceProto;
+    if (object.#mimeType != null) {
+      objectProto.mimeType = object.#mimeType;
     }
-    if (object.format != null) {
-      objectProto.format = Number(object.format) as FileFormatProto;
+    if (object.#format != null) {
+      objectProto.format = Number(object.#format) as FileFormatProto;
     }
-    if (object.size != null) {
-      objectProto.size = object.size;
+    if (object.#size != null) {
+      objectProto.size = object.#size;
     }
-    if (object.sha256 != null) {
-      objectProto.sha256 = object.sha256;
+    if (object.#sha256 != null) {
+      objectProto.sha256 = object.#sha256;
     }
-    if (object.width != null) {
-      objectProto.width = object.width;
+    if (object.#width != null) {
+      objectProto.width = object.#width;
     }
-    if (object.height != null) {
-      objectProto.height = object.height;
+    if (object.#height != null) {
+      objectProto.height = object.#height;
     }
-    if (object.aspectRatio != null) {
-      objectProto.aspectRatio = object.aspectRatio;
+    if (object.#aspectRatio != null) {
+      objectProto.aspectRatio = object.#aspectRatio;
     }
-    if (object.codec != null) {
-      objectProto.codec = object.codec;
+    if (object.#codec != null) {
+      objectProto.codec = object.#codec;
     }
-    if (object.duration != null) {
-      objectProto.duration = packProtoDuration(object.duration);
+    if (object.#duration != null) {
+      objectProto.duration = packProtoDuration(object.#duration);
     }
-    if (object.url != null) {
-      objectProto.url = object.url;
+    if (object.#url != null) {
+      objectProto.url = object.#url;
     }
-    if (object.contentUrl != null) {
-      objectProto.contentUrl = object.contentUrl;
+    if (object.#contentUrl != null) {
+      objectProto.contentUrl = object.#contentUrl;
     }
-    if (object.thumbnailUrl != null) {
-      objectProto.thumbnailUrl = object.thumbnailUrl;
+    if (object.#thumbnailUrl != null) {
+      objectProto.thumbnailUrl = object.#thumbnailUrl;
     }
-    if (object.faviconUrl != null) {
-      objectProto.faviconUrl = object.faviconUrl;
+    if (object.#faviconUrl != null) {
+      objectProto.faviconUrl = object.#faviconUrl;
     }
-    if (object.thumbnailWidth != null) {
-      objectProto.thumbnailWidth = object.thumbnailWidth;
+    if (object.#thumbnailWidth != null) {
+      objectProto.thumbnailWidth = object.#thumbnailWidth;
     }
-    if (object.thumbnailHeight != null) {
-      objectProto.thumbnailHeight = object.thumbnailHeight;
+    if (object.#thumbnailHeight != null) {
+      objectProto.thumbnailHeight = object.#thumbnailHeight;
     }
-    if (object.content != null) {
-      objectProto.content = object.content;
+    if (object.#content != null) {
+      objectProto.content = object.#content;
     }
     return objectProto as FileProto;
   }

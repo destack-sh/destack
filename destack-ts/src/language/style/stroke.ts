@@ -194,47 +194,191 @@ export class StrokeStyle extends Style {
   /**
    * StrokeStyle.type
    */
-  type: StrokeType;
+  get type(): StrokeType {
+    return this.#type;
+  }
+  set type(value: StrokeType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: StrokeType;
 
   /**
    * Style.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * The stroke size/width.
    */
-  size: number;
+  get size(): number {
+    return this.#size;
+  }
+  set size(value: number) {
+    const oldValue = this.#size;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["size"] === undefined) {
+      this._dirty["size"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#size = value;
+  }
+  #size: number;
 
   /**
    * The amount of pressure-based thinning (0-1).
    */
-  thinning: number;
+  get thinning(): number {
+    return this.#thinning;
+  }
+  set thinning(value: number) {
+    const oldValue = this.#thinning;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["thinning"] === undefined) {
+      this._dirty["thinning"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#thinning = value;
+  }
+  #thinning: number;
 
   /**
    * The amount of path smoothing (0-1).
    */
-  smoothing: number;
+  get smoothing(): number {
+    return this.#smoothing;
+  }
+  set smoothing(value: number) {
+    const oldValue = this.#smoothing;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["smoothing"] === undefined) {
+      this._dirty["smoothing"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#smoothing = value;
+  }
+  #smoothing: number;
 
   /**
    * The amount of streamlining applied to path (0-1).
    */
-  streamline: number;
+  get streamline(): number {
+    return this.#streamline;
+  }
+  set streamline(value: number) {
+    const oldValue = this.#streamline;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["streamline"] === undefined) {
+      this._dirty["streamline"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#streamline = value;
+  }
+  #streamline: number;
 
   /**
    * The easing function for pressure mapping.
    */
-  easing: Easing;
+  get easing(): Easing {
+    return this.#easing;
+  }
+  set easing(value: Easing) {
+    const oldValue = this.#easing;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["easing"] === undefined) {
+      this._dirty["easing"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#easing = value;
+  }
+  #easing: Easing;
 
   /**
    * The start cap configuration.
    */
-  start: StrokeCap | null;
+  get start(): StrokeCap | null {
+    return this.#start;
+  }
+  set start(value: StrokeCap | null) {
+    const oldValue = this.#start;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["start"] === undefined) {
+      this._dirty["start"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#start = value;
+  }
+  #start: StrokeCap | null;
 
   /**
    * The end cap configuration.
    */
-  end: StrokeCap | null;
+  get end(): StrokeCap | null {
+    return this.#end;
+  }
+  set end(value: StrokeCap | null) {
+    const oldValue = this.#end;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["end"] === undefined) {
+      this._dirty["end"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#end = value;
+  }
+  #end: StrokeCap | null;
 
   constructor(options: {
     id?: string;
@@ -341,41 +485,41 @@ export class StrokeStyle extends Style {
     if (_type === null) {
       throw new Error(`StrokeStyle.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`StrokeStyle.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _size = options.size;
     if (_size === null) {
       throw new Error(`StrokeStyle.size is required`);
     }
-    this.size = _size;
+    this.#size = _size;
     let _thinning = options.thinning;
     if (_thinning === null) {
       throw new Error(`StrokeStyle.thinning is required`);
     }
-    this.thinning = _thinning;
+    this.#thinning = _thinning;
     let _smoothing = options.smoothing;
     if (_smoothing === null) {
       throw new Error(`StrokeStyle.smoothing is required`);
     }
-    this.smoothing = _smoothing;
+    this.#smoothing = _smoothing;
     let _streamline = options.streamline;
     if (_streamline === null) {
       throw new Error(`StrokeStyle.streamline is required`);
     }
-    this.streamline = _streamline;
+    this.#streamline = _streamline;
     let _easing = options.easing;
     if (_easing === null) {
       throw new Error(`StrokeStyle.easing is required`);
     }
-    this.easing = _easing;
+    this.#easing = _easing;
     let _start = options.start ?? null;
-    this.start = _start;
+    this.#start = _start;
     let _end = options.end ?? null;
-    this.end = _end;
+    this.#end = _end;
 
     // identity
     if (options.id == null) {
@@ -387,7 +531,7 @@ export class StrokeStyle extends Style {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `StrokeStyle.createdAt and StrokeStyle.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -411,43 +555,48 @@ export class StrokeStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
-    if (!(this.size === other.size)) {
-      return false;
-    }
-    if (!(this.thinning === other.thinning || Math.abs(this.thinning - other.thinning) < 1e-10)) {
+    if (!(this.#size === other.#size)) {
       return false;
     }
     if (
-      !(this.smoothing === other.smoothing || Math.abs(this.smoothing - other.smoothing) < 1e-10)
+      !(this.#thinning === other.#thinning || Math.abs(this.#thinning - other.#thinning) < 1e-10)
     ) {
       return false;
     }
     if (
       !(
-        this.streamline === other.streamline || Math.abs(this.streamline - other.streamline) < 1e-10
+        this.#smoothing === other.#smoothing || Math.abs(this.#smoothing - other.#smoothing) < 1e-10
       )
     ) {
       return false;
     }
-    if (!(this.easing === other.easing)) {
+    if (
+      !(
+        this.#streamline === other.#streamline ||
+        Math.abs(this.#streamline - other.#streamline) < 1e-10
+      )
+    ) {
+      return false;
+    }
+    if (!(this.#easing === other.#easing)) {
       return false;
     }
     if (
-      (this.start == null) !== (other.start == null) ||
-      (this.start != null && !this.start.equals(other.start))
+      (this.#start == null) !== (other.#start == null) ||
+      (this.#start != null && !this.#start.equals(other.#start))
     ) {
       return false;
     }
     if (
-      (this.end == null) !== (other.end == null) ||
-      (this.end != null && !this.end.equals(other.end))
+      (this.#end == null) !== (other.#end == null) ||
+      (this.#end != null && !this.#end.equals(other.#end))
     ) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -471,22 +620,22 @@ export class StrokeStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashInt(this.size)) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.thinning)) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.smoothing)) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.streamline)) & 0xffffffff;
-    h = (h * 31 + this.easing) & 0xffffffff;
-    if (this.start !== null) {
-      h = (h * 31 + this.start.hash()) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    h = (h * 31 + hashInt(this.#size)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.#thinning)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.#smoothing)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.#streamline)) & 0xffffffff;
+    h = (h * 31 + this.#easing) & 0xffffffff;
+    if (this.#start !== null) {
+      h = (h * 31 + this.#start.hash()) & 0xffffffff;
     }
-    if (this.end !== null) {
-      h = (h * 31 + this.end.hash()) & 0xffffffff;
+    if (this.#end !== null) {
+      h = (h * 31 + this.#end.hash()) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -597,18 +746,18 @@ export class StrokeStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    objectValue["200"] = object.size;
-    objectValue["201"] = object.thinning;
-    objectValue["202"] = object.smoothing;
-    objectValue["203"] = object.streamline;
-    objectValue["204"] = object.easing;
-    if (object.start != null) {
-      objectValue["205"] = object.start.toValue();
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    objectValue["200"] = object.#size;
+    objectValue["201"] = object.#thinning;
+    objectValue["202"] = object.#smoothing;
+    objectValue["203"] = object.#streamline;
+    objectValue["204"] = object.#easing;
+    if (object.#start != null) {
+      objectValue["205"] = object.#start.toValue();
     }
-    if (object.end != null) {
-      objectValue["206"] = object.end.toValue();
+    if (object.#end != null) {
+      objectValue["206"] = object.#end.toValue();
     }
     return objectValue;
   }
@@ -755,18 +904,18 @@ export class StrokeStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.type) as StrokeTypeProto;
-    objectProto.name = object.name;
-    objectProto.size = object.size;
-    objectProto.thinning = object.thinning;
-    objectProto.smoothing = object.smoothing;
-    objectProto.streamline = object.streamline;
-    objectProto.easing = Number(object.easing) as EasingProto;
-    if (object.start != null) {
-      objectProto.start = object.start.toProto();
+    objectProto.type = Number(object.#type) as StrokeTypeProto;
+    objectProto.name = object.#name;
+    objectProto.size = object.#size;
+    objectProto.thinning = object.#thinning;
+    objectProto.smoothing = object.#smoothing;
+    objectProto.streamline = object.#streamline;
+    objectProto.easing = Number(object.#easing) as EasingProto;
+    if (object.#start != null) {
+      objectProto.start = object.#start.toProto();
     }
-    if (object.end != null) {
-      objectProto.end = object.end.toProto();
+    if (object.#end != null) {
+      objectProto.end = object.#end.toProto();
     }
     return objectProto as StrokeStyleProto;
   }

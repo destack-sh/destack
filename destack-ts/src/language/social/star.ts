@@ -157,7 +157,23 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   set ownedBy(node: Node & IsSubject) {
     this.ownedByPtr = node.toRef();
   }
-  ownedByPtr: NodeReference;
+  get ownedByPtr(): NodeReference {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -250,7 +266,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (_ownedBy === null) {
       throw new Error(`Star.ownedBy is required`);
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
 
     // identity
     if (options.id == null) {
@@ -261,9 +277,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Star.createdAt and Star.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -286,7 +300,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.ownedByPtr.id === other.ownedByPtr.id)) {
+    if (!(this.#ownedByPtr.id === other.#ownedByPtr.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -313,7 +327,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -420,7 +434,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["28"] = object.ownedByPtr.toValue();
+    objectValue["28"] = object.#ownedByPtr.toValue();
     return objectValue;
   }
 
@@ -551,7 +565,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     return objectProto as StarProto;
   }
 

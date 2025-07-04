@@ -156,7 +156,23 @@ export class CustomEnumDefinition
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  customValues: Map<string, Value>;
+  get customValues(): Map<string, Value> {
+    return this.#customValues;
+  }
+  set customValues(value: Map<string, Value>) {
+    const oldValue = this.#customValues;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["customValues"] === undefined) {
+      this._dirty["customValues"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#customValues = value;
+  }
+  #customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -178,12 +194,44 @@ export class CustomEnumDefinition
   /**
    * CustomEnumDefinition.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * CustomEnumDefinition.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -277,7 +325,7 @@ export class CustomEnumDefinition
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.customValues = _customValues;
+    this.#customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -295,9 +343,9 @@ export class CustomEnumDefinition
     if (_name === null) {
       throw new Error(`CustomEnumDefinition.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -309,7 +357,7 @@ export class CustomEnumDefinition
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `CustomEnumDefinition.createdAt and CustomEnumDefinition.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -333,12 +381,12 @@ export class CustomEnumDefinition
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
@@ -348,14 +396,14 @@ export class CustomEnumDefinition
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
       return false;
     }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
+    for (const key in this.#customValues) {
+      if (!(key in other.#customValues)) {
         return false;
       }
-      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
         return false;
       }
     }
@@ -377,9 +425,9 @@ export class CustomEnumDefinition
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -390,8 +438,8 @@ export class CustomEnumDefinition
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
+    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.#customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -502,9 +550,9 @@ export class CustomEnumDefinition
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.customValues.size > 0) {
+    if (object.#customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -513,9 +561,9 @@ export class CustomEnumDefinition
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
     return objectValue;
   }
@@ -672,9 +720,9 @@ export class CustomEnumDefinition
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.customValues) {
+    if (object.#customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -682,9 +730,9 @@ export class CustomEnumDefinition
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
     return objectProto as CustomEnumDefinitionProto;
   }
@@ -993,12 +1041,44 @@ export class CustomOption
   /**
    * CustomOption.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * CustomOption.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -1104,9 +1184,9 @@ export class CustomOption
     if (_name === null) {
       throw new Error(`CustomOption.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -1118,7 +1198,7 @@ export class CustomOption
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `CustomOption.createdAt and CustomOption.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -1142,12 +1222,12 @@ export class CustomOption
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
@@ -1178,9 +1258,9 @@ export class CustomOption
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1298,9 +1378,9 @@ export class CustomOption
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
     return objectValue;
   }
@@ -1444,9 +1524,9 @@ export class CustomOption
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
     return objectProto as CustomOptionProto;
   }

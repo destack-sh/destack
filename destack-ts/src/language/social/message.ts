@@ -167,7 +167,23 @@ export class Message
       this.ownedByPtr = node.toRef();
     }
   }
-  ownedByPtr: NodeReference | null;
+  get ownedByPtr(): NodeReference | null {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference | null;
 
   /**
    * Message.thread
@@ -186,12 +202,44 @@ export class Message
       this.threadPtr = node.toRef();
     }
   }
-  threadPtr: NodeReference | null;
+  get threadPtr(): NodeReference | null {
+    return this.#threadPtr;
+  }
+  set threadPtr(value: NodeReference | null) {
+    const oldValue = this.#threadPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["threadPtr"] === undefined) {
+      this._dirty["threadPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#threadPtr = value;
+  }
+  #threadPtr: NodeReference | null;
 
   /**
    * Message.editedAt
    */
-  editedAt: Temporal.ZonedDateTime | null;
+  get editedAt(): Temporal.ZonedDateTime | null {
+    return this.#editedAt;
+  }
+  set editedAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#editedAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["editedAt"] === undefined) {
+      this._dirty["editedAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#editedAt = value;
+  }
+  #editedAt: Temporal.ZonedDateTime | null;
 
   /**
    * Message.replyTo
@@ -210,7 +258,23 @@ export class Message
       this.replyToPtr = node.toRef();
     }
   }
-  replyToPtr: NodeReference | null;
+  get replyToPtr(): NodeReference | null {
+    return this.#replyToPtr;
+  }
+  set replyToPtr(value: NodeReference | null) {
+    const oldValue = this.#replyToPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["replyToPtr"] === undefined) {
+      this._dirty["replyToPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#replyToPtr = value;
+  }
+  #replyToPtr: NodeReference | null;
 
   /**
    * Message.forwardedFrom
@@ -229,12 +293,44 @@ export class Message
       this.forwardedFromPtr = node.toRef();
     }
   }
-  forwardedFromPtr: NodeReference | null;
+  get forwardedFromPtr(): NodeReference | null {
+    return this.#forwardedFromPtr;
+  }
+  set forwardedFromPtr(value: NodeReference | null) {
+    const oldValue = this.#forwardedFromPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["forwardedFromPtr"] === undefined) {
+      this._dirty["forwardedFromPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#forwardedFromPtr = value;
+  }
+  #forwardedFromPtr: NodeReference | null;
 
   /**
    * Message.text
    */
-  text: Text | null;
+  get text(): Text | null {
+    return this.#text;
+  }
+  set text(value: Text | null) {
+    const oldValue = this.#text;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["text"] === undefined) {
+      this._dirty["text"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#text = value;
+  }
+  #text: Text | null;
 
   /**
    * Message.node
@@ -253,7 +349,23 @@ export class Message
       this.nodePtr = node.toRef();
     }
   }
-  nodePtr: NodeReference | null;
+  get nodePtr(): NodeReference | null {
+    return this.#nodePtr;
+  }
+  set nodePtr(value: NodeReference | null) {
+    const oldValue = this.#nodePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["nodePtr"] === undefined) {
+      this._dirty["nodePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#nodePtr = value;
+  }
+  #nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -349,31 +461,31 @@ export class Message
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
     let _thread = options.thread ?? null;
     if (_thread != null && _thread.metatype != StructType.NODE_REFERENCE) {
       _thread = (_thread as Node).toRef();
     }
-    this.threadPtr = _thread;
+    this.#threadPtr = _thread;
     let _editedAt = options.editedAt ?? null;
-    this.editedAt = _editedAt;
+    this.#editedAt = _editedAt;
     let _replyTo = options.replyTo ?? null;
     if (_replyTo != null && _replyTo.metatype != StructType.NODE_REFERENCE) {
       _replyTo = (_replyTo as Node).toRef();
     }
-    this.replyToPtr = _replyTo;
+    this.#replyToPtr = _replyTo;
     let _forwardedFrom = options.forwardedFrom ?? null;
     if (_forwardedFrom != null && _forwardedFrom.metatype != StructType.NODE_REFERENCE) {
       _forwardedFrom = (_forwardedFrom as Node).toRef();
     }
-    this.forwardedFromPtr = _forwardedFrom;
+    this.#forwardedFromPtr = _forwardedFrom;
     let _text = options.text ?? null;
-    this.text = _text;
+    this.#text = _text;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.#nodePtr = _node;
 
     // identity
     if (options.id == null) {
@@ -384,9 +496,7 @@ export class Message
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Message.createdAt and Message.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -409,31 +519,31 @@ export class Message
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.threadPtr?.id === other.threadPtr?.id)) {
+    if (!(this.#threadPtr?.id === other.#threadPtr?.id)) {
       return false;
     }
-    if (!(this.editedAt === other.editedAt)) {
+    if (!(this.#editedAt === other.#editedAt)) {
       return false;
     }
-    if (!(this.replyToPtr?.id === other.replyToPtr?.id)) {
+    if (!(this.#replyToPtr?.id === other.#replyToPtr?.id)) {
       return false;
     }
-    if (!(this.forwardedFromPtr?.id === other.forwardedFromPtr?.id)) {
+    if (!(this.#forwardedFromPtr?.id === other.#forwardedFromPtr?.id)) {
       return false;
     }
     if (
-      (this.text == null) !== (other.text == null) ||
-      (this.text != null && !this.text.equals(other.text))
+      (this.#text == null) !== (other.#text == null) ||
+      (this.#text != null && !this.#text.equals(other.#text))
     ) {
       return false;
     }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+    if (!(this.#nodePtr?.id === other.#nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -457,29 +567,29 @@ export class Message
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.threadPtr !== null) {
-      h = (h * 31 + hashString(this.threadPtr.id)) & 0xffffffff;
+    if (this.#threadPtr !== null) {
+      h = (h * 31 + hashString(this.#threadPtr.id)) & 0xffffffff;
     }
-    if (this.editedAt !== null) {
-      h = (h * 31 + hashString(this.editedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.#editedAt !== null) {
+      h = (h * 31 + hashString(this.#editedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.replyToPtr !== null) {
-      h = (h * 31 + hashString(this.replyToPtr.id)) & 0xffffffff;
+    if (this.#replyToPtr !== null) {
+      h = (h * 31 + hashString(this.#replyToPtr.id)) & 0xffffffff;
     }
-    if (this.forwardedFromPtr !== null) {
-      h = (h * 31 + hashString(this.forwardedFromPtr.id)) & 0xffffffff;
+    if (this.#forwardedFromPtr !== null) {
+      h = (h * 31 + hashString(this.#forwardedFromPtr.id)) & 0xffffffff;
     }
-    if (this.text !== null) {
-      h = (h * 31 + this.text.hash()) & 0xffffffff;
+    if (this.#text !== null) {
+      h = (h * 31 + this.#text.hash()) & 0xffffffff;
     }
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.#nodePtr !== null) {
+      h = (h * 31 + hashString(this.#nodePtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.#ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -592,26 +702,26 @@ export class Message
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.ownedByPtr != null) {
-      objectValue["28"] = object.ownedByPtr.toValue();
+    if (object.#ownedByPtr != null) {
+      objectValue["28"] = object.#ownedByPtr.toValue();
     }
-    if (object.threadPtr != null) {
-      objectValue["35"] = object.threadPtr.toValue();
+    if (object.#threadPtr != null) {
+      objectValue["35"] = object.#threadPtr.toValue();
     }
-    if (object.editedAt != null) {
-      objectValue["40"] = object.editedAt.toString({ timeZoneName: "never" });
+    if (object.#editedAt != null) {
+      objectValue["40"] = object.#editedAt.toString({ timeZoneName: "never" });
     }
-    if (object.replyToPtr != null) {
-      objectValue["50"] = object.replyToPtr.toValue();
+    if (object.#replyToPtr != null) {
+      objectValue["50"] = object.#replyToPtr.toValue();
     }
-    if (object.forwardedFromPtr != null) {
-      objectValue["51"] = object.forwardedFromPtr.toValue();
+    if (object.#forwardedFromPtr != null) {
+      objectValue["51"] = object.#forwardedFromPtr.toValue();
     }
-    if (object.text != null) {
-      objectValue["61"] = object.text.toValue();
+    if (object.#text != null) {
+      objectValue["61"] = object.#text.toValue();
     }
-    if (object.nodePtr != null) {
-      objectValue["62"] = object.nodePtr.toValue();
+    if (object.#nodePtr != null) {
+      objectValue["62"] = object.#nodePtr.toValue();
     }
     return objectValue;
   }
@@ -785,26 +895,26 @@ export class Message
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    if (object.#ownedByPtr != null) {
+      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     }
-    if (object.threadPtr != null) {
-      objectProto.threadPtr = object.threadPtr.toProto();
+    if (object.#threadPtr != null) {
+      objectProto.threadPtr = object.#threadPtr.toProto();
     }
-    if (object.editedAt != null) {
-      objectProto.editedAt = packProtoTimestamp(object.editedAt);
+    if (object.#editedAt != null) {
+      objectProto.editedAt = packProtoTimestamp(object.#editedAt);
     }
-    if (object.replyToPtr != null) {
-      objectProto.replyToPtr = object.replyToPtr.toProto();
+    if (object.#replyToPtr != null) {
+      objectProto.replyToPtr = object.#replyToPtr.toProto();
     }
-    if (object.forwardedFromPtr != null) {
-      objectProto.forwardedFromPtr = object.forwardedFromPtr.toProto();
+    if (object.#forwardedFromPtr != null) {
+      objectProto.forwardedFromPtr = object.#forwardedFromPtr.toProto();
     }
-    if (object.text != null) {
-      objectProto.text = object.text.toProto();
+    if (object.#text != null) {
+      objectProto.text = object.#text.toProto();
     }
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
+    if (object.#nodePtr != null) {
+      objectProto.nodePtr = object.#nodePtr.toProto();
     }
     return objectProto as MessageProto;
   }

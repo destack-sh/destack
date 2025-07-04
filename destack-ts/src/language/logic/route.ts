@@ -172,12 +172,44 @@ export class Route
       this.ownedByPtr = node.toRef();
     }
   }
-  ownedByPtr: NodeReference | null;
+  get ownedByPtr(): NodeReference | null {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference | null;
 
   /**
    * The name of the Route.
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * The Scene to route to.
@@ -196,7 +228,23 @@ export class Route
       this.scenePtr = node.toRef();
     }
   }
-  scenePtr: NodeReference | null;
+  get scenePtr(): NodeReference | null {
+    return this.#scenePtr;
+  }
+  set scenePtr(value: NodeReference | null) {
+    const oldValue = this.#scenePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["scenePtr"] === undefined) {
+      this._dirty["scenePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#scenePtr = value;
+  }
+  #scenePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -297,17 +345,17 @@ export class Route
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Route.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _scene = options.scene ?? null;
     if (_scene != null && _scene.metatype != StructType.NODE_REFERENCE) {
       _scene = (_scene as Node).toRef();
     }
-    this.scenePtr = _scene;
+    this.#scenePtr = _scene;
 
     // identity
     if (options.id == null) {
@@ -318,9 +366,7 @@ export class Route
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Route.createdAt and Route.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -343,16 +389,16 @@ export class Route
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
-    if (!(this.scenePtr?.id === other.scenePtr?.id)) {
+    if (!(this.#scenePtr?.id === other.#scenePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -376,9 +422,9 @@ export class Route
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.scenePtr !== null) {
-      h = (h * 31 + hashString(this.scenePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#scenePtr !== null) {
+      h = (h * 31 + hashString(this.#scenePtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -387,8 +433,8 @@ export class Route
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.#ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -499,12 +545,12 @@ export class Route
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    if (object.ownedByPtr != null) {
-      objectValue["28"] = object.ownedByPtr.toValue();
+    if (object.#ownedByPtr != null) {
+      objectValue["28"] = object.#ownedByPtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.scenePtr != null) {
-      objectValue["110"] = object.scenePtr.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#scenePtr != null) {
+      objectValue["110"] = object.#scenePtr.toValue();
     }
     return objectValue;
   }
@@ -644,12 +690,12 @@ export class Route
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    if (object.#ownedByPtr != null) {
+      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.scenePtr != null) {
-      objectProto.scenePtr = object.scenePtr.toProto();
+    objectProto.name = object.#name;
+    if (object.#scenePtr != null) {
+      objectProto.scenePtr = object.#scenePtr.toProto();
     }
     return objectProto as RouteProto;
   }

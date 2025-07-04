@@ -156,7 +156,7 @@ export class Edit extends StructFrozen {
   readonly undo: Edit | null;
 
   /**
-   * snapshot
+   * Edit.snapshot
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
@@ -892,7 +892,7 @@ export class Change extends StructFrozen {
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * created_by
+   * Change.createdBy
    */
   get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;

@@ -477,15 +477,15 @@ function queryNode(options: {
   // filter
   let filteredRows: MemoryRow[] = [];
   if (where != null) {
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-    for (const row of snapshotRows.values()) {
+    const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
+    for (const row of snapshotRows) {
       if (evaluateCondition({ context, condition: where, row })) {
         filteredRows.push(row);
       }
     }
   } else {
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-    filteredRows = Array.from(snapshotRows.values());
+    const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
+    filteredRows = Array.from(snapshotRows);
   }
 
   // sort
@@ -529,8 +529,8 @@ function queryScalar(options: {
     const definitions = context.resolve(definition);
     for (const rel of definitions) {
       const table = context.get(rel);
-      const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-      for (const row of snapshotRows.values()) {
+      const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
+      for (const row of snapshotRows) {
         if (where == null || evaluateCondition({ context, condition: where, row })) {
           filteredRows.push(row);
         }
@@ -538,8 +538,8 @@ function queryScalar(options: {
     }
   } else {
     const table = context.get(definition);
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-    for (const row of snapshotRows.values()) {
+    const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
+    for (const row of snapshotRows) {
       if (where == null || evaluateCondition({ context, condition: where, row })) {
         filteredRows.push(row);
       }
@@ -580,15 +580,15 @@ function queryGroupedNode(options: {
   let filteredRows: MemoryRow[] = [];
   if (where != null) {
     // filter rows based on where condition
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-    for (const row of snapshotRows.values()) {
+    const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
+    for (const row of snapshotRows) {
       if (evaluateCondition({ context, condition: where, row })) {
         filteredRows.push(row);
       }
     }
   } else {
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-    filteredRows = Array.from(snapshotRows.values());
+    const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
+    filteredRows = Array.from(snapshotRows);
   }
 
   // group rows by groupBy expressions

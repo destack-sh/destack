@@ -114,29 +114,22 @@ export class LogEvent extends Event {
     }
     return null;
   }
-  set node(node: Node | null) {
-    if (node === null) {
-      this.nodePtr = null;
-    } else {
-      this.nodePtr = node.toRef();
-    }
-  }
-  nodePtr: NodeReference | null;
+  readonly nodePtr: NodeReference | null;
 
   /**
    * LogEvent.content
    */
-  content: string;
+  readonly content: string;
 
   /**
    * LogEvent.attributes
    */
-  attributes: Map<string, any>;
+  readonly attributes: Map<string, any>;
 
   /**
    * LogEvent.level
    */
-  level: LogLevel;
+  readonly level: LogLevel;
 
   constructor(options: {
     id?: string;
@@ -221,7 +214,7 @@ export class LogEvent extends Event {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`LogEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =

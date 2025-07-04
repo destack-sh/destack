@@ -170,12 +170,17 @@ def _generate_from_value(cls: type["BuiltinObject"]) -> str:
 
 def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the packing code for a property value."""
+    from .language import _is_property_tracked
+
     lines: list[str] = []
-    ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    prop_ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
-        ts_name = ts_name + "Ptr"
-    obj_value = f"object.{ts_name}"
-    packed_name = f"packed{_upper_first(ts_name)}"
+        prop_ts_name = prop_ts_name + "Ptr"
+    if _is_property_tracked(prop):
+        obj_value = f"object.#{prop_ts_name}"
+    else:
+        obj_value = f"object.{prop_ts_name}"
+    packed_name = f"packed{_upper_first(prop_ts_name)}"
 
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:

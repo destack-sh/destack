@@ -97,9 +97,26 @@ def _get_properties(cls: type[BuiltinObject]) -> list[PropertyDeclaration]:
     return properties
 
 
-def _is_property_readonly(prop: PropertyDeclaration) -> bool:
+def _is_property_effective_readonly(prop: PropertyDeclaration) -> bool:
     """Check if a property is (effectively) readonly to the user."""
-    return prop.can_write is None or prop.can_write == RoleType.SYSTEM or prop.is_managed
+    return (
+        prop.is_readonly
+        or prop.can_write is None
+        or prop.can_write == RoleType.SYSTEM
+        or prop.is_managed
+    )
+
+
+def _is_property_tracked(prop: PropertyDeclaration) -> bool:
+    """Check if a property is tracked (tracked properties are set on Nodes)."""
+    return (
+        not prop.is_computed
+        and not prop.is_managed
+        and not prop.is_readonly
+        and prop.component.__is_node__
+        and not prop.component.__is_frozen__
+        and not prop.component.__is_abstract__
+    )
 
 
 def _generate_property_scalar_type(prop: TypeDeclaration, as_ptr: bool = True) -> str:
@@ -157,124 +174,152 @@ def _generate_property_type(prop: PropertyDeclaration, as_ptr: bool = True) -> s
 def _generate_property(
     prop: PropertyDeclaration,
     *,
-    is_readonly: bool,
+    is_effective_readonly: bool,
+    is_tracked: bool,
     is_node: bool,
     is_interface: bool,
     is_abstract: bool,
 ) -> str:
     """Generate a Property definition."""
 
-    ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    prop_ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    doc_str = _generate_multiline_doc(
+        prop.description or f"{prop.original_component.__name__}.{prop_ts_name}"
+    )
+    internal_prop_ts_name = f"#{prop_ts_name}" if is_tracked else prop_ts_name
 
+    # add wrapper for node references
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
-        # special case node references: custom getters/setters
         assert prop.cardinality == TypeCardinality.SCALAR, (
             f"node references must be scalar: {prop!r}"
         )
-        ptr_type_str = _generate_property_type(prop, as_ptr=True)
-        ptr_prop_name = f"{ts_name}Ptr"
-        node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
-        if prop.is_optional:
-            node_type_str = f"{node_type_str} | null"
 
-        # node getter/setter
+        # wrap main property
+        wrapped_ts_name = prop_ts_name
+        prop_ts_name = f"{prop_ts_name}Ptr"
+        internal_prop_ts_name = f"{internal_prop_ts_name}Ptr"
+        wrapped_node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
+        if prop.is_optional:
+            wrapped_node_type_str = f"{wrapped_node_type_str} | null"
+
+        # wrap with node getter/setter
         if is_interface:
-            # interface declaration
-            node_getter_str = f"get {ts_name}(): {node_type_str} | null"
-            if not is_readonly:
-                node_setter_str = f"set {ts_name}(value: {node_type_str})"
-                node_prop_str = f"{node_getter_str}\n{node_setter_str}"
+            # just interface declaration
+            wrapped_node_getter_str = f"get {wrapped_ts_name}(): {wrapped_node_type_str} | null"
+            if not is_effective_readonly:
+                wrapped_node_setter_str = f"set {wrapped_ts_name}(value: {wrapped_node_type_str})"
+                wrapped_prefix_str = f"{wrapped_node_getter_str}\n{wrapped_node_setter_str}"
             else:
-                node_prop_str = node_getter_str
+                wrapped_prefix_str = wrapped_node_getter_str
         else:
             # actual getter/setter
             if is_node:
-                node_getter_str = f"""\
-/**
- * {prop.description or f"{prop.original_component.__name__}.{to_casing(prop.name, Casing.LOWER_CAMEL)}"}
- */
-get {ts_name}(): {node_type_str} | null {{
-    const nodePtr: NodeReference | null = this.{ptr_prop_name};
+                wrapped_node_getter_str = f"""\
+{doc_str}
+get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
+    const nodePtr: NodeReference | null = this.{prop_ts_name};
     if (nodePtr !== null) {{
-        return this._supergraph.get(nodePtr.id) as {node_type_str} | null;
+        return this._supergraph.get(nodePtr.id) as {wrapped_node_type_str} | null;
     }}
     return null;
 }}"""
-                if not is_readonly:
+                if not is_effective_readonly:
                     if prop.is_optional:
-                        node_setter_str = f"""\
-set {ts_name}(node: {node_type_str}) {{
+                        wrapped_node_setter_str = f"""\
+set {wrapped_ts_name}(node: {wrapped_node_type_str}) {{
     if (node === null) {{
-        this.{ptr_prop_name} = null;
+        this.{prop_ts_name} = null;
     }} else {{
-        this.{ptr_prop_name} = node.toRef();
+        this.{prop_ts_name} = node.toRef();
     }}
 }}"""
                     else:
-                        node_setter_str = f"""\
-set {ts_name}(node: {node_type_str}) {{
-    this.{ptr_prop_name} = node.toRef();
+                        wrapped_node_setter_str = f"""\
+set {wrapped_ts_name}(node: {wrapped_node_type_str}) {{
+    this.{prop_ts_name} = node.toRef();
 }}"""
-                    node_prop_str = f"{node_getter_str}\n{node_setter_str}"
+                    wrapped_prefix_str = f"{wrapped_node_getter_str}\n{wrapped_node_setter_str}"
                 else:
-                    node_prop_str = node_getter_str
+                    wrapped_prefix_str = wrapped_node_getter_str
 
             else:
-                node_getter_str = f"""\
-/**
- * {prop.description or prop.name}
- */
-get {ts_name}(): {node_type_str} | null {{
-    const nodePtr: NodeReference | null = this.{ptr_prop_name};
+                wrapped_node_getter_str = f"""\
+{doc_str}
+get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
+    const nodePtr: NodeReference | null = this.{prop_ts_name};
     if (nodePtr !== null) {{
         if (this._supergraph === null) {{
             return null;
         }}
-        return this._supergraph.get(nodePtr.id) as {node_type_str};
+        return this._supergraph.get(nodePtr.id) as {wrapped_node_type_str};
     }}
     return null;
 }}"""
-                if not is_readonly:
+                if not is_effective_readonly:
                     if prop.is_optional:
-                        node_setter_str = f"""\
-set {ts_name}(value: {node_type_str}) {{
+                        wrapped_node_setter_str = f"""\
+set {wrapped_ts_name}(value: {wrapped_node_type_str}) {{
     if (value == null) {{
-        this.{ptr_prop_name} = null;
+        this.{prop_ts_name} = null;
     }} else {{
-        this.{ptr_prop_name} = value.toRef();
+        this.{prop_ts_name} = value.toRef();
     }}
 }}"""
                     else:
-                        node_setter_str = f"""\
-set {ts_name}(value: {node_type_str}) {{
-    this.{ptr_prop_name} = value.toRef();
+                        wrapped_node_setter_str = f"""\
+set {wrapped_ts_name}(value: {wrapped_node_type_str}) {{
+    this.{prop_ts_name} = value.toRef();
 }}"""
-                    node_prop_str = f"{node_getter_str}\n{node_setter_str}"
+                    wrapped_prefix_str = f"{wrapped_node_getter_str}\n{wrapped_node_setter_str}"
                 else:
-                    node_prop_str = node_getter_str
-
-        ptr_prop_str = f"{ptr_prop_name}: {ptr_type_str}"
-        if is_readonly:
-            ptr_prop_str = f"readonly {ptr_prop_str}"
-        if is_abstract and not is_interface:
-            ptr_prop_str = f"declare {ptr_prop_str}"
-        return f"{node_prop_str};\n{ptr_prop_str}"
-
+                    wrapped_prefix_str = wrapped_node_getter_str
+        prop_type_str = _generate_property_type(prop, as_ptr=True)
     else:
-        type_str = _generate_property_type(prop)
-        node_prop_str = f"{ts_name}: {type_str}"
-        if is_readonly:
-            node_prop_str = f"readonly {node_prop_str}"
-        if is_abstract and not is_interface:
-            node_prop_str = f"declare {node_prop_str}"
-        if node_prop_str.count("\n") < 1:
-            node_prop_str = f"{node_prop_str};"
-        node_prop_str = f"""\
-/**
- * {prop.description or f"{prop.original_component.__name__}.{to_casing(prop.name, Casing.LOWER_CAMEL)}"}
- */
-{node_prop_str}"""
-        return node_prop_str
+        # regular property
+        wrapped_prefix_str = ""
+        prop_type_str = _generate_property_type(prop)
+
+    # main property
+    prop_str = f"{internal_prop_ts_name}: {prop_type_str}"
+    if is_effective_readonly and not is_tracked:
+        prop_str = f"readonly {prop_str}"
+    if is_abstract and not is_interface:
+        prop_str = f"declare {prop_str}"
+
+    # wrap get/set for tracked Node properties
+    if is_tracked:
+        prop_str = f"""\
+get {prop_ts_name}(): {prop_type_str} {{
+    return this.{internal_prop_ts_name};
+}}
+set {prop_ts_name}(value: {prop_type_str}) {{
+    const oldValue = this.{internal_prop_ts_name};
+    if (this._dirty == null) {{
+        this._dirty = {{}};
+    }}
+    if (this._dirty["{prop_ts_name}"] === undefined) {{
+        this._dirty["{prop_ts_name}"] = oldValue;
+    }}
+    if (!this._session.dirty[this.id]) {{
+        this._session.dirty[this.id] = this;
+    }}
+    this.{internal_prop_ts_name} = value;
+}}
+{prop_str}
+"""
+
+    # wrap
+    if prop_str.count("\n") < 1:
+        prop_str = f"{prop_str};"
+    if wrapped_prefix_str:
+        prop_str = f"""\
+{wrapped_prefix_str}
+{prop_str}"""
+    else:
+        prop_str = f"""\
+{doc_str}
+{prop_str}"""
+    return prop_str
 
 
 def _generate_init(cls: type[BuiltinObject]) -> str:
@@ -378,6 +423,8 @@ super(
         ts_name_self = ts_name_in
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             ts_name_self = ts_name_in + "Ptr"
+        if cls.__is_node__ and _is_property_tracked(prop):
+            ts_name_self = f"#{ts_name_self}"
 
         if _is_property_required(prop):
             body_parts.append(f"let _{ts_name_in} = options.{ts_name_in};")
@@ -446,36 +493,36 @@ if (_{ts_name_in} === null) {{
     # node identity
     if issubclass(cls, Node):
         if issubclass(cls, Entity):
-            identity_str = """\
-if (options.id == null) {
+            identity_str = f"""\
+if (options.id == null) {{
   const now = Temporal.Now.zonedDateTimeISO("UTC");
   this.createdAt = now;
   this.createdByPtr = null;
   this.updatedAt = now;
   this.updatedByPtr = null;
-} else {
-  if (options.createdAt == null || options.updatedAt == null) {
+}} else {{
+  if (options.createdAt == null || options.updatedAt == null) {{
     throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
-  }
+  }}
   this.createdAt = options.createdAt;
   this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
   this.updatedAt = options.updatedAt; 
   this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
-}
+}}
 """
         elif issubclass(cls, Event):
-            identity_str = """\
-if (options.id == null) {
+            identity_str = f"""\
+if (options.id == null) {{
   const now = Temporal.Now.zonedDateTimeISO("UTC");
   this.createdAt = now;
   this.createdByPtr = null;
-} else {
-  if (options.createdAt == null) {
+}} else {{
+  if (options.createdAt == null) {{
     throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
-  }
+  }}
   this.createdAt = options.createdAt;
   this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
-}
+}}
 """
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__} extends {cls.__inherits__}")
@@ -724,6 +771,8 @@ def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}Ptr"
+    if _is_property_tracked(prop):
+        prop_name = f"#{prop_name}"
 
     scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop)
     if prop.cardinality == TypeCardinality.SCALAR:
@@ -843,6 +892,8 @@ def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
     prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}Ptr"
+    if _is_property_tracked(prop):
+        prop_name = f"#{prop_name}"
 
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
@@ -1040,7 +1091,8 @@ def _generate_struct(definition: StructDefinition) -> str:
     for prop in _get_properties(struct_cls):
         prop_str = _generate_property(
             prop,
-            is_readonly=definition.is_frozen,
+            is_effective_readonly=definition.is_frozen,
+            is_tracked=_is_property_tracked(prop),
             is_node=False,
             is_interface=False,
             is_abstract=struct_cls.__is_abstract__,
@@ -1105,7 +1157,8 @@ def _generate_trait(definition: TraitDefinition) -> str:
             continue  # ignore node base properties for traits
         prop_str = _generate_property(
             prop,
-            is_readonly=_is_property_readonly(prop),
+            is_effective_readonly=_is_property_effective_readonly(prop),
+            is_tracked=_is_property_tracked(prop),
             is_node=False,
             is_interface=True,
             is_abstract=True,
@@ -1171,7 +1224,8 @@ def _generate_node(definition: NodeDefinition) -> str:
             continue  # ignore id for nodes (already defined in Node superclass)
         prop_str = _generate_property(
             prop,
-            is_readonly=_is_property_readonly(prop),
+            is_effective_readonly=definition.is_frozen or _is_property_effective_readonly(prop),
+            is_tracked=_is_property_tracked(prop),
             is_node=True,
             is_interface=False,
             is_abstract=node_cls.__is_abstract__,

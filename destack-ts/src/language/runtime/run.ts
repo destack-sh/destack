@@ -141,10 +141,7 @@ export abstract class RunEvent extends Event {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
+  declare readonly nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -156,14 +153,7 @@ export abstract class RunEvent extends Event {
     }
     return null;
   }
-  set target(node: (Node & IsRunnable) | null) {
-    if (node === null) {
-      this.targetPtr = null;
-    } else {
-      this.targetPtr = node.toRef();
-    }
-  }
-  declare targetPtr: NodeReference | null;
+  declare readonly targetPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -242,10 +232,7 @@ export class RunStartedEvent extends RunEvent {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -257,14 +244,7 @@ export class RunStartedEvent extends RunEvent {
     }
     return null;
   }
-  set target(node: (Node & IsRunnable) | null) {
-    if (node === null) {
-      this.targetPtr = null;
-    } else {
-      this.targetPtr = node.toRef();
-    }
-  }
-  targetPtr: NodeReference | null;
+  readonly targetPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -340,7 +320,7 @@ export class RunStartedEvent extends RunEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RunStartedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -719,10 +699,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -734,14 +711,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     return null;
   }
-  set target(node: (Node & IsRunnable) | null) {
-    if (node === null) {
-      this.targetPtr = null;
-    } else {
-      this.targetPtr = node.toRef();
-    }
-  }
-  targetPtr: NodeReference | null;
+  readonly targetPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -817,7 +787,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RunPauseRequestedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1208,10 +1178,7 @@ export class RunPausedEvent extends RunEvent {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -1223,14 +1190,7 @@ export class RunPausedEvent extends RunEvent {
     }
     return null;
   }
-  set target(node: (Node & IsRunnable) | null) {
-    if (node === null) {
-      this.targetPtr = null;
-    } else {
-      this.targetPtr = node.toRef();
-    }
-  }
-  targetPtr: NodeReference | null;
+  readonly targetPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -1306,7 +1266,7 @@ export class RunPausedEvent extends RunEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RunPausedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1685,10 +1645,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -1700,14 +1657,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     return null;
   }
-  set target(node: (Node & IsRunnable) | null) {
-    if (node === null) {
-      this.targetPtr = null;
-    } else {
-      this.targetPtr = node.toRef();
-    }
-  }
-  targetPtr: NodeReference | null;
+  readonly targetPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -1783,7 +1733,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RunResumeRequestedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2174,10 +2124,7 @@ export class RunResumedEvent extends RunEvent {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -2189,14 +2136,7 @@ export class RunResumedEvent extends RunEvent {
     }
     return null;
   }
-  set target(node: (Node & IsRunnable) | null) {
-    if (node === null) {
-      this.targetPtr = null;
-    } else {
-      this.targetPtr = node.toRef();
-    }
-  }
-  targetPtr: NodeReference | null;
+  readonly targetPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -2272,7 +2212,7 @@ export class RunResumedEvent extends RunEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RunResumedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2651,10 +2591,7 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -2666,14 +2603,7 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     return null;
   }
-  set target(node: (Node & IsRunnable) | null) {
-    if (node === null) {
-      this.targetPtr = null;
-    } else {
-      this.targetPtr = node.toRef();
-    }
-  }
-  targetPtr: NodeReference | null;
+  readonly targetPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -2749,7 +2679,7 @@ export class RunStopRequestedEvent extends RunEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RunStopRequestedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -3140,10 +3070,7 @@ export class RunFailedEvent extends RunEvent {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -3155,14 +3082,7 @@ export class RunFailedEvent extends RunEvent {
     }
     return null;
   }
-  set target(node: (Node & IsRunnable) | null) {
-    if (node === null) {
-      this.targetPtr = null;
-    } else {
-      this.targetPtr = node.toRef();
-    }
-  }
-  targetPtr: NodeReference | null;
+  readonly targetPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -3238,7 +3158,7 @@ export class RunFailedEvent extends RunEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RunFailedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -3617,10 +3537,7 @@ export class RunCompletedEvent extends RunEvent {
     }
     return null;
   }
-  set node(node: Run) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   /**
    * RunEvent.target
@@ -3632,14 +3549,7 @@ export class RunCompletedEvent extends RunEvent {
     }
     return null;
   }
-  set target(node: (Node & IsRunnable) | null) {
-    if (node === null) {
-      this.targetPtr = null;
-    } else {
-      this.targetPtr = node.toRef();
-    }
-  }
-  targetPtr: NodeReference | null;
+  readonly targetPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -3715,7 +3625,7 @@ export class RunCompletedEvent extends RunEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`RunCompletedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -4157,7 +4067,23 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  customValues: Map<string, Value>;
+  get customValues(): Map<string, Value> {
+    return this.#customValues;
+  }
+  set customValues(value: Map<string, Value>) {
+    const oldValue = this.#customValues;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["customValues"] === undefined) {
+      this._dirty["customValues"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#customValues = value;
+  }
+  #customValues: Map<string, Value>;
 
   /**
    * Run.target
@@ -4176,42 +4102,170 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
       this.targetPtr = node.toRef();
     }
   }
-  targetPtr: NodeReference | null;
+  get targetPtr(): NodeReference | null {
+    return this.#targetPtr;
+  }
+  set targetPtr(value: NodeReference | null) {
+    const oldValue = this.#targetPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["targetPtr"] === undefined) {
+      this._dirty["targetPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#targetPtr = value;
+  }
+  #targetPtr: NodeReference | null;
 
   /**
    * Run.status
    */
-  status: RunStatus;
+  get status(): RunStatus {
+    return this.#status;
+  }
+  set status(value: RunStatus) {
+    const oldValue = this.#status;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["status"] === undefined) {
+      this._dirty["status"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#status = value;
+  }
+  #status: RunStatus;
 
   /**
    * Duration from first attempt start to last attempt termination.
    */
-  duration: Temporal.Duration | null;
+  get duration(): Temporal.Duration | null {
+    return this.#duration;
+  }
+  set duration(value: Temporal.Duration | null) {
+    const oldValue = this.#duration;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["duration"] === undefined) {
+      this._dirty["duration"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#duration = value;
+  }
+  #duration: Temporal.Duration | null;
 
   /**
    * When the Run is scheduled to start.
    */
-  scheduledAt: Temporal.ZonedDateTime | null;
+  get scheduledAt(): Temporal.ZonedDateTime | null {
+    return this.#scheduledAt;
+  }
+  set scheduledAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#scheduledAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["scheduledAt"] === undefined) {
+      this._dirty["scheduledAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#scheduledAt = value;
+  }
+  #scheduledAt: Temporal.ZonedDateTime | null;
 
   /**
    * When the Run first started.
    */
-  startedAt: Temporal.ZonedDateTime | null;
+  get startedAt(): Temporal.ZonedDateTime | null {
+    return this.#startedAt;
+  }
+  set startedAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#startedAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["startedAt"] === undefined) {
+      this._dirty["startedAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#startedAt = value;
+  }
+  #startedAt: Temporal.ZonedDateTime | null;
 
   /**
    * When the Run was last active.
    */
-  seenAt: Temporal.ZonedDateTime | null;
+  get seenAt(): Temporal.ZonedDateTime | null {
+    return this.#seenAt;
+  }
+  set seenAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#seenAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["seenAt"] === undefined) {
+      this._dirty["seenAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#seenAt = value;
+  }
+  #seenAt: Temporal.ZonedDateTime | null;
 
   /**
    * When the Run was interrupted.
    */
-  interruptedAt: Temporal.ZonedDateTime | null;
+  get interruptedAt(): Temporal.ZonedDateTime | null {
+    return this.#interruptedAt;
+  }
+  set interruptedAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#interruptedAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["interruptedAt"] === undefined) {
+      this._dirty["interruptedAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#interruptedAt = value;
+  }
+  #interruptedAt: Temporal.ZonedDateTime | null;
 
   /**
    * When the Run was last terminated.
    */
-  terminatedAt: Temporal.ZonedDateTime | null;
+  get terminatedAt(): Temporal.ZonedDateTime | null {
+    return this.#terminatedAt;
+  }
+  set terminatedAt(value: Temporal.ZonedDateTime | null) {
+    const oldValue = this.#terminatedAt;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["terminatedAt"] === undefined) {
+      this._dirty["terminatedAt"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#terminatedAt = value;
+  }
+  #terminatedAt: Temporal.ZonedDateTime | null;
 
   /**
    * The latest Interruption.
@@ -4230,7 +4284,23 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
       this.interruptionPtr = node.toRef();
     }
   }
-  interruptionPtr: NodeReference | null;
+  get interruptionPtr(): NodeReference | null {
+    return this.#interruptionPtr;
+  }
+  set interruptionPtr(value: NodeReference | null) {
+    const oldValue = this.#interruptionPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["interruptionPtr"] === undefined) {
+      this._dirty["interruptionPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#interruptionPtr = value;
+  }
+  #interruptionPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -4326,34 +4396,34 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.customValues = _customValues;
+    this.#customValues = _customValues;
     let _target = options.target ?? null;
     if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
       _target = (_target as Node).toRef();
     }
-    this.targetPtr = _target;
+    this.#targetPtr = _target;
     let _status = options.status;
     if (_status === null) {
       throw new Error(`Run.status is required`);
     }
-    this.status = _status;
+    this.#status = _status;
     let _duration = options.duration ?? null;
-    this.duration = _duration;
+    this.#duration = _duration;
     let _scheduledAt = options.scheduledAt ?? null;
-    this.scheduledAt = _scheduledAt;
+    this.#scheduledAt = _scheduledAt;
     let _startedAt = options.startedAt ?? null;
-    this.startedAt = _startedAt;
+    this.#startedAt = _startedAt;
     let _seenAt = options.seenAt ?? null;
-    this.seenAt = _seenAt;
+    this.#seenAt = _seenAt;
     let _interruptedAt = options.interruptedAt ?? null;
-    this.interruptedAt = _interruptedAt;
+    this.#interruptedAt = _interruptedAt;
     let _terminatedAt = options.terminatedAt ?? null;
-    this.terminatedAt = _terminatedAt;
+    this.#terminatedAt = _terminatedAt;
     let _interruption = options.interruption ?? null;
     if (_interruption != null && _interruption.metatype != StructType.NODE_REFERENCE) {
       _interruption = (_interruption as Node).toRef();
     }
-    this.interruptionPtr = _interruption;
+    this.#interruptionPtr = _interruption;
 
     // identity
     if (options.id == null) {
@@ -4364,9 +4434,7 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Run.createdAt and Run.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -4389,44 +4457,44 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.targetPtr?.id === other.targetPtr?.id)) {
+    if (!(this.#targetPtr?.id === other.#targetPtr?.id)) {
       return false;
     }
-    if (!(this.status === other.status)) {
+    if (!(this.#status === other.#status)) {
       return false;
     }
-    if (!(this.duration === other.duration)) {
+    if (!(this.#duration === other.#duration)) {
       return false;
     }
-    if (!(this.scheduledAt === other.scheduledAt)) {
+    if (!(this.#scheduledAt === other.#scheduledAt)) {
       return false;
     }
-    if (!(this.startedAt === other.startedAt)) {
+    if (!(this.#startedAt === other.#startedAt)) {
       return false;
     }
-    if (!(this.seenAt === other.seenAt)) {
+    if (!(this.#seenAt === other.#seenAt)) {
       return false;
     }
-    if (!(this.interruptedAt === other.interruptedAt)) {
+    if (!(this.#interruptedAt === other.#interruptedAt)) {
       return false;
     }
-    if (!(this.terminatedAt === other.terminatedAt)) {
+    if (!(this.#terminatedAt === other.#terminatedAt)) {
       return false;
     }
-    if (!(this.interruptionPtr?.id === other.interruptionPtr?.id)) {
+    if (!(this.#interruptionPtr?.id === other.#interruptionPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
       return false;
     }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
+    for (const key in this.#customValues) {
+      if (!(key in other.#customValues)) {
         return false;
       }
-      if (!this.customValues.get(key)!.equals(other.customValues.get(key)!)) {
+      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
         return false;
       }
     }
@@ -4451,37 +4519,38 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.targetPtr !== null) {
-      h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
+    if (this.#targetPtr !== null) {
+      h = (h * 31 + hashString(this.#targetPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.status) & 0xffffffff;
-    if (this.duration !== null) {
-      h = (h * 31 + hashFloat(this.duration.total("seconds"))) & 0xffffffff;
+    h = (h * 31 + this.#status) & 0xffffffff;
+    if (this.#duration !== null) {
+      h = (h * 31 + hashFloat(this.#duration.total("seconds"))) & 0xffffffff;
     }
-    if (this.scheduledAt !== null) {
-      h = (h * 31 + hashString(this.scheduledAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.#scheduledAt !== null) {
+      h = (h * 31 + hashString(this.#scheduledAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.startedAt !== null) {
-      h = (h * 31 + hashString(this.startedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.#startedAt !== null) {
+      h = (h * 31 + hashString(this.#startedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.seenAt !== null) {
-      h = (h * 31 + hashString(this.seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.#seenAt !== null) {
+      h = (h * 31 + hashString(this.#seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.interruptedAt !== null) {
+    if (this.#interruptedAt !== null) {
       h =
-        (h * 31 + hashString(this.interruptedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+        (h * 31 + hashString(this.#interruptedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.terminatedAt !== null) {
-      h = (h * 31 + hashString(this.terminatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.#terminatedAt !== null) {
+      h =
+        (h * 31 + hashString(this.#terminatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.interruptionPtr !== null) {
-      h = (h * 31 + hashString(this.interruptionPtr.id)) & 0xffffffff;
+    if (this.#interruptionPtr !== null) {
+      h = (h * 31 + hashString(this.#interruptionPtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
+    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.#customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -4594,37 +4663,37 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.customValues.size > 0) {
+    if (object.#customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
-    if (object.targetPtr != null) {
-      objectValue["111"] = object.targetPtr.toValue();
+    if (object.#targetPtr != null) {
+      objectValue["111"] = object.#targetPtr.toValue();
     }
-    objectValue["112"] = object.status;
-    if (object.duration != null) {
-      objectValue["113"] = timedeltaToISOFormat(object.duration);
+    objectValue["112"] = object.#status;
+    if (object.#duration != null) {
+      objectValue["113"] = timedeltaToISOFormat(object.#duration);
     }
-    if (object.scheduledAt != null) {
-      objectValue["116"] = object.scheduledAt.toString({ timeZoneName: "never" });
+    if (object.#scheduledAt != null) {
+      objectValue["116"] = object.#scheduledAt.toString({ timeZoneName: "never" });
     }
-    if (object.startedAt != null) {
-      objectValue["117"] = object.startedAt.toString({ timeZoneName: "never" });
+    if (object.#startedAt != null) {
+      objectValue["117"] = object.#startedAt.toString({ timeZoneName: "never" });
     }
-    if (object.seenAt != null) {
-      objectValue["118"] = object.seenAt.toString({ timeZoneName: "never" });
+    if (object.#seenAt != null) {
+      objectValue["118"] = object.#seenAt.toString({ timeZoneName: "never" });
     }
-    if (object.interruptedAt != null) {
-      objectValue["119"] = object.interruptedAt.toString({ timeZoneName: "never" });
+    if (object.#interruptedAt != null) {
+      objectValue["119"] = object.#interruptedAt.toString({ timeZoneName: "never" });
     }
-    if (object.terminatedAt != null) {
-      objectValue["120"] = object.terminatedAt.toString({ timeZoneName: "never" });
+    if (object.#terminatedAt != null) {
+      objectValue["120"] = object.#terminatedAt.toString({ timeZoneName: "never" });
     }
-    if (object.interruptionPtr != null) {
-      objectValue["121"] = object.interruptionPtr.toValue();
+    if (object.#interruptionPtr != null) {
+      objectValue["121"] = object.#interruptionPtr.toValue();
     }
     return objectValue;
   }
@@ -4798,36 +4867,36 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.customValues) {
+    if (object.#customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.customValues) {
+      for (const [key, value] of object.#customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
+    if (object.#targetPtr != null) {
+      objectProto.targetPtr = object.#targetPtr.toProto();
     }
-    objectProto.status = Number(object.status) as RunStatusProto;
-    if (object.duration != null) {
-      objectProto.duration = packProtoDuration(object.duration);
+    objectProto.status = Number(object.#status) as RunStatusProto;
+    if (object.#duration != null) {
+      objectProto.duration = packProtoDuration(object.#duration);
     }
-    if (object.scheduledAt != null) {
-      objectProto.scheduledAt = packProtoTimestamp(object.scheduledAt);
+    if (object.#scheduledAt != null) {
+      objectProto.scheduledAt = packProtoTimestamp(object.#scheduledAt);
     }
-    if (object.startedAt != null) {
-      objectProto.startedAt = packProtoTimestamp(object.startedAt);
+    if (object.#startedAt != null) {
+      objectProto.startedAt = packProtoTimestamp(object.#startedAt);
     }
-    if (object.seenAt != null) {
-      objectProto.seenAt = packProtoTimestamp(object.seenAt);
+    if (object.#seenAt != null) {
+      objectProto.seenAt = packProtoTimestamp(object.#seenAt);
     }
-    if (object.interruptedAt != null) {
-      objectProto.interruptedAt = packProtoTimestamp(object.interruptedAt);
+    if (object.#interruptedAt != null) {
+      objectProto.interruptedAt = packProtoTimestamp(object.#interruptedAt);
     }
-    if (object.terminatedAt != null) {
-      objectProto.terminatedAt = packProtoTimestamp(object.terminatedAt);
+    if (object.#terminatedAt != null) {
+      objectProto.terminatedAt = packProtoTimestamp(object.#terminatedAt);
     }
-    if (object.interruptionPtr != null) {
-      objectProto.interruptionPtr = object.interruptionPtr.toProto();
+    if (object.#interruptionPtr != null) {
+      objectProto.interruptionPtr = object.#interruptionPtr.toProto();
     }
     return objectProto as RunProto;
   }

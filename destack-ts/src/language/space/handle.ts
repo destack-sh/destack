@@ -126,7 +126,23 @@ export class Handle extends Entity implements IsGlobal {
   /**
    * Handle.slug
    */
-  slug: string;
+  get slug(): string {
+    return this.#slug;
+  }
+  set slug(value: string) {
+    const oldValue = this.#slug;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["slug"] === undefined) {
+      this._dirty["slug"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#slug = value;
+  }
+  #slug: string;
 
   constructor(options: {
     id?: string;
@@ -207,7 +223,7 @@ export class Handle extends Entity implements IsGlobal {
     if (_slug === null) {
       throw new Error(`Handle.slug is required`);
     }
-    this.slug = _slug;
+    this.#slug = _slug;
 
     // identity
     if (options.id == null) {
@@ -218,9 +234,7 @@ export class Handle extends Entity implements IsGlobal {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Handle.createdAt and Handle.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -243,7 +257,7 @@ export class Handle extends Entity implements IsGlobal {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.slug === other.slug)) {
+    if (!(this.#slug === other.#slug)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -267,7 +281,7 @@ export class Handle extends Entity implements IsGlobal {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.slug)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -363,7 +377,7 @@ export class Handle extends Entity implements IsGlobal {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["101"] = object.slug;
+    objectValue["101"] = object.#slug;
     return objectValue;
   }
 
@@ -470,7 +484,7 @@ export class Handle extends Entity implements IsGlobal {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.slug = object.slug;
+    objectProto.slug = object.#slug;
     return objectProto as HandleProto;
   }
 

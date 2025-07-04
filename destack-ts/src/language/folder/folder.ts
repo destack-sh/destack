@@ -212,27 +212,107 @@ export class Folder
       this.ownedByPtr = node.toRef();
     }
   }
-  ownedByPtr: NodeReference | null;
+  get ownedByPtr(): NodeReference | null {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference | null;
 
   /**
    * Folder.type
    */
-  type: FolderType;
+  get type(): FolderType {
+    return this.#type;
+  }
+  set type(value: FolderType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: FolderType;
 
   /**
    * Folder.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Folder.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   /**
    * Folder.slug
    */
-  slug: string | null;
+  get slug(): string | null {
+    return this.#slug;
+  }
+  set slug(value: string | null) {
+    const oldValue = this.#slug;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["slug"] === undefined) {
+      this._dirty["slug"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#slug = value;
+  }
+  #slug: string | null;
 
   /**
    * Folder.mainScene
@@ -251,7 +331,23 @@ export class Folder
       this.mainScenePtr = node.toRef();
     }
   }
-  mainScenePtr: NodeReference | null;
+  get mainScenePtr(): NodeReference | null {
+    return this.#mainScenePtr;
+  }
+  set mainScenePtr(value: NodeReference | null) {
+    const oldValue = this.#mainScenePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["mainScenePtr"] === undefined) {
+      this._dirty["mainScenePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#mainScenePtr = value;
+  }
+  #mainScenePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -355,7 +451,7 @@ export class Folder
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 3 /* FolderType.GENERAL */;
@@ -363,21 +459,21 @@ export class Folder
     if (_type === null) {
       throw new Error(`Folder.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Folder.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
     let _slug = options.slug ?? null;
-    this.slug = _slug;
+    this.#slug = _slug;
     let _mainScene = options.mainScene ?? null;
     if (_mainScene != null && _mainScene.metatype != StructType.NODE_REFERENCE) {
       _mainScene = (_mainScene as Node).toRef();
     }
-    this.mainScenePtr = _mainScene;
+    this.#mainScenePtr = _mainScene;
 
     // identity
     if (options.id == null) {
@@ -388,9 +484,7 @@ export class Folder
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Folder.createdAt and Folder.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -413,28 +507,28 @@ export class Folder
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
-    if (!(this.slug === other.slug)) {
+    if (!(this.#slug === other.#slug)) {
       return false;
     }
-    if (!(this.mainScenePtr?.id === other.mainScenePtr?.id)) {
+    if (!(this.#mainScenePtr?.id === other.#mainScenePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -458,22 +552,22 @@ export class Folder
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
-    if (this.slug !== null) {
-      h = (h * 31 + hashString(this.slug)) & 0xffffffff;
+    if (this.#slug !== null) {
+      h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
     }
-    if (this.mainScenePtr !== null) {
-      h = (h * 31 + hashString(this.mainScenePtr.id)) & 0xffffffff;
+    if (this.#mainScenePtr !== null) {
+      h = (h * 31 + hashString(this.#mainScenePtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.#ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
@@ -589,19 +683,19 @@ export class Folder
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    if (object.ownedByPtr != null) {
-      objectValue["28"] = object.ownedByPtr.toValue();
+    if (object.#ownedByPtr != null) {
+      objectValue["28"] = object.#ownedByPtr.toValue();
     }
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
-    if (object.slug != null) {
-      objectValue["103"] = object.slug;
+    if (object.#slug != null) {
+      objectValue["103"] = object.#slug;
     }
-    if (object.mainScenePtr != null) {
-      objectValue["110"] = object.mainScenePtr.toValue();
+    if (object.#mainScenePtr != null) {
+      objectValue["110"] = object.#mainScenePtr.toValue();
     }
     return objectValue;
   }
@@ -752,19 +846,19 @@ export class Folder
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    if (object.#ownedByPtr != null) {
+      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     }
-    objectProto.type = Number(object.type) as FolderTypeProto;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.type = Number(object.#type) as FolderTypeProto;
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
-    if (object.slug != null) {
-      objectProto.slug = object.slug;
+    if (object.#slug != null) {
+      objectProto.slug = object.#slug;
     }
-    if (object.mainScenePtr != null) {
-      objectProto.mainScenePtr = object.mainScenePtr.toProto();
+    if (object.#mainScenePtr != null) {
+      objectProto.mainScenePtr = object.#mainScenePtr.toProto();
     }
     return objectProto as FolderProto;
   }

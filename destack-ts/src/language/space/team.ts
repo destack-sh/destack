@@ -127,12 +127,44 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
   /**
    * Team.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Team.slug
    */
-  slug: string;
+  get slug(): string {
+    return this.#slug;
+  }
+  set slug(value: string) {
+    const oldValue = this.#slug;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["slug"] === undefined) {
+      this._dirty["slug"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#slug = value;
+  }
+  #slug: string;
 
   constructor(options: {
     id?: string;
@@ -214,12 +246,12 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
     if (_name === null) {
       throw new Error(`Team.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Team.slug is required`);
     }
-    this.slug = _slug;
+    this.#slug = _slug;
 
     // identity
     if (options.id == null) {
@@ -230,9 +262,7 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Team.createdAt and Team.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -255,10 +285,10 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
-    if (!(this.slug === other.slug)) {
+    if (!(this.#slug === other.#slug)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -282,8 +312,8 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.slug)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -371,8 +401,8 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["101"] = object.name;
-    objectValue["102"] = object.slug;
+    objectValue["101"] = object.#name;
+    objectValue["102"] = object.#slug;
     return objectValue;
   }
 
@@ -480,8 +510,8 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.name = object.name;
-    objectProto.slug = object.slug;
+    objectProto.name = object.#name;
+    objectProto.slug = object.#slug;
     return objectProto as TeamProto;
   }
 

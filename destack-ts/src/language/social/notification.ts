@@ -129,10 +129,7 @@ export abstract class NotificationEvent extends Event {
     }
     return null;
   }
-  set node(node: Notification) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
+  declare readonly nodePtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -211,10 +208,7 @@ export class NotificationSentEvent extends NotificationEvent {
     }
     return null;
   }
-  set node(node: Notification) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -284,7 +278,7 @@ export class NotificationSentEvent extends NotificationEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`NotificationSentEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -647,10 +641,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     }
     return null;
   }
-  set node(node: Notification) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -720,7 +711,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`NotificationRescindedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1083,10 +1074,7 @@ export class NotificationReadEvent extends NotificationEvent {
     }
     return null;
   }
-  set node(node: Notification) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -1156,7 +1144,7 @@ export class NotificationReadEvent extends NotificationEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`NotificationReadEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1519,10 +1507,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     }
     return null;
   }
-  set node(node: Notification) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -1592,7 +1577,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`NotificationDismissedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1955,10 +1940,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     }
     return null;
   }
-  set node(node: Notification) {
-    this.nodePtr = node.toRef();
-  }
-  nodePtr: NodeReference;
+  readonly nodePtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -2028,7 +2010,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
+        throw new Error(`NotificationExpiredEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -2456,22 +2438,86 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       this.ownedByPtr = node.toRef();
     }
   }
-  ownedByPtr: NodeReference | null;
+  get ownedByPtr(): NodeReference | null {
+    return this.#ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const oldValue = this.#ownedByPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["ownedByPtr"] === undefined) {
+      this._dirty["ownedByPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#ownedByPtr = value;
+  }
+  #ownedByPtr: NodeReference | null;
 
   /**
    * Notification.status
    */
-  status: NotificationStatus;
+  get status(): NotificationStatus {
+    return this.#status;
+  }
+  set status(value: NotificationStatus) {
+    const oldValue = this.#status;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["status"] === undefined) {
+      this._dirty["status"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#status = value;
+  }
+  #status: NotificationStatus;
 
   /**
    * Notification.title
    */
-  title: string;
+  get title(): string {
+    return this.#title;
+  }
+  set title(value: string) {
+    const oldValue = this.#title;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["title"] === undefined) {
+      this._dirty["title"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#title = value;
+  }
+  #title: string;
 
   /**
    * Notification.text
    */
-  text: Text | null;
+  get text(): Text | null {
+    return this.#text;
+  }
+  set text(value: Text | null) {
+    const oldValue = this.#text;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["text"] === undefined) {
+      this._dirty["text"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#text = value;
+  }
+  #text: Text | null;
 
   constructor(options: {
     id?: string;
@@ -2561,19 +2607,19 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.ownedByPtr = _ownedBy;
+    this.#ownedByPtr = _ownedBy;
     let _status = options.status;
     if (_status === null) {
       throw new Error(`Notification.status is required`);
     }
-    this.status = _status;
+    this.#status = _status;
     let _title = options.title;
     if (_title === null) {
       throw new Error(`Notification.title is required`);
     }
-    this.title = _title;
+    this.#title = _title;
     let _text = options.text ?? null;
-    this.text = _text;
+    this.#text = _text;
 
     // identity
     if (options.id == null) {
@@ -2585,7 +2631,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `Notification.createdAt and Notification.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -2609,22 +2655,22 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.status === other.status)) {
+    if (!(this.#status === other.#status)) {
       return false;
     }
-    if (!(this.title === other.title)) {
+    if (!(this.#title === other.#title)) {
       return false;
     }
     if (
-      (this.text == null) !== (other.text == null) ||
-      (this.text != null && !this.text.equals(other.text))
+      (this.#text == null) !== (other.#text == null) ||
+      (this.#text != null && !this.#text.equals(other.#text))
     ) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
+    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -2645,16 +2691,16 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.status) & 0xffffffff;
-    h = (h * 31 + hashString(this.title)) & 0xffffffff;
-    if (this.text !== null) {
-      h = (h * 31 + this.text.hash()) & 0xffffffff;
+    h = (h * 31 + this.#status) & 0xffffffff;
+    h = (h * 31 + hashString(this.#title)) & 0xffffffff;
+    if (this.#text !== null) {
+      h = (h * 31 + this.#text.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    if (this.#ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -2764,13 +2810,13 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.ownedByPtr != null) {
-      objectValue["28"] = object.ownedByPtr.toValue();
+    if (object.#ownedByPtr != null) {
+      objectValue["28"] = object.#ownedByPtr.toValue();
     }
-    objectValue["40"] = object.status;
-    objectValue["50"] = object.title;
-    if (object.text != null) {
-      objectValue["51"] = object.text.toValue();
+    objectValue["40"] = object.#status;
+    objectValue["50"] = object.#title;
+    if (object.#text != null) {
+      objectValue["51"] = object.#text.toValue();
     }
     return objectValue;
   }
@@ -2901,13 +2947,13 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.ownedByPtr != null) {
-      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    if (object.#ownedByPtr != null) {
+      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
     }
-    objectProto.status = Number(object.status) as NotificationStatusProto;
-    objectProto.title = object.title;
-    if (object.text != null) {
-      objectProto.text = object.text.toProto();
+    objectProto.status = Number(object.#status) as NotificationStatusProto;
+    objectProto.title = object.#title;
+    if (object.#text != null) {
+      objectProto.text = object.#text.toProto();
     }
     return objectProto as NotificationProto;
   }

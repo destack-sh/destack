@@ -118,10 +118,7 @@ export abstract class TriggerEvent extends Event {
     }
     return null;
   }
-  set node(node: Trigger) {
-    this.nodePtr = node.toRef();
-  }
-  declare nodePtr: NodeReference;
+  declare readonly nodePtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -251,22 +248,86 @@ export class Trigger extends Entity implements IsSpatial {
   /**
    * Trigger.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * Trigger.icon
    */
-  icon: Icon | null;
+  get icon(): Icon | null {
+    return this.#icon;
+  }
+  set icon(value: Icon | null) {
+    const oldValue = this.#icon;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["icon"] === undefined) {
+      this._dirty["icon"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#icon = value;
+  }
+  #icon: Icon | null;
 
   /**
    * Trigger.event
    */
-  event: NodeDefinitionReference | null;
+  get event(): NodeDefinitionReference | null {
+    return this.#event;
+  }
+  set event(value: NodeDefinitionReference | null) {
+    const oldValue = this.#event;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["event"] === undefined) {
+      this._dirty["event"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#event = value;
+  }
+  #event: NodeDefinitionReference | null;
 
   /**
    * Trigger.where
    */
-  where: Condition | null;
+  get where(): Condition | null {
+    return this.#where;
+  }
+  set where(value: Condition | null) {
+    const oldValue = this.#where;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["where"] === undefined) {
+      this._dirty["where"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#where = value;
+  }
+  #where: Condition | null;
 
   /**
    * Trigger.target
@@ -281,12 +342,44 @@ export class Trigger extends Entity implements IsSpatial {
   set target(node: Node & IsRunnable) {
     this.targetPtr = node.toRef();
   }
-  targetPtr: NodeReference;
+  get targetPtr(): NodeReference {
+    return this.#targetPtr;
+  }
+  set targetPtr(value: NodeReference) {
+    const oldValue = this.#targetPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["targetPtr"] === undefined) {
+      this._dirty["targetPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#targetPtr = value;
+  }
+  #targetPtr: NodeReference;
 
   /**
    * Trigger.arguments
    */
-  arguments: Map<string, Value>;
+  get arguments(): Map<string, Value> {
+    return this.#arguments;
+  }
+  set arguments(value: Map<string, Value>) {
+    const oldValue = this.#arguments;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["arguments"] === undefined) {
+      this._dirty["arguments"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#arguments = value;
+  }
+  #arguments: Map<string, Value>;
 
   constructor(options: {
     id?: string;
@@ -378,13 +471,13 @@ export class Trigger extends Entity implements IsSpatial {
     if (_name === null) {
       throw new Error(`Trigger.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _icon = options.icon ?? null;
-    this.icon = _icon;
+    this.#icon = _icon;
     let _event = options.event ?? null;
-    this.event = _event;
+    this.#event = _event;
     let _where = options.where ?? null;
-    this.where = _where;
+    this.#where = _where;
     let _target = options.target;
     if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
       _target = (_target as Node).toRef();
@@ -392,12 +485,12 @@ export class Trigger extends Entity implements IsSpatial {
     if (_target === null) {
       throw new Error(`Trigger.target is required`);
     }
-    this.targetPtr = _target;
+    this.#targetPtr = _target;
     let _arguments = options.arguments ?? null;
     if (_arguments === null) {
       _arguments = new Map();
     }
-    this.arguments = _arguments;
+    this.#arguments = _arguments;
 
     // identity
     if (options.id == null) {
@@ -408,9 +501,7 @@ export class Trigger extends Entity implements IsSpatial {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Trigger.createdAt and Trigger.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -433,38 +524,38 @@ export class Trigger extends Entity implements IsSpatial {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
+      (this.#icon == null) !== (other.#icon == null) ||
+      (this.#icon != null && !this.#icon.equals(other.#icon))
     ) {
       return false;
     }
     if (
-      (this.event == null) !== (other.event == null) ||
-      (this.event != null && !this.event.equals(other.event))
+      (this.#event == null) !== (other.#event == null) ||
+      (this.#event != null && !this.#event.equals(other.#event))
     ) {
       return false;
     }
     if (
-      (this.where == null) !== (other.where == null) ||
-      (this.where != null && !this.where.equals(other.where))
+      (this.#where == null) !== (other.#where == null) ||
+      (this.#where != null && !this.#where.equals(other.#where))
     ) {
       return false;
     }
-    if (!(this.targetPtr.id === other.targetPtr.id)) {
+    if (!(this.#targetPtr.id === other.#targetPtr.id)) {
       return false;
     }
-    if (Object.keys(this.arguments).length !== Object.keys(other.arguments).length) {
+    if (Object.keys(this.#arguments).length !== Object.keys(other.#arguments).length) {
       return false;
     }
-    for (const key in this.arguments) {
-      if (!(key in other.arguments)) {
+    for (const key in this.#arguments) {
+      if (!(key in other.#arguments)) {
         return false;
       }
-      if (!this.arguments.get(key)!.equals(other.arguments.get(key)!)) {
+      if (!this.#arguments.get(key)!.equals(other.#arguments.get(key)!)) {
         return false;
       }
     }
@@ -489,19 +580,19 @@ export class Trigger extends Entity implements IsSpatial {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    if (this.#icon !== null) {
+      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
     }
-    if (this.event !== null) {
-      h = (h * 31 + this.event.hash()) & 0xffffffff;
+    if (this.#event !== null) {
+      h = (h * 31 + this.#event.hash()) & 0xffffffff;
     }
-    if (this.where !== null) {
-      h = (h * 31 + this.where.hash()) & 0xffffffff;
+    if (this.#where !== null) {
+      h = (h * 31 + this.#where.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
-    if (this.arguments && Object.keys(this.arguments).length > 0) {
-      for (const [_key, _value] of Object.entries(this.arguments)) {
+    h = (h * 31 + hashString(this.#targetPtr.id)) & 0xffffffff;
+    if (this.#arguments && Object.keys(this.#arguments).length > 0) {
+      for (const [_key, _value] of Object.entries(this.#arguments)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -611,20 +702,20 @@ export class Trigger extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+    objectValue["101"] = object.#name;
+    if (object.#icon != null) {
+      objectValue["102"] = object.#icon.toValue();
     }
-    if (object.event != null) {
-      objectValue["110"] = object.event.toValue();
+    if (object.#event != null) {
+      objectValue["110"] = object.#event.toValue();
     }
-    if (object.where != null) {
-      objectValue["111"] = object.where.toValue();
+    if (object.#where != null) {
+      objectValue["111"] = object.#where.toValue();
     }
-    objectValue["120"] = object.targetPtr.toValue();
-    if (object.arguments.size > 0) {
+    objectValue["120"] = object.#targetPtr.toValue();
+    if (object.#arguments.size > 0) {
       const packedArguments: { [key: string]: any } = {};
-      for (const [key, value] of object.arguments) {
+      for (const [key, value] of object.#arguments) {
         packedArguments[String(String(key))] = value.toValue();
       }
       objectValue["121"] = packedArguments;
@@ -785,20 +876,20 @@ export class Trigger extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
+    objectProto.name = object.#name;
+    if (object.#icon != null) {
+      objectProto.icon = object.#icon.toProto();
     }
-    if (object.event != null) {
-      objectProto.event = object.event.toProto();
+    if (object.#event != null) {
+      objectProto.event = object.#event.toProto();
     }
-    if (object.where != null) {
-      objectProto.where = object.where.toProto();
+    if (object.#where != null) {
+      objectProto.where = object.#where.toProto();
     }
-    objectProto.targetPtr = object.targetPtr.toProto();
-    if (object.arguments) {
+    objectProto.targetPtr = object.#targetPtr.toProto();
+    if (object.#arguments) {
       objectProto.arguments = {};
-      for (const [key, value] of object.arguments) {
+      for (const [key, value] of object.#arguments) {
         objectProto.arguments![String(key)] = value.toProto();
       }
     }

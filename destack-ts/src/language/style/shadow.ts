@@ -203,42 +203,170 @@ export class ShadowStyle extends Style {
   /**
    * ShadowStyle.type
    */
-  type: ShadowType;
+  get type(): ShadowType {
+    return this.#type;
+  }
+  set type(value: ShadowType) {
+    const oldValue = this.#type;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["type"] === undefined) {
+      this._dirty["type"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#type = value;
+  }
+  #type: ShadowType;
 
   /**
    * Style.name
    */
-  name: string;
+  get name(): string {
+    return this.#name;
+  }
+  set name(value: string) {
+    const oldValue = this.#name;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["name"] === undefined) {
+      this._dirty["name"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#name = value;
+  }
+  #name: string;
 
   /**
    * ShadowStyle.color
    */
-  color: Color | null;
+  get color(): Color | null {
+    return this.#color;
+  }
+  set color(value: Color | null) {
+    const oldValue = this.#color;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["color"] === undefined) {
+      this._dirty["color"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#color = value;
+  }
+  #color: Color | null;
 
   /**
    * ShadowStyle.position
    */
-  position: ShadowPosition;
+  get position(): ShadowPosition {
+    return this.#position;
+  }
+  set position(value: ShadowPosition) {
+    const oldValue = this.#position;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["position"] === undefined) {
+      this._dirty["position"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#position = value;
+  }
+  #position: ShadowPosition;
 
   /**
    * ShadowStyle.offset
    */
-  offset: Axis2 | null;
+  get offset(): Axis2 | null {
+    return this.#offset;
+  }
+  set offset(value: Axis2 | null) {
+    const oldValue = this.#offset;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["offset"] === undefined) {
+      this._dirty["offset"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#offset = value;
+  }
+  #offset: Axis2 | null;
 
   /**
    * ShadowStyle.blur
    */
-  blur: number | null;
+  get blur(): number | null {
+    return this.#blur;
+  }
+  set blur(value: number | null) {
+    const oldValue = this.#blur;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["blur"] === undefined) {
+      this._dirty["blur"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#blur = value;
+  }
+  #blur: number | null;
 
   /**
    * ShadowStyle.spread
    */
-  spread: number | null;
+  get spread(): number | null {
+    return this.#spread;
+  }
+  set spread(value: number | null) {
+    const oldValue = this.#spread;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["spread"] === undefined) {
+      this._dirty["spread"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#spread = value;
+  }
+  #spread: number | null;
 
   /**
    * ShadowStyle.diffusion
    */
-  diffusion: number | null;
+  get diffusion(): number | null {
+    return this.#diffusion;
+  }
+  set diffusion(value: number | null) {
+    const oldValue = this.#diffusion;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["diffusion"] === undefined) {
+      this._dirty["diffusion"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#diffusion = value;
+  }
+  #diffusion: number | null;
 
   constructor(options: {
     id?: string;
@@ -347,14 +475,14 @@ export class ShadowStyle extends Style {
     if (_type === null) {
       throw new Error(`ShadowStyle.type is required`);
     }
-    this.type = _type;
+    this.#type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`ShadowStyle.name is required`);
     }
-    this.name = _name;
+    this.#name = _name;
     let _color = options.color ?? null;
-    this.color = _color;
+    this.#color = _color;
     let _position = options.position ?? null;
     if (_position === null) {
       _position = 1 /* ShadowPosition.OUTSIDE */;
@@ -362,15 +490,15 @@ export class ShadowStyle extends Style {
     if (_position === null) {
       throw new Error(`ShadowStyle.position is required`);
     }
-    this.position = _position;
+    this.#position = _position;
     let _offset = options.offset ?? null;
-    this.offset = _offset;
+    this.#offset = _offset;
     let _blur = options.blur ?? null;
-    this.blur = _blur;
+    this.#blur = _blur;
     let _spread = options.spread ?? null;
-    this.spread = _spread;
+    this.#spread = _spread;
     let _diffusion = options.diffusion ?? null;
-    this.diffusion = _diffusion;
+    this.#diffusion = _diffusion;
 
     // identity
     if (options.id == null) {
@@ -382,7 +510,7 @@ export class ShadowStyle extends Style {
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+          `ShadowStyle.createdAt and ShadowStyle.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -406,38 +534,41 @@ export class ShadowStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.#type === other.#type)) {
       return false;
     }
     if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
+      (this.#color == null) !== (other.#color == null) ||
+      (this.#color != null && !this.#color.equals(other.#color))
     ) {
       return false;
     }
-    if (!(this.position === other.position)) {
+    if (!(this.#position === other.#position)) {
       return false;
     }
     if (
-      (this.offset == null) !== (other.offset == null) ||
-      (this.offset != null && !this.offset.equals(other.offset))
+      (this.#offset == null) !== (other.#offset == null) ||
+      (this.#offset != null && !this.#offset.equals(other.#offset))
     ) {
       return false;
     }
-    if (!(this.blur === other.blur)) {
+    if (!(this.#blur === other.#blur)) {
       return false;
     }
-    if (!(this.spread === other.spread)) {
+    if (!(this.#spread === other.#spread)) {
       return false;
     }
     if (
-      (this.diffusion == null) !== (other.diffusion == null) ||
-      (this.diffusion != null &&
-        !(this.diffusion === other.diffusion || Math.abs(this.diffusion - other.diffusion) < 1e-10))
+      (this.#diffusion == null) !== (other.#diffusion == null) ||
+      (this.#diffusion != null &&
+        !(
+          this.#diffusion === other.#diffusion ||
+          Math.abs(this.#diffusion - other.#diffusion) < 1e-10
+        ))
     ) {
       return false;
     }
-    if (!(this.name === other.name)) {
+    if (!(this.#name === other.#name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -461,27 +592,27 @@ export class ShadowStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    h = (h * 31 + this.#type) & 0xffffffff;
+    if (this.#color !== null) {
+      h = (h * 31 + this.#color.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this.position) & 0xffffffff;
-    if (this.offset !== null) {
-      h = (h * 31 + this.offset.hash()) & 0xffffffff;
+    h = (h * 31 + this.#position) & 0xffffffff;
+    if (this.#offset !== null) {
+      h = (h * 31 + this.#offset.hash()) & 0xffffffff;
     }
-    if (this.blur !== null) {
-      h = (h * 31 + hashInt(this.blur)) & 0xffffffff;
+    if (this.#blur !== null) {
+      h = (h * 31 + hashInt(this.#blur)) & 0xffffffff;
     }
-    if (this.spread !== null) {
-      h = (h * 31 + hashInt(this.spread)) & 0xffffffff;
+    if (this.#spread !== null) {
+      h = (h * 31 + hashInt(this.#spread)) & 0xffffffff;
     }
-    if (this.diffusion !== null) {
-      h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
+    if (this.#diffusion !== null) {
+      h = (h * 31 + hashFloat(this.#diffusion)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -609,23 +740,23 @@ export class ShadowStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.color != null) {
-      objectValue["200"] = object.color.toValue();
+    objectValue["100"] = object.#type;
+    objectValue["101"] = object.#name;
+    if (object.#color != null) {
+      objectValue["200"] = object.#color.toValue();
     }
-    objectValue["201"] = object.position;
-    if (object.offset != null) {
-      objectValue["202"] = object.offset.toValue();
+    objectValue["201"] = object.#position;
+    if (object.#offset != null) {
+      objectValue["202"] = object.#offset.toValue();
     }
-    if (object.blur != null) {
-      objectValue["203"] = object.blur;
+    if (object.#blur != null) {
+      objectValue["203"] = object.#blur;
     }
-    if (object.spread != null) {
-      objectValue["204"] = object.spread;
+    if (object.#spread != null) {
+      objectValue["204"] = object.#spread;
     }
-    if (object.diffusion != null) {
-      objectValue["205"] = object.diffusion;
+    if (object.#diffusion != null) {
+      objectValue["205"] = object.#diffusion;
     }
     return objectValue;
   }
@@ -778,23 +909,23 @@ export class ShadowStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.type) as ShadowTypeProto;
-    objectProto.name = object.name;
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
+    objectProto.type = Number(object.#type) as ShadowTypeProto;
+    objectProto.name = object.#name;
+    if (object.#color != null) {
+      objectProto.color = object.#color.toProto();
     }
-    objectProto.position = Number(object.position) as ShadowPositionProto;
-    if (object.offset != null) {
-      objectProto.offset = object.offset.toProto();
+    objectProto.position = Number(object.#position) as ShadowPositionProto;
+    if (object.#offset != null) {
+      objectProto.offset = object.#offset.toProto();
     }
-    if (object.blur != null) {
-      objectProto.blur = object.blur;
+    if (object.#blur != null) {
+      objectProto.blur = object.#blur;
     }
-    if (object.spread != null) {
-      objectProto.spread = object.spread;
+    if (object.#spread != null) {
+      objectProto.spread = object.#spread;
     }
-    if (object.diffusion != null) {
-      objectProto.diffusion = object.diffusion;
+    if (object.#diffusion != null) {
+      objectProto.diffusion = object.#diffusion;
     }
     return objectProto as ShadowStyleProto;
   }
@@ -954,7 +1085,7 @@ export class Shadow extends StructFrozen {
   readonly type: ShadowType;
 
   /**
-   * style
+   * Shadow.style
    */
   get style(): ShadowStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
