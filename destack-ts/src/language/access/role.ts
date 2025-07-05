@@ -25,7 +25,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import {
   MaterializationProto,
   RoleAssignedEventProto,
@@ -37,7 +37,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:30201 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60201 ==== */
 /**
  * A Event regarding a Role.
  */
@@ -72,9 +72,9 @@ export abstract class RoleEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE_EVENT, RoleEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30201 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30202 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60202 ==== */
 /**
  * A Event regarding a Role.
  */
@@ -332,7 +332,7 @@ export class RoleAssignedEvent extends RoleEvent {
 
   static __packValue__(object: RoleAssignedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30202;
+    objectValue["1"] = 60202;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -428,7 +428,7 @@ export class RoleAssignedEvent extends RoleEvent {
   }
 
   static __packProto__(object: RoleAssignedEvent): RoleAssignedEventProto {
-    const objectProto: Partial<RoleAssignedEventProto> = { metatype: 30202 };
+    const objectProto: Partial<RoleAssignedEventProto> = { metatype: 60202 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -546,9 +546,9 @@ export class RoleAssignedEvent extends RoleEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE_ASSIGNED_EVENT, RoleAssignedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30202 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60202 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30203 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60203 ==== */
 /**
  * A Event regarding a Role.
  */
@@ -806,7 +806,7 @@ export class RoleUnassignedEvent extends RoleEvent {
 
   static __packValue__(object: RoleUnassignedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30203;
+    objectValue["1"] = 60203;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -902,7 +902,7 @@ export class RoleUnassignedEvent extends RoleEvent {
   }
 
   static __packProto__(object: RoleUnassignedEvent): RoleUnassignedEventProto {
-    const objectProto: Partial<RoleUnassignedEventProto> = { metatype: 30203 };
+    const objectProto: Partial<RoleUnassignedEventProto> = { metatype: 60203 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1020,9 +1020,9 @@ export class RoleUnassignedEvent extends RoleEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE_UNASSIGNED_EVENT, RoleUnassignedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30203 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60203 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60200 ==== */
 /**
  * A Role for Subjects to take.
  */
@@ -1472,7 +1472,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
 
   static __packValue__(object: Role): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30200;
+    objectValue["1"] = 60200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1611,7 +1611,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   }
 
   static __packProto__(object: Role): RoleProto {
-    const objectProto: Partial<RoleProto> = { metatype: 30200 };
+    const objectProto: Partial<RoleProto> = { metatype: 60200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1782,4 +1782,4 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE, Role);
-/* ==== DESTACK_GENERATED_END:NODE:30200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60200 ==== */

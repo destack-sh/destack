@@ -25,7 +25,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import {
   MaterializationProto,
   MembershipJoinedEventProto,
@@ -37,7 +37,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:30001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60001 ==== */
 /**
  * A Event regarding a Membership.
  */
@@ -75,9 +75,9 @@ export abstract class MembershipEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEMBERSHIP_EVENT, MembershipEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30001 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30002 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60002 ==== */
 /**
  * A Event regarding a Membership Join.
  */
@@ -400,7 +400,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
 
   static __packValue__(object: MembershipJoinedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30002;
+    objectValue["1"] = 60002;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -514,7 +514,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
   }
 
   static __packProto__(object: MembershipJoinedEvent): MembershipJoinedEventProto {
-    const objectProto: Partial<MembershipJoinedEventProto> = { metatype: 30002 };
+    const objectProto: Partial<MembershipJoinedEventProto> = { metatype: 60002 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -650,9 +650,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEMBERSHIP_JOINED_EVENT, MembershipJoinedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30002 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60002 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30003 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60003 ==== */
 /**
  * A Event regarding a Membership Leave.
  */
@@ -935,7 +935,7 @@ export class MembershipLeftEvent extends MembershipEvent {
 
   static __packValue__(object: MembershipLeftEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30003;
+    objectValue["1"] = 60003;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1039,7 +1039,7 @@ export class MembershipLeftEvent extends MembershipEvent {
   }
 
   static __packProto__(object: MembershipLeftEvent): MembershipLeftEventProto {
-    const objectProto: Partial<MembershipLeftEventProto> = { metatype: 30003 };
+    const objectProto: Partial<MembershipLeftEventProto> = { metatype: 60003 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1165,9 +1165,9 @@ export class MembershipLeftEvent extends MembershipEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEMBERSHIP_LEFT_EVENT, MembershipLeftEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30003 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60003 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60000 ==== */
 /**
  * A Membership of a Subject in a Joinable.
  */
@@ -1682,7 +1682,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
 
   static __packValue__(object: Membership): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30000;
+    objectValue["1"] = 60000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1837,7 +1837,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   }
 
   static __packProto__(object: Membership): MembershipProto {
-    const objectProto: Partial<MembershipProto> = { metatype: 30000 };
+    const objectProto: Partial<MembershipProto> = { metatype: 60000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2033,4 +2033,4 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEMBERSHIP, Membership);
-/* ==== DESTACK_GENERATED_END:NODE:30000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60000 ==== */

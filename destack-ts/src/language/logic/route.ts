@@ -15,16 +15,16 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
-import type { Folder } from "@destack/language/folder";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
-import type { Space } from "@destack/language/space";
+import type { Folder } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, RouteProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:71000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:111000 ==== */
 /**
  * A Route is a path to a Scene.
  */
@@ -512,7 +512,7 @@ export class Route
 
   static __packValue__(object: Route): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 71000;
+    objectValue["1"] = 111000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -657,7 +657,7 @@ export class Route
   }
 
   static __packProto__(object: Route): RouteProto {
-    const objectProto: Partial<RouteProto> = { metatype: 71000 };
+    const objectProto: Partial<RouteProto> = { metatype: 111000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -844,4 +844,4 @@ export class Route
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROUTE, Route);
-/* ==== DESTACK_GENERATED_END:NODE:71000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:111000 ==== */

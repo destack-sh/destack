@@ -54,7 +54,14 @@ class TimerType(Enum):
     RECURRING = 2
 
 
-@builtin_node(NodeType.TIMER)
+@builtin_node(
+    NodeType.TIMER,
+    event_types=(
+        NodeType.TIMER_STARTED_EVENT,
+        NodeType.TIMER_COMPLETED_EVENT,
+        NodeType.TIMER_CANCELLED_EVENT,
+    ),
+)
 class Timer(IsSpatial, Entity):
     """A Timer."""
 

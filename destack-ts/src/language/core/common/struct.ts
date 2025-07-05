@@ -27,7 +27,7 @@ import {
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import {
   CustomStructDefinitionProto,
   CustomStructProto,

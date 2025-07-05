@@ -22,19 +22,19 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Folder } from "@destack/language/folder";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Folder } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, ThreadProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:120000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:220000 ==== */
 /**
  * ThreadStatus
  */
@@ -47,9 +47,9 @@ export enum ThreadStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.THREAD_STATUS, ThreadStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:120000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:220000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:120000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220000 ==== */
 /**
  * A Thread for communicating with Messages.
  * Threads may be nested to organize conversations and work.
@@ -474,7 +474,7 @@ export class Thread
 
   static __packValue__(object: Thread): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120000;
+    objectValue["1"] = 220000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -608,7 +608,7 @@ export class Thread
   }
 
   static __packProto__(object: Thread): ThreadProto {
-    const objectProto: Partial<ThreadProto> = { metatype: 120000 };
+    const objectProto: Partial<ThreadProto> = { metatype: 220000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -780,4 +780,4 @@ export class Thread
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THREAD, Thread);
-/* ==== DESTACK_GENERATED_END:NODE:120000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220000 ==== */

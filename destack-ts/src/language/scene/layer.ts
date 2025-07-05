@@ -44,8 +44,8 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene/scene";
-import type { Space } from "@destack/language/space";
 import type { Border, Fill, Shadow } from "@destack/language/style";
+import type { Space } from "@destack/language/universe";
 import { ContainerView } from "@destack/language/view";
 import {
   AlignProto,
@@ -60,7 +60,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:190200 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:500200 ==== */
 /**
  * LayerType
  */
@@ -73,9 +73,9 @@ export enum LayerType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LAYER_TYPE, LayerType);
-/* ==== DESTACK_GENERATED_END:ENUM:190200 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:500200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:190200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:500200 ==== */
 /**
  * A Layer is a named container for Views.
  */
@@ -1559,7 +1559,7 @@ export class Layer extends ContainerView implements IsOwnable {
 
   static __packValue__(object: Layer): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 190200;
+    objectValue["1"] = 500200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1980,7 +1980,7 @@ export class Layer extends ContainerView implements IsOwnable {
   }
 
   static __packProto__(object: Layer): LayerProto {
-    const objectProto: Partial<LayerProto> = { metatype: 190200 };
+    const objectProto: Partial<LayerProto> = { metatype: 500200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2392,4 +2392,4 @@ export class Layer extends ContainerView implements IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LAYER, Layer);
-/* ==== DESTACK_GENERATED_END:NODE:190200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:500200 ==== */

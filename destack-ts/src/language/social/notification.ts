@@ -26,7 +26,7 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import {
   MaterializationProto,
   NotificationDismissedEventProto,
@@ -41,7 +41,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:120500 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:220500 ==== */
 /**
  * NotificationStatus
  */
@@ -57,9 +57,9 @@ export enum NotificationStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.NOTIFICATION_STATUS, NotificationStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:120500 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:220500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:120501 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220501 ==== */
 /**
  * A Event regarding a Notification.
  */
@@ -91,9 +91,9 @@ export abstract class NotificationEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_EVENT, NotificationEvent);
-/* ==== DESTACK_GENERATED_END:NODE:120501 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220501 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:120502 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220502 ==== */
 /**
  * A Notification was sent.
  */
@@ -326,7 +326,7 @@ export class NotificationSentEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationSentEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120502;
+    objectValue["1"] = 220502;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -414,7 +414,7 @@ export class NotificationSentEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationSentEvent): NotificationSentEventProto {
-    const objectProto: Partial<NotificationSentEventProto> = { metatype: 120502 };
+    const objectProto: Partial<NotificationSentEventProto> = { metatype: 220502 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -524,9 +524,9 @@ export class NotificationSentEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_SENT_EVENT, NotificationSentEvent);
-/* ==== DESTACK_GENERATED_END:NODE:120502 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220502 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:120503 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220503 ==== */
 /**
  * A Notification was rescinded.
  */
@@ -759,7 +759,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationRescindedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120503;
+    objectValue["1"] = 220503;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -847,7 +847,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationRescindedEvent): NotificationRescindedEventProto {
-    const objectProto: Partial<NotificationRescindedEventProto> = { metatype: 120503 };
+    const objectProto: Partial<NotificationRescindedEventProto> = { metatype: 220503 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -957,9 +957,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_RESCINDED_EVENT, NotificationRescindedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:120503 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220503 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:120504 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220504 ==== */
 /**
  * A Notification was read.
  */
@@ -1192,7 +1192,7 @@ export class NotificationReadEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationReadEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120504;
+    objectValue["1"] = 220504;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1280,7 +1280,7 @@ export class NotificationReadEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationReadEvent): NotificationReadEventProto {
-    const objectProto: Partial<NotificationReadEventProto> = { metatype: 120504 };
+    const objectProto: Partial<NotificationReadEventProto> = { metatype: 220504 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1390,9 +1390,9 @@ export class NotificationReadEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_READ_EVENT, NotificationReadEvent);
-/* ==== DESTACK_GENERATED_END:NODE:120504 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220504 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:120505 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220505 ==== */
 /**
  * A Notification was dismissed.
  */
@@ -1625,7 +1625,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationDismissedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120505;
+    objectValue["1"] = 220505;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1713,7 +1713,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationDismissedEvent): NotificationDismissedEventProto {
-    const objectProto: Partial<NotificationDismissedEventProto> = { metatype: 120505 };
+    const objectProto: Partial<NotificationDismissedEventProto> = { metatype: 220505 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1823,9 +1823,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_DISMISSED_EVENT, NotificationDismissedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:120505 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220505 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:120506 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220506 ==== */
 /**
  * A Notification was expired.
  */
@@ -2058,7 +2058,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationExpiredEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120506;
+    objectValue["1"] = 220506;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2146,7 +2146,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationExpiredEvent): NotificationExpiredEventProto {
-    const objectProto: Partial<NotificationExpiredEventProto> = { metatype: 120506 };
+    const objectProto: Partial<NotificationExpiredEventProto> = { metatype: 220506 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2256,9 +2256,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_EXPIRED_EVENT, NotificationExpiredEvent);
-/* ==== DESTACK_GENERATED_END:NODE:120506 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220506 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:120500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220500 ==== */
 /**
  * A Notification is a message about something.
  */
@@ -2736,7 +2736,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
 
   static __packValue__(object: Notification): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120500;
+    objectValue["1"] = 220500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2873,7 +2873,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   }
 
   static __packProto__(object: Notification): NotificationProto {
-    const objectProto: Partial<NotificationProto> = { metatype: 120500 };
+    const objectProto: Partial<NotificationProto> = { metatype: 220500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -3050,4 +3050,4 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION, Notification);
-/* ==== DESTACK_GENERATED_END:NODE:120500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220500 ==== */

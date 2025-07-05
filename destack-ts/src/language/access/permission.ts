@@ -20,19 +20,19 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Folder } from "@destack/language/folder";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Folder } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, PermissionProto, PermissionTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:20300 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:60300 ==== */
 /**
  * PermissionType
  */
@@ -44,9 +44,9 @@ export enum PermissionType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
-/* ==== DESTACK_GENERATED_END:ENUM:20300 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:60300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60300 ==== */
 /**
  * A Permission for something.
  */
@@ -483,7 +483,7 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
 
   static __packValue__(object: Permission): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30300;
+    objectValue["1"] = 60300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -620,7 +620,7 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   }
 
   static __packProto__(object: Permission): PermissionProto {
-    const objectProto: Partial<PermissionProto> = { metatype: 30300 };
+    const objectProto: Partial<PermissionProto> = { metatype: 60300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -789,4 +789,4 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PERMISSION, Permission);
-/* ==== DESTACK_GENERATED_END:NODE:30300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60300 ==== */

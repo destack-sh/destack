@@ -59,6 +59,7 @@ def builtin_node(
     root_type: NodeType | None = NodeType.SPACE,
     frozen: bool = False,
     index: tuple[IndexIn, ...] = (),
+    event_types: tuple[NodeType, ...] = (),
     is_abstract: bool = False,
 ):
     """Register a class as a concrete node for the given node type."""
@@ -71,10 +72,14 @@ def builtin_node(
         nonlocal frozen
         assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
 
-        # bases
+        # base types
         traits: list[TraitType] = []
         base_traits: list[TraitType] = []
         inherits: list[NodeType] = []
+        for base in cls.__bases__:
+            if trait := _resolve_trait_type(base.__name__):
+                if trait not in base_traits:
+                    base_traits.append(trait)
         for superclass in get_superclasses(cls):
             if trait := _resolve_trait_type(superclass.__name__):
                 if trait not in traits:
@@ -82,16 +87,26 @@ def builtin_node(
             elif isinstance(base_type := getattr(superclass, "metatype", None), NodeType):
                 if base_type not in inherits:
                     inherits.append(base_type)
-        for base in cls.__bases__:
-            if trait := _resolve_trait_type(base.__name__):
-                if trait not in base_traits:
-                    base_traits.append(trait)
         cls.__is_trait__ = False  # override Trait.__is_trait__
         cls.__traits__ = tuple(reversed(traits))
         cls.__base_traits__ = tuple(reversed(base_traits))
         cls.__inherits__ = tuple(reversed(inherits))
         cls.__base_type__ = cls.__inherits__[-1] if cls.__inherits__ else None
         cls.__is_abstract__ = is_abstract
+
+        # event types
+        all_event_types: list[NodeType] = []
+        cls.__base_event_types__ = tuple(event_types)
+        for base in cls.__bases__:
+            if (
+                any(b.__name__ == "Node" for b in base.__bases__)
+                and issubclass(base, Node)
+                and base.__base_event_types__
+            ):
+                for event_type in base.__base_event_types__:
+                    if event_type not in all_event_types:
+                        all_event_types.append(event_type)
+        cls.__event_types__ = tuple(all_event_types)
 
         # abstract nodes cannot extend non-abstract nodes
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
@@ -182,11 +197,15 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """The descendant types of this Node type (directly and indirectly)."""
     __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
+    """The base event types of this Node type (directly)."""
+    __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The event types of this Node type (directly and indirectly)."""
+    __event_types__: ClassVar[tuple[NodeType, ...]] = ()
+
     # 1-20: node identity
     # Node.metatype: 1
     id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     parent: Optional["Node"] = builtin_property_parent()
-    # Node.store: 4
     # Spatial.space: 5
     # IsExtensible.definition: 6
     # IsExtensible.base_type: 7

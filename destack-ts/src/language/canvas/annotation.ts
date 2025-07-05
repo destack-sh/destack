@@ -34,12 +34,12 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
-import type { Space } from "@destack/language/space";
+import type { Folder } from "@destack/language/space";
 import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
+import type { Space } from "@destack/language/universe";
 import type { ContainerView } from "@destack/language/view";
 import {
   AlignProto,
@@ -53,7 +53,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:250400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:540400 ==== */
 /**
  * An AnnotationShape is a shape that represents an annotation.
  */
@@ -1497,7 +1497,7 @@ export class AnnotationShape extends Shape {
 
   static __packValue__(object: AnnotationShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 250400;
+    objectValue["1"] = 540400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1917,7 +1917,7 @@ export class AnnotationShape extends Shape {
   }
 
   static __packProto__(object: AnnotationShape): AnnotationShapeProto {
-    const objectProto: Partial<AnnotationShapeProto> = { metatype: 250400 };
+    const objectProto: Partial<AnnotationShapeProto> = { metatype: 540400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2322,4 +2322,4 @@ export class AnnotationShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ANNOTATION_SHAPE, AnnotationShape);
-/* ==== DESTACK_GENERATED_END:NODE:250400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:540400 ==== */

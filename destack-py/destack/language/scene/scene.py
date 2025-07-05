@@ -24,21 +24,7 @@ class SceneEvent(Event["Scene"]):
     node: "Scene" = builtin_property(101)
 
 
-@builtin_node(NodeType.SCENE_ENTERED_EVENT, frozen=True)
-class SceneEnteredEvent(SceneEvent):
-    """A Scene was entered."""
-
-    pass
-
-
-@builtin_node(NodeType.SCENE_EXITED_EVENT, frozen=True)
-class SceneExitedEvent(SceneEvent):
-    """A Scene was exited."""
-
-    pass
-
-
-@builtin_node(NodeType.SCENE)
+@builtin_node(NodeType.SCENE, event_types=())
 class Scene(IsOwnable, ContainerView):
     """A Scene is a container for a specific interaction point."""
 

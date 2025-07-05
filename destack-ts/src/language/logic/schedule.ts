@@ -7,7 +7,7 @@ import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:70501 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:112501 ==== */
 /**
  * DayOfWeek
  */
@@ -25,9 +25,9 @@ export enum DayOfWeek {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DAY_OF_WEEK, DayOfWeek);
-/* ==== DESTACK_GENERATED_END:ENUM:70501 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:112501 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:70502 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:112502 ==== */
 /**
  * Month
  */
@@ -50,9 +50,9 @@ export enum Month {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MONTH, Month);
-/* ==== DESTACK_GENERATED_END:ENUM:70502 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:112502 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:70500 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:112500 ==== */
 /**
  * ScheduleFrequency
  */
@@ -69,9 +69,9 @@ export enum ScheduleFrequency {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SCHEDULE_FREQUENCY, ScheduleFrequency);
-/* ==== DESTACK_GENERATED_END:ENUM:70500 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:112500 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:70001 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:100001 ==== */
 /**
  * The time-based schedule of something (compatible with rrule).
  */
@@ -453,7 +453,7 @@ export class Schedule extends Struct {
 
   static __packValue__(object: Schedule): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 70001;
+    objectValue["1"] = 100001;
     objectValue["101"] = object.frequency;
     objectValue["102"] = object.interval;
     if (object.start != null) {
@@ -654,7 +654,7 @@ export class Schedule extends Struct {
   }
 
   static __packProto__(object: Schedule): ScheduleProto {
-    const objectProto: Partial<ScheduleProto> = { metatype: 70001 };
+    const objectProto: Partial<ScheduleProto> = { metatype: 100001 };
     objectProto.frequency = Number(object.frequency) as ScheduleFrequencyProto;
     objectProto.interval = object.interval;
     if (object.start != null) {
@@ -852,4 +852,4 @@ export class Schedule extends Struct {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SCHEDULE, Schedule);
-/* ==== DESTACK_GENERATED_END:STRUCT:70001 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:100001 ==== */

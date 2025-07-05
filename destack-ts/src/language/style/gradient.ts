@@ -25,11 +25,11 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
-import type { Space } from "@destack/language/space";
 import type { Color } from "@destack/language/style/color";
 import type { Palette } from "@destack/language/style/palette";
 import { Style } from "@destack/language/style/style";
 import type { Theme } from "@destack/language/style/theme";
+import type { Space } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import {
   GradientProto,
@@ -42,7 +42,7 @@ import { base64Decode } from "@destack/utils";
 import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:270209 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600209 ==== */
 /**
  * GradientType
  */
@@ -56,9 +56,584 @@ export enum GradientType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
-/* ==== DESTACK_GENERATED_END:ENUM:270209 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600209 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:270800 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:600801 ==== */
+/**
+ * A gradient stop with color and position.
+ */
+export class GradientStop extends StructFrozen {
+  static metatype: StructType = StructType.GRADIENT_STOP;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * GradientStop.color
+   */
+  readonly color: Color | null;
+
+  /**
+   * GradientStop.position
+   */
+  readonly position: number;
+
+  constructor(options: {
+    color?: Color | null;
+    position: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _position = options.position;
+    if (_position === null) {
+      throw new Error(`GradientStop.position is required`);
+    }
+    this.position = _position;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
+      return false;
+    }
+    if (!(this.position === other.position || Math.abs(this.position - other.position) < 1e-10)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      propertyReprs.push(`position=${this.position}`);
+      // @ts-expect-error(readonly)
+      this._repr = `<GradientStop ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + hashFloat(this.position)) & 0xffffffff;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = GradientStop.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: GradientStop): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 600801;
+    if (object.color != null) {
+      objectValue["101"] = object.color.toValue();
+    }
+    objectValue["102"] = object.position;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GradientStop {
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const colorValue = objectValue["101"];
+    const unpackedColor =
+      colorValue != undefined
+        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new GradientStop({
+      color: unpackedColor,
+      position: objectValue["102"],
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GradientStop {
+    return GradientStop.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): GradientStopProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = GradientStop.__packProto__(this);
+    }
+    return this._proto as GradientStopProto;
+  }
+
+  static __packProto__(object: GradientStop): GradientStopProto {
+    const objectProto: Partial<GradientStopProto> = { metatype: 600801 };
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    objectProto.position = object.position;
+    return objectProto as GradientStopProto;
+  }
+
+  static __unpackProto__(
+    objectProto: GradientStopProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GradientStop {
+    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    return new GradientStop({
+      color:
+        objectProto.color != undefined
+          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      position: objectProto.position,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: GradientStopProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GradientStop {
+    return GradientStop.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): GradientStop {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = GradientStopProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.GRADIENT_STOP, GradientStop);
+/* ==== DESTACK_GENERATED_END:STRUCT:600801 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:600800 ==== */
+/**
+ * A gradient value.
+ */
+export class Gradient extends StructFrozen {
+  static metatype: StructType = StructType.GRADIENT;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Gradient.type
+   */
+  readonly type: GradientType;
+
+  /**
+   * Gradient.style
+   */
+  get style(): GradientStyle | null {
+    const nodePtr: NodeReference | null = this.stylePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as GradientStyle | null;
+    }
+    return null;
+  }
+  readonly stylePtr: NodeReference | null;
+
+  /**
+   * Gradient.angle
+   */
+  readonly angle: number | null;
+
+  /**
+   * Gradient.stops
+   */
+  readonly stops: Array<GradientStop>;
+
+  /**
+   * Gradient.centerAnchor
+   */
+  readonly centerAnchor: Axis2 | null;
+
+  constructor(options: {
+    type?: GradientType;
+    style?: GradientStyle | NodeReference | null;
+    angle?: number | null;
+    stops?: Array<GradientStop>;
+    centerAnchor?: Axis2 | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = 10 /* GradientType.LINEAR */;
+    }
+    if (_type === null) {
+      throw new Error(`Gradient.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style.metatype != StructType.NODE_REFERENCE) {
+      _style = (_style as Node).toRef();
+    }
+    this.stylePtr = _style;
+    let _angle = options.angle ?? null;
+    this.angle = _angle;
+    let _stops = options.stops ?? null;
+    if (_stops === null) {
+      _stops = [];
+    }
+    this.stops = _stops;
+    let _centerAnchor = options.centerAnchor ?? null;
+    this.centerAnchor = _centerAnchor;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+      return false;
+    }
+    if (
+      (this.angle == null) !== (other.angle == null) ||
+      (this.angle != null &&
+        !(this.angle === other.angle || Math.abs(this.angle - other.angle) < 1e-10))
+    ) {
+      return false;
+    }
+    if (this.stops.length !== other.stops.length) {
+      return false;
+    }
+    for (let i = 0; i < this.stops.length; i++) {
+      if (!this.stops[i].equals(other.stops[i])) {
+        return false;
+      }
+    }
+    if (
+      (this.centerAnchor == null) !== (other.centerAnchor == null) ||
+      (this.centerAnchor != null && !this.centerAnchor.equals(other.centerAnchor))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${GradientType[this.type]}`);
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style?.repr()}`);
+      }
+      if (this.angle !== null) {
+        propertyReprs.push(`angle=${this.angle}`);
+      }
+      if (this.stops.length > 0) {
+        propertyReprs.push(`stops=${this.stops.map((_item) => _item.repr()).join(", ")}`);
+      }
+      if (this.centerAnchor !== null) {
+        propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Gradient ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    if (this.angle !== null) {
+      h = (h * 31 + hashFloat(this.angle)) & 0xffffffff;
+    }
+    if (this.stops && this.stops.length > 0) {
+      for (const _item of this.stops) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.centerAnchor !== null) {
+      h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Gradient.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Gradient): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 600800;
+    objectValue["100"] = object.type;
+    if (object.stylePtr != null) {
+      objectValue["101"] = object.stylePtr.toValue();
+    }
+    if (object.angle != null) {
+      objectValue["102"] = object.angle;
+    }
+    if (object.stops.length > 0) {
+      const packedStops: any[] = [];
+      for (const item of object.stops) {
+        packedStops.push(item.toValue());
+      }
+      objectValue["103"] = packedStops;
+    }
+    if (object.centerAnchor != null) {
+      objectValue["104"] = object.centerAnchor.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Gradient {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
+    const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
+    const stylePtrValue = objectValue["101"];
+    const unpackedStylePtr =
+      stylePtrValue != undefined
+        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const angleValue = objectValue["102"];
+    const unpackedAngle = angleValue != undefined ? angleValue : null;
+    const unpackedStops: any[] = [];
+    if (objectValue["103"] != undefined) {
+      for (const item of objectValue["103"]) {
+        unpackedStops.push(
+          _GradientStop.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const centerAnchorValue = objectValue["104"];
+    const unpackedCenterAnchor =
+      centerAnchorValue != undefined
+        ? _Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Gradient({
+      type: Number(objectValue["100"]),
+      style: unpackedStylePtr,
+      angle: unpackedAngle,
+      stops: unpackedStops,
+      centerAnchor: unpackedCenterAnchor,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Gradient {
+    return Gradient.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): GradientProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Gradient.__packProto__(this);
+    }
+    return this._proto as GradientProto;
+  }
+
+  static __packProto__(object: Gradient): GradientProto {
+    const objectProto: Partial<GradientProto> = { metatype: 600800 };
+    objectProto.type = Number(object.type) as GradientTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.angle != null) {
+      objectProto.angle = object.angle;
+    }
+    if (object.stops) {
+      const packedStops: any[] = [];
+      for (const item of object.stops) {
+        packedStops.push(item.toProto());
+      }
+      objectProto.stops = packedStops;
+    }
+    if (object.centerAnchor != null) {
+      objectProto.centerAnchor = object.centerAnchor.toProto();
+    }
+    return objectProto as GradientProto;
+  }
+
+  static __unpackProto__(
+    objectProto: GradientProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Gradient {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
+    const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
+    const unpackedStops: any[] = [];
+    if (objectProto.stops) {
+      for (const item of objectProto.stops) {
+        unpackedStops.push(
+          _GradientStop.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new Gradient({
+      type: Number(objectProto.type) as GradientType,
+      style:
+        objectProto.stylePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      angle: objectProto.angle != undefined ? objectProto.angle : null,
+      stops: unpackedStops,
+      centerAnchor:
+        objectProto.centerAnchor != undefined
+          ? _Axis2.fromProto(objectProto.centerAnchor!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: GradientProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Gradient {
+    return Gradient.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Gradient {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = GradientProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.GRADIENT, Gradient);
+/* ==== DESTACK_GENERATED_END:STRUCT:600800 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:600800 ==== */
 /**
  * A gradient style.
  */
@@ -629,7 +1204,7 @@ export class GradientStyle extends Style {
 
   static __packValue__(object: GradientStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270800;
+    objectValue["1"] = 600800;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -801,7 +1376,7 @@ export class GradientStyle extends Style {
   }
 
   static __packProto__(object: GradientStyle): GradientStyleProto {
-    const objectProto: Partial<GradientStyleProto> = { metatype: 270800 };
+    const objectProto: Partial<GradientStyleProto> = { metatype: 600800 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1001,579 +1576,4 @@ export class GradientStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.GRADIENT_STYLE, GradientStyle);
-/* ==== DESTACK_GENERATED_END:NODE:270800 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:270801 ==== */
-/**
- * A gradient stop with color and position.
- */
-export class GradientStop extends StructFrozen {
-  static metatype: StructType = StructType.GRADIENT_STOP;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * GradientStop.color
-   */
-  readonly color: Color | null;
-
-  /**
-   * GradientStop.position
-   */
-  readonly position: number;
-
-  constructor(options: {
-    color?: Color | null;
-    position: number;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _color = options.color ?? null;
-    this.color = _color;
-    let _position = options.position;
-    if (_position === null) {
-      throw new Error(`GradientStop.position is required`);
-    }
-    this.position = _position;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
-    ) {
-      return false;
-    }
-    if (!(this.position === other.position || Math.abs(this.position - other.position) < 1e-10)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      if (this.color !== null) {
-        propertyReprs.push(`color=${this.color.repr()}`);
-      }
-      propertyReprs.push(`position=${this.position}`);
-      // @ts-expect-error(readonly)
-      this._repr = `<GradientStop ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
-    }
-    h = (h * 31 + hashFloat(this.position)) & 0xffffffff;
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = GradientStop.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: GradientStop): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270801;
-    if (object.color != null) {
-      objectValue["101"] = object.color.toValue();
-    }
-    objectValue["102"] = object.position;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): GradientStop {
-    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const colorValue = objectValue["101"];
-    const unpackedColor =
-      colorValue != undefined
-        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new GradientStop({
-      color: unpackedColor,
-      position: objectValue["102"],
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): GradientStop {
-    return GradientStop.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): GradientStopProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = GradientStop.__packProto__(this);
-    }
-    return this._proto as GradientStopProto;
-  }
-
-  static __packProto__(object: GradientStop): GradientStopProto {
-    const objectProto: Partial<GradientStopProto> = { metatype: 270801 };
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
-    }
-    objectProto.position = object.position;
-    return objectProto as GradientStopProto;
-  }
-
-  static __unpackProto__(
-    objectProto: GradientStopProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): GradientStop {
-    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    return new GradientStop({
-      color:
-        objectProto.color != undefined
-          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      position: objectProto.position,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: GradientStopProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): GradientStop {
-    return GradientStop.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): GradientStop {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = GradientStopProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.GRADIENT_STOP, GradientStop);
-/* ==== DESTACK_GENERATED_END:STRUCT:270801 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:270800 ==== */
-/**
- * A gradient value.
- */
-export class Gradient extends StructFrozen {
-  static metatype: StructType = StructType.GRADIENT;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Gradient.type
-   */
-  readonly type: GradientType;
-
-  /**
-   * Gradient.style
-   */
-  get style(): GradientStyle | null {
-    const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as GradientStyle | null;
-    }
-    return null;
-  }
-  readonly stylePtr: NodeReference | null;
-
-  /**
-   * Gradient.angle
-   */
-  readonly angle: number | null;
-
-  /**
-   * Gradient.stops
-   */
-  readonly stops: Array<GradientStop>;
-
-  /**
-   * Gradient.centerAnchor
-   */
-  readonly centerAnchor: Axis2 | null;
-
-  constructor(options: {
-    type?: GradientType;
-    style?: GradientStyle | NodeReference | null;
-    angle?: number | null;
-    stops?: Array<GradientStop>;
-    centerAnchor?: Axis2 | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type ?? null;
-    if (_type === null) {
-      _type = 10 /* GradientType.LINEAR */;
-    }
-    if (_type === null) {
-      throw new Error(`Gradient.type is required`);
-    }
-    this.type = _type;
-    let _style = options.style ?? null;
-    if (_style != null && _style.metatype != StructType.NODE_REFERENCE) {
-      _style = (_style as Node).toRef();
-    }
-    this.stylePtr = _style;
-    let _angle = options.angle ?? null;
-    this.angle = _angle;
-    let _stops = options.stops ?? null;
-    if (_stops === null) {
-      _stops = [];
-    }
-    this.stops = _stops;
-    let _centerAnchor = options.centerAnchor ?? null;
-    this.centerAnchor = _centerAnchor;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
-      return false;
-    }
-    if (
-      (this.angle == null) !== (other.angle == null) ||
-      (this.angle != null &&
-        !(this.angle === other.angle || Math.abs(this.angle - other.angle) < 1e-10))
-    ) {
-      return false;
-    }
-    if (this.stops.length !== other.stops.length) {
-      return false;
-    }
-    for (let i = 0; i < this.stops.length; i++) {
-      if (!this.stops[i].equals(other.stops[i])) {
-        return false;
-      }
-    }
-    if (
-      (this.centerAnchor == null) !== (other.centerAnchor == null) ||
-      (this.centerAnchor != null && !this.centerAnchor.equals(other.centerAnchor))
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${GradientType[this.type]}`);
-      if (this.style !== null) {
-        propertyReprs.push(`style=${this.style?.repr()}`);
-      }
-      if (this.angle !== null) {
-        propertyReprs.push(`angle=${this.angle}`);
-      }
-      if (this.stops.length > 0) {
-        propertyReprs.push(`stops=${this.stops.map((_item) => _item.repr()).join(", ")}`);
-      }
-      if (this.centerAnchor !== null) {
-        propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<Gradient ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
-      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
-    }
-    if (this.angle !== null) {
-      h = (h * 31 + hashFloat(this.angle)) & 0xffffffff;
-    }
-    if (this.stops && this.stops.length > 0) {
-      for (const _item of this.stops) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.centerAnchor !== null) {
-      h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Gradient.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Gradient): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270800;
-    objectValue["100"] = object.type;
-    if (object.stylePtr != null) {
-      objectValue["101"] = object.stylePtr.toValue();
-    }
-    if (object.angle != null) {
-      objectValue["102"] = object.angle;
-    }
-    if (object.stops.length > 0) {
-      const packedStops: any[] = [];
-      for (const item of object.stops) {
-        packedStops.push(item.toValue());
-      }
-      objectValue["103"] = packedStops;
-    }
-    if (object.centerAnchor != null) {
-      objectValue["104"] = object.centerAnchor.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Gradient {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
-    const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
-    const stylePtrValue = objectValue["101"];
-    const unpackedStylePtr =
-      stylePtrValue != undefined
-        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const angleValue = objectValue["102"];
-    const unpackedAngle = angleValue != undefined ? angleValue : null;
-    const unpackedStops: any[] = [];
-    if (objectValue["103"] != undefined) {
-      for (const item of objectValue["103"]) {
-        unpackedStops.push(
-          _GradientStop.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const centerAnchorValue = objectValue["104"];
-    const unpackedCenterAnchor =
-      centerAnchorValue != undefined
-        ? _Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new Gradient({
-      type: Number(objectValue["100"]),
-      style: unpackedStylePtr,
-      angle: unpackedAngle,
-      stops: unpackedStops,
-      centerAnchor: unpackedCenterAnchor,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Gradient {
-    return Gradient.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): GradientProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Gradient.__packProto__(this);
-    }
-    return this._proto as GradientProto;
-  }
-
-  static __packProto__(object: Gradient): GradientProto {
-    const objectProto: Partial<GradientProto> = { metatype: 270800 };
-    objectProto.type = Number(object.type) as GradientTypeProto;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
-    if (object.angle != null) {
-      objectProto.angle = object.angle;
-    }
-    if (object.stops) {
-      const packedStops: any[] = [];
-      for (const item of object.stops) {
-        packedStops.push(item.toProto());
-      }
-      objectProto.stops = packedStops;
-    }
-    if (object.centerAnchor != null) {
-      objectProto.centerAnchor = object.centerAnchor.toProto();
-    }
-    return objectProto as GradientProto;
-  }
-
-  static __unpackProto__(
-    objectProto: GradientProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Gradient {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
-    const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
-    const unpackedStops: any[] = [];
-    if (objectProto.stops) {
-      for (const item of objectProto.stops) {
-        unpackedStops.push(
-          _GradientStop.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    return new Gradient({
-      type: Number(objectProto.type) as GradientType,
-      style:
-        objectProto.stylePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.stylePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      angle: objectProto.angle != undefined ? objectProto.angle : null,
-      stops: unpackedStops,
-      centerAnchor:
-        objectProto.centerAnchor != undefined
-          ? _Axis2.fromProto(objectProto.centerAnchor!, _session, _supergraph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: GradientProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Gradient {
-    return Gradient.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Gradient {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = GradientProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.GRADIENT, Gradient);
-/* ==== DESTACK_GENERATED_END:STRUCT:270800 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:600800 ==== */

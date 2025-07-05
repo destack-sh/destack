@@ -65,20 +65,14 @@ class BuiltinDefinition(StructFrozen):
     description: str | None = builtin_property(103, is_repr=True)
 
 
-@builtin_struct(StructType.BUILTIN_OBJECT_DEFINITION, frozen=True, is_abstract=True)
-class BuiltinObjectDefinition(BuiltinDefinition):
-    """Definition of a builtin Object (Struct, Trait, Node)."""
-
-    properties: list["PropertyDefinition"] = builtin_property(105)
-    groups: list["PropertyGroupDefinition"] = builtin_property(106)
-
-
 @builtin_struct(StructType.NODE_DEFINITION, frozen=True)
-class NodeDefinition(BuiltinObjectDefinition):
+class NodeDefinition(BuiltinDefinition):
     """Definition of a builtin Node."""
 
     type: NodeType = builtin_property(100, is_repr=True)
     primary_store_types: list[StoreType] = builtin_property(104)
+    properties: list["PropertyDefinition"] = builtin_property(105)
+    groups: list["PropertyGroupDefinition"] = builtin_property(106)
 
     is_global: bool = builtin_property(
         110,
@@ -140,6 +134,9 @@ class NodeDefinition(BuiltinObjectDefinition):
         134, description="The descendant types of this Node type (directly and indirectly)."
     )
 
+    base_event_types: list[NodeType] = builtin_property(140)
+    event_types: list[NodeType] = builtin_property(141)
+
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
         """Create NodeDefinition from a Node class."""
@@ -171,14 +168,18 @@ class NodeDefinition(BuiltinObjectDefinition):
             child_types=list(node_cls.__child_types__),
             ancestor_types=list(node_cls.__ancestor_types__),
             descendant_types=list(node_cls.__descendant_types__),
+            base_event_types=list(node_cls.__base_event_types__),
+            event_types=list(node_cls.__event_types__),
         )
 
 
 @builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)
-class TraitDefinition(BuiltinObjectDefinition):
+class TraitDefinition(BuiltinDefinition):
     """Definition of a builtin Trait."""
 
     type: TraitType = builtin_property(100, is_repr=True)
+    properties: list["PropertyDefinition"] = builtin_property(105)
+    groups: list["PropertyGroupDefinition"] = builtin_property(106)
 
     alias: str = builtin_property(110, is_repr=True)
     is_extensible: bool = builtin_property(
@@ -217,10 +218,12 @@ class TraitDefinition(BuiltinObjectDefinition):
 
 
 @builtin_struct(StructType.STRUCT_DEFINITION, frozen=True)
-class StructDefinition(BuiltinObjectDefinition):
+class StructDefinition(BuiltinDefinition):
     """Definition of a builtin Struct."""
 
     type: StructType = builtin_property(100, is_repr=True)
+    properties: list["PropertyDefinition"] = builtin_property(105)
+    groups: list["PropertyGroupDefinition"] = builtin_property(106)
 
     is_frozen: bool = builtin_property(110, description="Whether this Struct cannot be modified.")
     is_abstract: bool = builtin_property(

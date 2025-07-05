@@ -1,0 +1,782 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import type {
+  Graph,
+  IsGlobal,
+  IsJoinable,
+  IsOwner,
+  IsSubject,
+  NodeReference,
+  QueryConnection,
+  Session,
+  Snapshot,
+  Supergraph,
+} from "@destack/language/core";
+import {
+  Entity,
+  EnumType,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+} from "@destack/language/registry";
+import type { Handle } from "@destack/language/universe/handle";
+import type { Space } from "@destack/language/universe/space";
+import { MaterializationProto, OrganizationProto, OrganizationStatusProto } from "@destack/proto";
+import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
+import { Temporal } from "temporal-polyfill";
+
+/* ==== DESTACK_GENERATED_START:ENUM:22500 ==== */
+/**
+ * OrganizationStatus
+ */
+export enum OrganizationStatus {
+  CREATING = 1,
+  ACTIVE = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:22500 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:22000 ==== */
+/**
+ * An Organization with Users and Teams.
+ */
+export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinable {
+  static metatype: NodeType = NodeType.ORGANIZATION;
+
+  /**
+   * Trait.parent
+   */
+  get parent(): Node | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
+  get predecessor(): Organization | null {
+    const nodePtr: NodeReference | null = this.predecessorPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Organization | null;
+    }
+    return null;
+  }
+  readonly predecessorPtr: NodeReference | null;
+
+  /**
+   * The template this Entity instance is based on (from the template tree).
+   */
+  get template(): Organization | null {
+    const nodePtr: NodeReference | null = this.templatePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Organization | null;
+    }
+    return null;
+  }
+  readonly templatePtr: NodeReference | null;
+
+  /**
+   * The (root) Entity in this Entity's instance tree (not the template tree).
+   */
+  get instanceRoot(): Entity | null {
+    const nodePtr: NodeReference | null = this.instanceRootPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly instanceRootPtr: NodeReference | null;
+
+  /**
+   * Entity.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Entity.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * Entity.updatedAt
+   */
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * Entity.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * Organization.slug
+   */
+  get slug(): string {
+    return this.#slug;
+  }
+  set slug(value: string) {
+    const oldValue = this.#slug;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["slug"] === undefined) {
+      this._dirty["slug"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#slug = value;
+  }
+  #slug: string;
+
+  /**
+   * Organization.status
+   */
+  get status(): OrganizationStatus {
+    return this.#status;
+  }
+  set status(value: OrganizationStatus) {
+    const oldValue = this.#status;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["status"] === undefined) {
+      this._dirty["status"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#status = value;
+  }
+  #status: OrganizationStatus;
+
+  /**
+   * Organization.space
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  get spacePtr(): NodeReference {
+    return this.#spacePtr;
+  }
+  set spacePtr(value: NodeReference) {
+    const oldValue = this.#spacePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["spacePtr"] === undefined) {
+      this._dirty["spacePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#spacePtr = value;
+  }
+  #spacePtr: NodeReference;
+
+  /**
+   * Organization.handle
+   */
+  get handle(): Handle | null {
+    const nodePtr: NodeReference | null = this.handlePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Handle | null;
+    }
+    return null;
+  }
+  get handlePtr(): NodeReference | null {
+    return this.#handlePtr;
+  }
+  set handlePtr(value: NodeReference | null) {
+    const oldValue = this.#handlePtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["handlePtr"] === undefined) {
+      this._dirty["handlePtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this.#handlePtr = value;
+  }
+  #handlePtr: NodeReference | null;
+
+  constructor(options: {
+    id?: string;
+    parent?: Node | NodeReference | null;
+    materialization?: Materialization;
+    snapshot?: Snapshot | NodeReference | null;
+    predecessor?: Organization | NodeReference | null;
+    template?: Organization | NodeReference | null;
+    instanceRoot?: Entity | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    updatedAt?: Temporal.ZonedDateTime;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    slug: string;
+    status?: OrganizationStatus;
+    space: Space | NodeReference;
+    handle?: Handle | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      true,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
+    }
+    this.parentPtr = _parent;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 32 /* Materialization.FULL */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Organization.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
+    let _predecessor = options.predecessor ?? null;
+    if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
+      _predecessor = (_predecessor as Node).toRef();
+    }
+    this.predecessorPtr = _predecessor;
+    let _template = options.template ?? null;
+    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
+      _template = (_template as Node).toRef();
+    }
+    this.templatePtr = _template;
+    let _instanceRoot = options.instanceRoot ?? null;
+    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
+      _instanceRoot = (_instanceRoot as Node).toRef();
+    }
+    this.instanceRootPtr = _instanceRoot;
+    let _slug = options.slug;
+    if (_slug === null) {
+      throw new Error(`Organization.slug is required`);
+    }
+    this.#slug = _slug;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* OrganizationStatus.CREATING */;
+    }
+    if (_status === null) {
+      throw new Error(`Organization.status is required`);
+    }
+    this.#status = _status;
+    let _space = options.space;
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      throw new Error(`Organization.space is required`);
+    }
+    this.#spacePtr = _space;
+    let _handle = options.handle ?? null;
+    if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
+      _handle = (_handle as Node).toRef();
+    }
+    this.#handlePtr = _handle;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(
+          `Organization.createdAt and Organization.updatedAt are required for existing Nodes`,
+        );
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.#slug === other.#slug)) {
+      return false;
+    }
+    if (!(this.#status === other.#status)) {
+      return false;
+    }
+    if (!(this.#spacePtr.id === other.#spacePtr.id)) {
+      return false;
+    }
+    if (!(this.#handlePtr?.id === other.#handlePtr?.id)) {
+      return false;
+    }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
+      return false;
+    }
+    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
+    h = (h * 31 + this.#status) & 0xffffffff;
+    h = (h * 31 + hashString(this.#spacePtr.id)) & 0xffffffff;
+    if (this.#handlePtr !== null) {
+      h = (h * 31 + hashString(this.#handlePtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.predecessorPtr !== null) {
+      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    }
+    if (this.templatePtr !== null) {
+      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
+    }
+    if (this.instanceRootPtr !== null) {
+      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
+      type: NodeType.ORGANIZATION,
+      id: this.id,
+      snapshotId: this.snapshotPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return this.slug ?? "Organization[id={this.id}]";
+  }
+
+  get path(): string {
+    return this.slug ?? "Organization[id={this.id}]";
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`slug=${this.slug}`);
+    propertyReprs.push(`status=${OrganizationStatus[this.status]}`);
+    return `<Organization '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return Organization.__packValue__(this);
+  }
+
+  static __packValue__(object: Organization): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 22000;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    objectValue["10"] = object.materialization;
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
+    if (object.predecessorPtr != null) {
+      objectValue["12"] = object.predecessorPtr.toValue();
+    }
+    if (object.templatePtr != null) {
+      objectValue["13"] = object.templatePtr.toValue();
+    }
+    if (object.instanceRootPtr != null) {
+      objectValue["14"] = object.instanceRootPtr.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
+    if (object.updatedByPtr != null) {
+      objectValue["23"] = object.updatedByPtr.toValue();
+    }
+    objectValue["101"] = object.#slug;
+    objectValue["102"] = object.#status;
+    objectValue["110"] = object.#spacePtr.toValue();
+    if (object.#handlePtr != null) {
+      objectValue["111"] = object.#handlePtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Organization {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const handlePtrValue = objectValue["111"];
+    const unpackedHandlePtr =
+      handlePtrValue != undefined
+        ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const predecessorPtrValue = objectValue["12"];
+    const unpackedPredecessorPtr =
+      predecessorPtrValue != undefined
+        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const templatePtrValue = objectValue["13"];
+    const unpackedTemplatePtr =
+      templatePtrValue != undefined
+        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const instanceRootPtrValue = objectValue["14"];
+    const unpackedInstanceRootPtr =
+      instanceRootPtrValue != undefined
+        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["21"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["23"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Organization({
+      slug: objectValue["101"],
+      status: Number(objectValue["102"]),
+      space: _NodeReference.fromValue(
+        objectValue["110"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      handle: unpackedHandlePtr,
+      materialization: Number(objectValue["10"]),
+      snapshot: unpackedSnapshotPtr,
+      predecessor: unpackedPredecessorPtr,
+      template: unpackedTemplatePtr,
+      instanceRoot: unpackedInstanceRootPtr,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
+      id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Organization {
+    return Organization.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): OrganizationProto {
+    return Organization.__packProto__(this);
+  }
+
+  static __packProto__(object: Organization): OrganizationProto {
+    const objectProto: Partial<OrganizationProto> = { metatype: 22000 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.predecessorPtr != null) {
+      objectProto.predecessorPtr = object.predecessorPtr.toProto();
+    }
+    if (object.templatePtr != null) {
+      objectProto.templatePtr = object.templatePtr.toProto();
+    }
+    if (object.instanceRootPtr != null) {
+      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.slug = object.#slug;
+    objectProto.status = Number(object.#status) as OrganizationStatusProto;
+    objectProto.spacePtr = object.#spacePtr.toProto();
+    if (object.#handlePtr != null) {
+      objectProto.handlePtr = object.#handlePtr.toProto();
+    }
+    return objectProto as OrganizationProto;
+  }
+
+  static __unpackProto__(
+    objectProto: OrganizationProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Organization {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new Organization({
+      slug: objectProto.slug,
+      status: Number(objectProto.status) as OrganizationStatus,
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      handle:
+        objectProto.handlePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.handlePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      materialization: Number(objectProto.materialization) as Materialization,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      predecessor:
+        objectProto.predecessorPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.predecessorPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      template:
+        objectProto.templatePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.templatePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      instanceRoot:
+        objectProto.instanceRootPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.instanceRootPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: OrganizationProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Organization {
+    return Organization.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Organization {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = OrganizationProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.ORGANIZATION, Organization);
+/* ==== DESTACK_GENERATED_END:NODE:22000 ==== */

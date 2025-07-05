@@ -34,6 +34,7 @@ import type { Session } from "@destack/language/core/runtime/session";
 import {
   NODE_CLASS_BY_TYPE,
   STRUCT_CLASS_BY_TYPE,
+  TRAIT_CLASS_BY_TYPE,
   registerStructClass,
 } from "@destack/language/registry";
 import {
@@ -102,54 +103,9 @@ registerStructClass(StructType.BUILTIN_DEFINITION, BuiltinDefinition);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
 /**
- * Definition of a builtin Object (Struct, Trait, Node).
- */
-export abstract class BuiltinObjectDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.BUILTIN_OBJECT_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  declare readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  declare readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  declare readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  declare readonly description: string | null;
-
-  /**
-   * BuiltinObjectDefinition.properties
-   */
-  declare readonly properties: Array<PropertyDefinition>;
-
-  /**
-   * BuiltinObjectDefinition.groups
-   */
-  declare readonly groups: Array<PropertyGroupDefinition>;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.BUILTIN_OBJECT_DEFINITION, BuiltinObjectDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:102 ==== */
-/**
  * Definition of a builtin Node.
  */
-export class NodeDefinition extends BuiltinObjectDefinition {
+export class NodeDefinition extends BuiltinDefinition {
   static metatype: StructType = StructType.NODE_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -184,12 +140,12 @@ export class NodeDefinition extends BuiltinObjectDefinition {
   readonly primaryStoreTypes: Array<StoreType>;
 
   /**
-   * BuiltinObjectDefinition.properties
+   * NodeDefinition.properties
    */
   readonly properties: Array<PropertyDefinition>;
 
   /**
-   * BuiltinObjectDefinition.groups
+   * NodeDefinition.groups
    */
   readonly groups: Array<PropertyGroupDefinition>;
 
@@ -273,6 +229,16 @@ export class NodeDefinition extends BuiltinObjectDefinition {
    */
   readonly descendantTypes: Array<NodeType>;
 
+  /**
+   * NodeDefinition.baseEventTypes
+   */
+  readonly baseEventTypes: Array<NodeType>;
+
+  /**
+   * NodeDefinition.eventTypes
+   */
+  readonly eventTypes: Array<NodeType>;
+
   constructor(options: {
     id: number;
     type: NodeType;
@@ -298,6 +264,8 @@ export class NodeDefinition extends BuiltinObjectDefinition {
     childTypes?: Array<NodeType>;
     ancestorTypes?: Array<NodeType>;
     descendantTypes?: Array<NodeType>;
+    baseEventTypes?: Array<NodeType>;
+    eventTypes?: Array<NodeType>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -421,6 +389,16 @@ export class NodeDefinition extends BuiltinObjectDefinition {
       _descendantTypes = [];
     }
     this.descendantTypes = _descendantTypes;
+    let _baseEventTypes = options.baseEventTypes ?? null;
+    if (_baseEventTypes === null) {
+      _baseEventTypes = [];
+    }
+    this.baseEventTypes = _baseEventTypes;
+    let _eventTypes = options.eventTypes ?? null;
+    if (_eventTypes === null) {
+      _eventTypes = [];
+    }
+    this.eventTypes = _eventTypes;
 
     // identity
     // @ts-expect-error(readonly)
@@ -445,6 +423,22 @@ export class NodeDefinition extends BuiltinObjectDefinition {
     }
     for (let i = 0; i < this.primaryStoreTypes.length; i++) {
       if (!(this.primaryStoreTypes[i] === other.primaryStoreTypes[i])) {
+        return false;
+      }
+    }
+    if (this.properties.length !== other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (this.groups.length !== other.groups.length) {
+      return false;
+    }
+    for (let i = 0; i < this.groups.length; i++) {
+      if (!this.groups[i].equals(other.groups[i])) {
         return false;
       }
     }
@@ -541,19 +535,19 @@ export class NodeDefinition extends BuiltinObjectDefinition {
         return false;
       }
     }
-    if (this.properties.length !== other.properties.length) {
+    if (this.baseEventTypes.length !== other.baseEventTypes.length) {
       return false;
     }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
+    for (let i = 0; i < this.baseEventTypes.length; i++) {
+      if (!(this.baseEventTypes[i] === other.baseEventTypes[i])) {
         return false;
       }
     }
-    if (this.groups.length !== other.groups.length) {
+    if (this.eventTypes.length !== other.eventTypes.length) {
       return false;
     }
-    for (let i = 0; i < this.groups.length; i++) {
-      if (!this.groups[i].equals(other.groups[i])) {
+    for (let i = 0; i < this.eventTypes.length; i++) {
+      if (!(this.eventTypes[i] === other.eventTypes[i])) {
         return false;
       }
     }
@@ -606,6 +600,16 @@ export class NodeDefinition extends BuiltinObjectDefinition {
     if (this.primaryStoreTypes && this.primaryStoreTypes.length > 0) {
       for (const _item of this.primaryStoreTypes) {
         h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.groups && this.groups.length > 0) {
+      for (const _item of this.groups) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
     h = (h * 31 + hashBool(this.isGlobal)) & 0xffffffff;
@@ -664,14 +668,14 @@ export class NodeDefinition extends BuiltinObjectDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
+    if (this.baseEventTypes && this.baseEventTypes.length > 0) {
+      for (const _item of this.baseEventTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.groups && this.groups.length > 0) {
-      for (const _item of this.groups) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
+    if (this.eventTypes && this.eventTypes.length > 0) {
+      for (const _item of this.eventTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
       }
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
@@ -702,7 +706,7 @@ export class NodeDefinition extends BuiltinObjectDefinition {
 
   static __packValue__(object: NodeDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 102;
+    objectValue["1"] = 101;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -807,6 +811,20 @@ export class NodeDefinition extends BuiltinObjectDefinition {
       }
       objectValue["134"] = packedDescendantTypes;
     }
+    if (object.baseEventTypes.length > 0) {
+      const packedBaseEventTypes: any[] = [];
+      for (const item of object.baseEventTypes) {
+        packedBaseEventTypes.push(item);
+      }
+      objectValue["140"] = packedBaseEventTypes;
+    }
+    if (object.eventTypes.length > 0) {
+      const packedEventTypes: any[] = [];
+      for (const item of object.eventTypes) {
+        packedEventTypes.push(item);
+      }
+      objectValue["141"] = packedEventTypes;
+    }
     return objectValue;
   }
 
@@ -828,6 +846,22 @@ export class NodeDefinition extends BuiltinObjectDefinition {
     if (objectValue["104"] != undefined) {
       for (const item of objectValue["104"]) {
         unpackedPrimaryStoreTypes.push(Number(item));
+      }
+    }
+    const unpackedProperties: any[] = [];
+    if (objectValue["105"] != undefined) {
+      for (const item of objectValue["105"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedGroups: any[] = [];
+    if (objectValue["106"] != undefined) {
+      for (const item of objectValue["106"]) {
+        unpackedGroups.push(
+          _PropertyGroupDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const baseTypeValue = objectValue["120"];
@@ -888,20 +922,16 @@ export class NodeDefinition extends BuiltinObjectDefinition {
         unpackedDescendantTypes.push(Number(item));
       }
     }
-    const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
+    const unpackedBaseEventTypes: any[] = [];
+    if (objectValue["140"] != undefined) {
+      for (const item of objectValue["140"]) {
+        unpackedBaseEventTypes.push(Number(item));
       }
     }
-    const unpackedGroups: any[] = [];
-    if (objectValue["106"] != undefined) {
-      for (const item of objectValue["106"]) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
+    const unpackedEventTypes: any[] = [];
+    if (objectValue["141"] != undefined) {
+      for (const item of objectValue["141"]) {
+        unpackedEventTypes.push(Number(item));
       }
     }
     const iconValue = objectValue["102"];
@@ -914,6 +944,8 @@ export class NodeDefinition extends BuiltinObjectDefinition {
     return new NodeDefinition({
       type: Number(objectValue["100"]),
       primaryStoreTypes: unpackedPrimaryStoreTypes,
+      properties: unpackedProperties,
+      groups: unpackedGroups,
       isGlobal: objectValue["110"],
       isSpatial: objectValue["111"],
       isAbstract: objectValue["112"],
@@ -930,8 +962,8 @@ export class NodeDefinition extends BuiltinObjectDefinition {
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
       descendantTypes: unpackedDescendantTypes,
-      properties: unpackedProperties,
-      groups: unpackedGroups,
+      baseEventTypes: unpackedBaseEventTypes,
+      eventTypes: unpackedEventTypes,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -960,7 +992,7 @@ export class NodeDefinition extends BuiltinObjectDefinition {
   }
 
   static __packProto__(object: NodeDefinition): NodeDefinitionProto {
-    const objectProto: Partial<NodeDefinitionProto> = { metatype: 102 };
+    const objectProto: Partial<NodeDefinitionProto> = { metatype: 101 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as NodeTypeProto;
     objectProto.name = object.name;
@@ -1065,6 +1097,20 @@ export class NodeDefinition extends BuiltinObjectDefinition {
       }
       objectProto.descendantTypes = packedDescendantTypes;
     }
+    if (object.baseEventTypes) {
+      const packedBaseEventTypes: any[] = [];
+      for (const item of object.baseEventTypes) {
+        packedBaseEventTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.baseEventTypes = packedBaseEventTypes;
+    }
+    if (object.eventTypes) {
+      const packedEventTypes: any[] = [];
+      for (const item of object.eventTypes) {
+        packedEventTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.eventTypes = packedEventTypes;
+    }
     return objectProto as NodeDefinitionProto;
   }
 
@@ -1086,6 +1132,22 @@ export class NodeDefinition extends BuiltinObjectDefinition {
     if (objectProto.primaryStoreTypes) {
       for (const item of objectProto.primaryStoreTypes) {
         unpackedPrimaryStoreTypes.push(Number(item) as StoreType);
+      }
+    }
+    const unpackedProperties: any[] = [];
+    if (objectProto.properties) {
+      for (const item of objectProto.properties) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedGroups: any[] = [];
+    if (objectProto.groups) {
+      for (const item of objectProto.groups) {
+        unpackedGroups.push(
+          _PropertyGroupDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedExtendedBy: any[] = [];
@@ -1142,25 +1204,23 @@ export class NodeDefinition extends BuiltinObjectDefinition {
         unpackedDescendantTypes.push(Number(item) as NodeType);
       }
     }
-    const unpackedProperties: any[] = [];
-    if (objectProto.properties) {
-      for (const item of objectProto.properties) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
+    const unpackedBaseEventTypes: any[] = [];
+    if (objectProto.baseEventTypes) {
+      for (const item of objectProto.baseEventTypes) {
+        unpackedBaseEventTypes.push(Number(item) as NodeType);
       }
     }
-    const unpackedGroups: any[] = [];
-    if (objectProto.groups) {
-      for (const item of objectProto.groups) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
+    const unpackedEventTypes: any[] = [];
+    if (objectProto.eventTypes) {
+      for (const item of objectProto.eventTypes) {
+        unpackedEventTypes.push(Number(item) as NodeType);
       }
     }
     return new NodeDefinition({
       type: Number(objectProto.type) as NodeType,
       primaryStoreTypes: unpackedPrimaryStoreTypes,
+      properties: unpackedProperties,
+      groups: unpackedGroups,
       isGlobal: objectProto.isGlobal,
       isSpatial: objectProto.isSpatial,
       isAbstract: objectProto.isAbstract,
@@ -1179,8 +1239,8 @@ export class NodeDefinition extends BuiltinObjectDefinition {
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
       descendantTypes: unpackedDescendantTypes,
-      properties: unpackedProperties,
-      groups: unpackedGroups,
+      baseEventTypes: unpackedBaseEventTypes,
+      eventTypes: unpackedEventTypes,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -1233,13 +1293,13 @@ export class NodeDefinition extends BuiltinObjectDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_DEFINITION, NodeDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:102 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:103 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:102 ==== */
 /**
  * Definition of a builtin Trait.
  */
-export class TraitDefinition extends BuiltinObjectDefinition {
+export class TraitDefinition extends BuiltinDefinition {
   static metatype: StructType = StructType.TRAIT_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -1269,12 +1329,12 @@ export class TraitDefinition extends BuiltinObjectDefinition {
   readonly description: string | null;
 
   /**
-   * BuiltinObjectDefinition.properties
+   * TraitDefinition.properties
    */
   readonly properties: Array<PropertyDefinition>;
 
   /**
-   * BuiltinObjectDefinition.groups
+   * TraitDefinition.groups
    */
   readonly groups: Array<PropertyGroupDefinition>;
 
@@ -1393,6 +1453,22 @@ export class TraitDefinition extends BuiltinObjectDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (this.properties.length !== other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (this.groups.length !== other.groups.length) {
+      return false;
+    }
+    for (let i = 0; i < this.groups.length; i++) {
+      if (!this.groups[i].equals(other.groups[i])) {
+        return false;
+      }
+    }
     if (!(this.alias === other.alias)) {
       return false;
     }
@@ -1412,22 +1488,6 @@ export class TraitDefinition extends BuiltinObjectDefinition {
     }
     for (let i = 0; i < this.baseTraits.length; i++) {
       if (!(this.baseTraits[i] === other.baseTraits[i])) {
-        return false;
-      }
-    }
-    if (this.properties.length !== other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (this.groups.length !== other.groups.length) {
-      return false;
-    }
-    for (let i = 0; i < this.groups.length; i++) {
-      if (!this.groups[i].equals(other.groups[i])) {
         return false;
       }
     }
@@ -1474,6 +1534,16 @@ export class TraitDefinition extends BuiltinObjectDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.groups && this.groups.length > 0) {
+      for (const _item of this.groups) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashString(this.alias)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.traits && this.traits.length > 0) {
@@ -1484,16 +1554,6 @@ export class TraitDefinition extends BuiltinObjectDefinition {
     if (this.baseTraits && this.baseTraits.length > 0) {
       for (const _item of this.baseTraits) {
         h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.groups && this.groups.length > 0) {
-      for (const _item of this.groups) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
@@ -1524,7 +1584,7 @@ export class TraitDefinition extends BuiltinObjectDefinition {
 
   static __packValue__(object: TraitDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 103;
+    objectValue["1"] = 102;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -1581,18 +1641,6 @@ export class TraitDefinition extends BuiltinObjectDefinition {
       StructType.PROPERTY_GROUP_DEFINITION
     ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedTraits: any[] = [];
-    if (objectValue["120"] != undefined) {
-      for (const item of objectValue["120"]) {
-        unpackedTraits.push(Number(item));
-      }
-    }
-    const unpackedBaseTraits: any[] = [];
-    if (objectValue["121"] != undefined) {
-      for (const item of objectValue["121"]) {
-        unpackedBaseTraits.push(Number(item));
-      }
-    }
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
@@ -1609,6 +1657,18 @@ export class TraitDefinition extends BuiltinObjectDefinition {
         );
       }
     }
+    const unpackedTraits: any[] = [];
+    if (objectValue["120"] != undefined) {
+      for (const item of objectValue["120"]) {
+        unpackedTraits.push(Number(item));
+      }
+    }
+    const unpackedBaseTraits: any[] = [];
+    if (objectValue["121"] != undefined) {
+      for (const item of objectValue["121"]) {
+        unpackedBaseTraits.push(Number(item));
+      }
+    }
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -1618,12 +1678,12 @@ export class TraitDefinition extends BuiltinObjectDefinition {
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new TraitDefinition({
       type: Number(objectValue["100"]),
+      properties: unpackedProperties,
+      groups: unpackedGroups,
       alias: objectValue["110"],
       isExtensible: objectValue["111"],
       traits: unpackedTraits,
       baseTraits: unpackedBaseTraits,
-      properties: unpackedProperties,
-      groups: unpackedGroups,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -1652,7 +1712,7 @@ export class TraitDefinition extends BuiltinObjectDefinition {
   }
 
   static __packProto__(object: TraitDefinition): TraitDefinitionProto {
-    const objectProto: Partial<TraitDefinitionProto> = { metatype: 103 };
+    const objectProto: Partial<TraitDefinitionProto> = { metatype: 102 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as TraitTypeProto;
     objectProto.name = object.name;
@@ -1709,18 +1769,6 @@ export class TraitDefinition extends BuiltinObjectDefinition {
       StructType.PROPERTY_GROUP_DEFINITION
     ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedTraits: any[] = [];
-    if (objectProto.traits) {
-      for (const item of objectProto.traits) {
-        unpackedTraits.push(Number(item) as TraitType);
-      }
-    }
-    const unpackedBaseTraits: any[] = [];
-    if (objectProto.baseTraits) {
-      for (const item of objectProto.baseTraits) {
-        unpackedBaseTraits.push(Number(item) as TraitType);
-      }
-    }
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
@@ -1737,14 +1785,26 @@ export class TraitDefinition extends BuiltinObjectDefinition {
         );
       }
     }
+    const unpackedTraits: any[] = [];
+    if (objectProto.traits) {
+      for (const item of objectProto.traits) {
+        unpackedTraits.push(Number(item) as TraitType);
+      }
+    }
+    const unpackedBaseTraits: any[] = [];
+    if (objectProto.baseTraits) {
+      for (const item of objectProto.baseTraits) {
+        unpackedBaseTraits.push(Number(item) as TraitType);
+      }
+    }
     return new TraitDefinition({
       type: Number(objectProto.type) as TraitType,
+      properties: unpackedProperties,
+      groups: unpackedGroups,
       alias: objectProto.alias,
       isExtensible: objectProto.isExtensible,
       traits: unpackedTraits,
       baseTraits: unpackedBaseTraits,
-      properties: unpackedProperties,
-      groups: unpackedGroups,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -1774,17 +1834,36 @@ export class TraitDefinition extends BuiltinObjectDefinition {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  /** Resolve a Property in this definition. */
+  resolveProperty(name: string): PropertyDefinition | null {
+    const nodeClass = TRAIT_CLASS_BY_TYPE[this.type];
+    const property = nodeClass.__properties__[name];
+    if (property == null) {
+      return null;
+    }
+    return property;
+  }
+
+  /** Resolve a Property in this definition (error if not found). */
+  resolvePropertyOrError(name: string): PropertyDefinition {
+    const property = this.resolveProperty(name);
+    if (property == null) {
+      throw new Error(`could not find property ${name} in ${this.repr()}`);
+    }
+    return property;
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TRAIT_DEFINITION, TraitDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:103 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:102 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:104 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:103 ==== */
 /**
  * Definition of a builtin Struct.
  */
-export class StructDefinition extends BuiltinObjectDefinition {
+export class StructDefinition extends BuiltinDefinition {
   static metatype: StructType = StructType.STRUCT_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -1814,12 +1893,12 @@ export class StructDefinition extends BuiltinObjectDefinition {
   readonly description: string | null;
 
   /**
-   * BuiltinObjectDefinition.properties
+   * StructDefinition.properties
    */
   readonly properties: Array<PropertyDefinition>;
 
   /**
-   * BuiltinObjectDefinition.groups
+   * StructDefinition.groups
    */
   readonly groups: Array<PropertyGroupDefinition>;
 
@@ -1968,6 +2047,22 @@ export class StructDefinition extends BuiltinObjectDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (this.properties.length !== other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (this.groups.length !== other.groups.length) {
+      return false;
+    }
+    for (let i = 0; i < this.groups.length; i++) {
+      if (!this.groups[i].equals(other.groups[i])) {
+        return false;
+      }
+    }
     if (!(this.isFrozen === other.isFrozen)) {
       return false;
     }
@@ -2001,22 +2096,6 @@ export class StructDefinition extends BuiltinObjectDefinition {
     }
     for (let i = 0; i < this.inheritedBy.length; i++) {
       if (!(this.inheritedBy[i] === other.inheritedBy[i])) {
-        return false;
-      }
-    }
-    if (this.properties.length !== other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (this.groups.length !== other.groups.length) {
-      return false;
-    }
-    for (let i = 0; i < this.groups.length; i++) {
-      if (!this.groups[i].equals(other.groups[i])) {
         return false;
       }
     }
@@ -2061,6 +2140,16 @@ export class StructDefinition extends BuiltinObjectDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.groups && this.groups.length > 0) {
+      for (const _item of this.groups) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
@@ -2080,16 +2169,6 @@ export class StructDefinition extends BuiltinObjectDefinition {
     if (this.inheritedBy && this.inheritedBy.length > 0) {
       for (const _item of this.inheritedBy) {
         h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.groups && this.groups.length > 0) {
-      for (const _item of this.groups) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
@@ -2120,7 +2199,7 @@ export class StructDefinition extends BuiltinObjectDefinition {
 
   static __packValue__(object: StructDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 104;
+    objectValue["1"] = 103;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -2188,6 +2267,22 @@ export class StructDefinition extends BuiltinObjectDefinition {
       StructType.PROPERTY_GROUP_DEFINITION
     ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectValue["105"] != undefined) {
+      for (const item of objectValue["105"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedGroups: any[] = [];
+    if (objectValue["106"] != undefined) {
+      for (const item of objectValue["106"]) {
+        unpackedGroups.push(
+          _PropertyGroupDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const baseTypeValue = objectValue["120"];
     const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
     const unpackedExtendedBy: any[] = [];
@@ -2208,22 +2303,6 @@ export class StructDefinition extends BuiltinObjectDefinition {
         unpackedInheritedBy.push(Number(item));
       }
     }
-    const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedGroups: any[] = [];
-    if (objectValue["106"] != undefined) {
-      for (const item of objectValue["106"]) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -2233,6 +2312,8 @@ export class StructDefinition extends BuiltinObjectDefinition {
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new StructDefinition({
       type: Number(objectValue["100"]),
+      properties: unpackedProperties,
+      groups: unpackedGroups,
       isFrozen: objectValue["110"],
       isAbstract: objectValue["111"],
       isExtensible: objectValue["112"],
@@ -2240,8 +2321,6 @@ export class StructDefinition extends BuiltinObjectDefinition {
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
       inheritedBy: unpackedInheritedBy,
-      properties: unpackedProperties,
-      groups: unpackedGroups,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -2276,7 +2355,7 @@ export class StructDefinition extends BuiltinObjectDefinition {
   }
 
   static __packProto__(object: StructDefinition): StructDefinitionProto {
-    const objectProto: Partial<StructDefinitionProto> = { metatype: 104 };
+    const objectProto: Partial<StructDefinitionProto> = { metatype: 103 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as StructTypeProto;
     objectProto.name = object.name;
@@ -2344,6 +2423,22 @@ export class StructDefinition extends BuiltinObjectDefinition {
       StructType.PROPERTY_GROUP_DEFINITION
     ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectProto.properties) {
+      for (const item of objectProto.properties) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedGroups: any[] = [];
+    if (objectProto.groups) {
+      for (const item of objectProto.groups) {
+        unpackedGroups.push(
+          _PropertyGroupDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const unpackedExtendedBy: any[] = [];
     if (objectProto.extendedBy) {
       for (const item of objectProto.extendedBy) {
@@ -2362,24 +2457,10 @@ export class StructDefinition extends BuiltinObjectDefinition {
         unpackedInheritedBy.push(Number(item) as StructType);
       }
     }
-    const unpackedProperties: any[] = [];
-    if (objectProto.properties) {
-      for (const item of objectProto.properties) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedGroups: any[] = [];
-    if (objectProto.groups) {
-      for (const item of objectProto.groups) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new StructDefinition({
       type: Number(objectProto.type) as StructType,
+      properties: unpackedProperties,
+      groups: unpackedGroups,
       isFrozen: objectProto.isFrozen,
       isAbstract: objectProto.isAbstract,
       isExtensible: objectProto.isExtensible,
@@ -2388,8 +2469,6 @@ export class StructDefinition extends BuiltinObjectDefinition {
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
       inheritedBy: unpackedInheritedBy,
-      properties: unpackedProperties,
-      groups: unpackedGroups,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -2429,9 +2508,9 @@ export class StructDefinition extends BuiltinObjectDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRUCT_DEFINITION, StructDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:104 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:103 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:105 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:104 ==== */
 /**
  * Definition of a builtin Enum.
  */
@@ -2616,7 +2695,7 @@ export class EnumDefinition extends BuiltinDefinition {
 
   static __packValue__(object: EnumDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 105;
+    objectValue["1"] = 104;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -2693,7 +2772,7 @@ export class EnumDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: EnumDefinition): EnumDefinitionProto {
-    const objectProto: Partial<EnumDefinitionProto> = { metatype: 105 };
+    const objectProto: Partial<EnumDefinitionProto> = { metatype: 104 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as EnumTypeProto;
     objectProto.name = object.name;
@@ -2764,136 +2843,11 @@ export class EnumDefinition extends BuiltinDefinition {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
-  toRef(): PropertyReference {
-    if (this.object.type === ObjectDefinitionType.BUILTIN_NODE) {
-      return new PropertyReference({
-        type: PropertyReferenceType.BUILTIN,
-        nodeType: this.object.nodeType,
-        id: this.id,
-      });
-    } else if (this.object.type === ObjectDefinitionType.BUILTIN_STRUCT) {
-      return new PropertyReference({
-        type: PropertyReferenceType.BUILTIN,
-        structType: this.object.structType,
-        id: this.id,
-      });
-    } else if (this.object.type === ObjectDefinitionType.BUILTIN_TRAIT) {
-      return new PropertyReference({
-        type: PropertyReferenceType.BUILTIN,
-        traitType: this.object.traitType,
-        id: this.id,
-      });
-    } else if (
-      this.object.type === ObjectDefinitionType.CUSTOM_NODE ||
-      this.object.type === ObjectDefinitionType.CUSTOM_STRUCT ||
-      this.object.type === ObjectDefinitionType.CUSTOM_TRAIT
-    ) {
-      throw new Error(`${this.repr()} cannot be associated with a custom object`);
-    } else {
-      assertNever(this.object.type);
-    }
-  }
-
-  eq(value: any): Condition {
-    if (value === null) {
-      return Condition.of(this, ConditionalType.NOT_EXISTS);
-    }
-    return Condition.of(this, ConditionalType.EQUALS, value);
-  }
-
-  neq(value: any): Condition {
-    if (value === null) {
-      return Condition.of(this, ConditionalType.EXISTS);
-    }
-    return Condition.of(this, ConditionalType.NOT_EQUALS, value);
-  }
-
-  gt(value: any): Condition {
-    return Condition.of(this, ConditionalType.GREATER_THAN, value);
-  }
-
-  gte(value: any): Condition {
-    return Condition.of(this, ConditionalType.GREATER_THAN_OR_EQUALS, value);
-  }
-
-  lt(value: any): Condition {
-    return Condition.of(this, ConditionalType.LESS_THAN, value);
-  }
-
-  lte(value: any): Condition {
-    return Condition.of(this, ConditionalType.LESS_THAN_OR_EQUALS, value);
-  }
-
-  startsWith(value: string): Condition {
-    return Condition.of(this, ConditionalType.STARTS_WITH, value);
-  }
-
-  endsWith(value: string): Condition {
-    return Condition.of(this, ConditionalType.ENDS_WITH, value);
-  }
-
-  in(...values: any[]): Condition {
-    return Condition.of(this, ConditionalType.IN, values);
-  }
-
-  notIn(...values: any[]): Condition {
-    return Condition.of(this, ConditionalType.NOT_IN, values);
-  }
-
-  exists(): Condition {
-    return Condition.of(this, ConditionalType.EXISTS);
-  }
-
-  isNotNone(): Condition {
-    return Condition.of(this, ConditionalType.EXISTS);
-  }
-
-  notExists(): Condition {
-    return Condition.of(this, ConditionalType.NOT_EXISTS);
-  }
-
-  isNone(): Condition {
-    return Condition.of(this, ConditionalType.NOT_EXISTS);
-  }
-
-  asc(): Sort {
-    return Sort.of(this, SortType.ASCENDING);
-  }
-
-  desc(): Sort {
-    return Sort.of(this, SortType.DESCENDING);
-  }
-
-  _type: Type | null = null;
-
-  toType(): Type {
-    if (this._type === null) {
-      const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
-      this._type = new _Type({
-        cardinality: this.cardinality,
-        scalarType: this.scalarType,
-        primitiveType: this.primitiveType,
-        enumType: this.enumType,
-        nodeType: this.nodeType,
-        structType: this.structType,
-        keyType: this.keyType,
-        isRequired: this.isRequired,
-        value: this.value,
-        valueFactory: this.valueFactory,
-        collectionConstraint: this.collectionConstraint,
-        stringConstraint: this.stringConstraint,
-        numberConstraint: this.numberConstraint,
-        nodeConstraint: this.nodeConstraint,
-      });
-    }
-    return this._type;
-  }
-
+  // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ENUM_DEFINITION, EnumDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:105 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:104 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:110 ==== */
 /**
@@ -4012,7 +3966,132 @@ export class PropertyDefinition extends BuiltinDefinition {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  toRef(): PropertyReference {
+    if (this.object.type === ObjectDefinitionType.BUILTIN_NODE) {
+      return new PropertyReference({
+        type: PropertyReferenceType.BUILTIN,
+        nodeType: this.object.nodeType,
+        id: this.id,
+      });
+    } else if (this.object.type === ObjectDefinitionType.BUILTIN_STRUCT) {
+      return new PropertyReference({
+        type: PropertyReferenceType.BUILTIN,
+        structType: this.object.structType,
+        id: this.id,
+      });
+    } else if (this.object.type === ObjectDefinitionType.BUILTIN_TRAIT) {
+      return new PropertyReference({
+        type: PropertyReferenceType.BUILTIN,
+        traitType: this.object.traitType,
+        id: this.id,
+      });
+    } else if (
+      this.object.type === ObjectDefinitionType.CUSTOM_NODE ||
+      this.object.type === ObjectDefinitionType.CUSTOM_STRUCT ||
+      this.object.type === ObjectDefinitionType.CUSTOM_TRAIT
+    ) {
+      throw new Error(`${this.repr()} cannot be associated with a custom object`);
+    } else {
+      assertNever(this.object.type);
+    }
+  }
+
+  eq(value: any): Condition {
+    if (value === null) {
+      return Condition.of(this, ConditionalType.NOT_EXISTS);
+    }
+    return Condition.of(this, ConditionalType.EQUALS, value);
+  }
+
+  neq(value: any): Condition {
+    if (value === null) {
+      return Condition.of(this, ConditionalType.EXISTS);
+    }
+    return Condition.of(this, ConditionalType.NOT_EQUALS, value);
+  }
+
+  gt(value: any): Condition {
+    return Condition.of(this, ConditionalType.GREATER_THAN, value);
+  }
+
+  gte(value: any): Condition {
+    return Condition.of(this, ConditionalType.GREATER_THAN_OR_EQUALS, value);
+  }
+
+  lt(value: any): Condition {
+    return Condition.of(this, ConditionalType.LESS_THAN, value);
+  }
+
+  lte(value: any): Condition {
+    return Condition.of(this, ConditionalType.LESS_THAN_OR_EQUALS, value);
+  }
+
+  startsWith(value: string): Condition {
+    return Condition.of(this, ConditionalType.STARTS_WITH, value);
+  }
+
+  endsWith(value: string): Condition {
+    return Condition.of(this, ConditionalType.ENDS_WITH, value);
+  }
+
+  in(...values: any[]): Condition {
+    return Condition.of(this, ConditionalType.IN, values);
+  }
+
+  notIn(...values: any[]): Condition {
+    return Condition.of(this, ConditionalType.NOT_IN, values);
+  }
+
+  exists(): Condition {
+    return Condition.of(this, ConditionalType.EXISTS);
+  }
+
+  isNotNone(): Condition {
+    return Condition.of(this, ConditionalType.EXISTS);
+  }
+
+  notExists(): Condition {
+    return Condition.of(this, ConditionalType.NOT_EXISTS);
+  }
+
+  isNone(): Condition {
+    return Condition.of(this, ConditionalType.NOT_EXISTS);
+  }
+
+  asc(): Sort {
+    return Sort.of(this, SortType.ASCENDING);
+  }
+
+  desc(): Sort {
+    return Sort.of(this, SortType.DESCENDING);
+  }
+
+  _type: Type | null = null;
+
+  toType(): Type {
+    if (this._type === null) {
+      const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
+      this._type = new _Type({
+        cardinality: this.cardinality,
+        scalarType: this.scalarType,
+        primitiveType: this.primitiveType,
+        enumType: this.enumType,
+        nodeType: this.nodeType,
+        structType: this.structType,
+        keyType: this.keyType,
+        isRequired: this.isRequired,
+        value: this.value,
+        valueFactory: this.valueFactory,
+        collectionConstraint: this.collectionConstraint,
+        stringConstraint: this.stringConstraint,
+        numberConstraint: this.numberConstraint,
+        nodeConstraint: this.nodeConstraint,
+      });
+    }
+    return this._type;
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);

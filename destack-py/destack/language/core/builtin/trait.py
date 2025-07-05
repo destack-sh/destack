@@ -74,6 +74,7 @@ def builtin_trait(
     trait_type: TraitType | None,
     pretend_frozen: bool = False,  # :PretendFrozen
     is_extensible: bool = False,
+    event_types: tuple[NodeType, ...] = (),
 ):
     """Register a class as a node trait."""
 
@@ -88,18 +89,37 @@ def builtin_trait(
         )
         cls.__is_trait__ = True
         cls.__is_abstract__ = True
-        traits = set()
-        base_traits = set()
+
+        # traits
+        traits: list[TraitType] = []
+        base_traits: list[TraitType] = []
+        for base in cls.__bases__:
+            if trait := _resolve_trait_type(base.__name__):
+                if trait not in base_traits:
+                    base_traits.append(trait)
         for superclass in get_superclasses(cls):
             if superclass is cls:
                 continue
-            if super_trait_type := _resolve_trait_type(superclass.__name__):
-                traits.add(super_trait_type)
-            if super_trait_type := _resolve_trait_type(superclass.__name__):
-                base_traits.add(super_trait_type)
+            if trait := _resolve_trait_type(superclass.__name__):
+                if trait not in traits:
+                    traits.append(trait)
         cls.__traits__ = tuple(traits)
         cls.__base_traits__ = tuple(base_traits)
         cast(type["Trait"], cls).__is_extensible__ = is_extensible
+
+        # event types
+        all_event_types: list[NodeType] = []
+        cls.__base_event_types__ = tuple(event_types)
+        for base in cls.__bases__:
+            if (
+                any(b.__name__ == "Trait" for b in base.__bases__)
+                and issubclass(base, Trait)
+                and base.__base_event_types__
+            ):
+                for event_type in base.__base_event_types__:
+                    if event_type not in all_event_types:
+                        all_event_types.append(event_type)
+        cls.__event_types__ = tuple(all_event_types)
 
         # register
         if trait_type is not None:
@@ -129,7 +149,13 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 
+    """Whether this trait can be extended by custom Traits."""
     __is_extensible__: ClassVar[bool] = False
+
+    """The base event types of this Trait (directly)."""
+    __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The event types of this trait (directly and indirectly)."""
+    __event_types__: ClassVar[tuple[NodeType, ...]] = ()
 
 
 @builtin_trait(TraitType.GLOBAL)

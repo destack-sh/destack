@@ -22,16 +22,16 @@ import type {
   Vector2f,
 } from "@destack/language/core";
 import { Entity, Node, NodeType } from "@destack/language/core";
-import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
-import type { Space } from "@destack/language/space";
+import type { Folder } from "@destack/language/space";
 import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
+import type { Space } from "@destack/language/universe";
 import { ContainerView } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:250100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:540100 ==== */
 /**
  * A Shape is a View representing a Shape.
  */
@@ -369,4 +369,4 @@ export abstract class Shape extends ContainerView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SHAPE, Shape);
-/* ==== DESTACK_GENERATED_END:NODE:250100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:540100 ==== */

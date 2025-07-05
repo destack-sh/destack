@@ -1,9 +1,10 @@
-from .input import (
-    ClickEvent,
+from .clipboard import (
     ClipboardEvent,
     CopyEvent,
     CutEvent,
-    DoubleClickEvent,
+    PasteEvent,
+)
+from .drag import (
     DragEndEvent,
     DragEnterEvent,
     DragEvent,
@@ -11,29 +12,38 @@ from .input import (
     DragOverEvent,
     DragStartEvent,
     DropEvent,
+)
+from .focus import (
     FocusEvent,
     FocusInEvent,
     FocusOutEvent,
-    InputEvent,
+)
+from .input import InputEvent
+from .keyboard import (
     KeyboardEvent,
     KeyDownEvent,
     KeyPressEvent,
     KeyUpEvent,
+)
+from .mouse import (
+    ClickEvent,
+    DoubleClickEvent,
     LeftClickEvent,
-    LongPressEvent,
     MiddleClickEvent,
     MouseButton,
     MouseEvent,
-    PasteEvent,
+    RightClickEvent,
+    WheelEvent,
+)
+from .pointer import (
     PointerDownEvent,
     PointerEnterEvent,
     PointerEvent,
     PointerLeaveEvent,
+    PointerLongPressEvent,
     PointerMoveEvent,
     PointerOverEvent,
     PointerUpEvent,
-    RightClickEvent,
-    WheelEvent,
 )
 
 __all__ = [
@@ -58,7 +68,6 @@ __all__ = [
     "KeyUpEvent",
     "KeyboardEvent",
     "LeftClickEvent",
-    "LongPressEvent",
     "MiddleClickEvent",
     "MouseButton",
     "MouseEvent",
@@ -67,6 +76,7 @@ __all__ = [
     "PointerEnterEvent",
     "PointerEvent",
     "PointerLeaveEvent",
+    "PointerLongPressEvent",
     "PointerMoveEvent",
     "PointerOverEvent",
     "PointerUpEvent",

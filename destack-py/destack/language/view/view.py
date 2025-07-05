@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     Entity,
+    Event,
     IsDeletable,
     IsExtensible,
     IsOrdered,
@@ -29,7 +30,40 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.VIEW, is_abstract=True)
+@builtin_node(NodeType.VIEW_EVENT, frozen=True, is_abstract=True)
+class ViewEvent(Event["View"]):
+    """A Event regarding a View."""
+
+    node: "View" = builtin_property(101)
+
+
+@builtin_node(NodeType.VIEW_ENTERED_EVENT, frozen=True)
+class ViewEnteredEvent(ViewEvent):
+    """A View was entered."""
+
+    pass
+
+
+@builtin_node(NodeType.VIEW_EXITED_EVENT, frozen=True)
+class ViewExitedEvent(ViewEvent):
+    """A View was exited."""
+
+    pass
+
+
+@builtin_node(
+    NodeType.VIEW,
+    is_abstract=True,
+    event_types=(
+        NodeType.VIEW_EVENT,
+        NodeType.POINTER_EVENT,
+        NodeType.MOUSE_EVENT,
+        NodeType.KEYBOARD_EVENT,
+        NodeType.DRAG_EVENT,
+        NodeType.CLIPBOARD_EVENT,
+        NodeType.FOCUS_EVENT,
+    ),
+)
 class View(
     IsSpatial,
     Entity,

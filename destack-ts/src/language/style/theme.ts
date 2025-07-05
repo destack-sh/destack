@@ -14,13 +14,13 @@ import type {
 } from "@destack/language/core";
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, ThemeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:270000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:600000 ==== */
 /**
  * A Theme with common Styles.
  */
@@ -405,7 +405,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
 
   static __packValue__(object: Theme): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270000;
+    objectValue["1"] = 600000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -532,7 +532,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
   }
 
   static __packProto__(object: Theme): ThemeProto {
-    const objectProto: Partial<ThemeProto> = { metatype: 270000 };
+    const objectProto: Partial<ThemeProto> = { metatype: 600000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -693,4 +693,4 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THEME, Theme);
-/* ==== DESTACK_GENERATED_END:NODE:270000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:600000 ==== */

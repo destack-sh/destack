@@ -59,7 +59,10 @@ class EntitlementType(Enum):
     ROLE = 2
 
 
-@builtin_node(NodeType.ENTITLEMENT)
+@builtin_node(
+    NodeType.ENTITLEMENT,
+    event_types=(NodeType.ENTITLEMENT_EVENT,),
+)
 class Entitlement(IsSpatial, IsDeletable, Entity):
     """A Entitlement to some Subject."""
 

@@ -28,7 +28,6 @@ import type { QueryConnection } from "@destack/language/core/runtime/connection"
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import { SingletonGraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import {
   NODE_CLASS_BY_TYPE,
@@ -37,7 +36,8 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Folder } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import {
   CustomEntityDefinitionProto,
   CustomTraitDefinitionProto,

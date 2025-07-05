@@ -1,3 +1,4 @@
+import type { Agent } from "@destack/language/access/agent";
 import type {
   Entitlement,
   EntitlementEvent,
@@ -71,6 +72,7 @@ import type {
   ToolType,
   TraitType,
   TypeCardinality,
+  UniverseCategory,
   ValueFactory,
 } from "@destack/language/core/builtin/common";
 import type {
@@ -129,7 +131,6 @@ import type {
 import type {
   ActionDefinition,
   BuiltinDefinition,
-  BuiltinObjectDefinition,
   ConstantDefinition,
   EnumDefinition,
   MethodDefinition,
@@ -158,14 +159,6 @@ import type {
   CustomOptionGroup,
 } from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
-import type {
-  CounterMeasurementEvent,
-  CounterMetric,
-  GaugeMeasurementEvent,
-  GaugeMetric,
-  HistogramMeasurementEvent,
-  HistogramMetric,
-} from "@destack/language/core/common/metric";
 import type { CustomProperty, CustomPropertyGroup } from "@destack/language/core/common/property";
 import type {
   Aggregation,
@@ -241,18 +234,42 @@ import type {
   FileType,
 } from "@destack/language/data/file";
 import type { Environment } from "@destack/language/deployment/environment";
-import type { Folder, FolderType } from "@destack/language/folder/folder";
-import type { Tag, Tagging } from "@destack/language/folder/tag";
-import type { Database, DatabaseInfo, DatabaseType } from "@destack/language/infra/database";
-import type { GalaxyInfo } from "@destack/language/infra/galaxy";
-import type { Machine, MachineType } from "@destack/language/infra/machine";
+import type {
+  Interruption,
+  InterruptionResponse,
+  InterruptionStatus,
+  InterruptionType,
+} from "@destack/language/deployment/interruption";
+import type { LogEvent, LogLevel } from "@destack/language/deployment/log";
+import type {
+  Run,
+  RunCompletedEvent,
+  RunEvent,
+  RunFailedEvent,
+  RunPauseRequestedEvent,
+  RunPausedEvent,
+  RunResumeRequestedEvent,
+  RunResumedEvent,
+  RunStartedEvent,
+  RunStatus,
+  RunStopRequestedEvent,
+} from "@destack/language/deployment/run";
+import type { SpanEvent } from "@destack/language/deployment/span";
+import type {
+  Database,
+  DatabaseInfo,
+  DatabaseType,
+} from "@destack/language/infrastructure/database";
+import type { GalaxyInfo } from "@destack/language/infrastructure/galaxy";
+import type { Machine, MachineType } from "@destack/language/infrastructure/machine";
 import type { ModelDeveloper, ModelProvider } from "@destack/language/intelligence/model";
 import type {
-  ClickEvent,
   ClipboardEvent,
   CopyEvent,
   CutEvent,
-  DoubleClickEvent,
+  PasteEvent,
+} from "@destack/language/interaction/clipboard";
+import type {
   DragEndEvent,
   DragEnterEvent,
   DragEvent,
@@ -260,30 +277,35 @@ import type {
   DragOverEvent,
   DragStartEvent,
   DropEvent,
-  FocusEvent,
-  FocusInEvent,
-  FocusOutEvent,
-  InputEvent,
+} from "@destack/language/interaction/drag";
+import type { FocusEvent, FocusInEvent, FocusOutEvent } from "@destack/language/interaction/focus";
+import type { InputEvent } from "@destack/language/interaction/input";
+import type {
   KeyDownEvent,
   KeyPressEvent,
   KeyUpEvent,
   KeyboardEvent,
+} from "@destack/language/interaction/keyboard";
+import type {
+  ClickEvent,
+  DoubleClickEvent,
   LeftClickEvent,
-  LongPressEvent,
   MiddleClickEvent,
   MouseButton,
   MouseEvent,
-  PasteEvent,
+  RightClickEvent,
+  WheelEvent,
+} from "@destack/language/interaction/mouse";
+import type {
   PointerDownEvent,
   PointerEnterEvent,
   PointerEvent,
   PointerLeaveEvent,
+  PointerLongPressEvent,
   PointerMoveEvent,
   PointerOverEvent,
   PointerUpEvent,
-  RightClickEvent,
-  WheelEvent,
-} from "@destack/language/interaction/input";
+} from "@destack/language/interaction/pointer";
 import type { Action, ActionCardinality } from "@destack/language/logic/action";
 import type {
   Cursor,
@@ -311,33 +333,15 @@ import type {
 } from "@destack/language/logic/timer";
 import type { Trigger, TriggerEvent, TriggerType } from "@destack/language/logic/trigger";
 import type {
-  Interruption,
-  InterruptionResponse,
-  InterruptionStatus,
-  InterruptionType,
-} from "@destack/language/runtime/interruption";
-import type { LogEvent, LogLevel } from "@destack/language/runtime/log";
-import type {
-  Run,
-  RunCompletedEvent,
-  RunEvent,
-  RunFailedEvent,
-  RunPauseRequestedEvent,
-  RunPausedEvent,
-  RunResumeRequestedEvent,
-  RunResumedEvent,
-  RunStartedEvent,
-  RunStatus,
-  RunStopRequestedEvent,
-} from "@destack/language/runtime/run";
-import type { SpanEvent } from "@destack/language/runtime/span";
+  CounterMeasurementEvent,
+  CounterMetric,
+  GaugeMeasurementEvent,
+  GaugeMetric,
+  HistogramMeasurementEvent,
+  HistogramMetric,
+} from "@destack/language/observability/metric";
 import type { Layer, LayerType } from "@destack/language/scene/layer";
-import type {
-  Scene,
-  SceneEnteredEvent,
-  SceneEvent,
-  SceneExitedEvent,
-} from "@destack/language/scene/scene";
+import type { Scene, SceneEvent } from "@destack/language/scene/scene";
 import type { Variant, VariantStateType, VariantType } from "@destack/language/scene/variant";
 import type { Window, WindowType } from "@destack/language/scene/window";
 import type { Follow } from "@destack/language/social/follow";
@@ -355,24 +359,9 @@ import type {
 import type { Reaction } from "@destack/language/social/reaction";
 import type { Star } from "@destack/language/social/star";
 import type { Thread, ThreadStatus } from "@destack/language/social/thread";
-import type { Agent } from "@destack/language/space/agent";
-import type { Client } from "@destack/language/space/client";
-import type {
-  Friendship,
-  FriendshipInvite,
-  FriendshipInviteAcceptedEvent,
-  FriendshipInviteEvent,
-  FriendshipInviteRejectedEvent,
-  FriendshipInviteRescindedEvent,
-  FriendshipInviteSentEvent,
-} from "@destack/language/space/friendship";
-import type { Handle } from "@destack/language/space/handle";
-import type { Organization, OrganizationStatus } from "@destack/language/space/organization";
-import type { Space, SpaceStatus } from "@destack/language/space/space";
-import type { Team } from "@destack/language/space/team";
-import type { Universe } from "@destack/language/space/universe";
-import type { User, UserStatus } from "@destack/language/space/user";
-import type { Branch } from "@destack/language/spacetime/branch";
+import type { Branch } from "@destack/language/space/branch";
+import type { Folder, FolderType } from "@destack/language/space/folder";
+import type { Tag, Tagging } from "@destack/language/space/tag";
 import type { Border, BorderStyle, BorderType } from "@destack/language/style/border";
 import type {
   Color,
@@ -437,17 +426,38 @@ import type {
   TransitionStyle,
   TransitionType,
 } from "@destack/language/style/transition";
-import type { ContainerView } from "@destack/language/view/container/container";
-import type { FrameView } from "@destack/language/view/container/frame";
-import type { LabelView } from "@destack/language/view/container/label";
-import type { SplitView } from "@destack/language/view/container/split";
-import type { ContentView } from "@destack/language/view/content/content";
-import type { TextView } from "@destack/language/view/content/text";
-import type { InputView } from "@destack/language/view/input/input";
-import type { NumberInputView } from "@destack/language/view/input/number";
-import type { SliderInputView } from "@destack/language/view/input/slider";
-import type { InternalView } from "@destack/language/view/internal/internal";
-import type { View } from "@destack/language/view/view";
+import type { Client } from "@destack/language/universe/client";
+import type {
+  Friendship,
+  FriendshipInvite,
+  FriendshipInviteAcceptedEvent,
+  FriendshipInviteEvent,
+  FriendshipInviteRejectedEvent,
+  FriendshipInviteRescindedEvent,
+  FriendshipInviteSentEvent,
+} from "@destack/language/universe/friendship";
+import type { Handle } from "@destack/language/universe/handle";
+import type { Organization, OrganizationStatus } from "@destack/language/universe/organization";
+import type { Space, SpaceStatus } from "@destack/language/universe/space";
+import type { Team } from "@destack/language/universe/team";
+import type { Universe } from "@destack/language/universe/universe";
+import type { User, UserStatus } from "@destack/language/universe/user";
+import type { ContainerView } from "@destack/language/view/container";
+import type { ContentView } from "@destack/language/view/content";
+import type { FrameView } from "@destack/language/view/frame";
+import type { InputView } from "@destack/language/view/input";
+import type { InternalView } from "@destack/language/view/internal";
+import type { LabelView } from "@destack/language/view/label";
+import type { NumberInputView } from "@destack/language/view/number";
+import type { SliderInputView } from "@destack/language/view/slider";
+import type { SplitView } from "@destack/language/view/split";
+import type { TextView } from "@destack/language/view/text";
+import type {
+  View,
+  ViewEnteredEvent,
+  ViewEvent,
+  ViewExitedEvent,
+} from "@destack/language/view/view";
 
 export type NodeTypeMapping = {
   [NodeType.NODE]: Node;
@@ -468,15 +478,10 @@ export type NodeTypeMapping = {
   [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
   [NodeType.CUSTOM_OPTION]: CustomOption;
   [NodeType.CUSTOM_OPTION_GROUP]: CustomOptionGroup;
-  [NodeType.GAUGE_METRIC]: GaugeMetric;
-  [NodeType.GAUGE_MEASUREMENT_EVENT]: GaugeMeasurementEvent;
-  [NodeType.COUNTER_METRIC]: CounterMetric;
-  [NodeType.COUNTER_MEASUREMENT_EVENT]: CounterMeasurementEvent;
-  [NodeType.HISTOGRAM_METRIC]: HistogramMetric;
-  [NodeType.HISTOGRAM_MEASUREMENT_EVENT]: HistogramMeasurementEvent;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
   [NodeType.CUSTOM_PROPERTY_GROUP]: CustomPropertyGroup;
   [NodeType.CUSTOM_STRUCT_DEFINITION]: CustomStructDefinition;
+  [NodeType.AGENT]: Agent;
   [NodeType.ENTITLEMENT_EVENT]: EntitlementEvent;
   [NodeType.ENTITLEMENT_REQUESTED_EVENT]: EntitlementRequestedEvent;
   [NodeType.ENTITLEMENT_GRANTED_EVENT]: EntitlementGrantedEvent;
@@ -504,17 +509,20 @@ export type NodeTypeMapping = {
   [NodeType.SANCTION_REVOKED_EVENT]: SanctionRevokedEvent;
   [NodeType.SANCTION_EXPIRED_EVENT]: SanctionExpiredEvent;
   [NodeType.SANCTION]: Sanction;
+  [NodeType.VIEW_EVENT]: ViewEvent;
+  [NodeType.VIEW_ENTERED_EVENT]: ViewEnteredEvent;
+  [NodeType.VIEW_EXITED_EVENT]: ViewExitedEvent;
   [NodeType.VIEW]: View;
   [NodeType.CONTAINER_VIEW]: ContainerView;
-  [NodeType.FRAME_VIEW]: FrameView;
-  [NodeType.LABEL_VIEW]: LabelView;
-  [NodeType.SPLIT_VIEW]: SplitView;
   [NodeType.CONTENT_VIEW]: ContentView;
-  [NodeType.TEXT_VIEW]: TextView;
+  [NodeType.FRAME_VIEW]: FrameView;
   [NodeType.INPUT_VIEW]: InputView;
+  [NodeType.INTERNAL_VIEW]: InternalView;
+  [NodeType.LABEL_VIEW]: LabelView;
   [NodeType.NUMBER_INPUT_VIEW]: NumberInputView;
   [NodeType.SLIDER_INPUT_VIEW]: SliderInputView;
-  [NodeType.INTERNAL_VIEW]: InternalView;
+  [NodeType.SPLIT_VIEW]: SplitView;
+  [NodeType.TEXT_VIEW]: TextView;
   [NodeType.SHAPE]: Shape;
   [NodeType.ANNOTATION_SHAPE]: AnnotationShape;
   [NodeType.ARROW_SHAPE]: ArrowShape;
@@ -522,31 +530,26 @@ export type NodeTypeMapping = {
   [NodeType.LINE_SHAPE]: LineShape;
   [NodeType.FILE]: File;
   [NodeType.ENVIRONMENT]: Environment;
-  [NodeType.FOLDER]: Folder;
-  [NodeType.TAG]: Tag;
-  [NodeType.TAGGING]: Tagging;
+  [NodeType.INTERRUPTION]: Interruption;
+  [NodeType.LOG_EVENT]: LogEvent;
+  [NodeType.RUN_EVENT]: RunEvent;
+  [NodeType.RUN_STARTED_EVENT]: RunStartedEvent;
+  [NodeType.RUN_PAUSE_REQUESTED_EVENT]: RunPauseRequestedEvent;
+  [NodeType.RUN_PAUSED_EVENT]: RunPausedEvent;
+  [NodeType.RUN_RESUME_REQUESTED_EVENT]: RunResumeRequestedEvent;
+  [NodeType.RUN_RESUMED_EVENT]: RunResumedEvent;
+  [NodeType.RUN_STOP_REQUESTED_EVENT]: RunStopRequestedEvent;
+  [NodeType.RUN_FAILED_EVENT]: RunFailedEvent;
+  [NodeType.RUN_COMPLETED_EVENT]: RunCompletedEvent;
+  [NodeType.RUN]: Run;
+  [NodeType.SPAN_EVENT]: SpanEvent;
   [NodeType.DATABASE]: Database;
   [NodeType.MACHINE]: Machine;
   [NodeType.INPUT_EVENT]: InputEvent;
-  [NodeType.POINTER_EVENT]: PointerEvent;
-  [NodeType.POINTER_DOWN_EVENT]: PointerDownEvent;
-  [NodeType.POINTER_UP_EVENT]: PointerUpEvent;
-  [NodeType.POINTER_MOVE_EVENT]: PointerMoveEvent;
-  [NodeType.POINTER_ENTER_EVENT]: PointerEnterEvent;
-  [NodeType.POINTER_OVER_EVENT]: PointerOverEvent;
-  [NodeType.POINTER_LEAVE_EVENT]: PointerLeaveEvent;
-  [NodeType.LONG_PRESS_EVENT]: LongPressEvent;
-  [NodeType.MOUSE_EVENT]: MouseEvent;
-  [NodeType.CLICK_EVENT]: ClickEvent;
-  [NodeType.LEFT_CLICK_EVENT]: LeftClickEvent;
-  [NodeType.RIGHT_CLICK_EVENT]: RightClickEvent;
-  [NodeType.MIDDLE_CLICK_EVENT]: MiddleClickEvent;
-  [NodeType.DOUBLE_CLICK_EVENT]: DoubleClickEvent;
-  [NodeType.WHEEL_EVENT]: WheelEvent;
-  [NodeType.KEYBOARD_EVENT]: KeyboardEvent;
-  [NodeType.KEY_DOWN_EVENT]: KeyDownEvent;
-  [NodeType.KEY_UP_EVENT]: KeyUpEvent;
-  [NodeType.KEY_PRESS_EVENT]: KeyPressEvent;
+  [NodeType.CLIPBOARD_EVENT]: ClipboardEvent;
+  [NodeType.COPY_EVENT]: CopyEvent;
+  [NodeType.CUT_EVENT]: CutEvent;
+  [NodeType.PASTE_EVENT]: PasteEvent;
   [NodeType.DRAG_EVENT]: DragEvent;
   [NodeType.DRAG_START_EVENT]: DragStartEvent;
   [NodeType.DRAG_END_EVENT]: DragEndEvent;
@@ -554,13 +557,28 @@ export type NodeTypeMapping = {
   [NodeType.DRAG_ENTER_EVENT]: DragEnterEvent;
   [NodeType.DRAG_LEAVE_EVENT]: DragLeaveEvent;
   [NodeType.DROP_EVENT]: DropEvent;
-  [NodeType.CLIPBOARD_EVENT]: ClipboardEvent;
-  [NodeType.COPY_EVENT]: CopyEvent;
-  [NodeType.CUT_EVENT]: CutEvent;
-  [NodeType.PASTE_EVENT]: PasteEvent;
   [NodeType.FOCUS_EVENT]: FocusEvent;
   [NodeType.FOCUS_IN_EVENT]: FocusInEvent;
   [NodeType.FOCUS_OUT_EVENT]: FocusOutEvent;
+  [NodeType.KEYBOARD_EVENT]: KeyboardEvent;
+  [NodeType.KEY_DOWN_EVENT]: KeyDownEvent;
+  [NodeType.KEY_UP_EVENT]: KeyUpEvent;
+  [NodeType.KEY_PRESS_EVENT]: KeyPressEvent;
+  [NodeType.POINTER_EVENT]: PointerEvent;
+  [NodeType.POINTER_DOWN_EVENT]: PointerDownEvent;
+  [NodeType.POINTER_UP_EVENT]: PointerUpEvent;
+  [NodeType.POINTER_MOVE_EVENT]: PointerMoveEvent;
+  [NodeType.POINTER_ENTER_EVENT]: PointerEnterEvent;
+  [NodeType.POINTER_OVER_EVENT]: PointerOverEvent;
+  [NodeType.POINTER_LEAVE_EVENT]: PointerLeaveEvent;
+  [NodeType.POINTER_LONG_PRESS_EVENT]: PointerLongPressEvent;
+  [NodeType.MOUSE_EVENT]: MouseEvent;
+  [NodeType.CLICK_EVENT]: ClickEvent;
+  [NodeType.LEFT_CLICK_EVENT]: LeftClickEvent;
+  [NodeType.RIGHT_CLICK_EVENT]: RightClickEvent;
+  [NodeType.MIDDLE_CLICK_EVENT]: MiddleClickEvent;
+  [NodeType.DOUBLE_CLICK_EVENT]: DoubleClickEvent;
+  [NodeType.WHEEL_EVENT]: WheelEvent;
   [NodeType.ACTION]: Action;
   [NodeType.CURSOR]: Cursor;
   [NodeType.EVENT_CURSOR]: EventCursor;
@@ -576,23 +594,14 @@ export type NodeTypeMapping = {
   [NodeType.TIMER]: Timer;
   [NodeType.TRIGGER_EVENT]: TriggerEvent;
   [NodeType.TRIGGER]: Trigger;
-  [NodeType.INTERRUPTION]: Interruption;
-  [NodeType.LOG_EVENT]: LogEvent;
-  [NodeType.RUN_EVENT]: RunEvent;
-  [NodeType.RUN_STARTED_EVENT]: RunStartedEvent;
-  [NodeType.RUN_PAUSE_REQUESTED_EVENT]: RunPauseRequestedEvent;
-  [NodeType.RUN_PAUSED_EVENT]: RunPausedEvent;
-  [NodeType.RUN_RESUME_REQUESTED_EVENT]: RunResumeRequestedEvent;
-  [NodeType.RUN_RESUMED_EVENT]: RunResumedEvent;
-  [NodeType.RUN_STOP_REQUESTED_EVENT]: RunStopRequestedEvent;
-  [NodeType.RUN_FAILED_EVENT]: RunFailedEvent;
-  [NodeType.RUN_COMPLETED_EVENT]: RunCompletedEvent;
-  [NodeType.RUN]: Run;
-  [NodeType.SPAN_EVENT]: SpanEvent;
+  [NodeType.GAUGE_METRIC]: GaugeMetric;
+  [NodeType.GAUGE_MEASUREMENT_EVENT]: GaugeMeasurementEvent;
+  [NodeType.COUNTER_METRIC]: CounterMetric;
+  [NodeType.COUNTER_MEASUREMENT_EVENT]: CounterMeasurementEvent;
+  [NodeType.HISTOGRAM_METRIC]: HistogramMetric;
+  [NodeType.HISTOGRAM_MEASUREMENT_EVENT]: HistogramMeasurementEvent;
   [NodeType.LAYER]: Layer;
   [NodeType.SCENE_EVENT]: SceneEvent;
-  [NodeType.SCENE_ENTERED_EVENT]: SceneEnteredEvent;
-  [NodeType.SCENE_EXITED_EVENT]: SceneExitedEvent;
   [NodeType.SCENE]: Scene;
   [NodeType.VARIANT]: Variant;
   [NodeType.WINDOW]: Window;
@@ -608,7 +617,22 @@ export type NodeTypeMapping = {
   [NodeType.REACTION]: Reaction;
   [NodeType.STAR]: Star;
   [NodeType.THREAD]: Thread;
-  [NodeType.AGENT]: Agent;
+  [NodeType.BRANCH]: Branch;
+  [NodeType.FOLDER]: Folder;
+  [NodeType.TAG]: Tag;
+  [NodeType.TAGGING]: Tagging;
+  [NodeType.STYLE]: Style;
+  [NodeType.COLOR_STYLE]: ColorStyle;
+  [NodeType.BORDER_STYLE]: BorderStyle;
+  [NodeType.TRANSITION_STYLE]: TransitionStyle;
+  [NodeType.EFFECT_STYLE]: EffectStyle;
+  [NodeType.GRADIENT_STYLE]: GradientStyle;
+  [NodeType.FILL_STYLE]: FillStyle;
+  [NodeType.FONT_STYLE]: FontStyle;
+  [NodeType.PALETTE]: Palette;
+  [NodeType.SHADOW_STYLE]: ShadowStyle;
+  [NodeType.STROKE_STYLE]: StrokeStyle;
+  [NodeType.THEME]: Theme;
   [NodeType.CLIENT]: Client;
   [NodeType.FRIENDSHIP]: Friendship;
   [NodeType.FRIENDSHIP_INVITE_EVENT]: FriendshipInviteEvent;
@@ -623,19 +647,6 @@ export type NodeTypeMapping = {
   [NodeType.TEAM]: Team;
   [NodeType.UNIVERSE]: Universe;
   [NodeType.USER]: User;
-  [NodeType.BRANCH]: Branch;
-  [NodeType.STYLE]: Style;
-  [NodeType.COLOR_STYLE]: ColorStyle;
-  [NodeType.BORDER_STYLE]: BorderStyle;
-  [NodeType.TRANSITION_STYLE]: TransitionStyle;
-  [NodeType.EFFECT_STYLE]: EffectStyle;
-  [NodeType.GRADIENT_STYLE]: GradientStyle;
-  [NodeType.FILL_STYLE]: FillStyle;
-  [NodeType.FONT_STYLE]: FontStyle;
-  [NodeType.PALETTE]: Palette;
-  [NodeType.SHADOW_STYLE]: ShadowStyle;
-  [NodeType.STROKE_STYLE]: StrokeStyle;
-  [NodeType.THEME]: Theme;
 };
 
 export type TraitTypeMapping = {
@@ -668,7 +679,6 @@ export type StructTypeMapping = {
   [StructType.PROPERTY_REFERENCE]: PropertyReference;
   [StructType.NODE_REFERENCE]: NodeReference;
   [StructType.BUILTIN_DEFINITION]: BuiltinDefinition;
-  [StructType.BUILTIN_OBJECT_DEFINITION]: BuiltinObjectDefinition;
   [StructType.NODE_DEFINITION]: NodeDefinition;
   [StructType.TRAIT_DEFINITION]: TraitDefinition;
   [StructType.STRUCT_DEFINITION]: StructDefinition;
@@ -751,6 +761,7 @@ export type EnumTypeMapping = {
   [EnumType.STRUCT_TYPE]: StructType;
   [EnumType.TRAIT_TYPE]: TraitType;
   [EnumType.NODE_TYPE]: NodeType;
+  [EnumType.UNIVERSE_CATEGORY]: UniverseCategory;
   [EnumType.PROPERTY_TYPE]: PropertyType;
   [EnumType.STORE_TYPE]: StoreType;
   [EnumType.STORE_IMPLEMENTATION]: StoreImplementation;
@@ -816,7 +827,11 @@ export type EnumTypeMapping = {
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
   [EnumType.FILE_TYPE]: FileType;
   [EnumType.FILE_FORMAT]: FileFormat;
-  [EnumType.FOLDER_TYPE]: FolderType;
+  [EnumType.INTERRUPTION_TYPE]: InterruptionType;
+  [EnumType.INTERRUPTION_STATUS]: InterruptionStatus;
+  [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse;
+  [EnumType.LOG_LEVEL]: LogLevel;
+  [EnumType.RUN_STATUS]: RunStatus;
   [EnumType.DATABASE_TYPE]: DatabaseType;
   [EnumType.MACHINE_TYPE]: MachineType;
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper;
@@ -829,20 +844,13 @@ export type EnumTypeMapping = {
   [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency;
   [EnumType.TIMER_TYPE]: TimerType;
   [EnumType.TRIGGER_TYPE]: TriggerType;
-  [EnumType.INTERRUPTION_TYPE]: InterruptionType;
-  [EnumType.INTERRUPTION_STATUS]: InterruptionStatus;
-  [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse;
-  [EnumType.LOG_LEVEL]: LogLevel;
-  [EnumType.RUN_STATUS]: RunStatus;
   [EnumType.LAYER_TYPE]: LayerType;
   [EnumType.VARIANT_TYPE]: VariantType;
   [EnumType.VARIANT_STATE_TYPE]: VariantStateType;
   [EnumType.WINDOW_TYPE]: WindowType;
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus;
   [EnumType.THREAD_STATUS]: ThreadStatus;
-  [EnumType.ORGANIZATION_STATUS]: OrganizationStatus;
-  [EnumType.SPACE_STATUS]: SpaceStatus;
-  [EnumType.USER_STATUS]: UserStatus;
+  [EnumType.FOLDER_TYPE]: FolderType;
   [EnumType.COLOR_TYPE]: ColorType;
   [EnumType.COLOR_HUE]: ColorHue;
   [EnumType.COLOR_SHADE]: ColorShade;
@@ -868,4 +876,7 @@ export type EnumTypeMapping = {
   [EnumType.SHADOW_TYPE]: ShadowType;
   [EnumType.SHADOW_POSITION]: ShadowPosition;
   [EnumType.STROKE_TYPE]: StrokeType;
+  [EnumType.ORGANIZATION_STATUS]: OrganizationStatus;
+  [EnumType.SPACE_STATUS]: SpaceStatus;
+  [EnumType.USER_STATUS]: UserStatus;
 };

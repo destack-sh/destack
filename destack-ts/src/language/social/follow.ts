@@ -15,13 +15,13 @@ import type {
 } from "@destack/language/core";
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { FollowProto, MaterializationProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:120400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220400 ==== */
 /**
  * A Follow is a relationship between a Subject and an IsFollowable Node.
  */
@@ -402,7 +402,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
 
   static __packValue__(object: Follow): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120400;
+    objectValue["1"] = 220400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -533,7 +533,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   }
 
   static __packProto__(object: Follow): FollowProto {
-    const objectProto: Partial<FollowProto> = { metatype: 120400 };
+    const objectProto: Partial<FollowProto> = { metatype: 220400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -698,4 +698,4 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW, Follow);
-/* ==== DESTACK_GENERATED_END:NODE:120400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220400 ==== */

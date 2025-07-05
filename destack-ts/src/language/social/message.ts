@@ -18,13 +18,13 @@ import type {
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Thread } from "@destack/language/social/thread";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, MessageProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:120100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220100 ==== */
 /**
  * A Message about something (usually in a Thread or a Channel).
  */
@@ -670,7 +670,7 @@ export class Message
 
   static __packValue__(object: Message): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120100;
+    objectValue["1"] = 220100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -863,7 +863,7 @@ export class Message
   }
 
   static __packProto__(object: Message): MessageProto {
-    const objectProto: Partial<MessageProto> = { metatype: 120100 };
+    const objectProto: Partial<MessageProto> = { metatype: 220100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1098,4 +1098,4 @@ export class Message
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MESSAGE, Message);
-/* ==== DESTACK_GENERATED_END:NODE:120100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220100 ==== */

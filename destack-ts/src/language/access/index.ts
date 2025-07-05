@@ -1,3 +1,4 @@
+export * from "@destack/language/access/agent";
 export * from "@destack/language/access/entitlement";
 export * from "@destack/language/access/invite";
 export * from "@destack/language/access/membership";

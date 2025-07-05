@@ -59,7 +59,10 @@ class SanctionType(Enum):
     MUTE = 2
 
 
-@builtin_node(NodeType.SANCTION)
+@builtin_node(
+    NodeType.SANCTION,
+    event_types=(NodeType.SANCTION_EVENT,),
+)
 class Sanction(IsSpatial, IsDeletable, Entity):
     """A Sanction on some Subject."""
 

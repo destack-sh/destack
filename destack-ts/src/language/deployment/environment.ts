@@ -13,13 +13,13 @@ import type {
 } from "@destack/language/core";
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { EnvironmentProto, MaterializationProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:100000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:160000 ==== */
 /**
  * An Environment is a deployment of a Space.
  */
@@ -424,7 +424,7 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
 
   static __packValue__(object: Environment): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 100000;
+    objectValue["1"] = 160000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -559,7 +559,7 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
   }
 
   static __packProto__(object: Environment): EnvironmentProto {
-    const objectProto: Partial<EnvironmentProto> = { metatype: 100000 };
+    const objectProto: Partial<EnvironmentProto> = { metatype: 160000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -726,4 +726,4 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENVIRONMENT, Environment);
-/* ==== DESTACK_GENERATED_END:NODE:100000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:160000 ==== */

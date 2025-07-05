@@ -15,7 +15,7 @@ import { IconProto, IconTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:ENUM:60005 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:80005 ==== */
 /**
  * IconType
  */
@@ -31,9 +31,9 @@ export enum IconType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ICON_TYPE, IconType);
-/* ==== DESTACK_GENERATED_END:ENUM:60005 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:80005 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:60031 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:80031 ==== */
 /**
  * An icon to be displayed in some view.
  */
@@ -222,7 +222,7 @@ export class Icon extends StructFrozen {
 
   static __packValue__(object: Icon): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60031;
+    objectValue["1"] = 80031;
     objectValue["100"] = object.type;
     if (object.emoji != null) {
       objectValue["101"] = object.emoji;
@@ -304,7 +304,7 @@ export class Icon extends StructFrozen {
   }
 
   static __packProto__(object: Icon): IconProto {
-    const objectProto: Partial<IconProto> = { metatype: 60031 };
+    const objectProto: Partial<IconProto> = { metatype: 80031 };
     objectProto.type = Number(object.type) as IconTypeProto;
     if (object.emoji != null) {
       objectProto.emoji = object.emoji;
@@ -382,4 +382,4 @@ export class Icon extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ICON, Icon);
-/* ==== DESTACK_GENERATED_END:STRUCT:60031 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:80031 ==== */

@@ -10,7 +10,7 @@ import type { PropertyDefinition, TraitDefinition } from "@destack/language/core
 import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
 import { registerTraitClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { Temporal } from "temporal-polyfill";
 
 /** Internal base class for Trait companion objects.*/
@@ -43,8 +43,8 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
  */
 // prettier-ignore
 export const INTER_ORDER_TYPES = [
-  (190400 /* NodeType.VIEW */),
-  (270200 /* NodeType.STYLE */)
+  (520000 /* NodeType.VIEW */),
+  (600200 /* NodeType.STYLE */)
 ];
 
 /* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TYPES ==== */
@@ -121,131 +121,6 @@ export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
 registerTraitClass(TraitType.ORDERED, IsOrdered);
 /* ==== DESTACK_GENERATED_END:TRAIT:100 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:120032 ==== */
-/**
- * A Node that can be reacted to (with Reactions).
- */
-export interface IsReactable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be reacted to (with Reactions).
- */
-class IsReactable$Type extends TraitClass<IsReactable, TraitType.REACTABLE> {}
-
-export const IsReactable = new IsReactable$Type(TraitType.REACTABLE);
-registerTraitClass(TraitType.REACTABLE, IsReactable);
-/* ==== DESTACK_GENERATED_END:TRAIT:120032 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:120030 ==== */
-/**
- * A Node that can be starred (with Stars).
- */
-export interface IsStarable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be starred (with Stars).
- */
-class IsStarable$Type extends TraitClass<IsStarable, TraitType.STARABLE> {}
-
-export const IsStarable = new IsStarable$Type(TraitType.STARABLE);
-registerTraitClass(TraitType.STARABLE, IsStarable);
-/* ==== DESTACK_GENERATED_END:TRAIT:120030 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:120034 ==== */
-/**
- * A Node that can be followed (with Follows).
- */
-export interface IsFollowable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be followed (with Follows).
- */
-class IsFollowable$Type extends TraitClass<IsFollowable, TraitType.FOLLOWABLE> {}
-
-export const IsFollowable = new IsFollowable$Type(TraitType.FOLLOWABLE);
-registerTraitClass(TraitType.FOLLOWABLE, IsFollowable);
-/* ==== DESTACK_GENERATED_END:TRAIT:120034 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:70003 ==== */
-/**
- * A Node that can be sourced from / defined by a Script.
- */
-export interface IsSourceable extends IsOrdered {
-  get source(): Script | null;
-  readonly sourcePtr: NodeReference | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be sourced from / defined by a Script.
- */
-class IsSourceable$Type extends TraitClass<IsSourceable, TraitType.SOURCEABLE> {}
-
-export const IsSourceable = new IsSourceable$Type(TraitType.SOURCEABLE);
-registerTraitClass(TraitType.SOURCEABLE, IsSourceable);
-/* ==== DESTACK_GENERATED_END:TRAIT:70003 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:70002 ==== */
-/**
- * A Node that can be scripted.
- */
-export interface IsScriptable {
-  get script(): Script | null;
-  set script(value: Script | null);
-  /**
-   * The main / root Script of this Node.
-   */
-  get scriptPtr(): NodeReference | null;
-  set scriptPtr(value: NodeReference | null);
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be scripted.
- */
-class IsScriptable$Type extends TraitClass<IsScriptable, TraitType.SCRIPTABLE> {}
-
-export const IsScriptable = new IsScriptable$Type(TraitType.SCRIPTABLE);
-registerTraitClass(TraitType.SCRIPTABLE, IsScriptable);
-/* ==== DESTACK_GENERATED_END:TRAIT:70002 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:70001 ==== */
-/**
- * A Node that can be run (with Runs).
- */
-export interface IsRunnable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be run (with Runs).
- */
-class IsRunnable$Type extends TraitClass<IsRunnable, TraitType.RUNNABLE> {}
-
-export const IsRunnable = new IsRunnable$Type(TraitType.RUNNABLE);
-registerTraitClass(TraitType.RUNNABLE, IsRunnable);
-/* ==== DESTACK_GENERATED_END:TRAIT:70001 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:20000 ==== */
 /**
  * A Node that can be owned by another Node.
@@ -291,25 +166,6 @@ class IsJoinable$Type extends TraitClass<IsJoinable, TraitType.JOINABLE> {}
 export const IsJoinable = new IsJoinable$Type(TraitType.JOINABLE);
 registerTraitClass(TraitType.JOINABLE, IsJoinable);
 /* ==== DESTACK_GENERATED_END:TRAIT:20002 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:30000 ==== */
-/**
- * A Node that can be tagged (with a Tag).
- */
-export interface IsTaggable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be tagged (with a Tag).
- */
-class IsTaggable$Type extends TraitClass<IsTaggable, TraitType.TAGGABLE> {}
-
-export const IsTaggable = new IsTaggable$Type(TraitType.TAGGABLE);
-registerTraitClass(TraitType.TAGGABLE, IsTaggable);
-/* ==== DESTACK_GENERATED_END:TRAIT:30000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:1 ==== */
 /**
@@ -463,3 +319,147 @@ class IsIrreversible$Type extends TraitClass<IsIrreversible, TraitType.IRREVERSI
 export const IsIrreversible = new IsIrreversible$Type(TraitType.IRREVERSIBLE);
 registerTraitClass(TraitType.IRREVERSIBLE, IsIrreversible);
 /* ==== DESTACK_GENERATED_END:TRAIT:120 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:40000 ==== */
+/**
+ * A Node that can be tagged (with a Tag).
+ */
+export interface IsTaggable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be tagged (with a Tag).
+ */
+class IsTaggable$Type extends TraitClass<IsTaggable, TraitType.TAGGABLE> {}
+
+export const IsTaggable = new IsTaggable$Type(TraitType.TAGGABLE);
+registerTraitClass(TraitType.TAGGABLE, IsTaggable);
+/* ==== DESTACK_GENERATED_END:TRAIT:40000 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:220032 ==== */
+/**
+ * A Node that can be reacted to (with Reactions).
+ */
+export interface IsReactable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be reacted to (with Reactions).
+ */
+class IsReactable$Type extends TraitClass<IsReactable, TraitType.REACTABLE> {}
+
+export const IsReactable = new IsReactable$Type(TraitType.REACTABLE);
+registerTraitClass(TraitType.REACTABLE, IsReactable);
+/* ==== DESTACK_GENERATED_END:TRAIT:220032 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:220030 ==== */
+/**
+ * A Node that can be starred (with Stars).
+ */
+export interface IsStarable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be starred (with Stars).
+ */
+class IsStarable$Type extends TraitClass<IsStarable, TraitType.STARABLE> {}
+
+export const IsStarable = new IsStarable$Type(TraitType.STARABLE);
+registerTraitClass(TraitType.STARABLE, IsStarable);
+/* ==== DESTACK_GENERATED_END:TRAIT:220030 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:220034 ==== */
+/**
+ * A Node that can be followed (with Follows).
+ */
+export interface IsFollowable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be followed (with Follows).
+ */
+class IsFollowable$Type extends TraitClass<IsFollowable, TraitType.FOLLOWABLE> {}
+
+export const IsFollowable = new IsFollowable$Type(TraitType.FOLLOWABLE);
+registerTraitClass(TraitType.FOLLOWABLE, IsFollowable);
+/* ==== DESTACK_GENERATED_END:TRAIT:220034 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:100003 ==== */
+/**
+ * A Node that can be sourced from / defined by a Script.
+ */
+export interface IsSourceable extends IsOrdered {
+  get source(): Script | null;
+  readonly sourcePtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be sourced from / defined by a Script.
+ */
+class IsSourceable$Type extends TraitClass<IsSourceable, TraitType.SOURCEABLE> {}
+
+export const IsSourceable = new IsSourceable$Type(TraitType.SOURCEABLE);
+registerTraitClass(TraitType.SOURCEABLE, IsSourceable);
+/* ==== DESTACK_GENERATED_END:TRAIT:100003 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:100002 ==== */
+/**
+ * A Node that can be scripted.
+ */
+export interface IsScriptable {
+  get script(): Script | null;
+  set script(value: Script | null);
+  /**
+   * The main / root Script of this Node.
+   */
+  get scriptPtr(): NodeReference | null;
+  set scriptPtr(value: NodeReference | null);
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be scripted.
+ */
+class IsScriptable$Type extends TraitClass<IsScriptable, TraitType.SCRIPTABLE> {}
+
+export const IsScriptable = new IsScriptable$Type(TraitType.SCRIPTABLE);
+registerTraitClass(TraitType.SCRIPTABLE, IsScriptable);
+/* ==== DESTACK_GENERATED_END:TRAIT:100002 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:100001 ==== */
+/**
+ * A Node that can be run (with Runs).
+ */
+export interface IsRunnable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be run (with Runs).
+ */
+class IsRunnable$Type extends TraitClass<IsRunnable, TraitType.RUNNABLE> {}
+
+export const IsRunnable = new IsRunnable$Type(TraitType.RUNNABLE);
+registerTraitClass(TraitType.RUNNABLE, IsRunnable);
+/* ==== DESTACK_GENERATED_END:TRAIT:100001 ==== */
