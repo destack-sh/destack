@@ -125,7 +125,7 @@ def finalize():
                 to_visit.extend(reversed(inheriting_cls.__extended_by__))
         struct_cls.__inherited_by__ = tuple(inherited_by_structs)
 
-    from destack.language.core import expand_node_inheritance, expand_node_traits
+    from destack.language.core import Node, expand_node_inheritance, expand_node_traits
 
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
@@ -178,6 +178,17 @@ def finalize():
         DESCENDANT_NODE_TYPES_BY_TYPE[node_cls.metatype] = node_cls.__descendant_types__
         ANCESTOR_NODE_TYPES_BY_TYPE[node_cls.metatype] = node_cls.__ancestor_types__
 
+    # index event types
+    for node_cls in chain(NODE_CLASS_BY_TYPE.values(), TRAIT_CLASS_BY_TYPE.values()):
+        all_event_types: set[NodeType] = set()
+        for base in node_cls.__bases__:
+            if issubclass(base, Node) and base.__base_event_types__:
+                for event_type in base.__base_event_types__:
+                    all_event_types.add(event_type)
+                    event_cls = NODE_CLASS_BY_TYPE[event_type]
+                    all_event_types.update(event_cls.__inherited_by__)
+        node_cls.__event_types__ = tuple(all_event_types)
+
     # finalize properties
     for metatype, object_cls in chain(NODE_CLASS_BY_TYPE.items(), STRUCT_CLASS_BY_TYPE.items()):
         for prop in object_cls.__properties__.values():
@@ -198,43 +209,43 @@ def finalize():
             )
         }
     )
-    for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-        cls_dict_copy = cls.__dict__.copy()
+    for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+        cls_dict_copy = node_cls.__dict__.copy()
         # __pack_proto__/__unpack_proto__/_to_proto
-        proto_impl, proto_glbls = generate_pack_proto_impl(cls)
+        proto_impl, proto_glbls = generate_pack_proto_impl(node_cls)
         exec_(
             proto_impl,
             {**builtin_class_by_name, **proto_glbls},
             cls_dict_copy,
-            f"{cls.__name__}:proto",
+            f"{node_cls.__name__}:proto",
         )
-        setattr(cls, "__pack_proto__", cls_dict_copy["__pack_proto__"])
-        setattr(cls, "__unpack_proto__", cls_dict_copy["__unpack_proto__"])
-        setattr(cls, "to_proto", cls_dict_copy["to_proto"])
-        setattr(cls, "from_proto", cls_dict_copy["from_proto"])
+        setattr(node_cls, "__pack_proto__", cls_dict_copy["__pack_proto__"])
+        setattr(node_cls, "__unpack_proto__", cls_dict_copy["__unpack_proto__"])
+        setattr(node_cls, "to_proto", cls_dict_copy["to_proto"])
+        setattr(node_cls, "from_proto", cls_dict_copy["from_proto"])
         # __pack_value__/__unpack_value__/_to_value
-        value_impl, value_glbls = generate_pack_value_impl(cls)
+        value_impl, value_glbls = generate_pack_value_impl(node_cls)
         exec_(
             value_impl,
             {**builtin_class_by_name, **value_glbls},
             cls_dict_copy,
-            f"{cls.__name__}:value",
+            f"{node_cls.__name__}:value",
         )
-        setattr(cls, "__pack_value__", cls_dict_copy["__pack_value__"])
-        setattr(cls, "__unpack_value__", cls_dict_copy["__unpack_value__"])
-        setattr(cls, "to_value", cls_dict_copy["to_value"])
-        setattr(cls, "from_value", cls_dict_copy["from_value"])
+        setattr(node_cls, "__pack_value__", cls_dict_copy["__pack_value__"])
+        setattr(node_cls, "__unpack_value__", cls_dict_copy["__unpack_value__"])
+        setattr(node_cls, "to_value", cls_dict_copy["to_value"])
+        setattr(node_cls, "from_value", cls_dict_copy["from_value"])
 
     # generate definition refs
     from destack.language.core import NodeDefinitionReference, ObjectDefinitionReference
 
-    for cls in NODE_CLASS_BY_TYPE.values():
-        NODE_DEFINITION_REFERENCE_BY_CLASS[cls] = NodeDefinitionReference.of(cls)
-        OBJECT_DEFINITION_REFERENCE_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
-    for cls in TRAIT_CLASS_BY_TYPE.values():
-        OBJECT_DEFINITION_REFERENCE_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
-    for cls in STRUCT_CLASS_BY_TYPE.values():
-        OBJECT_DEFINITION_REFERENCE_BY_CLASS[cls] = ObjectDefinitionReference.of(cls)
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        NODE_DEFINITION_REFERENCE_BY_CLASS[node_cls] = NodeDefinitionReference.of(node_cls)
+        OBJECT_DEFINITION_REFERENCE_BY_CLASS[node_cls] = ObjectDefinitionReference.of(node_cls)
+    for node_cls in TRAIT_CLASS_BY_TYPE.values():
+        OBJECT_DEFINITION_REFERENCE_BY_CLASS[node_cls] = ObjectDefinitionReference.of(node_cls)
+    for node_cls in STRUCT_CLASS_BY_TYPE.values():
+        OBJECT_DEFINITION_REFERENCE_BY_CLASS[node_cls] = ObjectDefinitionReference.of(node_cls)
 
     # generate meta info
     from destack.language.core import (
@@ -266,7 +277,7 @@ def finalize():
 
     # sanity check stuff
     if IS_DEV or IS_TEST:
-        from destack.language.core import PropertyDeclaration
+        from destack.language.core import Event, PropertyDeclaration
         from destack.language.core.builtin.trait import AT_LEAST_ONE_TRAITS, INFECTIOUS_TRAITS
 
         # check we have all the declared builtin objects
@@ -287,12 +298,21 @@ def finalize():
             missing_enum_types = set(EnumType) - set(ENUM_CLASS_BY_TYPE.keys())
             raise ValueError(f"missing {len(missing_enum_types)} Enums: {list(missing_enum_types)}")
 
+        # check event types
+        for node_cls in NODE_CLASS_BY_TYPE.values():
+            if issubclass(node_cls, Event):
+                assert not node_cls.__event_types__, (
+                    f"{node_cls.__name__} is an Event but has event types: {node_cls.__event_types__}"
+                )
+
         # check traits
-        for cls in NODE_CLASS_BY_TYPE.values():
+        for node_cls in NODE_CLASS_BY_TYPE.values():
             for traits in AT_LEAST_ONE_TRAITS:
-                if not cls.__is_abstract__ and not any(trait in cls.__traits__ for trait in traits):
+                if not node_cls.__is_abstract__ and not any(
+                    trait in node_cls.__traits__ for trait in traits
+                ):
                     raise AssertionError(
-                        f"{cls.__name__} must have at least one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
+                        f"{node_cls.__name__} must have at least one of {[t.name for t in traits]} traits (has {[t.name for t in node_cls.__traits__]})"
                     )
 
         # check infectious traits

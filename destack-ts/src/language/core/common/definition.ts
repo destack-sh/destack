@@ -230,14 +230,14 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly descendantTypes: Array<NodeType>;
 
   /**
-   * NodeDefinition.baseEventTypes
-   */
-  readonly baseEventTypes: Array<NodeType>;
-
-  /**
-   * NodeDefinition.eventTypes
+   * The event types of this Node (directly and indirectly).
    */
   readonly eventTypes: Array<NodeType>;
+
+  /**
+   * The base event types of this Node (directly).
+   */
+  readonly baseEventTypes: Array<NodeType>;
 
   constructor(options: {
     id: number;
@@ -264,8 +264,8 @@ export class NodeDefinition extends BuiltinDefinition {
     childTypes?: Array<NodeType>;
     ancestorTypes?: Array<NodeType>;
     descendantTypes?: Array<NodeType>;
-    baseEventTypes?: Array<NodeType>;
     eventTypes?: Array<NodeType>;
+    baseEventTypes?: Array<NodeType>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -389,16 +389,16 @@ export class NodeDefinition extends BuiltinDefinition {
       _descendantTypes = [];
     }
     this.descendantTypes = _descendantTypes;
-    let _baseEventTypes = options.baseEventTypes ?? null;
-    if (_baseEventTypes === null) {
-      _baseEventTypes = [];
-    }
-    this.baseEventTypes = _baseEventTypes;
     let _eventTypes = options.eventTypes ?? null;
     if (_eventTypes === null) {
       _eventTypes = [];
     }
     this.eventTypes = _eventTypes;
+    let _baseEventTypes = options.baseEventTypes ?? null;
+    if (_baseEventTypes === null) {
+      _baseEventTypes = [];
+    }
+    this.baseEventTypes = _baseEventTypes;
 
     // identity
     // @ts-expect-error(readonly)
@@ -535,19 +535,19 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.baseEventTypes.length !== other.baseEventTypes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.baseEventTypes.length; i++) {
-      if (!(this.baseEventTypes[i] === other.baseEventTypes[i])) {
-        return false;
-      }
-    }
     if (this.eventTypes.length !== other.eventTypes.length) {
       return false;
     }
     for (let i = 0; i < this.eventTypes.length; i++) {
       if (!(this.eventTypes[i] === other.eventTypes[i])) {
+        return false;
+      }
+    }
+    if (this.baseEventTypes.length !== other.baseEventTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseEventTypes.length; i++) {
+      if (!(this.baseEventTypes[i] === other.baseEventTypes[i])) {
         return false;
       }
     }
@@ -668,13 +668,13 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.baseEventTypes && this.baseEventTypes.length > 0) {
-      for (const _item of this.baseEventTypes) {
+    if (this.eventTypes && this.eventTypes.length > 0) {
+      for (const _item of this.eventTypes) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.eventTypes && this.eventTypes.length > 0) {
-      for (const _item of this.eventTypes) {
+    if (this.baseEventTypes && this.baseEventTypes.length > 0) {
+      for (const _item of this.baseEventTypes) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
@@ -811,19 +811,19 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectValue["134"] = packedDescendantTypes;
     }
-    if (object.baseEventTypes.length > 0) {
-      const packedBaseEventTypes: any[] = [];
-      for (const item of object.baseEventTypes) {
-        packedBaseEventTypes.push(item);
-      }
-      objectValue["140"] = packedBaseEventTypes;
-    }
     if (object.eventTypes.length > 0) {
       const packedEventTypes: any[] = [];
       for (const item of object.eventTypes) {
         packedEventTypes.push(item);
       }
-      objectValue["141"] = packedEventTypes;
+      objectValue["140"] = packedEventTypes;
+    }
+    if (object.baseEventTypes.length > 0) {
+      const packedBaseEventTypes: any[] = [];
+      for (const item of object.baseEventTypes) {
+        packedBaseEventTypes.push(item);
+      }
+      objectValue["141"] = packedBaseEventTypes;
     }
     return objectValue;
   }
@@ -922,16 +922,16 @@ export class NodeDefinition extends BuiltinDefinition {
         unpackedDescendantTypes.push(Number(item));
       }
     }
-    const unpackedBaseEventTypes: any[] = [];
+    const unpackedEventTypes: any[] = [];
     if (objectValue["140"] != undefined) {
       for (const item of objectValue["140"]) {
-        unpackedBaseEventTypes.push(Number(item));
+        unpackedEventTypes.push(Number(item));
       }
     }
-    const unpackedEventTypes: any[] = [];
+    const unpackedBaseEventTypes: any[] = [];
     if (objectValue["141"] != undefined) {
       for (const item of objectValue["141"]) {
-        unpackedEventTypes.push(Number(item));
+        unpackedBaseEventTypes.push(Number(item));
       }
     }
     const iconValue = objectValue["102"];
@@ -962,8 +962,8 @@ export class NodeDefinition extends BuiltinDefinition {
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
       descendantTypes: unpackedDescendantTypes,
-      baseEventTypes: unpackedBaseEventTypes,
       eventTypes: unpackedEventTypes,
+      baseEventTypes: unpackedBaseEventTypes,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -1097,19 +1097,19 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectProto.descendantTypes = packedDescendantTypes;
     }
-    if (object.baseEventTypes) {
-      const packedBaseEventTypes: any[] = [];
-      for (const item of object.baseEventTypes) {
-        packedBaseEventTypes.push(Number(item) as NodeTypeProto);
-      }
-      objectProto.baseEventTypes = packedBaseEventTypes;
-    }
     if (object.eventTypes) {
       const packedEventTypes: any[] = [];
       for (const item of object.eventTypes) {
         packedEventTypes.push(Number(item) as NodeTypeProto);
       }
       objectProto.eventTypes = packedEventTypes;
+    }
+    if (object.baseEventTypes) {
+      const packedBaseEventTypes: any[] = [];
+      for (const item of object.baseEventTypes) {
+        packedBaseEventTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.baseEventTypes = packedBaseEventTypes;
     }
     return objectProto as NodeDefinitionProto;
   }
@@ -1204,16 +1204,16 @@ export class NodeDefinition extends BuiltinDefinition {
         unpackedDescendantTypes.push(Number(item) as NodeType);
       }
     }
-    const unpackedBaseEventTypes: any[] = [];
-    if (objectProto.baseEventTypes) {
-      for (const item of objectProto.baseEventTypes) {
-        unpackedBaseEventTypes.push(Number(item) as NodeType);
-      }
-    }
     const unpackedEventTypes: any[] = [];
     if (objectProto.eventTypes) {
       for (const item of objectProto.eventTypes) {
         unpackedEventTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedBaseEventTypes: any[] = [];
+    if (objectProto.baseEventTypes) {
+      for (const item of objectProto.baseEventTypes) {
+        unpackedBaseEventTypes.push(Number(item) as NodeType);
       }
     }
     return new NodeDefinition({
@@ -1239,8 +1239,8 @@ export class NodeDefinition extends BuiltinDefinition {
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
       descendantTypes: unpackedDescendantTypes,
-      baseEventTypes: unpackedBaseEventTypes,
       eventTypes: unpackedEventTypes,
+      baseEventTypes: unpackedBaseEventTypes,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -1358,6 +1358,16 @@ export class TraitDefinition extends BuiltinDefinition {
    */
   readonly baseTraits: Array<TraitType>;
 
+  /**
+   * The event types of this Trait (directly and indirectly).
+   */
+  readonly eventTypes: Array<NodeType>;
+
+  /**
+   * The base event types of this Trait (directly).
+   */
+  readonly baseEventTypes: Array<NodeType>;
+
   constructor(options: {
     id: number;
     type: TraitType;
@@ -1370,6 +1380,8 @@ export class TraitDefinition extends BuiltinDefinition {
     isExtensible: boolean;
     traits?: Array<TraitType>;
     baseTraits?: Array<TraitType>;
+    eventTypes?: Array<NodeType>;
+    baseEventTypes?: Array<NodeType>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1434,6 +1446,16 @@ export class TraitDefinition extends BuiltinDefinition {
       _baseTraits = [];
     }
     this.baseTraits = _baseTraits;
+    let _eventTypes = options.eventTypes ?? null;
+    if (_eventTypes === null) {
+      _eventTypes = [];
+    }
+    this.eventTypes = _eventTypes;
+    let _baseEventTypes = options.baseEventTypes ?? null;
+    if (_baseEventTypes === null) {
+      _baseEventTypes = [];
+    }
+    this.baseEventTypes = _baseEventTypes;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1488,6 +1510,22 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.baseTraits.length; i++) {
       if (!(this.baseTraits[i] === other.baseTraits[i])) {
+        return false;
+      }
+    }
+    if (this.eventTypes.length !== other.eventTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.eventTypes.length; i++) {
+      if (!(this.eventTypes[i] === other.eventTypes[i])) {
+        return false;
+      }
+    }
+    if (this.baseEventTypes.length !== other.baseEventTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseEventTypes.length; i++) {
+      if (!(this.baseEventTypes[i] === other.baseEventTypes[i])) {
         return false;
       }
     }
@@ -1553,6 +1591,16 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     if (this.baseTraits && this.baseTraits.length > 0) {
       for (const _item of this.baseTraits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.eventTypes && this.eventTypes.length > 0) {
+      for (const _item of this.eventTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.baseEventTypes && this.baseEventTypes.length > 0) {
+      for (const _item of this.baseEventTypes) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
@@ -1624,6 +1672,20 @@ export class TraitDefinition extends BuiltinDefinition {
       }
       objectValue["121"] = packedBaseTraits;
     }
+    if (object.eventTypes.length > 0) {
+      const packedEventTypes: any[] = [];
+      for (const item of object.eventTypes) {
+        packedEventTypes.push(item);
+      }
+      objectValue["140"] = packedEventTypes;
+    }
+    if (object.baseEventTypes.length > 0) {
+      const packedBaseEventTypes: any[] = [];
+      for (const item of object.baseEventTypes) {
+        packedBaseEventTypes.push(item);
+      }
+      objectValue["141"] = packedBaseEventTypes;
+    }
     return objectValue;
   }
 
@@ -1669,6 +1731,18 @@ export class TraitDefinition extends BuiltinDefinition {
         unpackedBaseTraits.push(Number(item));
       }
     }
+    const unpackedEventTypes: any[] = [];
+    if (objectValue["140"] != undefined) {
+      for (const item of objectValue["140"]) {
+        unpackedEventTypes.push(Number(item));
+      }
+    }
+    const unpackedBaseEventTypes: any[] = [];
+    if (objectValue["141"] != undefined) {
+      for (const item of objectValue["141"]) {
+        unpackedBaseEventTypes.push(Number(item));
+      }
+    }
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -1684,6 +1758,8 @@ export class TraitDefinition extends BuiltinDefinition {
       isExtensible: objectValue["111"],
       traits: unpackedTraits,
       baseTraits: unpackedBaseTraits,
+      eventTypes: unpackedEventTypes,
+      baseEventTypes: unpackedBaseEventTypes,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -1752,6 +1828,20 @@ export class TraitDefinition extends BuiltinDefinition {
       }
       objectProto.baseTraits = packedBaseTraits;
     }
+    if (object.eventTypes) {
+      const packedEventTypes: any[] = [];
+      for (const item of object.eventTypes) {
+        packedEventTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.eventTypes = packedEventTypes;
+    }
+    if (object.baseEventTypes) {
+      const packedBaseEventTypes: any[] = [];
+      for (const item of object.baseEventTypes) {
+        packedBaseEventTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.baseEventTypes = packedBaseEventTypes;
+    }
     return objectProto as TraitDefinitionProto;
   }
 
@@ -1797,6 +1887,18 @@ export class TraitDefinition extends BuiltinDefinition {
         unpackedBaseTraits.push(Number(item) as TraitType);
       }
     }
+    const unpackedEventTypes: any[] = [];
+    if (objectProto.eventTypes) {
+      for (const item of objectProto.eventTypes) {
+        unpackedEventTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedBaseEventTypes: any[] = [];
+    if (objectProto.baseEventTypes) {
+      for (const item of objectProto.baseEventTypes) {
+        unpackedBaseEventTypes.push(Number(item) as NodeType);
+      }
+    }
     return new TraitDefinition({
       type: Number(objectProto.type) as TraitType,
       properties: unpackedProperties,
@@ -1805,6 +1907,8 @@ export class TraitDefinition extends BuiltinDefinition {
       isExtensible: objectProto.isExtensible,
       traits: unpackedTraits,
       baseTraits: unpackedBaseTraits,
+      eventTypes: unpackedEventTypes,
+      baseEventTypes: unpackedBaseEventTypes,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
