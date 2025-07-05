@@ -2679,6 +2679,14 @@ export abstract class Record
   abstract get ownedByPtr(): NodeReference | null;
   abstract set ownedByPtr(value: NodeReference | null);
 
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The main / root Script of this Node.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -2751,6 +2759,14 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
    */
   abstract get customValues(): Map<string, Value>;
   abstract set customValues(value: Map<string, Value>);
+
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The main / root Script of this Node.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
 
   /**
    * Resource.status

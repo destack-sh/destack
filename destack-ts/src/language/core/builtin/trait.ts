@@ -121,52 +121,6 @@ export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
 registerTraitClass(TraitType.ORDERED, IsOrdered);
 /* ==== DESTACK_GENERATED_END:TRAIT:100 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:20000 ==== */
-/**
- * A Node that can be owned by another Node.
- */
-export interface IsOwnable {
-  get ownedBy(): (Node & IsOwner) | null;
-  set ownedBy(value: (Node & IsOwner) | null);
-  /**
-   * IsOwnable.ownedBy
-   */
-  get ownedByPtr(): NodeReference | null;
-  set ownedByPtr(value: NodeReference | null);
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be owned by another Node.
- */
-class IsOwnable$Type extends TraitClass<IsOwnable, TraitType.OWNABLE> {}
-
-export const IsOwnable = new IsOwnable$Type(TraitType.OWNABLE);
-registerTraitClass(TraitType.OWNABLE, IsOwnable);
-/* ==== DESTACK_GENERATED_END:TRAIT:20000 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:20002 ==== */
-/**
- * A Node that can be joined by Subjects.
- */
-export interface IsJoinable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be joined by Subjects.
- */
-class IsJoinable$Type extends TraitClass<IsJoinable, TraitType.JOINABLE> {}
-
-export const IsJoinable = new IsJoinable$Type(TraitType.JOINABLE);
-registerTraitClass(TraitType.JOINABLE, IsJoinable);
-/* ==== DESTACK_GENERATED_END:TRAIT:20002 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:1 ==== */
 /**
  * A Node that is global.
@@ -240,7 +194,7 @@ registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
 /**
  * A Node that be extended by custom Nodes (i.e. used as a base type).
  */
-export interface IsExtensible extends IsCustomizable {
+export interface IsExtensible extends IsCustomizable, IsScriptable {
   get definition(): CustomEntityDefinition | CustomEventDefinition | null;
   readonly definitionPtr: NodeReference | null;
 
@@ -262,44 +216,6 @@ class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {
 export const IsExtensible = new IsExtensible$Type(TraitType.EXTENSIBLE);
 registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
 /* ==== DESTACK_GENERATED_END:TRAIT:111 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:20003 ==== */
-/**
- * A Node that can be a Subject.
- */
-export interface IsSubject {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be a Subject.
- */
-class IsSubject$Type extends TraitClass<IsSubject, TraitType.SUBJECT> {}
-
-export const IsSubject = new IsSubject$Type(TraitType.SUBJECT);
-registerTraitClass(TraitType.SUBJECT, IsSubject);
-/* ==== DESTACK_GENERATED_END:TRAIT:20003 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:20001 ==== */
-/**
- * A Node that can be an Owner.
- */
-export interface IsOwner {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be an Owner.
- */
-class IsOwner$Type extends TraitClass<IsOwner, TraitType.OWNER> {}
-
-export const IsOwner = new IsOwner$Type(TraitType.OWNER);
-registerTraitClass(TraitType.OWNER, IsOwner);
-/* ==== DESTACK_GENERATED_END:TRAIT:20001 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:120 ==== */
 /**
@@ -463,3 +379,87 @@ class IsRunnable$Type extends TraitClass<IsRunnable, TraitType.RUNNABLE> {}
 export const IsRunnable = new IsRunnable$Type(TraitType.RUNNABLE);
 registerTraitClass(TraitType.RUNNABLE, IsRunnable);
 /* ==== DESTACK_GENERATED_END:TRAIT:100001 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:60000 ==== */
+/**
+ * A Node that can be owned by another Node.
+ */
+export interface IsOwnable {
+  get ownedBy(): (Node & IsOwner) | null;
+  set ownedBy(value: (Node & IsOwner) | null);
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedByPtr(): NodeReference | null;
+  set ownedByPtr(value: NodeReference | null);
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be owned by another Node.
+ */
+class IsOwnable$Type extends TraitClass<IsOwnable, TraitType.OWNABLE> {}
+
+export const IsOwnable = new IsOwnable$Type(TraitType.OWNABLE);
+registerTraitClass(TraitType.OWNABLE, IsOwnable);
+/* ==== DESTACK_GENERATED_END:TRAIT:60000 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:60002 ==== */
+/**
+ * A Node that can be joined by Subjects.
+ */
+export interface IsJoinable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be joined by Subjects.
+ */
+class IsJoinable$Type extends TraitClass<IsJoinable, TraitType.JOINABLE> {}
+
+export const IsJoinable = new IsJoinable$Type(TraitType.JOINABLE);
+registerTraitClass(TraitType.JOINABLE, IsJoinable);
+/* ==== DESTACK_GENERATED_END:TRAIT:60002 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:60003 ==== */
+/**
+ * A Node that can be a Subject.
+ */
+export interface IsSubject {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be a Subject.
+ */
+class IsSubject$Type extends TraitClass<IsSubject, TraitType.SUBJECT> {}
+
+export const IsSubject = new IsSubject$Type(TraitType.SUBJECT);
+registerTraitClass(TraitType.SUBJECT, IsSubject);
+/* ==== DESTACK_GENERATED_END:TRAIT:60003 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:60001 ==== */
+/**
+ * A Node that can be an Owner.
+ */
+export interface IsOwner {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be an Owner.
+ */
+class IsOwner$Type extends TraitClass<IsOwner, TraitType.OWNER> {}
+
+export const IsOwner = new IsOwner$Type(TraitType.OWNER);
+registerTraitClass(TraitType.OWNER, IsOwner);
+/* ==== DESTACK_GENERATED_END:TRAIT:60001 ==== */

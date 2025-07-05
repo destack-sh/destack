@@ -7,7 +7,6 @@ import type {
   IsDeletable,
   IsExtensible,
   IsOrdered,
-  IsScriptable,
   IsSpatial,
   IsSubject,
   IsTaggable,
@@ -927,7 +926,7 @@ registerNodeClass(NodeType.VIEW_EXITED_EVENT, ViewExitedEvent);
  */
 export abstract class View
   extends Entity
-  implements IsSpatial, IsOrdered, IsTaggable, IsScriptable, IsExtensible, IsDeletable
+  implements IsSpatial, IsOrdered, IsTaggable, IsExtensible, IsDeletable
 {
   static metatype: NodeType = NodeType.VIEW;
 

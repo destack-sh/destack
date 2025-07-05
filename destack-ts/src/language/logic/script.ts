@@ -17,7 +17,6 @@ import type {
 } from "@destack/language/core";
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Folder } from "@destack/language/space";
 import type { Space } from "@destack/language/universe";
 import { MaterializationProto, ScriptProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -37,10 +36,10 @@ export class Script
   /**
    * Script.parent
    */
-  get parent(): Folder | (Node & IsScriptable) | Script | null {
+  get parent(): (Node & IsScriptable) | Script | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | (Node & IsScriptable) | Script | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsScriptable) | Script | null;
     }
     return null;
   }
@@ -220,7 +219,7 @@ export class Script
 
   constructor(options: {
     id?: string;
-    parent?: Folder | (Node & IsScriptable) | Script | NodeReference | null;
+    parent?: (Node & IsScriptable) | Script | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;

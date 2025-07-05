@@ -7,8 +7,15 @@ if not TYPE_CHECKING:
 
 from .scaffold import *  # noqa: F403
 
+# ruff: noqa: F405
+
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 # ===============================================
-# statsd/Common [Script]
+# statsd/Common [Service]
 # ===============================================
+
+
+@service
+class StatsdService(Service):
+    pass

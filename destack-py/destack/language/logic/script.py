@@ -15,7 +15,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Folder
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -31,7 +31,7 @@ class Script(
 ):
     """A Script."""
 
-    parent: Union["Folder", IsScriptable, "Script", None] = builtin_property_parent()
+    parent: Union[IsScriptable, "Script", None] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)
 
     code: str | None = builtin_property(110)

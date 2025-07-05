@@ -6,7 +6,6 @@ from destack.language.core import (
     IsDeletable,
     IsExtensible,
     IsOrdered,
-    IsScriptable,
     IsSpatial,
     IsTaggable,
     NodeType,
@@ -69,7 +68,6 @@ class View(
     Entity,
     IsOrdered,
     IsTaggable,
-    IsScriptable,
     IsExtensible,
     IsDeletable,
 ):

@@ -9,7 +9,6 @@ import type {
   IsOwnable,
   IsOwner,
   IsRunnable,
-  IsScriptable,
   IsSourceable,
   IsSpatial,
   IsSubject,
@@ -43,7 +42,6 @@ export class Service
     IsOwnable,
     IsTaggable,
     IsRunnable,
-    IsScriptable,
     IsExtensible,
     IsSourceable,
     IsSubject
@@ -518,9 +516,6 @@ export class Service
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -556,6 +551,9 @@ export class Service
         return false;
       }
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
     return true;
   }
 
@@ -574,9 +572,6 @@ export class Service
     }
     if (this._ownedByPtr !== null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
-    }
-    if (this._scriptPtr !== null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     if (this.definitionPtr !== null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -616,6 +611,9 @@ export class Service
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
+    }
+    if (this._scriptPtr !== null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
 
@@ -766,11 +764,6 @@ export class Service
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scriptPtrValue = objectValue["70"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const definitionPtrValue = objectValue["6"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
@@ -836,13 +829,17 @@ export class Service
         );
       }
     }
+    const scriptPtrValue = objectValue["70"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Service({
       name: objectValue["101"],
       icon: unpackedIcon,
       space: unpackedSpacePtr,
       deletedAt: unpackedDeletedAt,
       ownedBy: unpackedOwnedByPtr,
-      script: unpackedScriptPtr,
       definition: unpackedDefinitionPtr,
       baseType: unpackedBaseType,
       source: unpackedSourcePtr,
@@ -858,6 +855,7 @@ export class Service
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       orderKey: objectValue["27"],
       _session,
       _graph,
@@ -991,16 +989,6 @@ export class Service
               _connection,
             )
           : null,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -1106,6 +1094,16 @@ export class Service
             )
           : null,
       customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       orderKey: objectProto.orderKey,
       _session,
       _graph,

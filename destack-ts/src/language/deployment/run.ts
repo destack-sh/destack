@@ -7,6 +7,7 @@ import {
 import type {
   Graph,
   IsCustomizable,
+  IsIrreversible,
   IsRunnable,
   IsSpatial,
   IsSubject,
@@ -3896,7 +3897,7 @@ registerNodeClass(NodeType.RUN_COMPLETED_EVENT, RunCompletedEvent);
 /**
  * Run something somewhere, somehow.
  */
-export class Run extends Entity implements IsSpatial, IsCustomizable {
+export class Run extends Entity implements IsSpatial, IsCustomizable, IsIrreversible {
   static metatype: NodeType = NodeType.RUN;
 
   /**

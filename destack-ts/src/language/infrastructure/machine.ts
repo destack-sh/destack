@@ -23,6 +23,7 @@ import {
   ResourceStatus,
   StructType,
 } from "@destack/language/core";
+import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -221,6 +222,41 @@ export class Machine extends Resource implements IsSpatial {
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const oldValue = this._scriptPtr;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["scriptPtr"] === undefined) {
+      this._dirty["scriptPtr"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
 
   /**
    * Resource.status
@@ -547,6 +583,7 @@ export class Machine extends Resource implements IsSpatial {
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: Map<string, Value>;
+    script?: Script | NodeReference | null;
     status?: ResourceStatus;
     type?: MachineType;
     version?: string;
@@ -642,6 +679,11 @@ export class Machine extends Resource implements IsSpatial {
       _customValues = new Map();
     }
     this._customValues = _customValues;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* ResourceStatus.PENDING */;
@@ -660,7 +702,7 @@ export class Machine extends Resource implements IsSpatial {
     this._type = _type;
     let _version = options.version ?? null;
     if (_version === null) {
-      _version = "2025.07.05.0";
+      _version = "2025.07.05.1";
     }
     if (_version === null) {
       throw new Error(`Machine.version is required`);
@@ -831,6 +873,9 @@ export class Machine extends Resource implements IsSpatial {
         return false;
       }
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
     return true;
   }
 
@@ -904,6 +949,9 @@ export class Machine extends Resource implements IsSpatial {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
+    }
+    if (this._scriptPtr !== null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -997,6 +1045,9 @@ export class Machine extends Resource implements IsSpatial {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
+    }
+    if (object._scriptPtr != null) {
+      objectValue["70"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object._status;
     objectValue["100"] = object._type;
@@ -1124,6 +1175,11 @@ export class Machine extends Resource implements IsSpatial {
         );
       }
     }
+    const scriptPtrValue = objectValue["70"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Machine({
       type: Number(objectValue["100"]),
       version: objectValue["110"],
@@ -1155,6 +1211,7 @@ export class Machine extends Resource implements IsSpatial {
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       _session,
       _graph,
       _connection,
@@ -1219,6 +1276,9 @@ export class Machine extends Resource implements IsSpatial {
       for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
+    }
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.status = Number(object._status) as ResourceStatusProto;
     objectProto.type = Number(object._type) as MachineTypeProto;
@@ -1401,6 +1461,16 @@ export class Machine extends Resource implements IsSpatial {
             )
           : null,
       customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       _session,
       _graph,
       _connection,

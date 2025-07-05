@@ -655,11 +655,6 @@ export type TraitTypeMapping = {
   [TraitType.GLOBAL]: IsGlobal;
   [TraitType.SPATIAL]: IsSpatial;
   [TraitType.ORDERED]: IsOrdered;
-  [TraitType.ARCHIVABLE]: IsArchivable;
-  [TraitType.DELETABLE]: IsDeletable;
-  [TraitType.CUSTOMIZABLE]: IsCustomizable;
-  [TraitType.EXTENSIBLE]: IsExtensible;
-  [TraitType.IRREVERSIBLE]: IsIrreversible;
   [TraitType.OWNABLE]: IsOwnable;
   [TraitType.JOINABLE]: IsJoinable;
   [TraitType.SUBJECT]: IsSubject;
@@ -671,6 +666,11 @@ export type TraitTypeMapping = {
   [TraitType.SOURCEABLE]: IsSourceable;
   [TraitType.SCRIPTABLE]: IsScriptable;
   [TraitType.RUNNABLE]: IsRunnable;
+  [TraitType.ARCHIVABLE]: IsArchivable;
+  [TraitType.DELETABLE]: IsDeletable;
+  [TraitType.CUSTOMIZABLE]: IsCustomizable;
+  [TraitType.EXTENSIBLE]: IsExtensible;
+  [TraitType.IRREVERSIBLE]: IsIrreversible;
 };
 
 export type StructTypeMapping = {
