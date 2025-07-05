@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Union
 
 from ..builtin import (
     Entity,
+    IsArchivable,
     IsCustomizable,
     IsDeletable,
     IsSourceable,
@@ -14,7 +15,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import CustomProperty, CustomStructDefinition, Icon
+    from destack.language import Icon
 # pyright: reportIncompatibleVariableOverride=false
 
 
@@ -37,11 +38,29 @@ class CustomEnumDefinition(
 class CustomOption(
     IsSpatial,
     IsTaggable,
+    IsArchivable,
     IsDeletable,
     IsSourceable,
     Entity,
 ):
-    parent: Union["CustomStructDefinition", "CustomProperty", None] = builtin_property_parent()
+    parent: Union["CustomEnumDefinition", None] = builtin_property_parent()
+
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    group: "CustomOptionGroup | None" = builtin_property(105)
+
+
+@builtin_node(NodeType.CUSTOM_OPTION_GROUP)
+class CustomOptionGroup(
+    IsSpatial,
+    IsArchivable,
+    IsDeletable,
+    IsSourceable,
+    Entity,
+):
+    """A CustomOptionGroup is a group of CustomOptions."""
+
+    parent: Union["CustomEnumDefinition", None] = builtin_property_parent()
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

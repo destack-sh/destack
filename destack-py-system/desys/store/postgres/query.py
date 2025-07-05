@@ -11,7 +11,6 @@ from destack.language import (
     AggregationType,
     Condition,
     ConditionalType,
-    CustomProperty,
     EdgeDirection,
     Expression,
     ExpressionType,
@@ -36,7 +35,6 @@ from destack.language import (
 from destack.utils.uuid import UUID
 
 from .core import PostgresContext
-from .map import DESTACK_CUSTOM_PROPERTY_PREFIX
 from .wiring import pack_column_flat, unpack_node_row
 
 logger = structlog.get_logger(__name__)
@@ -80,13 +78,7 @@ def _compile_attribute(
         else:
             return prop.name
     elif attribute.type == PropertyReferenceType.CUSTOM:
-        field = attribute.resolve_or_error()
-        assert isinstance(field, CustomProperty), f"no field for {attribute!r}"
-        field_name = f"{DESTACK_CUSTOM_PROPERTY_PREFIX}{str(field.id).replace('-', '')}"
-        if field.scalar_type == ScalarType.NODE_REFERENCE:
-            return f"{field_name}_id"
-        else:
-            return field_name
+        raise NotImplementedError(f"cannot compile custom attribute: {attribute!r}")
     else:
         assert_never(attribute.type)
 

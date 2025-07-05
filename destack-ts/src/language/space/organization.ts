@@ -46,7 +46,7 @@ export enum OrganizationStatus {
 registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:10500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:10500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12000 ==== */
 /**
  * An Organization with Users and Teams.
  */
@@ -489,7 +489,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
 
   static __packValue__(object: Organization): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10500;
+    objectValue["1"] = 12000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -615,7 +615,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   }
 
   static __packProto__(object: Organization): OrganizationProto {
-    const objectProto: Partial<OrganizationProto> = { metatype: 10500 };
+    const objectProto: Partial<OrganizationProto> = { metatype: 12000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -779,4 +779,4 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ORGANIZATION, Organization);
-/* ==== DESTACK_GENERATED_END:NODE:10500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12000 ==== */

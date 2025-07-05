@@ -10,6 +10,7 @@ from opentelemetry import trace
 
 from destack.store import MemoryStore
 from destack.test.conftest import _setup_test_env
+from desys.store.postgres.map import DESTACK_BUILTIN_TABLE_PREFIX
 
 # ruff: noqa: E402
 # NOTE: must run setup before importing from destack
@@ -28,8 +29,6 @@ from destack.language import (
 from destack.utils.env import get_from_env
 from desys.sharding import get_global_database_from_env
 from desys.store.postgres import (
-    DESTACK_BUILTIN_TABLE_PREFIX,
-    DESTACK_CUSTOM_RECORD_PREFIX,
     PostgresSchema,
     PostgresStore,
     apply_migration_ops,
@@ -73,7 +72,7 @@ async def create_test_db(database: DatabaseInfo, schema: PostgresSchema):
         old_schema = await introspect_schema(
             conn,
             include_table_prefixes=(DESTACK_BUILTIN_TABLE_PREFIX,),
-            exclude_table_prefixes=(DESTACK_CUSTOM_RECORD_PREFIX,),
+            exclude_table_prefixes=(),
         )
         migration_ops = generate_migration_ops(old_schema=old_schema, new_schema=schema)
         await apply_migration_ops(conn, migration_ops)

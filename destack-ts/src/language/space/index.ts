@@ -5,4 +5,5 @@ export * from "@destack/language/space/handle";
 export * from "@destack/language/space/organization";
 export * from "@destack/language/space/space";
 export * from "@destack/language/space/team";
+export * from "@destack/language/space/universe";
 export * from "@destack/language/space/user";

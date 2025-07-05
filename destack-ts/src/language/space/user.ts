@@ -49,7 +49,7 @@ export enum UserStatus {
 registerEnumClass(EnumType.USER_STATUS, UserStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:10200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:11000 ==== */
 /**
  * A User is a human using Destack.
  */
@@ -759,7 +759,7 @@ export class User
 
   static __packValue__(object: User): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10200;
+    objectValue["1"] = 11000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -945,7 +945,7 @@ export class User
   }
 
   static __packProto__(object: User): UserProto {
-    const objectProto: Partial<UserProto> = { metatype: 10200 };
+    const objectProto: Partial<UserProto> = { metatype: 11000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1162,4 +1162,4 @@ export class User
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.USER, User);
-/* ==== DESTACK_GENERATED_END:NODE:10200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:11000 ==== */

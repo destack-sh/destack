@@ -56,6 +56,7 @@ import type {
   OperatingSystem,
   PlatformType,
   PrimitiveType,
+  PropertyType,
   Region,
   RegionArea,
   RegionContinent,
@@ -126,14 +127,18 @@ import type {
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
 import type {
+  ActionDefinition,
   BuiltinDefinition,
   BuiltinObjectDefinition,
   ConstantDefinition,
   EnumDefinition,
+  MethodDefinition,
   NodeDefinition,
   OptionDefinition,
+  OptionGroupDefinition,
   PermissionDefinition,
   PropertyDefinition,
+  PropertyGroupDefinition,
   StructDefinition,
   TraitDefinition,
 } from "@destack/language/core/common/definition";
@@ -147,7 +152,11 @@ import type {
   EditType,
   Origin,
 } from "@destack/language/core/common/edit";
-import type { CustomEnumDefinition, CustomOption } from "@destack/language/core/common/enum";
+import type {
+  CustomEnumDefinition,
+  CustomOption,
+  CustomOptionGroup,
+} from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
 import type {
   CounterMeasurementEvent,
@@ -157,7 +166,7 @@ import type {
   HistogramMeasurementEvent,
   HistogramMetric,
 } from "@destack/language/core/common/metric";
-import type { CustomProperty, CustomPropertyType } from "@destack/language/core/common/property";
+import type { CustomProperty, CustomPropertyGroup } from "@destack/language/core/common/property";
 import type {
   Aggregation,
   AggregationType,
@@ -361,6 +370,7 @@ import type { Handle } from "@destack/language/space/handle";
 import type { Organization, OrganizationStatus } from "@destack/language/space/organization";
 import type { Space, SpaceStatus } from "@destack/language/space/space";
 import type { Team } from "@destack/language/space/team";
+import type { Universe } from "@destack/language/space/universe";
 import type { User, UserStatus } from "@destack/language/space/user";
 import type { Branch } from "@destack/language/spacetime/branch";
 import type { Border, BorderStyle, BorderType } from "@destack/language/style/border";
@@ -457,6 +467,7 @@ export type NodeTypeMapping = {
   [NodeType.MEASUREMENT_EVENT]: MeasurementEvent;
   [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
   [NodeType.CUSTOM_OPTION]: CustomOption;
+  [NodeType.CUSTOM_OPTION_GROUP]: CustomOptionGroup;
   [NodeType.GAUGE_METRIC]: GaugeMetric;
   [NodeType.GAUGE_MEASUREMENT_EVENT]: GaugeMeasurementEvent;
   [NodeType.COUNTER_METRIC]: CounterMetric;
@@ -464,6 +475,7 @@ export type NodeTypeMapping = {
   [NodeType.HISTOGRAM_METRIC]: HistogramMetric;
   [NodeType.HISTOGRAM_MEASUREMENT_EVENT]: HistogramMeasurementEvent;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
+  [NodeType.CUSTOM_PROPERTY_GROUP]: CustomPropertyGroup;
   [NodeType.CUSTOM_STRUCT_DEFINITION]: CustomStructDefinition;
   [NodeType.ENTITLEMENT_EVENT]: EntitlementEvent;
   [NodeType.ENTITLEMENT_REQUESTED_EVENT]: EntitlementRequestedEvent;
@@ -609,6 +621,7 @@ export type NodeTypeMapping = {
   [NodeType.ORGANIZATION]: Organization;
   [NodeType.SPACE]: Space;
   [NodeType.TEAM]: Team;
+  [NodeType.UNIVERSE]: Universe;
   [NodeType.USER]: User;
   [NodeType.BRANCH]: Branch;
   [NodeType.STYLE]: Style;
@@ -655,15 +668,19 @@ export type StructTypeMapping = {
   [StructType.PROPERTY_REFERENCE]: PropertyReference;
   [StructType.NODE_REFERENCE]: NodeReference;
   [StructType.BUILTIN_DEFINITION]: BuiltinDefinition;
-  [StructType.PROPERTY_DEFINITION]: PropertyDefinition;
   [StructType.BUILTIN_OBJECT_DEFINITION]: BuiltinObjectDefinition;
-  [StructType.TRAIT_DEFINITION]: TraitDefinition;
   [StructType.NODE_DEFINITION]: NodeDefinition;
+  [StructType.TRAIT_DEFINITION]: TraitDefinition;
   [StructType.STRUCT_DEFINITION]: StructDefinition;
   [StructType.ENUM_DEFINITION]: EnumDefinition;
+  [StructType.PROPERTY_DEFINITION]: PropertyDefinition;
+  [StructType.PROPERTY_GROUP_DEFINITION]: PropertyGroupDefinition;
   [StructType.OPTION_DEFINITION]: OptionDefinition;
-  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
+  [StructType.OPTION_GROUP_DEFINITION]: OptionGroupDefinition;
   [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
+  [StructType.METHOD_DEFINITION]: MethodDefinition;
+  [StructType.ACTION_DEFINITION]: ActionDefinition;
+  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
   [StructType.EDIT]: Edit;
   [StructType.ORIGIN]: Origin;
   [StructType.CHANGE]: Change;
@@ -734,6 +751,7 @@ export type EnumTypeMapping = {
   [EnumType.STRUCT_TYPE]: StructType;
   [EnumType.TRAIT_TYPE]: TraitType;
   [EnumType.NODE_TYPE]: NodeType;
+  [EnumType.PROPERTY_TYPE]: PropertyType;
   [EnumType.STORE_TYPE]: StoreType;
   [EnumType.STORE_IMPLEMENTATION]: StoreImplementation;
   [EnumType.RUNTIME_LANGUAGE]: RuntimeLanguage;
@@ -780,7 +798,6 @@ export type EnumTypeMapping = {
   [EnumType.JOIN_TYPE]: JoinType;
   [EnumType.QUERY_TYPE]: QueryType;
   [EnumType.QUERY_UPDATE_TYPE]: QueryUpdateType;
-  [EnumType.CUSTOM_PROPERTY_TYPE]: CustomPropertyType;
   [EnumType.TEXT_SPAN_TYPE]: TextSpanType;
   [EnumType.LAYOUT]: Layout;
   [EnumType.OVERFLOW]: Overflow;

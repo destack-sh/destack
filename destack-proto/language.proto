@@ -191,13 +191,6 @@ enum CursorStatusProto {
   CURSOR_STATUS_COMPLETED = 53;
 }
 
-enum CustomPropertyTypeProto {
-  CUSTOM_PROPERTY_TYPE_UNSPECIFIED = 0;
-  CUSTOM_PROPERTY_TYPE_MEMBER = 1;
-  CUSTOM_PROPERTY_TYPE_INPUT = 2;
-  CUSTOM_PROPERTY_TYPE_OUTPUT = 3;
-}
-
 enum DatabaseTypeProto {
   DATABASE_TYPE_UNSPECIFIED = 0;
   DATABASE_TYPE_POSTGRES = 1;
@@ -344,7 +337,7 @@ enum EnumTypeProto {
   ENUM_TYPE_VALUE_FACTORY = 63;
   ENUM_TYPE_STRING_FORMAT = 64;
   ENUM_TYPE_NUMBER_FORMAT = 65;
-  ENUM_TYPE_CUSTOM_PROPERTY_TYPE = 66;
+  ENUM_TYPE_PROPERTY_TYPE = 66;
   ENUM_TYPE_EDGE_TYPE = 67;
   ENUM_TYPE_EDGE_DIRECTION = 68;
   ENUM_TYPE_CASCADE_ACTION = 69;
@@ -821,8 +814,10 @@ enum NodeTypeProto {
   NODE_TYPE_CUSTOM_EVENT_DEFINITION = 102;
   NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 103;
   NODE_TYPE_CUSTOM_ENUM_DEFINITION = 104;
-  NODE_TYPE_CUSTOM_PROPERTY = 105;
-  NODE_TYPE_CUSTOM_OPTION = 106;
+  NODE_TYPE_CUSTOM_PROPERTY = 110;
+  NODE_TYPE_CUSTOM_PROPERTY_GROUP = 111;
+  NODE_TYPE_CUSTOM_OPTION = 120;
+  NODE_TYPE_CUSTOM_OPTION_GROUP = 121;
   NODE_TYPE_RECORD = 1000;
   NODE_TYPE_RESOURCE = 1100;
   NODE_TYPE_METRIC = 1200;
@@ -832,19 +827,20 @@ enum NodeTypeProto {
   NODE_TYPE_CHANGE_EVENT = 2002;
   NODE_TYPE_QUERY_EVENT = 2003;
   NODE_TYPE_MEASUREMENT_EVENT = 2004;
-  NODE_TYPE_SPACE = 10000;
-  NODE_TYPE_HANDLE = 10100;
-  NODE_TYPE_USER = 10200;
-  NODE_TYPE_FRIENDSHIP = 10300;
-  NODE_TYPE_FRIENDSHIP_INVITE = 10400;
-  NODE_TYPE_FRIENDSHIP_INVITE_EVENT = 10401;
-  NODE_TYPE_FRIENDSHIP_INVITE_SENT_EVENT = 10402;
-  NODE_TYPE_FRIENDSHIP_INVITE_RESCINDED_EVENT = 10403;
-  NODE_TYPE_FRIENDSHIP_INVITE_ACCEPTED_EVENT = 10404;
-  NODE_TYPE_FRIENDSHIP_INVITE_REJECTED_EVENT = 10405;
-  NODE_TYPE_ORGANIZATION = 10500;
-  NODE_TYPE_TEAM = 10600;
-  NODE_TYPE_CLIENT = 10700;
+  NODE_TYPE_UNIVERSE = 10000;
+  NODE_TYPE_SPACE = 10100;
+  NODE_TYPE_HANDLE = 10200;
+  NODE_TYPE_USER = 11000;
+  NODE_TYPE_FRIENDSHIP = 11100;
+  NODE_TYPE_FRIENDSHIP_INVITE = 11200;
+  NODE_TYPE_FRIENDSHIP_INVITE_EVENT = 11201;
+  NODE_TYPE_FRIENDSHIP_INVITE_SENT_EVENT = 11202;
+  NODE_TYPE_FRIENDSHIP_INVITE_RESCINDED_EVENT = 11203;
+  NODE_TYPE_FRIENDSHIP_INVITE_ACCEPTED_EVENT = 11204;
+  NODE_TYPE_FRIENDSHIP_INVITE_REJECTED_EVENT = 11205;
+  NODE_TYPE_CLIENT = 11300;
+  NODE_TYPE_ORGANIZATION = 12000;
+  NODE_TYPE_TEAM = 12100;
   NODE_TYPE_BRANCH = 20000;
   NODE_TYPE_MEMBERSHIP = 30000;
   NODE_TYPE_MEMBERSHIP_EVENT = 30001;
@@ -1105,6 +1101,14 @@ enum PropertyReferenceTypeProto {
   PROPERTY_REFERENCE_TYPE_CUSTOM = 2;
 }
 
+enum PropertyTypeProto {
+  PROPERTY_TYPE_UNSPECIFIED = 0;
+  PROPERTY_TYPE_MEMBER = 1;
+  PROPERTY_TYPE_CONSTANT = 2;
+  PROPERTY_TYPE_INPUT = 10;
+  PROPERTY_TYPE_OUTPUT = 11;
+}
+
 enum QueryTypeProto {
   QUERY_TYPE_UNSPECIFIED = 0;
   QUERY_TYPE_NODE = 1;
@@ -1353,11 +1357,15 @@ enum StructTypeProto {
   STRUCT_TYPE_NODE_DEFINITION = 102;
   STRUCT_TYPE_TRAIT_DEFINITION = 103;
   STRUCT_TYPE_STRUCT_DEFINITION = 104;
-  STRUCT_TYPE_PROPERTY_DEFINITION = 105;
-  STRUCT_TYPE_ENUM_DEFINITION = 106;
-  STRUCT_TYPE_OPTION_DEFINITION = 107;
-  STRUCT_TYPE_PERMISSION_DEFINITION = 108;
-  STRUCT_TYPE_CONSTANT_DEFINITION = 109;
+  STRUCT_TYPE_ENUM_DEFINITION = 105;
+  STRUCT_TYPE_PROPERTY_DEFINITION = 110;
+  STRUCT_TYPE_PROPERTY_GROUP_DEFINITION = 111;
+  STRUCT_TYPE_OPTION_DEFINITION = 112;
+  STRUCT_TYPE_OPTION_GROUP_DEFINITION = 113;
+  STRUCT_TYPE_CONSTANT_DEFINITION = 120;
+  STRUCT_TYPE_METHOD_DEFINITION = 130;
+  STRUCT_TYPE_ACTION_DEFINITION = 131;
+  STRUCT_TYPE_PERMISSION_DEFINITION = 140;
   STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 200;
   STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 201;
   STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 202;
@@ -1597,6 +1605,15 @@ message ActionProto {
   ActionCardinalityProto cardinality = 110;
 }
 
+message ActionDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+  repeated PropertyDefinitionProto properties = 104;
+}
+
 // An Agent is an identity for a bot.
 message AgentProto {
   NodeTypeProto metatype = 1;
@@ -1823,6 +1840,7 @@ message BuiltinObjectDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated PropertyDefinitionProto properties = 105;
+  repeated PropertyGroupDefinitionProto groups = 106;
 }
 
 // A Canvas is a container for only Shapes (other than that it's just a ContainerView).
@@ -2292,6 +2310,31 @@ message CustomOptionProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp archived_at = 24;
+  optional google.protobuf.Timestamp deleted_at = 25;
+  string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  string name = 101;
+  optional IconProto icon = 102;
+  optional NodeReferenceProto group_ptr = 105;
+}
+
+// A CustomOptionGroup is a group of CustomOptions.
+message CustomOptionGroupProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  optional NodeReferenceProto predecessor_ptr = 12;
+  optional NodeReferenceProto template_ptr = 13;
+  optional NodeReferenceProto instance_root_ptr = 14;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  google.protobuf.Timestamp updated_at = 22;
+  optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp archived_at = 24;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
@@ -2318,10 +2361,10 @@ message CustomPropertyProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
-  optional bool is_static = 84;
-  CustomPropertyTypeProto type = 100;
+  PropertyTypeProto type = 100;
   string name = 101;
   optional IconProto icon = 102;
+  optional NodeReferenceProto group_ptr = 105;
   TypeCardinalityProto cardinality = 110;
   ScalarTypeProto scalar_type = 111;
   optional PrimitiveTypeProto primitive_type = 112;
@@ -2342,6 +2385,29 @@ message CustomPropertyProto {
   optional bool is_unique = 151;
   optional bool is_computed = 152;
   optional bool is_readonly = 153;
+}
+
+// A CustomPropertyGroup is a group of CustomProperties.
+message CustomPropertyGroupProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  optional NodeReferenceProto predecessor_ptr = 12;
+  optional NodeReferenceProto template_ptr = 13;
+  optional NodeReferenceProto instance_root_ptr = 14;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  google.protobuf.Timestamp updated_at = 22;
+  optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp archived_at = 24;
+  optional google.protobuf.Timestamp deleted_at = 25;
+  string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  string name = 101;
+  optional IconProto icon = 102;
 }
 
 message CustomStructProto {
@@ -4002,6 +4068,15 @@ message MessageProto {
   optional NodeReferenceProto node_ptr = 62;
 }
 
+message MethodDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+  repeated PropertyDefinitionProto properties = 104;
+}
+
 // An Entity that represents a Metric.
 message MetricProto {
   NodeTypeProto metatype = 1;
@@ -4085,6 +4160,7 @@ message NodeDefinitionProto {
   optional string description = 103;
   repeated StoreTypeProto primary_store_types = 104;
   repeated PropertyDefinitionProto properties = 105;
+  repeated PropertyGroupDefinitionProto groups = 106;
   bool is_global = 110;
   bool is_spatial = 111;
   bool is_abstract = 112;
@@ -4271,6 +4347,15 @@ message OptionDefinitionProto {
   StructTypeProto metatype = 1;
   int64 id = 2 [jstype = JS_NUMBER];
   EnumTypeProto type = 100;
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+  optional int64 group_id = 105 [jstype = JS_NUMBER];
+}
+
+message OptionGroupDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
@@ -4513,11 +4598,13 @@ message PositionProto {
 message PropertyDefinitionProto {
   StructTypeProto metatype = 1;
   int64 id = 2 [jstype = JS_NUMBER];
+  PropertyTypeProto type = 100;
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
   ObjectDefinitionReferenceProto object = 104;
   ObjectDefinitionReferenceProto original_object = 105;
+  optional int64 group_id = 106 [jstype = JS_NUMBER];
   TypeCardinalityProto cardinality = 110;
   ScalarTypeProto scalar_type = 111;
   optional PrimitiveTypeProto primitive_type = 112;
@@ -4538,15 +4625,21 @@ message PropertyDefinitionProto {
   optional CascadeActionProto cascade = 145;
   bool is_required = 150;
   bool is_unique = 151;
-  bool is_computed = 152;
   bool is_readonly = 153;
-  bool is_static = 154;
   bool is_wired = 155;
   bool is_stored = 156;
   bool is_repr = 157;
   bool is_hash = 158;
   bool is_eq = 159;
   bool is_managed = 160;
+}
+
+message PropertyGroupDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
 }
 
 message PropertyReferenceProto {
@@ -5582,6 +5675,7 @@ message StructDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated PropertyDefinitionProto properties = 105;
+  repeated PropertyGroupDefinitionProto groups = 106;
   bool is_frozen = 110;
   bool is_abstract = 111;
   bool is_extensible = 112;
@@ -5875,6 +5969,7 @@ message TraitDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated PropertyDefinitionProto properties = 105;
+  repeated PropertyGroupDefinitionProto groups = 106;
   string alias = 110;
   bool is_extensible = 111;
   repeated TraitTypeProto traits = 120;
@@ -5976,6 +6071,14 @@ message TypeProto {
   optional StringConstraintProto string_constraint = 141;
   optional NumberConstraintProto number_constraint = 142;
   optional NodeConstraintProto node_constraint = 143;
+}
+
+// The Universe of Destack.
+// An abstract container for useful constants.
+message UniverseProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
 }
 
 // A User is a human using Destack.
@@ -6176,14 +6279,16 @@ message SomeNodeProto {
     ChangeEventProto change_event = 2002;
     QueryEventProto query_event = 2003;
     CustomEnumDefinitionProto custom_enum_definition = 104;
-    CustomOptionProto custom_option = 106;
+    CustomOptionProto custom_option = 120;
+    CustomOptionGroupProto custom_option_group = 121;
     GaugeMetricProto gauge_metric = 92000;
     GaugeMeasurementEventProto gauge_measurement_event = 92001;
     CounterMetricProto counter_metric = 92100;
     CounterMeasurementEventProto counter_measurement_event = 92101;
     HistogramMetricProto histogram_metric = 92200;
     HistogramMeasurementEventProto histogram_measurement_event = 92201;
-    CustomPropertyProto custom_property = 105;
+    CustomPropertyProto custom_property = 110;
+    CustomPropertyGroupProto custom_property_group = 111;
     CustomStructDefinitionProto custom_struct_definition = 103;
     EntitlementRequestedEventProto entitlement_requested_event = 30502;
     EntitlementGrantedEventProto entitlement_granted_event = 30503;
@@ -6293,18 +6398,18 @@ message SomeNodeProto {
     StarProto star = 120300;
     ThreadProto thread = 120000;
     AgentProto agent = 30600;
-    ClientProto client = 10700;
-    FriendshipProto friendship = 10300;
-    FriendshipInviteSentEventProto friendship_invite_sent_event = 10402;
-    FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 10403;
-    FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 10404;
-    FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 10405;
-    FriendshipInviteProto friendship_invite = 10400;
-    HandleProto handle = 10100;
-    OrganizationProto organization = 10500;
-    SpaceProto space = 10000;
-    TeamProto team = 10600;
-    UserProto user = 10200;
+    ClientProto client = 11300;
+    FriendshipProto friendship = 11100;
+    FriendshipInviteSentEventProto friendship_invite_sent_event = 11202;
+    FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 11203;
+    FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 11204;
+    FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 11205;
+    FriendshipInviteProto friendship_invite = 11200;
+    HandleProto handle = 10200;
+    OrganizationProto organization = 12000;
+    SpaceProto space = 10100;
+    TeamProto team = 12100;
+    UserProto user = 11000;
     BranchProto branch = 20000;
     ColorStyleProto color_style = 270300;
     BorderStyleProto border_style = 270600;
@@ -6327,11 +6432,13 @@ message SomeEntityProto {
     SnapshotProto snapshot = 1300;
     CustomEventDefinitionProto custom_event_definition = 102;
     CustomEnumDefinitionProto custom_enum_definition = 104;
-    CustomOptionProto custom_option = 106;
+    CustomOptionProto custom_option = 120;
+    CustomOptionGroupProto custom_option_group = 121;
     GaugeMetricProto gauge_metric = 92000;
     CounterMetricProto counter_metric = 92100;
     HistogramMetricProto histogram_metric = 92200;
-    CustomPropertyProto custom_property = 105;
+    CustomPropertyProto custom_property = 110;
+    CustomPropertyGroupProto custom_property_group = 111;
     CustomStructDefinitionProto custom_struct_definition = 103;
     EntitlementProto entitlement = 30500;
     InviteProto invite = 30100;
@@ -6379,14 +6486,14 @@ message SomeEntityProto {
     StarProto star = 120300;
     ThreadProto thread = 120000;
     AgentProto agent = 30600;
-    ClientProto client = 10700;
-    FriendshipProto friendship = 10300;
-    FriendshipInviteProto friendship_invite = 10400;
-    HandleProto handle = 10100;
-    OrganizationProto organization = 10500;
-    SpaceProto space = 10000;
-    TeamProto team = 10600;
-    UserProto user = 10200;
+    ClientProto client = 11300;
+    FriendshipProto friendship = 11100;
+    FriendshipInviteProto friendship_invite = 11200;
+    HandleProto handle = 10200;
+    OrganizationProto organization = 12000;
+    SpaceProto space = 10100;
+    TeamProto team = 12100;
+    UserProto user = 11000;
     BranchProto branch = 20000;
     ColorStyleProto color_style = 270300;
     BorderStyleProto border_style = 270600;
@@ -6472,10 +6579,10 @@ message SomeEventProto {
     NotificationReadEventProto notification_read_event = 120504;
     NotificationDismissedEventProto notification_dismissed_event = 120505;
     NotificationExpiredEventProto notification_expired_event = 120506;
-    FriendshipInviteSentEventProto friendship_invite_sent_event = 10402;
-    FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 10403;
-    FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 10404;
-    FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 10405;
+    FriendshipInviteSentEventProto friendship_invite_sent_event = 11202;
+    FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 11203;
+    FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 11204;
+    FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 11205;
   };
 }
 

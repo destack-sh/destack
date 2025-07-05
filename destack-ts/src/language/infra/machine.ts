@@ -660,7 +660,7 @@ export class Machine extends Resource implements IsSpatial {
     this.#type = _type;
     let _version = options.version ?? null;
     if (_version === null) {
-      _version = "2025.07.03.2";
+      _version = "2025.07.05.0";
     }
     if (_version === null) {
       throw new Error(`Machine.version is required`);

@@ -27,6 +27,7 @@ from .common import (
     EnumType,
     NodeType,
     PrimitiveType,
+    PropertyType,
     RoleType,
     ScalarType,
     StructType,
@@ -47,6 +48,8 @@ if TYPE_CHECKING:
         Sort,
         Type,
     )
+
+type_ = type
 
 
 def _resolve_enum_type(class_name: str) -> EnumType | None:
@@ -352,12 +355,13 @@ class PropertyDeclaration(TypeDeclaration):
     """
 
     # meta
+    type: PropertyType = PropertyType.MEMBER
     id: int | None = None
     ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
     description: str | None = None
-    component: type["BuiltinObject"] = UNSET  # builtin object component
-    original_component: type["BuiltinObject"] = UNSET  # original component (first in chain)
+    component: type_["BuiltinObject"] = UNSET  # builtin object component
+    original_component: type_["BuiltinObject"] = UNSET  # original component (first in chain)
 
     # pointers
     node_space_from: Literal["self"] | None = None
@@ -376,7 +380,6 @@ class PropertyDeclaration(TypeDeclaration):
     is_managed: bool = False  # set automatically by the system
     is_computed: bool = False  # set automatically at runtime
     is_readonly: bool = False  # can only be set once (at init time)
-    is_static: bool = False
 
     can_read: RoleType = RoleType.SPECTATOR
     can_write: RoleType | None = RoleType.SPECTATOR
@@ -654,7 +657,6 @@ def builtin_property(
     is_eq: bool = True,
     is_unique: bool = False,
     is_readonly: bool = False,
-    is_static: bool = False,
     can_read: RoleType = RoleType.SPECTATOR,
     can_write: RoleType | None = RoleType.SPECTATOR,
 ) -> Any:
@@ -677,7 +679,6 @@ def builtin_property(
         is_eq=is_eq,
         is_unique=is_unique,
         is_readonly=is_readonly,
-        is_static=is_static,
         can_read=can_read,
         can_write=can_write,
     )

@@ -15,6 +15,7 @@ from ..builtin.common import (
     EnumType,
     NodeType,
     PrimitiveType,
+    PropertyType,
     ScalarType,
     StoreType,
     StructType,
@@ -64,16 +65,246 @@ class BuiltinDefinition(StructFrozen):
     description: str | None = builtin_property(103, is_repr=True)
 
 
+@builtin_struct(StructType.BUILTIN_OBJECT_DEFINITION, frozen=True, is_abstract=True)
+class BuiltinObjectDefinition(BuiltinDefinition):
+    """Definition of a builtin Object (Struct, Trait, Node)."""
+
+    properties: list["PropertyDefinition"] = builtin_property(105)
+    groups: list["PropertyGroupDefinition"] = builtin_property(106)
+
+
+@builtin_struct(StructType.NODE_DEFINITION, frozen=True)
+class NodeDefinition(BuiltinObjectDefinition):
+    """Definition of a builtin Node."""
+
+    type: NodeType = builtin_property(100, is_repr=True)
+    primary_store_types: list[StoreType] = builtin_property(104)
+
+    is_global: bool = builtin_property(
+        110,
+        is_repr=True,
+        description="Whether this Node is global.",
+    )
+    is_spatial: bool = builtin_property(
+        111, is_repr=True, description="Whether this Node is per Space."
+    )
+    is_abstract: bool = builtin_property(
+        112,
+        is_repr=True,
+        description="Whether this Node cannot be instantiated directly.",
+    )
+    is_extensible: bool = builtin_property(
+        113,
+        is_repr=True,
+        description="Whether this Node can be extended by custom Nodes.",
+    )
+    is_frozen: bool = builtin_property(
+        114,
+        is_repr=True,
+        description="Whether this Node cannot be modified.",
+    )
+
+    base_type: NodeType | None = builtin_property(
+        120, description="The base type this Node extends (directly)."
+    )
+    extended_by: list[NodeType] = builtin_property(
+        121, description="Nodes that extend this Node type (directly)."
+    )
+    inherits: list[NodeType] = builtin_property(
+        122, description="Nodes that this Node inherits (directly and indirectly)."
+    )
+    inherited_by: list[NodeType] = builtin_property(
+        123, description="Nodes that inherit this Node type (directly and indirectly)."
+    )
+    base_traits: list[TraitType] = builtin_property(
+        124, description="Traits directly inherited by this Node (directly)."
+    )
+    traits: list[TraitType] = builtin_property(
+        125,
+        description="Traits directly and indirectly inherited by this Node (directly and indirectly).",
+    )
+
+    root_type: NodeType | None = builtin_property(
+        130, description="The root ancestor type of this Node type (if any)."
+    )
+    parent_types: list[NodeType] = builtin_property(
+        131, description="The parent types of this Node type (directly)."
+    )
+    child_types: list[NodeType] = builtin_property(
+        132, description="The child types of this Node type (directly)."
+    )
+    ancestor_types: list[NodeType] = builtin_property(
+        133, description="The ancestor types of this Node type (directly and indirectly)."
+    )
+    descendant_types: list[NodeType] = builtin_property(
+        134, description="The descendant types of this Node type (directly and indirectly)."
+    )
+
+    @classmethod
+    def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
+        """Create NodeDefinition from a Node class."""
+        from . import to_icon
+
+        return cls(
+            id=node_cls.metatype.value,
+            type=node_cls.metatype,
+            name=node_cls.__name__,
+            icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
+            description=node_cls.__doc__,
+            primary_store_types=list(node_cls.__primary_store_types__),
+            properties=[
+                prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
+            ],
+            is_global=TraitType.GLOBAL in node_cls.__traits__,
+            is_spatial=TraitType.SPATIAL in node_cls.__traits__,
+            is_abstract=node_cls.__is_abstract__,
+            is_extensible=TraitType.EXTENSIBLE in node_cls.__traits__,
+            is_frozen=node_cls.__is_frozen__,
+            base_type=node_cls.__base_type__,
+            extended_by=list(node_cls.__extended_by__),
+            inherits=list(node_cls.__inherits__),
+            inherited_by=list(node_cls.__inherited_by__),
+            traits=list(node_cls.__traits__),
+            base_traits=list(node_cls.__base_traits__),
+            root_type=node_cls.__root_type__,
+            parent_types=list(node_cls.__parent_types__),
+            child_types=list(node_cls.__child_types__),
+            ancestor_types=list(node_cls.__ancestor_types__),
+            descendant_types=list(node_cls.__descendant_types__),
+        )
+
+
+@builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)
+class TraitDefinition(BuiltinObjectDefinition):
+    """Definition of a builtin Trait."""
+
+    type: TraitType = builtin_property(100, is_repr=True)
+
+    alias: str = builtin_property(110, is_repr=True)
+    is_extensible: bool = builtin_property(
+        111,
+        is_repr=True,
+        description="Whether this Trait can be extended by custom Nodes and custom Traits.",
+    )
+
+    traits: list[TraitType] = builtin_property(
+        120, description="Traits directly and indirectly inherited by this trait."
+    )
+    base_traits: list[TraitType] = builtin_property(
+        121, description="Traits directly inherited by this trait."
+    )
+
+    @classmethod
+    def from_trait(cls, trait_cls: _type["Trait"]) -> "TraitDefinition":
+        """Create TraitDefinition from a Trait class."""
+        from . import to_icon
+
+        trait_type = TraitType(trait_cls.metatype)
+        return cls(
+            id=trait_cls.metatype.value,
+            type=trait_type,
+            name=trait_cls.metatype.camel_name,
+            alias=trait_cls.__name__,
+            icon=to_icon(trait_cls.metatype.icon) if trait_cls.metatype.icon else None,
+            description=trait_cls.__doc__,
+            properties=[
+                prop.definition for prop in trait_cls.__properties__.values() if prop.is_wired
+            ],
+            is_extensible=cast(type["Trait"], trait_cls).__is_extensible__,
+            traits=list(trait_cls.__traits__),
+            base_traits=list(trait_cls.__base_traits__),
+        )
+
+
+@builtin_struct(StructType.STRUCT_DEFINITION, frozen=True)
+class StructDefinition(BuiltinObjectDefinition):
+    """Definition of a builtin Struct."""
+
+    type: StructType = builtin_property(100, is_repr=True)
+
+    is_frozen: bool = builtin_property(110, description="Whether this Struct cannot be modified.")
+    is_abstract: bool = builtin_property(
+        111, description="Whether this Struct cannot be instantiated directly."
+    )
+    is_extensible: bool = builtin_property(
+        112,
+        description="Whether this Struct can be extended by custom Structs.",
+    )
+
+    base_type: StructType | None = builtin_property(
+        120, description="The base type this Struct extends (directly)."
+    )
+    extended_by: list[StructType] = builtin_property(
+        121, description="Structs that extend this Struct type (directly)."
+    )
+    inherits: list[StructType] = builtin_property(
+        122, description="Structs that this Struct inherits (directly and indirectly)."
+    )
+    inherited_by: list[StructType] = builtin_property(
+        123, description="Structs that inherit this Struct type (directly and indirectly)."
+    )
+
+    @classmethod
+    def from_struct(cls, struct_cls: _type[Struct]) -> "StructDefinition":
+        """Create StructDefinition from a Struct class."""
+        from . import to_icon
+
+        return cls(
+            id=struct_cls.metatype.value,
+            type=struct_cls.metatype,
+            name=struct_cls.__name__,
+            icon=to_icon(struct_cls.metatype.icon) if struct_cls.metatype.icon else None,
+            description=struct_cls.__doc__,
+            properties=[
+                prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
+            ],
+            is_frozen=struct_cls.__is_frozen__,
+            is_abstract=struct_cls.__is_abstract__,
+            is_extensible=struct_cls.__is_extensible__,
+            base_type=struct_cls.__base_type__,
+            extended_by=list(struct_cls.__extended_by__),
+            inherits=list(struct_cls.__inherits__),
+            inherited_by=list(struct_cls.__inherited_by__),
+        )
+
+
+@builtin_struct(StructType.ENUM_DEFINITION, frozen=True)
+class EnumDefinition(BuiltinDefinition):
+    """Definition of a builtin Enum."""
+
+    type: EnumType = builtin_property(100, is_repr=True)
+    options: list["OptionDefinition"] = builtin_property(104)
+
+    @classmethod
+    def from_enum(cls, enum_type: EnumType, enum_cls: _type[Enum]) -> "EnumDefinition":
+        """Create EnumDefinition from an Enum class."""
+        from . import to_icon
+
+        return cls(
+            id=enum_type.value,
+            type=enum_type,
+            name=enum_type.camel_name,
+            icon=to_icon(enum_type.icon) if enum_type.icon else None,
+            description=enum_type.__doc__,
+            options=[
+                OptionDefinition.from_enum_option(enum_type, option)
+                for option in enum_cls.__members__.values()
+            ],
+        )
+
+
 @builtin_struct(StructType.PROPERTY_DEFINITION, frozen=True)
 class PropertyDefinition(BuiltinDefinition):
     """Definition of a builtin Property."""
 
+    type: PropertyType = builtin_property(100)
     object: "ObjectDefinitionReference" = builtin_property(
         104, description="The object that this property is defined on."
     )
     original_object: "ObjectDefinitionReference" = builtin_property(
         105, description="The original object that this property was defined on."
     )
+    group_id: int | None = builtin_property(106)
 
     # scalar
     cardinality: TypeCardinality = builtin_property(
@@ -107,9 +338,7 @@ class PropertyDefinition(BuiltinDefinition):
     # flags
     is_required: bool = builtin_property(150, is_repr=True)
     is_unique: bool = builtin_property(151, is_repr=True)
-    is_computed: bool = builtin_property(152)
     is_readonly: bool = builtin_property(153)
-    is_static: bool = builtin_property(154)
     is_wired: bool = builtin_property(155)
     is_stored: bool = builtin_property(156)
     is_repr: bool = builtin_property(157)
@@ -128,6 +357,7 @@ class PropertyDefinition(BuiltinDefinition):
         )
 
         return cls(
+            type=prop.type,
             id=prop.id,
             name=prop.name,
             description=prop.description,
@@ -162,9 +392,7 @@ class PropertyDefinition(BuiltinDefinition):
             is_hash=prop.is_hash,
             is_eq=prop.is_eq,
             is_managed=prop.is_managed,
-            is_computed=prop.is_computed,
             is_readonly=prop.is_readonly,
-            is_static=prop.is_static,
         )
 
     def to_ref(self) -> PropertyReference:
@@ -280,231 +508,11 @@ class PropertyDefinition(BuiltinDefinition):
         return Sort.of(self, SortType.DESCENDING)
 
 
-@builtin_struct(StructType.BUILTIN_OBJECT_DEFINITION, frozen=True, is_abstract=True)
-class BuiltinObjectDefinition(BuiltinDefinition):
-    """Definition of a builtin Object."""
+@builtin_struct(StructType.PROPERTY_GROUP_DEFINITION, frozen=True)
+class PropertyGroupDefinition(BuiltinDefinition):
+    """Definition of a builtin Property Group."""
 
-    properties: list["PropertyDefinition"] = builtin_property(105)
-
-
-@builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)
-class TraitDefinition(BuiltinObjectDefinition):
-    """Definition of a builtin Trait."""
-
-    type: TraitType = builtin_property(100, is_repr=True)
-
-    alias: str = builtin_property(110, is_repr=True)
-    is_extensible: bool = builtin_property(
-        111,
-        is_repr=True,
-        description="Whether this Trait can be extended by custom Nodes and custom Traits.",
-    )
-
-    traits: list[TraitType] = builtin_property(
-        120, description="Traits directly and indirectly inherited by this trait."
-    )
-    base_traits: list[TraitType] = builtin_property(
-        121, description="Traits directly inherited by this trait."
-    )
-
-    @classmethod
-    def from_trait(cls, trait_cls: _type["Trait"]) -> "TraitDefinition":
-        """Create TraitDefinition from a Trait class."""
-        from . import to_icon
-
-        trait_type = TraitType(trait_cls.metatype)
-        return cls(
-            id=trait_cls.metatype.value,
-            type=trait_type,
-            name=trait_cls.metatype.camel_name,
-            alias=trait_cls.__name__,
-            icon=to_icon(trait_cls.metatype.icon) if trait_cls.metatype.icon else None,
-            description=trait_cls.__doc__,
-            properties=[
-                prop.definition for prop in trait_cls.__properties__.values() if prop.is_wired
-            ],
-            is_extensible=cast(type["Trait"], trait_cls).__is_extensible__,
-            traits=list(trait_cls.__traits__),
-            base_traits=list(trait_cls.__base_traits__),
-        )
-
-
-@builtin_struct(StructType.NODE_DEFINITION, frozen=True)
-class NodeDefinition(BuiltinObjectDefinition):
-    """Definition of a builtin Node."""
-
-    type: NodeType = builtin_property(100, is_repr=True)
-    primary_store_types: list[StoreType] = builtin_property(104)
-
-    is_global: bool = builtin_property(
-        110,
-        is_repr=True,
-        description="Whether this Node is global.",
-    )
-    is_spatial: bool = builtin_property(
-        111, is_repr=True, description="Whether this Node is per Space."
-    )
-    is_abstract: bool = builtin_property(
-        112,
-        is_repr=True,
-        description="Whether this Node cannot be instantiated directly.",
-    )
-    is_extensible: bool = builtin_property(
-        113,
-        is_repr=True,
-        description="Whether this Node can be extended by custom Nodes.",
-    )
-    is_frozen: bool = builtin_property(
-        114,
-        is_repr=True,
-        description="Whether this Node cannot be modified.",
-    )
-
-    base_type: NodeType | None = builtin_property(
-        120, description="The base type this Node extends (directly)."
-    )
-    extended_by: list[NodeType] = builtin_property(
-        121, description="Nodes that extend this Node type (directly)."
-    )
-    inherits: list[NodeType] = builtin_property(
-        122, description="Nodes that this Node inherits (directly and indirectly)."
-    )
-    inherited_by: list[NodeType] = builtin_property(
-        123, description="Nodes that inherit this Node type (directly and indirectly)."
-    )
-    base_traits: list[TraitType] = builtin_property(
-        124, description="Traits directly inherited by this Node (directly)."
-    )
-    traits: list[TraitType] = builtin_property(
-        125,
-        description="Traits directly and indirectly inherited by this Node (directly and indirectly).",
-    )
-
-    root_type: NodeType | None = builtin_property(
-        130, description="The root ancestor type of this Node type (if any)."
-    )
-    parent_types: list[NodeType] = builtin_property(
-        131, description="The parent types of this Node type (directly)."
-    )
-    child_types: list[NodeType] = builtin_property(
-        132, description="The child types of this Node type (directly)."
-    )
-    ancestor_types: list[NodeType] = builtin_property(
-        133, description="The ancestor types of this Node type (directly and indirectly)."
-    )
-    descendant_types: list[NodeType] = builtin_property(
-        134, description="The descendant types of this Node type (directly and indirectly)."
-    )
-
-    @classmethod
-    def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
-        """Create NodeDefinition from a Node class."""
-        from . import to_icon
-
-        return cls(
-            id=node_cls.metatype.value,
-            type=node_cls.metatype,
-            name=node_cls.__name__,
-            icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
-            description=node_cls.__doc__,
-            primary_store_types=list(node_cls.__primary_store_types__),
-            properties=[
-                prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
-            ],
-            is_global=TraitType.GLOBAL in node_cls.__traits__,
-            is_spatial=TraitType.SPATIAL in node_cls.__traits__,
-            is_abstract=node_cls.__is_abstract__,
-            is_extensible=TraitType.EXTENSIBLE in node_cls.__traits__,
-            is_frozen=node_cls.__is_frozen__,
-            base_type=node_cls.__base_type__,
-            extended_by=list(node_cls.__extended_by__),
-            inherits=list(node_cls.__inherits__),
-            inherited_by=list(node_cls.__inherited_by__),
-            traits=list(node_cls.__traits__),
-            base_traits=list(node_cls.__base_traits__),
-            root_type=node_cls.__root_type__,
-            parent_types=list(node_cls.__parent_types__),
-            child_types=list(node_cls.__child_types__),
-            ancestor_types=list(node_cls.__ancestor_types__),
-            descendant_types=list(node_cls.__descendant_types__),
-        )
-
-
-@builtin_struct(StructType.STRUCT_DEFINITION, frozen=True)
-class StructDefinition(BuiltinObjectDefinition):
-    """Definition of a builtin Struct."""
-
-    type: StructType = builtin_property(100, is_repr=True)
-
-    is_frozen: bool = builtin_property(110, description="Whether this Struct cannot be modified.")
-    is_abstract: bool = builtin_property(
-        111, description="Whether this Struct cannot be instantiated directly."
-    )
-    is_extensible: bool = builtin_property(
-        112,
-        description="Whether this Struct can be extended by custom Structs.",
-    )
-
-    base_type: StructType | None = builtin_property(
-        120, description="The base type this Struct extends (directly)."
-    )
-    extended_by: list[StructType] = builtin_property(
-        121, description="Structs that extend this Struct type (directly)."
-    )
-    inherits: list[StructType] = builtin_property(
-        122, description="Structs that this Struct inherits (directly and indirectly)."
-    )
-    inherited_by: list[StructType] = builtin_property(
-        123, description="Structs that inherit this Struct type (directly and indirectly)."
-    )
-
-    @classmethod
-    def from_struct(cls, struct_cls: _type[Struct]) -> "StructDefinition":
-        """Create StructDefinition from a Struct class."""
-        from . import to_icon
-
-        return cls(
-            id=struct_cls.metatype.value,
-            type=struct_cls.metatype,
-            name=struct_cls.__name__,
-            icon=to_icon(struct_cls.metatype.icon) if struct_cls.metatype.icon else None,
-            description=struct_cls.__doc__,
-            properties=[
-                prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
-            ],
-            is_frozen=struct_cls.__is_frozen__,
-            is_abstract=struct_cls.__is_abstract__,
-            is_extensible=struct_cls.__is_extensible__,
-            base_type=struct_cls.__base_type__,
-            extended_by=list(struct_cls.__extended_by__),
-            inherits=list(struct_cls.__inherits__),
-            inherited_by=list(struct_cls.__inherited_by__),
-        )
-
-
-@builtin_struct(StructType.ENUM_DEFINITION, frozen=True)
-class EnumDefinition(BuiltinDefinition):
-    """Definition of a builtin Enum."""
-
-    type: EnumType = builtin_property(100, is_repr=True)
-    options: list["OptionDefinition"] = builtin_property(104)
-
-    @classmethod
-    def from_enum(cls, enum_type: EnumType, enum_cls: _type[Enum]) -> "EnumDefinition":
-        """Create EnumDefinition from an Enum class."""
-        from . import to_icon
-
-        return cls(
-            id=enum_type.value,
-            type=enum_type,
-            name=enum_type.camel_name,
-            icon=to_icon(enum_type.icon) if enum_type.icon else None,
-            description=enum_type.__doc__,
-            options=[
-                OptionDefinition.from_enum_option(enum_type, option)
-                for option in enum_cls.__members__.values()
-            ],
-        )
+    pass
 
 
 @builtin_struct(StructType.OPTION_DEFINITION, frozen=True)
@@ -512,6 +520,7 @@ class OptionDefinition(BuiltinDefinition):
     """Definition of a builtin Enum Option."""
 
     type: EnumType = builtin_property(100, is_repr=True)
+    group_id: int | None = builtin_property(105)
 
     @classmethod
     def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
@@ -527,12 +536,11 @@ class OptionDefinition(BuiltinDefinition):
         )
 
 
-@builtin_struct(StructType.PERMISSION_DEFINITION, frozen=True)
-class PermissionDefinition(BuiltinDefinition):
-    """Definition of a builtin Permission for a builtin Node."""
+@builtin_struct(StructType.OPTION_GROUP_DEFINITION, frozen=True)
+class OptionGroupDefinition(BuiltinDefinition):
+    """Definition of a builtin Enum Option Group."""
 
-    type: EnumType = builtin_property(100, is_repr=True)
-    node_type: NodeType = builtin_property(110, is_repr=True)
+    pass
 
 
 @builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)
@@ -569,6 +577,28 @@ class ConstantDefinition(StructFrozen):
             is_deferred=is_deferred,
             _declaration=constant_declaration,
         )
+
+
+@builtin_struct(StructType.METHOD_DEFINITION, frozen=True)
+class MethodDefinition(BuiltinDefinition):
+    """Definition of a builtin Method."""
+
+    properties: list["PropertyDefinition"] = builtin_property(104)
+
+
+@builtin_struct(StructType.ACTION_DEFINITION, frozen=True)
+class ActionDefinition(MethodDefinition):
+    """Definition of a builtin Action."""
+
+    pass
+
+
+@builtin_struct(StructType.PERMISSION_DEFINITION, frozen=True)
+class PermissionDefinition(BuiltinDefinition):
+    """Definition of a builtin Permission for a builtin Node."""
+
+    type: EnumType = builtin_property(100, is_repr=True)
+    node_type: NodeType = builtin_property(110, is_repr=True)
 
 
 register_constant("NODE_DEFINITIONS", lambda: list(NODE_DEFINITION_BY_TYPE.values()))

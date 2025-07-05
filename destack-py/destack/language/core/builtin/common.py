@@ -41,7 +41,7 @@ class EnumType(Enum):
     VALUE_FACTORY = 63
     STRING_FORMAT = 64
     NUMBER_FORMAT = 65
-    CUSTOM_PROPERTY_TYPE = 66
+    PROPERTY_TYPE = 66
     EDGE_TYPE = 67
     EDGE_DIRECTION = 68
     CASCADE_ACTION = 69
@@ -230,17 +230,20 @@ class StructType(Enum):
     NODE_DEFINITION = 102
     TRAIT_DEFINITION = 103
     STRUCT_DEFINITION = 104
-    PROPERTY_DEFINITION = 105
-    ENUM_DEFINITION = 106
-    OPTION_DEFINITION = 107
-    PERMISSION_DEFINITION = 108
-    CONSTANT_DEFINITION = 109
-    # FUNCTION_DEFINITION, ACTION_DEFINITION, ...?
-    # definition reference
+    ENUM_DEFINITION = 105
+    PROPERTY_DEFINITION = 110
+    PROPERTY_GROUP_DEFINITION = 111
+    OPTION_DEFINITION = 112
+    OPTION_GROUP_DEFINITION = 113
+    CONSTANT_DEFINITION = 120
+    METHOD_DEFINITION = 130
+    ACTION_DEFINITION = 131
+    PERMISSION_DEFINITION = 140
+    # references
     NODE_DEFINITION_REFERENCE = 200
     OBJECT_DEFINITION_REFERENCE = 201
     STRUCT_DEFINITION_REFERENCE = 202
-    # references
+    # METHOD_REFERENCE, ACTION_REFERENCE, ...
     NODE_REFERENCE = 250
     PROPERTY_REFERENCE = 251
     # edits
@@ -517,8 +520,10 @@ class NodeType(Enum):
     CUSTOM_EVENT_DEFINITION = 102, "Custom Event Definition", None, "fas fa-signal"
     CUSTOM_STRUCT_DEFINITION = 103, "Custom Struct Definition", None, "fas fa-shapes"
     CUSTOM_ENUM_DEFINITION = 104, "Custom Enum Definition", None, "fas fa-shapes"
-    CUSTOM_PROPERTY = 105, "Custom Property", None, "fas fa-triangle"
-    CUSTOM_OPTION = 106, "Custom Option", None, "fas fa-circle"
+    CUSTOM_PROPERTY = 110, "Custom Property", None, "fas fa-triangle"
+    CUSTOM_PROPERTY_GROUP = 111, "Custom Property Group", None, "fas fa-table"
+    CUSTOM_OPTION = 120, "Custom Option", None, "fas fa-circle"
+    CUSTOM_OPTION_GROUP = 121, "Custom Option Group", None, "fas fa-table"
     # entity
     RECORD = 1000, "Record", "Custom Entity", "fas fa-database"
     RESOURCE = 1100, "Resource", "External asset outside of Destack", "fas fa-dot"
@@ -532,40 +537,43 @@ class NodeType(Enum):
     MEASUREMENT_EVENT = 2004, "Measurement", None, "fas fa-gauge"
 
     # space [10_000-20_000]
-    SPACE = 10_000, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
-    HANDLE = 10_100, "Handle", "Unique @handle", "fas fa-at"
-    USER = 10_200, "User", None, "fas fa-user"
-    FRIENDSHIP = 10_300, "Friendship", "Friendship between two Users", "fas fa-user-friends"
+    UNIVERSE = 10_000, "Universe", "Universal Space", None
+    SPACE = 10_100, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
+    HANDLE = 10_200, "Handle", "Unique @handle", "fas fa-at"
+    # user
+    USER = 11_000, "User", None, "fas fa-user"
+    FRIENDSHIP = 11_100, "Friendship", "Friendship between two Users", "fas fa-user-friends"
     FRIENDSHIP_INVITE = (
-        10_400,
+        11_200,
         "Friendship Invite",
         "Invite to be friends with another User",
         "fas fa-user-plus",
     )
-    FRIENDSHIP_INVITE_EVENT = 10_401, "Friendship Invite Event", None, "fas fa-user-plus"
-    FRIENDSHIP_INVITE_SENT_EVENT = 10_402, "Friendship Invite Sent Event", None, "fas fa-user-plus"
+    FRIENDSHIP_INVITE_EVENT = 11_201, "Friendship Invite Event", None, "fas fa-user-plus"
+    FRIENDSHIP_INVITE_SENT_EVENT = 11_202, "Friendship Invite Sent Event", None, "fas fa-user-plus"
     FRIENDSHIP_INVITE_RESCINDED_EVENT = (
-        10_403,
+        11_203,
         "Friendship Invite Rescinded Event",
         None,
         "fas fa-user-plus",
     )
     FRIENDSHIP_INVITE_ACCEPTED_EVENT = (
-        10_404,
+        11_204,
         "Friendship Invite Accepted Event",
         None,
         "fas fa-user-plus",
     )
     FRIENDSHIP_INVITE_REJECTED_EVENT = (
-        10_405,
+        11_205,
         "Friendship Invite Rejected Event",
         None,
         "fas fa-user-plus",
     )
-    ORGANIZATION = 10_500, "Organization", None, "fas fa-building"
-    TEAM = 10_600, "Team", "Team in an Organization", "fas fa-users"
+    CLIENT = 11_300, "Client", None, "fas fa-desktop"
     # CREDENTIAL, ACCOUNT, PROFILE, ...
-    CLIENT = 10_700, "Client", None, "fas fa-desktop"
+    # organization
+    ORGANIZATION = 12_000, "Organization", None, "fas fa-building"
+    TEAM = 12_100, "Team", "Team in an Organization", "fas fa-users"
 
     # spacetime [20_000-30_000]
     BRANCH = 20_000, "Branch", None, "fas fa-code-branch"
@@ -612,7 +620,6 @@ class NodeType(Enum):
     # entity [50_000-60_000]
     # INDEX, CONSTRAINT, MIGRATION, ...
     # MIRROR/SYNC, ...
-    # TRAIT_DEFINITION/TRAIT_IMPLEMENTATION, INTERFACE, ...
 
     # data [60_000-70_000]
     FILE = 60_000, "File", None, "fas fa-file"
@@ -621,7 +628,7 @@ class NodeType(Enum):
     # logic [70_000-80_000]
     SCRIPT = 70_000, "Script", None, "fas fa-code"
     SERVICE = 70_100, "Service", None, "fas fa-screwdriver-wrench"
-    # FUNCTION = 70_200, "Function", None, "fas fa-code"
+    # METHOD = 70_200, "Method", None, "fas fa-code"
     ACTION = 70_300, "Action", None, "fas fa-code"
     ROUTE = 71_000, "Route", None, "fas fa-route"
     TRIGGER = 72_000, "Trigger", None, "fas fa-bolt"
@@ -849,6 +856,15 @@ ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)
 NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
 STRUCT_TYPES: tuple[StructType, ...] = tuple(StructType)
 TRAIT_TYPES: tuple[TraitType, ...] = tuple(TraitType)
+
+
+@builtin_enum(EnumType.PROPERTY_TYPE)
+class PropertyType(Enum):
+    MEMBER = 1, "Member", None, None
+    CONSTANT = 2, "Constant", None, None
+    # COMPUTED?
+    INPUT = 10, "Input", None, None
+    OUTPUT = 11, "Output", None, None
 
 
 @builtin_enum(EnumType.STORE_TYPE)
