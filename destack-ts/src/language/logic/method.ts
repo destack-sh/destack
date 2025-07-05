@@ -1,101 +1,75 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
-  Condition,
   Graph,
   Icon,
+  IsCustomizable,
+  IsDeletable,
   IsRunnable,
+  IsScriptable,
+  IsSourceable,
   IsSpatial,
   IsSubject,
-  NodeDefinitionReference,
+  IsTaggable,
   NodeReference,
   QueryConnection,
   Session,
   Snapshot,
   Supergraph,
+  Text,
   Value,
 } from "@destack/language/core";
 import {
   Entity,
   EnumType,
-  Event,
   Materialization,
   Node,
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Script } from "@destack/language/logic/script";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import { MaterializationProto, TriggerProto } from "@destack/proto";
+import { MaterializationProto, MethodCardinalityProto, MethodProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:105000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:102001 ==== */
 /**
- * TriggerType
+ * MethodCardinality
  */
-export enum TriggerType {
-  EVENT = 1,
+export enum MethodCardinality {
+  UNARY = 1,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
-/* ==== DESTACK_GENERATED_END:ENUM:105000 ==== */
+registerEnumClass(EnumType.METHOD_CARDINALITY, MethodCardinality);
+/* ==== DESTACK_GENERATED_END:ENUM:102001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:102000 ==== */
 /**
- * A TriggerEvent is an Event that corresponds to a Trigger.
+ * An implementation of a unit of work, usually expressed with Code or some tool.
+ * May defer to a builtin or some other service in a separate system.
  */
-export abstract class TriggerEvent extends Event {
-  static metatype: NodeType = NodeType.TRIGGER_EVENT;
-
-  abstract get parent(): Space | null;
-  declare readonly parentPtr: NodeReference | null;
-
-  abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
-
-  abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+export class Method
+  extends Entity
+  implements IsSpatial, IsTaggable, IsSourceable, IsCustomizable, IsDeletable, IsRunnable
+{
+  static metatype: NodeType = NodeType.METHOD;
 
   /**
-   * Event.createdAt
+   * Method.parent
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  abstract get createdBy(): (Node & IsSubject) | null;
-  declare readonly createdByPtr: NodeReference | null;
-
-  abstract get node(): Trigger | null;
-  declare readonly nodePtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:105001 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:105000 ==== */
-/**
- * A Trigger is a dynamic event to run something.
- */
-export class Trigger extends Entity implements IsSpatial {
-  static metatype: NodeType = NodeType.TRIGGER;
-
-  /**
-   * Trait.parent
-   */
-  get parent(): Node | null {
+  get parent(): (Node & IsScriptable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsScriptable) | null;
     }
     return null;
   }
@@ -133,10 +107,10 @@ export class Trigger extends Entity implements IsSpatial {
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): Trigger | null {
+  get predecessor(): Method | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Trigger | null;
+      return this._supergraph.get(nodePtr.id) as Method | null;
     }
     return null;
   }
@@ -145,10 +119,10 @@ export class Trigger extends Entity implements IsSpatial {
   /**
    * The template this Entity instance is based on (from the template tree).
    */
-  get template(): Trigger | null {
+  get template(): Method | null {
     const nodePtr: NodeReference | null = this.templatePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Trigger | null;
+      return this._supergraph.get(nodePtr.id) as Method | null;
     }
     return null;
   }
@@ -201,7 +175,50 @@ export class Trigger extends Entity implements IsSpatial {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Trigger.name
+   * IsDeletable.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): Map<string, Value> {
+    return this._customValues;
+  }
+  set customValues(value: Map<string, Value>) {
+    const oldValue = this._customValues;
+    if (this._dirty == null) {
+      this._dirty = {};
+    }
+    if (this._dirty["customValues"] === undefined) {
+      this._dirty["customValues"] = oldValue;
+    }
+    if (!this._session.dirty[this.id]) {
+      this._session.dirty[this.id] = this;
+    }
+    this._customValues = value;
+  }
+  _customValues: Map<string, Value>;
+
+  /**
+   * The absolute order key of this Node in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * Method.name
    */
   get name(): string {
     return this._name;
@@ -222,7 +239,7 @@ export class Trigger extends Entity implements IsSpatial {
   _name: string;
 
   /**
-   * Trigger.icon
+   * Method.icon
    */
   get icon(): Icon | null {
     return this._icon;
@@ -243,118 +260,68 @@ export class Trigger extends Entity implements IsSpatial {
   _icon: Icon | null;
 
   /**
-   * Trigger.event
+   * Method.text
    */
-  get event(): NodeDefinitionReference | null {
-    return this._event;
+  get text(): Text | null {
+    return this._text;
   }
-  set event(value: NodeDefinitionReference | null) {
-    const oldValue = this._event;
+  set text(value: Text | null) {
+    const oldValue = this._text;
     if (this._dirty == null) {
       this._dirty = {};
     }
-    if (this._dirty["event"] === undefined) {
-      this._dirty["event"] = oldValue;
+    if (this._dirty["text"] === undefined) {
+      this._dirty["text"] = oldValue;
     }
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this._event = value;
+    this._text = value;
   }
-  _event: NodeDefinitionReference | null;
+  _text: Text | null;
 
   /**
-   * Trigger.where
+   * Method.cardinality
    */
-  get where(): Condition | null {
-    return this._where;
+  get cardinality(): MethodCardinality {
+    return this._cardinality;
   }
-  set where(value: Condition | null) {
-    const oldValue = this._where;
+  set cardinality(value: MethodCardinality) {
+    const oldValue = this._cardinality;
     if (this._dirty == null) {
       this._dirty = {};
     }
-    if (this._dirty["where"] === undefined) {
-      this._dirty["where"] = oldValue;
+    if (this._dirty["cardinality"] === undefined) {
+      this._dirty["cardinality"] = oldValue;
     }
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this._where = value;
+    this._cardinality = value;
   }
-  _where: Condition | null;
-
-  /**
-   * Trigger.target
-   */
-  get target(): (Node & IsRunnable) | null {
-    const nodePtr: NodeReference | null = this.targetPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
-    }
-    return null;
-  }
-  set target(node: Node & IsRunnable) {
-    this.targetPtr = node.toRef();
-  }
-  get targetPtr(): NodeReference {
-    return this._targetPtr;
-  }
-  set targetPtr(value: NodeReference) {
-    const oldValue = this._targetPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["targetPtr"] === undefined) {
-      this._dirty["targetPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
-    this._targetPtr = value;
-  }
-  _targetPtr: NodeReference;
-
-  /**
-   * Trigger.arguments
-   */
-  get arguments(): Map<string, Value> {
-    return this._arguments;
-  }
-  set arguments(value: Map<string, Value>) {
-    const oldValue = this._arguments;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["arguments"] === undefined) {
-      this._dirty["arguments"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
-    this._arguments = value;
-  }
-  _arguments: Map<string, Value>;
+  _cardinality: MethodCardinality;
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: (Node & IsScriptable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: Trigger | NodeReference | null;
-    template?: Trigger | NodeReference | null;
+    predecessor?: Method | NodeReference | null;
+    template?: Method | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: Map<string, Value>;
+    orderKey?: string;
+    source?: Script | NodeReference | null;
     name: string;
     icon?: Icon | null;
-    event?: NodeDefinitionReference | null;
-    where?: Condition | null;
-    target: (Node & IsRunnable) | NodeReference;
-    arguments?: Map<string, Value>;
+    text?: Text | null;
+    cardinality?: MethodCardinality;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -399,7 +366,7 @@ export class Trigger extends Entity implements IsSpatial {
       _materialization = 32 /* Materialization.FULL */;
     }
     if (_materialization === null) {
-      throw new Error(`Trigger.materialization is required`);
+      throw new Error(`Method.materialization is required`);
     }
     this.materialization = _materialization;
     let _snapshot = options.snapshot ?? null;
@@ -422,30 +389,43 @@ export class Trigger extends Entity implements IsSpatial {
       _instanceRoot = (_instanceRoot as Node).toRef();
     }
     this.instanceRootPtr = _instanceRoot;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = new Map();
+    }
+    this._customValues = _customValues;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Method.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
     let _name = options.name;
     if (_name === null) {
-      throw new Error(`Trigger.name is required`);
+      throw new Error(`Method.name is required`);
     }
     this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
-    let _event = options.event ?? null;
-    this._event = _event;
-    let _where = options.where ?? null;
-    this._where = _where;
-    let _target = options.target;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
-      _target = (_target as Node).toRef();
+    let _text = options.text ?? null;
+    this._text = _text;
+    let _cardinality = options.cardinality ?? null;
+    if (_cardinality === null) {
+      _cardinality = 1 /* MethodCardinality.UNARY */;
     }
-    if (_target === null) {
-      throw new Error(`Trigger.target is required`);
+    if (_cardinality === null) {
+      throw new Error(`Method.cardinality is required`);
     }
-    this._targetPtr = _target;
-    let _arguments = options.arguments ?? null;
-    if (_arguments === null) {
-      _arguments = new Map();
-    }
-    this._arguments = _arguments;
+    this._cardinality = _cardinality;
 
     // identity
     if (options.id == null) {
@@ -456,7 +436,7 @@ export class Trigger extends Entity implements IsSpatial {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`Trigger.createdAt and Trigger.updatedAt are required for existing Nodes`);
+        throw new Error(`Method.createdAt and Method.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -489,33 +469,30 @@ export class Trigger extends Entity implements IsSpatial {
       return false;
     }
     if (
-      (this._event == null) !== (other._event == null) ||
-      (this._event != null && !this._event.equals(other._event))
+      (this._text == null) !== (other._text == null) ||
+      (this._text != null && !this._text.equals(other._text))
     ) {
       return false;
     }
-    if (
-      (this._where == null) !== (other._where == null) ||
-      (this._where != null && !this._where.equals(other._where))
-    ) {
+    if (!(this._cardinality === other._cardinality)) {
       return false;
-    }
-    if (!(this._targetPtr.id === other._targetPtr.id)) {
-      return false;
-    }
-    if (Object.keys(this._arguments).length !== Object.keys(other._arguments).length) {
-      return false;
-    }
-    for (const key in this._arguments) {
-      if (!(key in other._arguments)) {
-        return false;
-      }
-      if (!this._arguments.get(key)!.equals(other._arguments.get(key)!)) {
-        return false;
-      }
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+        return false;
+      }
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
@@ -535,25 +512,31 @@ export class Trigger extends Entity implements IsSpatial {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon !== null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this._event !== null) {
-      h = (h * 31 + this._event.hash()) & 0xffffffff;
+    if (this._text !== null) {
+      h = (h * 31 + this._text.hash()) & 0xffffffff;
     }
-    if (this._where !== null) {
-      h = (h * 31 + this._where.hash()) & 0xffffffff;
+    h = (h * 31 + this._cardinality) & 0xffffffff;
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._targetPtr.id)) & 0xffffffff;
-    if (this._arguments && Object.keys(this._arguments).length > 0) {
-      for (const [_key, _value] of Object.entries(this._arguments)) {
+    if (this.sourcePtr !== null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -576,9 +559,7 @@ export class Trigger extends Entity implements IsSpatial {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
 
     return h;
   }
@@ -590,7 +571,7 @@ export class Trigger extends Entity implements IsSpatial {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.TRIGGER,
+      type: NodeType.METHOD,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -619,16 +600,16 @@ export class Trigger extends Entity implements IsSpatial {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${this.name}`);
-    return `<Trigger '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Method '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
-    return Trigger.__packValue__(this);
+    return Method.__packValue__(this);
   }
 
-  static __packValue__(object: Trigger): { [key: string]: any } {
+  static __packValue__(object: Method): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 105000;
+    objectValue["1"] = 102000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -657,24 +638,28 @@ export class Trigger extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
+    if (object.deletedAt != null) {
+      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+    }
+    if (object._customValues.size > 0) {
+      const packedCustomValues: { [key: string]: any } = {};
+      for (const [key, value] of object._customValues) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
+    objectValue["27"] = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectValue["60"] = object.sourcePtr.toValue();
+    }
     objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
-    if (object._event != null) {
-      objectValue["110"] = object._event.toValue();
+    if (object._text != null) {
+      objectValue["104"] = object._text.toValue();
     }
-    if (object._where != null) {
-      objectValue["111"] = object._where.toValue();
-    }
-    objectValue["120"] = object._targetPtr.toValue();
-    if (object._arguments.size > 0) {
-      const packedArguments: { [key: string]: any } = {};
-      for (const [key, value] of object._arguments) {
-        packedArguments[String(String(key))] = value.toValue();
-      }
-      objectValue["121"] = packedArguments;
-    }
+    objectValue["110"] = object._cardinality;
     return objectValue;
   }
 
@@ -684,42 +669,49 @@ export class Trigger extends Entity implements IsSpatial {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Trigger {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
+  ): Method {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const eventValue = objectValue["110"];
-    const unpackedEvent =
-      eventValue != undefined
-        ? _NodeDefinitionReference.fromValue(eventValue, _session, _supergraph, _graph, _connection)
+    const textValue = objectValue["104"];
+    const unpackedText =
+      textValue != undefined
+        ? _Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
         : null;
-    const whereValue = objectValue["111"];
-    const unpackedWhere =
-      whereValue != undefined
-        ? _Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedArguments = new Map();
-    if (objectValue["121"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["121"])) {
-        unpackedArguments.set(
+    const sourcePtrValue = objectValue["60"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = new Map();
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+    const deletedAtValue = objectValue["25"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -751,25 +743,16 @@ export class Trigger extends Entity implements IsSpatial {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new Trigger({
+    return new Method({
+      parent: unpackedParentPtr,
       name: objectValue["101"],
       icon: unpackedIcon,
-      event: unpackedEvent,
-      where: unpackedWhere,
-      target: _NodeReference.fromValue(
-        objectValue["120"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      arguments: unpackedArguments,
+      text: unpackedText,
+      cardinality: Number(objectValue["110"]),
       space: unpackedSpacePtr,
+      source: unpackedSourcePtr,
+      customValues: unpackedCustomValues,
+      deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -780,7 +763,7 @@ export class Trigger extends Entity implements IsSpatial {
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
+      orderKey: objectValue["27"],
       _session,
       _graph,
       _connection,
@@ -793,16 +776,16 @@ export class Trigger extends Entity implements IsSpatial {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Trigger {
-    return Trigger.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Method {
+    return Method.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): TriggerProto {
-    return Trigger.__packProto__(this);
+  toProto(): MethodProto {
+    return Method.__packProto__(this);
   }
 
-  static __packProto__(object: Trigger): TriggerProto {
-    const objectProto: Partial<TriggerProto> = { metatype: 105000 };
+  static __packProto__(object: Method): MethodProto {
+    const objectProto: Partial<MethodProto> = { metatype: 102000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -831,77 +814,71 @@ export class Trigger extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    if (object._customValues) {
+      objectProto.customValues = {};
+      for (const [key, value] of object._customValues) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
+    objectProto.orderKey = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
     objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
-    if (object._event != null) {
-      objectProto.event = object._event.toProto();
+    if (object._text != null) {
+      objectProto.text = object._text.toProto();
     }
-    if (object._where != null) {
-      objectProto.where = object._where.toProto();
-    }
-    objectProto.targetPtr = object._targetPtr.toProto();
-    if (object._arguments) {
-      objectProto.arguments = {};
-      for (const [key, value] of object._arguments) {
-        objectProto.arguments![String(key)] = value.toProto();
-      }
-    }
-    return objectProto as TriggerProto;
+    objectProto.cardinality = Number(object._cardinality) as MethodCardinalityProto;
+    return objectProto as MethodProto;
   }
 
   static __unpackProto__(
-    objectProto: TriggerProto,
+    objectProto: MethodProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Trigger {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
+  ): Method {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedArguments = new Map();
-    if (objectProto.arguments) {
-      for (const [key, value] of Object.entries(objectProto.arguments)) {
-        unpackedArguments.set(
+    const unpackedCustomValues = new Map();
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
           String(key),
           _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    return new Trigger({
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      event:
-        objectProto.event != undefined
-          ? _NodeDefinitionReference.fromProto(
-              objectProto.event!,
+    return new Method({
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
               _connection,
             )
           : null,
-      where:
-        objectProto.where != undefined
-          ? _Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      target: _NodeReference.fromProto(
-        objectProto.targetPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      arguments: unpackedArguments,
+      text:
+        objectProto.text != undefined
+          ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
+          : null,
+      cardinality: Number(objectProto.cardinality) as MethodCardinality,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -912,6 +889,19 @@ export class Trigger extends Entity implements IsSpatial {
               _connection,
             )
           : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      customValues: unpackedCustomValues,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -976,16 +966,7 @@ export class Trigger extends Entity implements IsSpatial {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,
@@ -993,18 +974,18 @@ export class Trigger extends Entity implements IsSpatial {
   }
 
   static fromProto(
-    objectProto: TriggerProto,
+    objectProto: MethodProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Trigger {
-    return Trigger.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Method {
+    return Method.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Trigger {
+  static fromProtoString(packedProtoString: string): Method {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = TriggerProto.fromBinary(packedProtoBytes);
+    const packedProto = MethodProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1012,5 +993,5 @@ export class Trigger extends Entity implements IsSpatial {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.TRIGGER, Trigger);
-/* ==== DESTACK_GENERATED_END:NODE:105000 ==== */
+registerNodeClass(NodeType.METHOD, Method);
+/* ==== DESTACK_GENERATED_END:NODE:102000 ==== */

@@ -526,10 +526,10 @@ export class Database extends Resource implements IsSpatial {
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -539,18 +539,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * Resource.status
    */
   get status(): ResourceStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: ResourceStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -560,18 +560,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: ResourceStatus;
+  _status: ResourceStatus;
 
   /**
    * Database.type
    */
   get type(): DatabaseType {
-    return this.#type;
+    return this._type;
   }
   set type(value: DatabaseType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -581,18 +581,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: DatabaseType;
+  _type: DatabaseType;
 
   /**
    * Database.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -602,18 +602,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Database.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -623,18 +623,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   /**
    * Database.region
    */
   get region(): Region {
-    return this.#region;
+    return this._region;
   }
   set region(value: Region) {
-    const oldValue = this.#region;
+    const oldValue = this._region;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -644,18 +644,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#region = value;
+    this._region = value;
   }
-  #region: Region;
+  _region: Region;
 
   /**
    * Database.galaxyName
    */
   get galaxyName(): string | null {
-    return this.#galaxyName;
+    return this._galaxyName;
   }
   set galaxyName(value: string | null) {
-    const oldValue = this.#galaxyName;
+    const oldValue = this._galaxyName;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -665,18 +665,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#galaxyName = value;
+    this._galaxyName = value;
   }
-  #galaxyName: string | null;
+  _galaxyName: string | null;
 
   /**
    * Database.externalName
    */
   get externalName(): string {
-    return this.#externalName;
+    return this._externalName;
   }
   set externalName(value: string) {
-    const oldValue = this.#externalName;
+    const oldValue = this._externalName;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -686,18 +686,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#externalName = value;
+    this._externalName = value;
   }
-  #externalName: string;
+  _externalName: string;
 
   /**
    * Database.customSchemaName
    */
   get customSchemaName(): string | null {
-    return this.#customSchemaName;
+    return this._customSchemaName;
   }
   set customSchemaName(value: string | null) {
-    const oldValue = this.#customSchemaName;
+    const oldValue = this._customSchemaName;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -707,18 +707,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customSchemaName = value;
+    this._customSchemaName = value;
   }
-  #customSchemaName: string | null;
+  _customSchemaName: string | null;
 
   /**
    * Database.tenancy
    */
   get tenancy(): Tenancy {
-    return this.#tenancy;
+    return this._tenancy;
   }
   set tenancy(value: Tenancy) {
-    const oldValue = this.#tenancy;
+    const oldValue = this._tenancy;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -728,18 +728,18 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#tenancy = value;
+    this._tenancy = value;
   }
-  #tenancy: Tenancy;
+  _tenancy: Tenancy;
 
   /**
    * Database.connectionUrl
    */
   get connectionUrl(): string | null {
-    return this.#connectionUrl;
+    return this._connectionUrl;
   }
   set connectionUrl(value: string | null) {
-    const oldValue = this.#connectionUrl;
+    const oldValue = this._connectionUrl;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -749,9 +749,9 @@ export class Database extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#connectionUrl = value;
+    this._connectionUrl = value;
   }
-  #connectionUrl: string | null;
+  _connectionUrl: string | null;
 
   constructor(options: {
     id?: string;
@@ -860,7 +860,7 @@ export class Database extends Resource implements IsSpatial {
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* ResourceStatus.PENDING */;
@@ -868,33 +868,33 @@ export class Database extends Resource implements IsSpatial {
     if (_status === null) {
       throw new Error(`Database.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Database.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Database.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
     let _region = options.region;
     if (_region === null) {
       throw new Error(`Database.region is required`);
     }
-    this.#region = _region;
+    this._region = _region;
     let _galaxyName = options.galaxyName ?? null;
-    this.#galaxyName = _galaxyName;
+    this._galaxyName = _galaxyName;
     let _externalName = options.externalName;
     if (_externalName === null) {
       throw new Error(`Database.externalName is required`);
     }
-    this.#externalName = _externalName;
+    this._externalName = _externalName;
     let _customSchemaName = options.customSchemaName ?? null;
-    this.#customSchemaName = _customSchemaName;
+    this._customSchemaName = _customSchemaName;
     let _tenancy = options.tenancy ?? null;
     if (_tenancy === null) {
       _tenancy = 1 /* Tenancy.DEDICATED */;
@@ -902,9 +902,9 @@ export class Database extends Resource implements IsSpatial {
     if (_tenancy === null) {
       throw new Error(`Database.tenancy is required`);
     }
-    this.#tenancy = _tenancy;
+    this._tenancy = _tenancy;
     let _connectionUrl = options.connectionUrl ?? null;
-    this.#connectionUrl = _connectionUrl;
+    this._connectionUrl = _connectionUrl;
 
     // identity
     if (options.id == null) {
@@ -940,40 +940,40 @@ export class Database extends Resource implements IsSpatial {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#region === other.#region)) {
+    if (!(this._region === other._region)) {
       return false;
     }
-    if (!(this.#galaxyName === other.#galaxyName)) {
+    if (!(this._galaxyName === other._galaxyName)) {
       return false;
     }
-    if (!(this.#externalName === other.#externalName)) {
+    if (!(this._externalName === other._externalName)) {
       return false;
     }
-    if (!(this.#customSchemaName === other.#customSchemaName)) {
+    if (!(this._customSchemaName === other._customSchemaName)) {
       return false;
     }
-    if (!(this.#tenancy === other.#tenancy)) {
+    if (!(this._tenancy === other._tenancy)) {
       return false;
     }
-    if (!(this.#connectionUrl === other.#connectionUrl)) {
+    if (!(this._connectionUrl === other._connectionUrl)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -997,14 +997,14 @@ export class Database extends Resource implements IsSpatial {
     if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -1017,27 +1017,27 @@ export class Database extends Resource implements IsSpatial {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this.#type) & 0xffffffff;
-    h = (h * 31 + this.#region) & 0xffffffff;
-    if (this.#galaxyName !== null) {
-      h = (h * 31 + hashString(this.#galaxyName)) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + this._region) & 0xffffffff;
+    if (this._galaxyName !== null) {
+      h = (h * 31 + hashString(this._galaxyName)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#externalName)) & 0xffffffff;
-    if (this.#customSchemaName !== null) {
-      h = (h * 31 + hashString(this.#customSchemaName)) & 0xffffffff;
+    h = (h * 31 + hashString(this._externalName)) & 0xffffffff;
+    if (this._customSchemaName !== null) {
+      h = (h * 31 + hashString(this._customSchemaName)) & 0xffffffff;
     }
-    h = (h * 31 + this.#tenancy) & 0xffffffff;
-    if (this.#connectionUrl !== null) {
-      h = (h * 31 + hashString(this.#connectionUrl)) & 0xffffffff;
+    h = (h * 31 + this._tenancy) & 0xffffffff;
+    if (this._connectionUrl !== null) {
+      h = (h * 31 + hashString(this._connectionUrl)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#status) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -1068,8 +1068,8 @@ export class Database extends Resource implements IsSpatial {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -1172,30 +1172,30 @@ export class Database extends Resource implements IsSpatial {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
-    objectValue["90"] = object.#status;
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["90"] = object._status;
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
-    objectValue["110"] = object.#region;
-    if (object.#galaxyName != null) {
-      objectValue["111"] = object.#galaxyName;
+    objectValue["110"] = object._region;
+    if (object._galaxyName != null) {
+      objectValue["111"] = object._galaxyName;
     }
-    objectValue["112"] = object.#externalName;
-    if (object.#customSchemaName != null) {
-      objectValue["113"] = object.#customSchemaName;
+    objectValue["112"] = object._externalName;
+    if (object._customSchemaName != null) {
+      objectValue["113"] = object._customSchemaName;
     }
-    objectValue["115"] = object.#tenancy;
-    if (object.#connectionUrl != null) {
-      objectValue["118"] = object.#connectionUrl;
+    objectValue["115"] = object._tenancy;
+    if (object._connectionUrl != null) {
+      objectValue["118"] = object._connectionUrl;
     }
     return objectValue;
   }
@@ -1381,29 +1381,29 @@ export class Database extends Resource implements IsSpatial {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.status = Number(object.#status) as ResourceStatusProto;
-    objectProto.type = Number(object.#type) as DatabaseTypeProto;
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.status = Number(object._status) as ResourceStatusProto;
+    objectProto.type = Number(object._type) as DatabaseTypeProto;
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
-    objectProto.region = Number(object.#region) as RegionProto;
-    if (object.#galaxyName != null) {
-      objectProto.galaxyName = object.#galaxyName;
+    objectProto.region = Number(object._region) as RegionProto;
+    if (object._galaxyName != null) {
+      objectProto.galaxyName = object._galaxyName;
     }
-    objectProto.externalName = object.#externalName;
-    if (object.#customSchemaName != null) {
-      objectProto.customSchemaName = object.#customSchemaName;
+    objectProto.externalName = object._externalName;
+    if (object._customSchemaName != null) {
+      objectProto.customSchemaName = object._customSchemaName;
     }
-    objectProto.tenancy = Number(object.#tenancy) as TenancyProto;
-    if (object.#connectionUrl != null) {
-      objectProto.connectionUrl = object.#connectionUrl;
+    objectProto.tenancy = Number(object._tenancy) as TenancyProto;
+    if (object._connectionUrl != null) {
+      objectProto.connectionUrl = object._connectionUrl;
     }
     return objectProto as DatabaseProto;
   }

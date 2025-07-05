@@ -194,10 +194,10 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -207,18 +207,18 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Window.type
    */
   get type(): WindowType {
-    return this.#type;
+    return this._type;
   }
   set type(value: WindowType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -228,18 +228,18 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: WindowType;
+  _type: WindowType;
 
   /**
    * Window.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -249,9 +249,9 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   constructor(options: {
     id?: string;
@@ -352,17 +352,17 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Window.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Window.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
 
     // identity
     if (options.id == null) {
@@ -396,16 +396,16 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -426,13 +426,13 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#type) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
@@ -548,11 +548,11 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
     return objectValue;
   }
 
@@ -686,11 +686,11 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.type = Number(object.#type) as WindowTypeProto;
-    objectProto.name = object.#name;
+    objectProto.type = Number(object._type) as WindowTypeProto;
+    objectProto.name = object._name;
     return objectProto as WindowProto;
   }
 

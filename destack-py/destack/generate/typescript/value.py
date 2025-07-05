@@ -177,7 +177,7 @@ def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         prop_ts_name = prop_ts_name + "Ptr"
     if _is_property_tracked(prop):
-        obj_value = f"object.#{prop_ts_name}"
+        obj_value = f"object._{prop_ts_name}"
     else:
         obj_value = f"object.{prop_ts_name}"
     packed_name = f"packed{_upper_first(prop_ts_name)}"

@@ -620,10 +620,10 @@ export class ShadowStyle extends Style {
    * ShadowStyle.type
    */
   get type(): ShadowType {
-    return this.#type;
+    return this._type;
   }
   set type(value: ShadowType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -633,18 +633,18 @@ export class ShadowStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: ShadowType;
+  _type: ShadowType;
 
   /**
    * Style.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -654,18 +654,18 @@ export class ShadowStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * ShadowStyle.color
    */
   get color(): Color | null {
-    return this.#color;
+    return this._color;
   }
   set color(value: Color | null) {
-    const oldValue = this.#color;
+    const oldValue = this._color;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -675,18 +675,18 @@ export class ShadowStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#color = value;
+    this._color = value;
   }
-  #color: Color | null;
+  _color: Color | null;
 
   /**
    * ShadowStyle.position
    */
   get position(): ShadowPosition {
-    return this.#position;
+    return this._position;
   }
   set position(value: ShadowPosition) {
-    const oldValue = this.#position;
+    const oldValue = this._position;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -696,18 +696,18 @@ export class ShadowStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#position = value;
+    this._position = value;
   }
-  #position: ShadowPosition;
+  _position: ShadowPosition;
 
   /**
    * ShadowStyle.offset
    */
   get offset(): Axis2 | null {
-    return this.#offset;
+    return this._offset;
   }
   set offset(value: Axis2 | null) {
-    const oldValue = this.#offset;
+    const oldValue = this._offset;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -717,18 +717,18 @@ export class ShadowStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#offset = value;
+    this._offset = value;
   }
-  #offset: Axis2 | null;
+  _offset: Axis2 | null;
 
   /**
    * ShadowStyle.blur
    */
   get blur(): number | null {
-    return this.#blur;
+    return this._blur;
   }
   set blur(value: number | null) {
-    const oldValue = this.#blur;
+    const oldValue = this._blur;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -738,18 +738,18 @@ export class ShadowStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#blur = value;
+    this._blur = value;
   }
-  #blur: number | null;
+  _blur: number | null;
 
   /**
    * ShadowStyle.spread
    */
   get spread(): number | null {
-    return this.#spread;
+    return this._spread;
   }
   set spread(value: number | null) {
-    const oldValue = this.#spread;
+    const oldValue = this._spread;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -759,18 +759,18 @@ export class ShadowStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#spread = value;
+    this._spread = value;
   }
-  #spread: number | null;
+  _spread: number | null;
 
   /**
    * ShadowStyle.diffusion
    */
   get diffusion(): number | null {
-    return this.#diffusion;
+    return this._diffusion;
   }
   set diffusion(value: number | null) {
-    const oldValue = this.#diffusion;
+    const oldValue = this._diffusion;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -780,9 +780,9 @@ export class ShadowStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#diffusion = value;
+    this._diffusion = value;
   }
-  #diffusion: number | null;
+  _diffusion: number | null;
 
   constructor(options: {
     id?: string;
@@ -891,14 +891,14 @@ export class ShadowStyle extends Style {
     if (_type === null) {
       throw new Error(`ShadowStyle.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`ShadowStyle.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _color = options.color ?? null;
-    this.#color = _color;
+    this._color = _color;
     let _position = options.position ?? null;
     if (_position === null) {
       _position = 1 /* ShadowPosition.OUTSIDE */;
@@ -906,15 +906,15 @@ export class ShadowStyle extends Style {
     if (_position === null) {
       throw new Error(`ShadowStyle.position is required`);
     }
-    this.#position = _position;
+    this._position = _position;
     let _offset = options.offset ?? null;
-    this.#offset = _offset;
+    this._offset = _offset;
     let _blur = options.blur ?? null;
-    this.#blur = _blur;
+    this._blur = _blur;
     let _spread = options.spread ?? null;
-    this.#spread = _spread;
+    this._spread = _spread;
     let _diffusion = options.diffusion ?? null;
-    this.#diffusion = _diffusion;
+    this._diffusion = _diffusion;
 
     // identity
     if (options.id == null) {
@@ -950,41 +950,41 @@ export class ShadowStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
     if (
-      (this.#color == null) !== (other.#color == null) ||
-      (this.#color != null && !this.#color.equals(other.#color))
+      (this._color == null) !== (other._color == null) ||
+      (this._color != null && !this._color.equals(other._color))
     ) {
       return false;
     }
-    if (!(this.#position === other.#position)) {
+    if (!(this._position === other._position)) {
       return false;
     }
     if (
-      (this.#offset == null) !== (other.#offset == null) ||
-      (this.#offset != null && !this.#offset.equals(other.#offset))
+      (this._offset == null) !== (other._offset == null) ||
+      (this._offset != null && !this._offset.equals(other._offset))
     ) {
       return false;
     }
-    if (!(this.#blur === other.#blur)) {
+    if (!(this._blur === other._blur)) {
       return false;
     }
-    if (!(this.#spread === other.#spread)) {
+    if (!(this._spread === other._spread)) {
       return false;
     }
     if (
-      (this.#diffusion == null) !== (other.#diffusion == null) ||
-      (this.#diffusion != null &&
+      (this._diffusion == null) !== (other._diffusion == null) ||
+      (this._diffusion != null &&
         !(
-          this.#diffusion === other.#diffusion ||
-          Math.abs(this.#diffusion - other.#diffusion) < 1e-10
+          this._diffusion === other._diffusion ||
+          Math.abs(this._diffusion - other._diffusion) < 1e-10
         ))
     ) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1008,27 +1008,27 @@ export class ShadowStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#type) & 0xffffffff;
-    if (this.#color !== null) {
-      h = (h * 31 + this.#color.hash()) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._color !== null) {
+      h = (h * 31 + this._color.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this.#position) & 0xffffffff;
-    if (this.#offset !== null) {
-      h = (h * 31 + this.#offset.hash()) & 0xffffffff;
+    h = (h * 31 + this._position) & 0xffffffff;
+    if (this._offset !== null) {
+      h = (h * 31 + this._offset.hash()) & 0xffffffff;
     }
-    if (this.#blur !== null) {
-      h = (h * 31 + hashInt(this.#blur)) & 0xffffffff;
+    if (this._blur !== null) {
+      h = (h * 31 + hashInt(this._blur)) & 0xffffffff;
     }
-    if (this.#spread !== null) {
-      h = (h * 31 + hashInt(this.#spread)) & 0xffffffff;
+    if (this._spread !== null) {
+      h = (h * 31 + hashInt(this._spread)) & 0xffffffff;
     }
-    if (this.#diffusion !== null) {
-      h = (h * 31 + hashFloat(this.#diffusion)) & 0xffffffff;
+    if (this._diffusion !== null) {
+      h = (h * 31 + hashFloat(this._diffusion)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1156,23 +1156,23 @@ export class ShadowStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#color != null) {
-      objectValue["200"] = object.#color.toValue();
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._color != null) {
+      objectValue["200"] = object._color.toValue();
     }
-    objectValue["201"] = object.#position;
-    if (object.#offset != null) {
-      objectValue["202"] = object.#offset.toValue();
+    objectValue["201"] = object._position;
+    if (object._offset != null) {
+      objectValue["202"] = object._offset.toValue();
     }
-    if (object.#blur != null) {
-      objectValue["203"] = object.#blur;
+    if (object._blur != null) {
+      objectValue["203"] = object._blur;
     }
-    if (object.#spread != null) {
-      objectValue["204"] = object.#spread;
+    if (object._spread != null) {
+      objectValue["204"] = object._spread;
     }
-    if (object.#diffusion != null) {
-      objectValue["205"] = object.#diffusion;
+    if (object._diffusion != null) {
+      objectValue["205"] = object._diffusion;
     }
     return objectValue;
   }
@@ -1325,23 +1325,23 @@ export class ShadowStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.#type) as ShadowTypeProto;
-    objectProto.name = object.#name;
-    if (object.#color != null) {
-      objectProto.color = object.#color.toProto();
+    objectProto.type = Number(object._type) as ShadowTypeProto;
+    objectProto.name = object._name;
+    if (object._color != null) {
+      objectProto.color = object._color.toProto();
     }
-    objectProto.position = Number(object.#position) as ShadowPositionProto;
-    if (object.#offset != null) {
-      objectProto.offset = object.#offset.toProto();
+    objectProto.position = Number(object._position) as ShadowPositionProto;
+    if (object._offset != null) {
+      objectProto.offset = object._offset.toProto();
     }
-    if (object.#blur != null) {
-      objectProto.blur = object.#blur;
+    if (object._blur != null) {
+      objectProto.blur = object._blur;
     }
-    if (object.#spread != null) {
-      objectProto.spread = object.#spread;
+    if (object._spread != null) {
+      objectProto.spread = object._spread;
     }
-    if (object.#diffusion != null) {
-      objectProto.diffusion = object.#diffusion;
+    if (object._diffusion != null) {
+      objectProto.diffusion = object._diffusion;
     }
     return objectProto as ShadowStyleProto;
   }

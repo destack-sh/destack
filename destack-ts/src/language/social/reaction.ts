@@ -161,10 +161,10 @@ export class Reaction
     this.ownedByPtr = node.toRef();
   }
   get ownedByPtr(): NodeReference {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -174,18 +174,18 @@ export class Reaction
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference;
+  _ownedByPtr: NodeReference;
 
   /**
    * Reaction.content
    */
   get content(): string {
-    return this.#content;
+    return this._content;
   }
   set content(value: string) {
-    const oldValue = this.#content;
+    const oldValue = this._content;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -195,9 +195,9 @@ export class Reaction
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#content = value;
+    this._content = value;
   }
-  #content: string;
+  _content: string;
 
   constructor(options: {
     id?: string;
@@ -291,12 +291,12 @@ export class Reaction
     if (_ownedBy === null) {
       throw new Error(`Reaction.ownedBy is required`);
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _content = options.content;
     if (_content === null) {
       throw new Error(`Reaction.content is required`);
     }
-    this.#content = _content;
+    this._content = _content;
 
     // identity
     if (options.id == null) {
@@ -332,10 +332,10 @@ export class Reaction
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#ownedByPtr.id === other.#ownedByPtr.id)) {
+    if (!(this._ownedByPtr.id === other._ownedByPtr.id)) {
       return false;
     }
-    if (!(this.#content === other.#content)) {
+    if (!(this._content === other._content)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -362,8 +362,8 @@ export class Reaction
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.#content)) & 0xffffffff;
+    h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._content)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -472,8 +472,8 @@ export class Reaction
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["28"] = object.#ownedByPtr.toValue();
-    objectValue["101"] = object.#content;
+    objectValue["28"] = object._ownedByPtr.toValue();
+    objectValue["101"] = object._content;
     return objectValue;
   }
 
@@ -605,8 +605,8 @@ export class Reaction
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.ownedByPtr = object.#ownedByPtr.toProto();
-    objectProto.content = object.#content;
+    objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    objectProto.content = object._content;
     return objectProto as ReactionProto;
   }
 

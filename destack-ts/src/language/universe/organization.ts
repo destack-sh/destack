@@ -156,10 +156,10 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
    * Organization.slug
    */
   get slug(): string {
-    return this.#slug;
+    return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this.#slug;
+    const oldValue = this._slug;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -169,18 +169,18 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#slug = value;
+    this._slug = value;
   }
-  #slug: string;
+  _slug: string;
 
   /**
    * Organization.status
    */
   get status(): OrganizationStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: OrganizationStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -190,9 +190,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: OrganizationStatus;
+  _status: OrganizationStatus;
 
   /**
    * Organization.space
@@ -205,10 +205,10 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return null;
   }
   get spacePtr(): NodeReference {
-    return this.#spacePtr;
+    return this._spacePtr;
   }
   set spacePtr(value: NodeReference) {
-    const oldValue = this.#spacePtr;
+    const oldValue = this._spacePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -218,9 +218,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#spacePtr = value;
+    this._spacePtr = value;
   }
-  #spacePtr: NodeReference;
+  _spacePtr: NodeReference;
 
   /**
    * Organization.handle
@@ -233,10 +233,10 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return null;
   }
   get handlePtr(): NodeReference | null {
-    return this.#handlePtr;
+    return this._handlePtr;
   }
   set handlePtr(value: NodeReference | null) {
-    const oldValue = this.#handlePtr;
+    const oldValue = this._handlePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -246,9 +246,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#handlePtr = value;
+    this._handlePtr = value;
   }
-  #handlePtr: NodeReference | null;
+  _handlePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -332,7 +332,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (_slug === null) {
       throw new Error(`Organization.slug is required`);
     }
-    this.#slug = _slug;
+    this._slug = _slug;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* OrganizationStatus.CREATING */;
@@ -340,7 +340,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (_status === null) {
       throw new Error(`Organization.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _space = options.space;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -348,12 +348,12 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (_space === null) {
       throw new Error(`Organization.space is required`);
     }
-    this.#spacePtr = _space;
+    this._spacePtr = _space;
     let _handle = options.handle ?? null;
     if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
       _handle = (_handle as Node).toRef();
     }
-    this.#handlePtr = _handle;
+    this._handlePtr = _handle;
 
     // identity
     if (options.id == null) {
@@ -389,16 +389,16 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#slug === other.#slug)) {
+    if (!(this._slug === other._slug)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.#spacePtr.id === other.#spacePtr.id)) {
+    if (!(this._spacePtr.id === other._spacePtr.id)) {
       return false;
     }
-    if (!(this.#handlePtr?.id === other.#handlePtr?.id)) {
+    if (!(this._handlePtr?.id === other._handlePtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -419,11 +419,11 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
-    h = (h * 31 + this.#status) & 0xffffffff;
-    h = (h * 31 + hashString(this.#spacePtr.id)) & 0xffffffff;
-    if (this.#handlePtr !== null) {
-      h = (h * 31 + hashString(this.#handlePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._slug)) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
+    h = (h * 31 + hashString(this._spacePtr.id)) & 0xffffffff;
+    if (this._handlePtr !== null) {
+      h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -515,11 +515,11 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["101"] = object.#slug;
-    objectValue["102"] = object.#status;
-    objectValue["110"] = object.#spacePtr.toValue();
-    if (object.#handlePtr != null) {
-      objectValue["111"] = object.#handlePtr.toValue();
+    objectValue["101"] = object._slug;
+    objectValue["102"] = object._status;
+    objectValue["110"] = object._spacePtr.toValue();
+    if (object._handlePtr != null) {
+      objectValue["111"] = object._handlePtr.toValue();
     }
     return objectValue;
   }
@@ -641,11 +641,11 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.slug = object.#slug;
-    objectProto.status = Number(object.#status) as OrganizationStatusProto;
-    objectProto.spacePtr = object.#spacePtr.toProto();
-    if (object.#handlePtr != null) {
-      objectProto.handlePtr = object.#handlePtr.toProto();
+    objectProto.slug = object._slug;
+    objectProto.status = Number(object._status) as OrganizationStatusProto;
+    objectProto.spacePtr = object._spacePtr.toProto();
+    if (object._handlePtr != null) {
+      objectProto.handlePtr = object._handlePtr.toProto();
     }
     return objectProto as OrganizationProto;
   }

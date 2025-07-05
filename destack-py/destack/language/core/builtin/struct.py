@@ -118,7 +118,7 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
         raise NotImplementedError  # generated
 
 
-@builtin_struct(None, is_extensible=True)
+@builtin_struct(None, is_abstract=True, is_extensible=True)
 class StructMutable[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     """A mutable Struct."""
 

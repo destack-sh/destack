@@ -193,10 +193,10 @@ export class Space
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -206,18 +206,18 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Space.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -227,18 +227,18 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Space.slug
    */
   get slug(): string {
-    return this.#slug;
+    return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this.#slug;
+    const oldValue = this._slug;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -248,18 +248,18 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#slug = value;
+    this._slug = value;
   }
-  #slug: string;
+  _slug: string;
 
   /**
    * Space.status
    */
   get status(): SpaceStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: SpaceStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -269,9 +269,9 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: SpaceStatus;
+  _status: SpaceStatus;
 
   /**
    * Space.handle
@@ -284,10 +284,10 @@ export class Space
     return null;
   }
   get handlePtr(): NodeReference | null {
-    return this.#handlePtr;
+    return this._handlePtr;
   }
   set handlePtr(value: NodeReference | null) {
-    const oldValue = this.#handlePtr;
+    const oldValue = this._handlePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -297,9 +297,9 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#handlePtr = value;
+    this._handlePtr = value;
   }
-  #handlePtr: NodeReference | null;
+  _handlePtr: NodeReference | null;
 
   /**
    * The system Folder.
@@ -312,10 +312,10 @@ export class Space
     return null;
   }
   get systemFolderPtr(): NodeReference | null {
-    return this.#systemFolderPtr;
+    return this._systemFolderPtr;
   }
   set systemFolderPtr(value: NodeReference | null) {
-    const oldValue = this.#systemFolderPtr;
+    const oldValue = this._systemFolderPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -325,9 +325,9 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#systemFolderPtr = value;
+    this._systemFolderPtr = value;
   }
-  #systemFolderPtr: NodeReference | null;
+  _systemFolderPtr: NodeReference | null;
 
   /**
    * The home Folder.
@@ -340,10 +340,10 @@ export class Space
     return null;
   }
   get homeFolderPtr(): NodeReference | null {
-    return this.#homeFolderPtr;
+    return this._homeFolderPtr;
   }
   set homeFolderPtr(value: NodeReference | null) {
-    const oldValue = this.#homeFolderPtr;
+    const oldValue = this._homeFolderPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -353,18 +353,18 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#homeFolderPtr = value;
+    this._homeFolderPtr = value;
   }
-  #homeFolderPtr: NodeReference | null;
+  _homeFolderPtr: NodeReference | null;
 
   /**
    * Space.region
    */
   get region(): Region {
-    return this.#region;
+    return this._region;
   }
   set region(value: Region) {
-    const oldValue = this.#region;
+    const oldValue = this._region;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -374,18 +374,18 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#region = value;
+    this._region = value;
   }
-  #region: Region;
+  _region: Region;
 
   /**
    * Space.galaxyName
    */
   get galaxyName(): string | null {
-    return this.#galaxyName;
+    return this._galaxyName;
   }
   set galaxyName(value: string | null) {
-    const oldValue = this.#galaxyName;
+    const oldValue = this._galaxyName;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -395,9 +395,9 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#galaxyName = value;
+    this._galaxyName = value;
   }
-  #galaxyName: string | null;
+  _galaxyName: string | null;
 
   /**
    * Space.database
@@ -410,10 +410,10 @@ export class Space
     return null;
   }
   get databasePtr(): NodeReference | null {
-    return this.#databasePtr;
+    return this._databasePtr;
   }
   set databasePtr(value: NodeReference | null) {
-    const oldValue = this.#databasePtr;
+    const oldValue = this._databasePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -423,9 +423,9 @@ export class Space
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#databasePtr = value;
+    this._databasePtr = value;
   }
-  #databasePtr: NodeReference | null;
+  _databasePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -521,49 +521,49 @@ export class Space
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Space.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Space.slug is required`);
     }
-    this.#slug = _slug;
+    this._slug = _slug;
     let _status = options.status;
     if (_status === null) {
       throw new Error(`Space.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _handle = options.handle ?? null;
     if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
       _handle = (_handle as Node).toRef();
     }
-    this.#handlePtr = _handle;
+    this._handlePtr = _handle;
     let _systemFolder = options.systemFolder ?? null;
     if (_systemFolder != null && _systemFolder.metatype != StructType.NODE_REFERENCE) {
       _systemFolder = (_systemFolder as Node).toRef();
     }
-    this.#systemFolderPtr = _systemFolder;
+    this._systemFolderPtr = _systemFolder;
     let _homeFolder = options.homeFolder ?? null;
     if (_homeFolder != null && _homeFolder.metatype != StructType.NODE_REFERENCE) {
       _homeFolder = (_homeFolder as Node).toRef();
     }
-    this.#homeFolderPtr = _homeFolder;
+    this._homeFolderPtr = _homeFolder;
     let _region = options.region;
     if (_region === null) {
       throw new Error(`Space.region is required`);
     }
-    this.#region = _region;
+    this._region = _region;
     let _galaxyName = options.galaxyName ?? null;
-    this.#galaxyName = _galaxyName;
+    this._galaxyName = _galaxyName;
     let _database = options.database ?? null;
     if (_database != null && _database.metatype != StructType.NODE_REFERENCE) {
       _database = (_database as Node).toRef();
     }
-    this.#databasePtr = _database;
+    this._databasePtr = _database;
 
     // identity
     if (options.id == null) {
@@ -597,34 +597,34 @@ export class Space
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
-    if (!(this.#slug === other.#slug)) {
+    if (!(this._slug === other._slug)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.#handlePtr?.id === other.#handlePtr?.id)) {
+    if (!(this._handlePtr?.id === other._handlePtr?.id)) {
       return false;
     }
-    if (!(this.#systemFolderPtr?.id === other.#systemFolderPtr?.id)) {
+    if (!(this._systemFolderPtr?.id === other._systemFolderPtr?.id)) {
       return false;
     }
-    if (!(this.#homeFolderPtr?.id === other.#homeFolderPtr?.id)) {
+    if (!(this._homeFolderPtr?.id === other._homeFolderPtr?.id)) {
       return false;
     }
-    if (!(this.#region === other.#region)) {
+    if (!(this._region === other._region)) {
       return false;
     }
-    if (!(this.#galaxyName === other.#galaxyName)) {
+    if (!(this._galaxyName === other._galaxyName)) {
       return false;
     }
-    if (!(this.#databasePtr?.id === other.#databasePtr?.id)) {
+    if (!(this._databasePtr?.id === other._databasePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -648,27 +648,27 @@ export class Space
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
-    h = (h * 31 + this.#status) & 0xffffffff;
-    if (this.#handlePtr !== null) {
-      h = (h * 31 + hashString(this.#handlePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._slug)) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
+    if (this._handlePtr !== null) {
+      h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
     }
-    if (this.#systemFolderPtr !== null) {
-      h = (h * 31 + hashString(this.#systemFolderPtr.id)) & 0xffffffff;
+    if (this._systemFolderPtr !== null) {
+      h = (h * 31 + hashString(this._systemFolderPtr.id)) & 0xffffffff;
     }
-    if (this.#homeFolderPtr !== null) {
-      h = (h * 31 + hashString(this.#homeFolderPtr.id)) & 0xffffffff;
+    if (this._homeFolderPtr !== null) {
+      h = (h * 31 + hashString(this._homeFolderPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#region) & 0xffffffff;
-    if (this.#galaxyName !== null) {
-      h = (h * 31 + hashString(this.#galaxyName)) & 0xffffffff;
+    h = (h * 31 + this._region) & 0xffffffff;
+    if (this._galaxyName !== null) {
+      h = (h * 31 + hashString(this._galaxyName)) & 0xffffffff;
     }
-    if (this.#databasePtr !== null) {
-      h = (h * 31 + hashString(this.#databasePtr.id)) & 0xffffffff;
+    if (this._databasePtr !== null) {
+      h = (h * 31 + hashString(this._databasePtr.id)) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -771,27 +771,27 @@ export class Space
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["101"] = object.#name;
-    objectValue["102"] = object.#slug;
-    objectValue["110"] = object.#status;
-    if (object.#handlePtr != null) {
-      objectValue["111"] = object.#handlePtr.toValue();
+    objectValue["101"] = object._name;
+    objectValue["102"] = object._slug;
+    objectValue["110"] = object._status;
+    if (object._handlePtr != null) {
+      objectValue["111"] = object._handlePtr.toValue();
     }
-    if (object.#systemFolderPtr != null) {
-      objectValue["112"] = object.#systemFolderPtr.toValue();
+    if (object._systemFolderPtr != null) {
+      objectValue["112"] = object._systemFolderPtr.toValue();
     }
-    if (object.#homeFolderPtr != null) {
-      objectValue["113"] = object.#homeFolderPtr.toValue();
+    if (object._homeFolderPtr != null) {
+      objectValue["113"] = object._homeFolderPtr.toValue();
     }
-    objectValue["120"] = object.#region;
-    if (object.#galaxyName != null) {
-      objectValue["121"] = object.#galaxyName;
+    objectValue["120"] = object._region;
+    if (object._galaxyName != null) {
+      objectValue["121"] = object._galaxyName;
     }
-    if (object.#databasePtr != null) {
-      objectValue["122"] = object.#databasePtr.toValue();
+    if (object._databasePtr != null) {
+      objectValue["122"] = object._databasePtr.toValue();
     }
     return objectValue;
   }
@@ -944,27 +944,27 @@ export class Space
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.name = object.#name;
-    objectProto.slug = object.#slug;
-    objectProto.status = Number(object.#status) as SpaceStatusProto;
-    if (object.#handlePtr != null) {
-      objectProto.handlePtr = object.#handlePtr.toProto();
+    objectProto.name = object._name;
+    objectProto.slug = object._slug;
+    objectProto.status = Number(object._status) as SpaceStatusProto;
+    if (object._handlePtr != null) {
+      objectProto.handlePtr = object._handlePtr.toProto();
     }
-    if (object.#systemFolderPtr != null) {
-      objectProto.systemFolderPtr = object.#systemFolderPtr.toProto();
+    if (object._systemFolderPtr != null) {
+      objectProto.systemFolderPtr = object._systemFolderPtr.toProto();
     }
-    if (object.#homeFolderPtr != null) {
-      objectProto.homeFolderPtr = object.#homeFolderPtr.toProto();
+    if (object._homeFolderPtr != null) {
+      objectProto.homeFolderPtr = object._homeFolderPtr.toProto();
     }
-    objectProto.region = Number(object.#region) as RegionProto;
-    if (object.#galaxyName != null) {
-      objectProto.galaxyName = object.#galaxyName;
+    objectProto.region = Number(object._region) as RegionProto;
+    if (object._galaxyName != null) {
+      objectProto.galaxyName = object._galaxyName;
     }
-    if (object.#databasePtr != null) {
-      objectProto.databasePtr = object.#databasePtr.toProto();
+    if (object._databasePtr != null) {
+      objectProto.databasePtr = object._databasePtr.toProto();
     }
     return objectProto as SpaceProto;
   }

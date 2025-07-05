@@ -2,14 +2,8 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   Icon,
-  IsCustomizable,
-  IsDeletable,
-  IsRunnable,
   IsScriptable,
-  IsSourceable,
-  IsSpatial,
   IsSubject,
-  IsTaggable,
   NodeReference,
   QueryConnection,
   Session,
@@ -18,288 +12,23 @@ import type {
   Text,
   Value,
 } from "@destack/language/core";
-import {
-  Entity,
-  EnumType,
-  Materialization,
-  Node,
-  NodeType,
-  StructType,
-} from "@destack/language/core";
+import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import { Method, MethodCardinality } from "@destack/language/logic/method";
 import type { Script } from "@destack/language/logic/script";
-import {
-  STRUCT_CLASS_BY_TYPE,
-  registerEnumClass,
-  registerNodeClass,
-} from "@destack/language/registry";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import { ActionCardinalityProto, ActionProto, MaterializationProto } from "@destack/proto";
+import { ActionProto, MaterializationProto, MethodCardinalityProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:110200 ==== */
-/**
- * ActionCardinality
- */
-export enum ActionCardinality {
-  UNARY = 1,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
-/* ==== DESTACK_GENERATED_END:ENUM:110200 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:110300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:102100 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
  */
-export class Action
-  extends Entity
-  implements IsSpatial, IsTaggable, IsSourceable, IsCustomizable, IsDeletable, IsRunnable
-{
+export class Action extends Method {
   static metatype: NodeType = NodeType.ACTION;
-
-  /**
-   * Action.parent
-   */
-  get parent(): (Node & IsScriptable) | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsScriptable) | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: Materialization;
-
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
-  readonly snapshotPtr: NodeReference | null;
-
-  /**
-   * The previous Entity this Entity is based on (from another Snapshot).
-   */
-  get predecessor(): Action | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Action | null;
-    }
-    return null;
-  }
-  readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Action | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Action | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
-
-  /**
-   * Entity.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Entity.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * Entity.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * Entity.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
-   * IsDeletable.deletedAt
-   */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  get customValues(): Map<string, Value> {
-    return this.#customValues;
-  }
-  set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
-    this.#customValues = value;
-  }
-  #customValues: Map<string, Value>;
-
-  /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
-   * IsSourceable.source
-   */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly sourcePtr: NodeReference | null;
-
-  /**
-   * Action.name
-   */
-  get name(): string {
-    return this.#name;
-  }
-  set name(value: string) {
-    const oldValue = this.#name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
-    this.#name = value;
-  }
-  #name: string;
-
-  /**
-   * Action.icon
-   */
-  get icon(): Icon | null {
-    return this.#icon;
-  }
-  set icon(value: Icon | null) {
-    const oldValue = this.#icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
-    this.#icon = value;
-  }
-  #icon: Icon | null;
-
-  /**
-   * Action.text
-   */
-  get text(): Text | null {
-    return this.#text;
-  }
-  set text(value: Text | null) {
-    const oldValue = this.#text;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["text"] === undefined) {
-      this._dirty["text"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
-    this.#text = value;
-  }
-  #text: Text | null;
-
-  /**
-   * Action.cardinality
-   */
-  get cardinality(): ActionCardinality {
-    return this.#cardinality;
-  }
-  set cardinality(value: ActionCardinality) {
-    const oldValue = this.#cardinality;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["cardinality"] === undefined) {
-      this._dirty["cardinality"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
-    this.#cardinality = value;
-  }
-  #cardinality: ActionCardinality;
 
   constructor(options: {
     id?: string;
@@ -321,160 +50,40 @@ export class Action
     name: string;
     icon?: Icon | null;
     text?: Text | null;
-    cardinality?: ActionCardinality;
+    cardinality?: MethodCardinality;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: QueryConnection | null;
   }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
-    );
+    super(options);
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
-      _space = (_space as Node).toRef();
-    }
-    this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
-    }
-    if (_materialization === null) {
-      throw new Error(`Action.materialization is required`);
-    }
-    this.materialization = _materialization;
-    let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
-      _snapshot = (_snapshot as Node).toRef();
-    }
-    this.snapshotPtr = _snapshot;
-    let _predecessor = options.predecessor ?? null;
-    if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
-      _predecessor = (_predecessor as Node).toRef();
-    }
-    this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
-    let _deletedAt = options.deletedAt ?? null;
-    this.deletedAt = _deletedAt;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = new Map();
-    }
-    this.#customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`Action.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
-    let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
-      _source = (_source as Node).toRef();
-    }
-    this.sourcePtr = _source;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Action.name is required`);
-    }
-    this.#name = _name;
-    let _icon = options.icon ?? null;
-    this.#icon = _icon;
-    let _text = options.text ?? null;
-    this.#text = _text;
-    let _cardinality = options.cardinality ?? null;
-    if (_cardinality === null) {
-      _cardinality = 1 /* ActionCardinality.UNARY */;
-    }
-    if (_cardinality === null) {
-      throw new Error(`Action.cardinality is required`);
-    }
-    this.#cardinality = _cardinality;
 
     // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`Action.createdAt and Action.updatedAt are required for existing Nodes`);
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-            ? (options.updatedBy as NodeReference)
-            : (options.updatedBy as Node).toRef()
-          : null;
-    }
+    // ... (already set in parent)
   }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
     if (
-      (this.#text == null) !== (other.#text == null) ||
-      (this.#text != null && !this.#text.equals(other.#text))
+      (this._text == null) !== (other._text == null) ||
+      (this._text != null && !this._text.equals(other._text))
     ) {
       return false;
     }
-    if (!(this.#cardinality === other.#cardinality)) {
+    if (!(this._cardinality === other._cardinality)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -483,14 +92,14 @@ export class Action
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -515,22 +124,22 @@ export class Action
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.#text !== null) {
-      h = (h * 31 + this.#text.hash()) & 0xffffffff;
+    if (this._text !== null) {
+      h = (h * 31 + this._text.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this.#cardinality) & 0xffffffff;
+    h = (h * 31 + this._cardinality) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -609,7 +218,7 @@ export class Action
 
   static __packValue__(object: Action): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 110300;
+    objectValue["1"] = 102100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -641,9 +250,9 @@ export class Action
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -652,14 +261,14 @@ export class Action
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
-    if (object.#text != null) {
-      objectValue["104"] = object.#text.toValue();
+    if (object._text != null) {
+      objectValue["104"] = object._text.toValue();
     }
-    objectValue["110"] = object.#cardinality;
+    objectValue["110"] = object._cardinality;
     return objectValue;
   }
 
@@ -785,7 +394,7 @@ export class Action
   }
 
   static __packProto__(object: Action): ActionProto {
-    const objectProto: Partial<ActionProto> = { metatype: 110300 };
+    const objectProto: Partial<ActionProto> = { metatype: 102100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -817,9 +426,9 @@ export class Action
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -827,14 +436,14 @@ export class Action
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
-    if (object.#text != null) {
-      objectProto.text = object.#text.toProto();
+    if (object._text != null) {
+      objectProto.text = object._text.toProto();
     }
-    objectProto.cardinality = Number(object.#cardinality) as ActionCardinalityProto;
+    objectProto.cardinality = Number(object._cardinality) as MethodCardinalityProto;
     return objectProto as ActionProto;
   }
 
@@ -878,7 +487,7 @@ export class Action
         objectProto.text != undefined
           ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
           : null,
-      cardinality: Number(objectProto.cardinality) as ActionCardinality,
+      cardinality: Number(objectProto.cardinality) as MethodCardinality,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -994,4 +603,4 @@ export class Action
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);
-/* ==== DESTACK_GENERATED_END:NODE:110300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:102100 ==== */

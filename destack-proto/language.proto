@@ -9,11 +9,6 @@ import "destack-proto/google/type/datetime.proto";
 import "destack-proto/google/type/date.proto";
 import "destack-proto/google/type/timeofday.proto";
 
-enum ActionCardinalityProto {
-  ACTION_CARDINALITY_UNSPECIFIED = 0;
-  ACTION_CARDINALITY_UNARY = 1;
-}
-
 enum AggregationTypeProto {
   AGGREGATION_TYPE_UNSPECIFIED = 0;
   AGGREGATION_TYPE_EXISTS = 1;
@@ -369,13 +364,13 @@ enum EnumTypeProto {
   ENUM_TYPE_FILE_FORMAT = 80003;
   ENUM_TYPE_TEXT_SPAN_TYPE = 80004;
   ENUM_TYPE_ICON_TYPE = 80005;
-  ENUM_TYPE_TRIGGER_TYPE = 112400;
-  ENUM_TYPE_SCHEDULE_FREQUENCY = 112500;
-  ENUM_TYPE_DAY_OF_WEEK = 112501;
-  ENUM_TYPE_MONTH = 112502;
-  ENUM_TYPE_TIMER_TYPE = 112503;
-  ENUM_TYPE_ACTION_CARDINALITY = 110200;
-  ENUM_TYPE_CURSOR_STATUS = 112600;
+  ENUM_TYPE_METHOD_CARDINALITY = 102001;
+  ENUM_TYPE_TRIGGER_TYPE = 105000;
+  ENUM_TYPE_TIMER_TYPE = 105100;
+  ENUM_TYPE_DAY_OF_WEEK = 105101;
+  ENUM_TYPE_MONTH = 105102;
+  ENUM_TYPE_SCHEDULE_FREQUENCY = 105103;
+  ENUM_TYPE_CURSOR_STATUS = 105501;
   ENUM_TYPE_MODEL_DEVELOPER = 120000;
   ENUM_TYPE_MODEL_PROVIDER = 120001;
   ENUM_TYPE_CLOUD = 140000;
@@ -749,6 +744,11 @@ enum MaterializationProto {
   MATERIALIZATION_FULL = 32;
 }
 
+enum MethodCardinalityProto {
+  METHOD_CARDINALITY_UNSPECIFIED = 0;
+  METHOD_CARDINALITY_UNARY = 1;
+}
+
 enum ModeTypeProto {
   MODE_TYPE_UNSPECIFIED = 0;
   MODE_TYPE_EDIT = 1;
@@ -875,21 +875,22 @@ enum NodeTypeProto {
   NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 60505;
   NODE_TYPE_AGENT = 60600;
   NODE_TYPE_FILE = 80000;
-  NODE_TYPE_SERVICE = 100000;
-  NODE_TYPE_SCRIPT = 105000;
-  NODE_TYPE_ACTION = 110300;
-  NODE_TYPE_ROUTE = 111000;
-  NODE_TYPE_TRIGGER = 112000;
-  NODE_TYPE_TRIGGER_EVENT = 112001;
-  NODE_TYPE_TIMER = 112100;
-  NODE_TYPE_TIMER_EVENT = 112101;
-  NODE_TYPE_TIMER_STARTED_EVENT = 112102;
-  NODE_TYPE_TIMER_COMPLETED_EVENT = 112103;
-  NODE_TYPE_TIMER_CANCELLED_EVENT = 112104;
-  NODE_TYPE_CURSOR = 112500;
-  NODE_TYPE_EVENT_CURSOR = 112600;
-  NODE_TYPE_SCREEN_CURSOR = 112700;
-  NODE_TYPE_THREAD_CURSOR = 112800;
+  NODE_TYPE_SCRIPT = 100000;
+  NODE_TYPE_SERVICE = 101000;
+  NODE_TYPE_METHOD = 102000;
+  NODE_TYPE_ACTION = 102100;
+  NODE_TYPE_TRIGGER = 105000;
+  NODE_TYPE_TRIGGER_EVENT = 105001;
+  NODE_TYPE_TIMER = 105100;
+  NODE_TYPE_TIMER_EVENT = 105101;
+  NODE_TYPE_TIMER_STARTED_EVENT = 105102;
+  NODE_TYPE_TIMER_COMPLETED_EVENT = 105103;
+  NODE_TYPE_TIMER_CANCELLED_EVENT = 105104;
+  NODE_TYPE_CURSOR = 105500;
+  NODE_TYPE_EVENT_CURSOR = 105600;
+  NODE_TYPE_SCREEN_CURSOR = 105700;
+  NODE_TYPE_THREAD_CURSOR = 105800;
+  NODE_TYPE_ROUTE = 106000;
   NODE_TYPE_DATABASE = 140000;
   NODE_TYPE_MACHINE = 140100;
   NODE_TYPE_ENVIRONMENT = 160000;
@@ -1627,7 +1628,7 @@ message ActionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional TextProto text = 104;
-  ActionCardinalityProto cardinality = 110;
+  MethodCardinalityProto cardinality = 110;
 }
 
 message ActionDefinitionProto {
@@ -4064,6 +4065,32 @@ message MessageProto {
   optional NodeReferenceProto node_ptr = 62;
 }
 
+// An implementation of a unit of work, usually expressed with Code or some tool.
+// May defer to a builtin or some other service in a separate system.
+message MethodProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  optional NodeReferenceProto predecessor_ptr = 12;
+  optional NodeReferenceProto template_ptr = 13;
+  optional NodeReferenceProto instance_root_ptr = 14;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  google.protobuf.Timestamp updated_at = 22;
+  optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
+  string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  string name = 101;
+  optional IconProto icon = 102;
+  optional TextProto text = 104;
+  MethodCardinalityProto cardinality = 110;
+}
+
 message MethodDefinitionProto {
   StructTypeProto metatype = 1;
   int64 id = 2 [jstype = JS_NUMBER];
@@ -4173,8 +4200,8 @@ message NodeDefinitionProto {
   repeated NodeTypeProto child_types = 132;
   repeated NodeTypeProto ancestor_types = 133;
   repeated NodeTypeProto descendant_types = 134;
-  repeated NodeTypeProto base_event_types = 140;
-  repeated NodeTypeProto event_types = 141;
+  repeated NodeTypeProto event_types = 140;
+  repeated NodeTypeProto base_event_types = 141;
 }
 
 message NodeDefinitionReferenceProto {
@@ -5967,6 +5994,8 @@ message TraitDefinitionProto {
   bool is_extensible = 111;
   repeated TraitTypeProto traits = 120;
   repeated TraitTypeProto base_traits = 121;
+  repeated NodeTypeProto event_types = 140;
+  repeated NodeTypeProto base_event_types = 141;
 }
 
 message TransitionProto {
@@ -6391,18 +6420,19 @@ message SomeNodeProto {
     MiddleClickEventProto middle_click_event = 560204;
     DoubleClickEventProto double_click_event = 560205;
     WheelEventProto wheel_event = 560206;
-    ActionProto action = 110300;
-    EventCursorProto event_cursor = 112600;
-    ScreenCursorProto screen_cursor = 112700;
-    ThreadCursorProto thread_cursor = 112800;
-    RouteProto route = 111000;
-    ScriptProto script = 105000;
-    ServiceProto service = 100000;
-    TimerStartedEventProto timer_started_event = 112102;
-    TimerCompletedEventProto timer_completed_event = 112103;
-    TimerCancelledEventProto timer_cancelled_event = 112104;
-    TimerProto timer = 112100;
-    TriggerProto trigger = 112000;
+    MethodProto method = 102000;
+    ActionProto action = 102100;
+    EventCursorProto event_cursor = 105600;
+    ScreenCursorProto screen_cursor = 105700;
+    ThreadCursorProto thread_cursor = 105800;
+    RouteProto route = 106000;
+    ScriptProto script = 100000;
+    ServiceProto service = 101000;
+    TimerStartedEventProto timer_started_event = 105102;
+    TimerCompletedEventProto timer_completed_event = 105103;
+    TimerCancelledEventProto timer_cancelled_event = 105104;
+    TimerProto timer = 105100;
+    TriggerProto trigger = 105000;
     GaugeMetricProto gauge_metric = 180000;
     GaugeMeasurementEventProto gauge_measurement_event = 180001;
     CounterMetricProto counter_metric = 180100;
@@ -6490,15 +6520,16 @@ message SomeEntityProto {
     RunProto run = 170000;
     DatabaseProto database = 140000;
     MachineProto machine = 140100;
-    ActionProto action = 110300;
-    EventCursorProto event_cursor = 112600;
-    ScreenCursorProto screen_cursor = 112700;
-    ThreadCursorProto thread_cursor = 112800;
-    RouteProto route = 111000;
-    ScriptProto script = 105000;
-    ServiceProto service = 100000;
-    TimerProto timer = 112100;
-    TriggerProto trigger = 112000;
+    MethodProto method = 102000;
+    ActionProto action = 102100;
+    EventCursorProto event_cursor = 105600;
+    ScreenCursorProto screen_cursor = 105700;
+    ThreadCursorProto thread_cursor = 105800;
+    RouteProto route = 106000;
+    ScriptProto script = 100000;
+    ServiceProto service = 101000;
+    TimerProto timer = 105100;
+    TriggerProto trigger = 105000;
     GaugeMetricProto gauge_metric = 180000;
     CounterMetricProto counter_metric = 180100;
     HistogramMetricProto histogram_metric = 180200;
@@ -6597,9 +6628,9 @@ message SomeEventProto {
     MiddleClickEventProto middle_click_event = 560204;
     DoubleClickEventProto double_click_event = 560205;
     WheelEventProto wheel_event = 560206;
-    TimerStartedEventProto timer_started_event = 112102;
-    TimerCompletedEventProto timer_completed_event = 112103;
-    TimerCancelledEventProto timer_cancelled_event = 112104;
+    TimerStartedEventProto timer_started_event = 105102;
+    TimerCompletedEventProto timer_completed_event = 105103;
+    TimerCancelledEventProto timer_cancelled_event = 105104;
     GaugeMeasurementEventProto gauge_measurement_event = 180001;
     CounterMeasurementEventProto counter_measurement_event = 180101;
     HistogramMeasurementEventProto histogram_measurement_event = 180201;

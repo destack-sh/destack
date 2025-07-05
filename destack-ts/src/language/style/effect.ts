@@ -931,10 +931,10 @@ export class EffectStyle extends Style {
    * EffectStyle.type
    */
   get type(): EffectType {
-    return this.#type;
+    return this._type;
   }
   set type(value: EffectType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -944,18 +944,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: EffectType;
+  _type: EffectType;
 
   /**
    * Style.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -965,18 +965,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * EffectStyle.opacity
    */
   get opacity(): number | null {
-    return this.#opacity;
+    return this._opacity;
   }
   set opacity(value: number | null) {
-    const oldValue = this.#opacity;
+    const oldValue = this._opacity;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -986,18 +986,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#opacity = value;
+    this._opacity = value;
   }
-  #opacity: number | null;
+  _opacity: number | null;
 
   /**
    * EffectStyle.offset
    */
   get offset(): Vector2f | null {
-    return this.#offset;
+    return this._offset;
   }
   set offset(value: Vector2f | null) {
-    const oldValue = this.#offset;
+    const oldValue = this._offset;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1007,18 +1007,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#offset = value;
+    this._offset = value;
   }
-  #offset: Vector2f | null;
+  _offset: Vector2f | null;
 
   /**
    * EffectStyle.scale
    */
   get scale(): number | null {
-    return this.#scale;
+    return this._scale;
   }
   set scale(value: number | null) {
-    const oldValue = this.#scale;
+    const oldValue = this._scale;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1028,18 +1028,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#scale = value;
+    this._scale = value;
   }
-  #scale: number | null;
+  _scale: number | null;
 
   /**
    * EffectStyle.rotate
    */
   get rotate(): Axis3 | null {
-    return this.#rotate;
+    return this._rotate;
   }
   set rotate(value: Axis3 | null) {
-    const oldValue = this.#rotate;
+    const oldValue = this._rotate;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1049,18 +1049,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#rotate = value;
+    this._rotate = value;
   }
-  #rotate: Axis3 | null;
+  _rotate: Axis3 | null;
 
   /**
    * EffectStyle.skew
    */
   get skew(): Vector2f | null {
-    return this.#skew;
+    return this._skew;
   }
   set skew(value: Vector2f | null) {
-    const oldValue = this.#skew;
+    const oldValue = this._skew;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1070,18 +1070,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#skew = value;
+    this._skew = value;
   }
-  #skew: Vector2f | null;
+  _skew: Vector2f | null;
 
   /**
    * EffectStyle.perspective
    */
   get perspective(): number | null {
-    return this.#perspective;
+    return this._perspective;
   }
   set perspective(value: number | null) {
-    const oldValue = this.#perspective;
+    const oldValue = this._perspective;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1091,18 +1091,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#perspective = value;
+    this._perspective = value;
   }
-  #perspective: number | null;
+  _perspective: number | null;
 
   /**
    * EffectStyle.delay
    */
   get delay(): Temporal.Duration | null {
-    return this.#delay;
+    return this._delay;
   }
   set delay(value: Temporal.Duration | null) {
-    const oldValue = this.#delay;
+    const oldValue = this._delay;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1112,18 +1112,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#delay = value;
+    this._delay = value;
   }
-  #delay: Temporal.Duration | null;
+  _delay: Temporal.Duration | null;
 
   /**
    * EffectStyle.duration
    */
   get duration(): number | null {
-    return this.#duration;
+    return this._duration;
   }
   set duration(value: number | null) {
-    const oldValue = this.#duration;
+    const oldValue = this._duration;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1133,18 +1133,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#duration = value;
+    this._duration = value;
   }
-  #duration: number | null;
+  _duration: number | null;
 
   /**
    * EffectStyle.threshold
    */
   get threshold(): number | null {
-    return this.#threshold;
+    return this._threshold;
   }
   set threshold(value: number | null) {
-    const oldValue = this.#threshold;
+    const oldValue = this._threshold;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1154,18 +1154,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#threshold = value;
+    this._threshold = value;
   }
-  #threshold: number | null;
+  _threshold: number | null;
 
   /**
    * EffectStyle.once
    */
   get once(): boolean | null {
-    return this.#once;
+    return this._once;
   }
   set once(value: boolean | null) {
-    const oldValue = this.#once;
+    const oldValue = this._once;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1175,18 +1175,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#once = value;
+    this._once = value;
   }
-  #once: boolean | null;
+  _once: boolean | null;
 
   /**
    * EffectStyle.repeat
    */
   get repeat(): RepeatType | null {
-    return this.#repeat;
+    return this._repeat;
   }
   set repeat(value: RepeatType | null) {
-    const oldValue = this.#repeat;
+    const oldValue = this._repeat;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1196,18 +1196,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#repeat = value;
+    this._repeat = value;
   }
-  #repeat: RepeatType | null;
+  _repeat: RepeatType | null;
 
   /**
    * EffectStyle.split
    */
   get split(): TextSplitType | null {
-    return this.#split;
+    return this._split;
   }
   set split(value: TextSplitType | null) {
-    const oldValue = this.#split;
+    const oldValue = this._split;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1217,18 +1217,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#split = value;
+    this._split = value;
   }
-  #split: TextSplitType | null;
+  _split: TextSplitType | null;
 
   /**
    * EffectStyle.offscreen
    */
   get offscreen(): OffscreenBehavior | null {
-    return this.#offscreen;
+    return this._offscreen;
   }
   set offscreen(value: OffscreenBehavior | null) {
-    const oldValue = this.#offscreen;
+    const oldValue = this._offscreen;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1238,18 +1238,18 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#offscreen = value;
+    this._offscreen = value;
   }
-  #offscreen: OffscreenBehavior | null;
+  _offscreen: OffscreenBehavior | null;
 
   /**
    * EffectStyle.transition
    */
   get transition(): Transition | null {
-    return this.#transition;
+    return this._transition;
   }
   set transition(value: Transition | null) {
-    const oldValue = this.#transition;
+    const oldValue = this._transition;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1259,9 +1259,9 @@ export class EffectStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#transition = value;
+    this._transition = value;
   }
-  #transition: Transition | null;
+  _transition: Transition | null;
 
   constructor(options: {
     id?: string;
@@ -1375,40 +1375,40 @@ export class EffectStyle extends Style {
     if (_type === null) {
       throw new Error(`EffectStyle.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`EffectStyle.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _opacity = options.opacity ?? null;
-    this.#opacity = _opacity;
+    this._opacity = _opacity;
     let _offset = options.offset ?? null;
-    this.#offset = _offset;
+    this._offset = _offset;
     let _scale = options.scale ?? null;
-    this.#scale = _scale;
+    this._scale = _scale;
     let _rotate = options.rotate ?? null;
-    this.#rotate = _rotate;
+    this._rotate = _rotate;
     let _skew = options.skew ?? null;
-    this.#skew = _skew;
+    this._skew = _skew;
     let _perspective = options.perspective ?? null;
-    this.#perspective = _perspective;
+    this._perspective = _perspective;
     let _delay = options.delay ?? null;
-    this.#delay = _delay;
+    this._delay = _delay;
     let _duration = options.duration ?? null;
-    this.#duration = _duration;
+    this._duration = _duration;
     let _threshold = options.threshold ?? null;
-    this.#threshold = _threshold;
+    this._threshold = _threshold;
     let _once = options.once ?? null;
-    this.#once = _once;
+    this._once = _once;
     let _repeat = options.repeat ?? null;
-    this.#repeat = _repeat;
+    this._repeat = _repeat;
     let _split = options.split ?? null;
-    this.#split = _split;
+    this._split = _split;
     let _offscreen = options.offscreen ?? null;
-    this.#offscreen = _offscreen;
+    this._offscreen = _offscreen;
     let _transition = options.transition ?? null;
-    this.#transition = _transition;
+    this._transition = _transition;
 
     // identity
     if (options.id == null) {
@@ -1444,90 +1444,90 @@ export class EffectStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
     if (
-      (this.#opacity == null) !== (other.#opacity == null) ||
-      (this.#opacity != null &&
-        !(this.#opacity === other.#opacity || Math.abs(this.#opacity - other.#opacity) < 1e-10))
+      (this._opacity == null) !== (other._opacity == null) ||
+      (this._opacity != null &&
+        !(this._opacity === other._opacity || Math.abs(this._opacity - other._opacity) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.#offset == null) !== (other.#offset == null) ||
-      (this.#offset != null && !this.#offset.equals(other.#offset))
+      (this._offset == null) !== (other._offset == null) ||
+      (this._offset != null && !this._offset.equals(other._offset))
     ) {
       return false;
     }
     if (
-      (this.#scale == null) !== (other.#scale == null) ||
-      (this.#scale != null &&
-        !(this.#scale === other.#scale || Math.abs(this.#scale - other.#scale) < 1e-10))
+      (this._scale == null) !== (other._scale == null) ||
+      (this._scale != null &&
+        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.#rotate == null) !== (other.#rotate == null) ||
-      (this.#rotate != null && !this.#rotate.equals(other.#rotate))
+      (this._rotate == null) !== (other._rotate == null) ||
+      (this._rotate != null && !this._rotate.equals(other._rotate))
     ) {
       return false;
     }
     if (
-      (this.#skew == null) !== (other.#skew == null) ||
-      (this.#skew != null && !this.#skew.equals(other.#skew))
+      (this._skew == null) !== (other._skew == null) ||
+      (this._skew != null && !this._skew.equals(other._skew))
     ) {
       return false;
     }
     if (
-      (this.#perspective == null) !== (other.#perspective == null) ||
-      (this.#perspective != null &&
+      (this._perspective == null) !== (other._perspective == null) ||
+      (this._perspective != null &&
         !(
-          this.#perspective === other.#perspective ||
-          Math.abs(this.#perspective - other.#perspective) < 1e-10
+          this._perspective === other._perspective ||
+          Math.abs(this._perspective - other._perspective) < 1e-10
         ))
     ) {
       return false;
     }
-    if (!(this.#delay === other.#delay)) {
+    if (!(this._delay === other._delay)) {
       return false;
     }
     if (
-      (this.#duration == null) !== (other.#duration == null) ||
-      (this.#duration != null &&
-        !(this.#duration === other.#duration || Math.abs(this.#duration - other.#duration) < 1e-10))
+      (this._duration == null) !== (other._duration == null) ||
+      (this._duration != null &&
+        !(this._duration === other._duration || Math.abs(this._duration - other._duration) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.#threshold == null) !== (other.#threshold == null) ||
-      (this.#threshold != null &&
+      (this._threshold == null) !== (other._threshold == null) ||
+      (this._threshold != null &&
         !(
-          this.#threshold === other.#threshold ||
-          Math.abs(this.#threshold - other.#threshold) < 1e-10
+          this._threshold === other._threshold ||
+          Math.abs(this._threshold - other._threshold) < 1e-10
         ))
     ) {
       return false;
     }
-    if (!(this.#once === other.#once)) {
+    if (!(this._once === other._once)) {
       return false;
     }
-    if (!(this.#repeat === other.#repeat)) {
+    if (!(this._repeat === other._repeat)) {
       return false;
     }
-    if (!(this.#split === other.#split)) {
+    if (!(this._split === other._split)) {
       return false;
     }
-    if (!(this.#offscreen === other.#offscreen)) {
+    if (!(this._offscreen === other._offscreen)) {
       return false;
     }
     if (
-      (this.#transition == null) !== (other.#transition == null) ||
-      (this.#transition != null && !this.#transition.equals(other.#transition))
+      (this._transition == null) !== (other._transition == null) ||
+      (this._transition != null && !this._transition.equals(other._transition))
     ) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1551,53 +1551,53 @@ export class EffectStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#type) & 0xffffffff;
-    if (this.#opacity !== null) {
-      h = (h * 31 + hashFloat(this.#opacity)) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._opacity !== null) {
+      h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
     }
-    if (this.#offset !== null) {
-      h = (h * 31 + this.#offset.hash()) & 0xffffffff;
+    if (this._offset !== null) {
+      h = (h * 31 + this._offset.hash()) & 0xffffffff;
     }
-    if (this.#scale !== null) {
-      h = (h * 31 + hashFloat(this.#scale)) & 0xffffffff;
+    if (this._scale !== null) {
+      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
     }
-    if (this.#rotate !== null) {
-      h = (h * 31 + this.#rotate.hash()) & 0xffffffff;
+    if (this._rotate !== null) {
+      h = (h * 31 + this._rotate.hash()) & 0xffffffff;
     }
-    if (this.#skew !== null) {
-      h = (h * 31 + this.#skew.hash()) & 0xffffffff;
+    if (this._skew !== null) {
+      h = (h * 31 + this._skew.hash()) & 0xffffffff;
     }
-    if (this.#perspective !== null) {
-      h = (h * 31 + hashFloat(this.#perspective)) & 0xffffffff;
+    if (this._perspective !== null) {
+      h = (h * 31 + hashFloat(this._perspective)) & 0xffffffff;
     }
-    if (this.#delay !== null) {
-      h = (h * 31 + hashFloat(this.#delay.total("seconds"))) & 0xffffffff;
+    if (this._delay !== null) {
+      h = (h * 31 + hashFloat(this._delay.total("seconds"))) & 0xffffffff;
     }
-    if (this.#duration !== null) {
-      h = (h * 31 + hashFloat(this.#duration)) & 0xffffffff;
+    if (this._duration !== null) {
+      h = (h * 31 + hashFloat(this._duration)) & 0xffffffff;
     }
-    if (this.#threshold !== null) {
-      h = (h * 31 + hashFloat(this.#threshold)) & 0xffffffff;
+    if (this._threshold !== null) {
+      h = (h * 31 + hashFloat(this._threshold)) & 0xffffffff;
     }
-    if (this.#once !== null) {
-      h = (h * 31 + hashBool(this.#once)) & 0xffffffff;
+    if (this._once !== null) {
+      h = (h * 31 + hashBool(this._once)) & 0xffffffff;
     }
-    if (this.#repeat !== null) {
-      h = (h * 31 + this.#repeat) & 0xffffffff;
+    if (this._repeat !== null) {
+      h = (h * 31 + this._repeat) & 0xffffffff;
     }
-    if (this.#split !== null) {
-      h = (h * 31 + this.#split) & 0xffffffff;
+    if (this._split !== null) {
+      h = (h * 31 + this._split) & 0xffffffff;
     }
-    if (this.#offscreen !== null) {
-      h = (h * 31 + this.#offscreen) & 0xffffffff;
+    if (this._offscreen !== null) {
+      h = (h * 31 + this._offscreen) & 0xffffffff;
     }
-    if (this.#transition !== null) {
-      h = (h * 31 + this.#transition.hash()) & 0xffffffff;
+    if (this._transition !== null) {
+      h = (h * 31 + this._transition.hash()) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1751,49 +1751,49 @@ export class EffectStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#opacity != null) {
-      objectValue["200"] = object.#opacity;
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._opacity != null) {
+      objectValue["200"] = object._opacity;
     }
-    if (object.#offset != null) {
-      objectValue["201"] = object.#offset.toValue();
+    if (object._offset != null) {
+      objectValue["201"] = object._offset.toValue();
     }
-    if (object.#scale != null) {
-      objectValue["202"] = object.#scale;
+    if (object._scale != null) {
+      objectValue["202"] = object._scale;
     }
-    if (object.#rotate != null) {
-      objectValue["203"] = object.#rotate.toValue();
+    if (object._rotate != null) {
+      objectValue["203"] = object._rotate.toValue();
     }
-    if (object.#skew != null) {
-      objectValue["204"] = object.#skew.toValue();
+    if (object._skew != null) {
+      objectValue["204"] = object._skew.toValue();
     }
-    if (object.#perspective != null) {
-      objectValue["205"] = object.#perspective;
+    if (object._perspective != null) {
+      objectValue["205"] = object._perspective;
     }
-    if (object.#delay != null) {
-      objectValue["206"] = timedeltaToISOFormat(object.#delay);
+    if (object._delay != null) {
+      objectValue["206"] = timedeltaToISOFormat(object._delay);
     }
-    if (object.#duration != null) {
-      objectValue["207"] = object.#duration;
+    if (object._duration != null) {
+      objectValue["207"] = object._duration;
     }
-    if (object.#threshold != null) {
-      objectValue["208"] = object.#threshold;
+    if (object._threshold != null) {
+      objectValue["208"] = object._threshold;
     }
-    if (object.#once != null) {
-      objectValue["209"] = object.#once;
+    if (object._once != null) {
+      objectValue["209"] = object._once;
     }
-    if (object.#repeat != null) {
-      objectValue["210"] = object.#repeat;
+    if (object._repeat != null) {
+      objectValue["210"] = object._repeat;
     }
-    if (object.#split != null) {
-      objectValue["211"] = object.#split;
+    if (object._split != null) {
+      objectValue["211"] = object._split;
     }
-    if (object.#offscreen != null) {
-      objectValue["212"] = object.#offscreen;
+    if (object._offscreen != null) {
+      objectValue["212"] = object._offscreen;
     }
-    if (object.#transition != null) {
-      objectValue["213"] = object.#transition.toValue();
+    if (object._transition != null) {
+      objectValue["213"] = object._transition.toValue();
     }
     return objectValue;
   }
@@ -1979,49 +1979,49 @@ export class EffectStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.#type) as EffectTypeProto;
-    objectProto.name = object.#name;
-    if (object.#opacity != null) {
-      objectProto.opacity = object.#opacity;
+    objectProto.type = Number(object._type) as EffectTypeProto;
+    objectProto.name = object._name;
+    if (object._opacity != null) {
+      objectProto.opacity = object._opacity;
     }
-    if (object.#offset != null) {
-      objectProto.offset = object.#offset.toProto();
+    if (object._offset != null) {
+      objectProto.offset = object._offset.toProto();
     }
-    if (object.#scale != null) {
-      objectProto.scale = object.#scale;
+    if (object._scale != null) {
+      objectProto.scale = object._scale;
     }
-    if (object.#rotate != null) {
-      objectProto.rotate = object.#rotate.toProto();
+    if (object._rotate != null) {
+      objectProto.rotate = object._rotate.toProto();
     }
-    if (object.#skew != null) {
-      objectProto.skew = object.#skew.toProto();
+    if (object._skew != null) {
+      objectProto.skew = object._skew.toProto();
     }
-    if (object.#perspective != null) {
-      objectProto.perspective = object.#perspective;
+    if (object._perspective != null) {
+      objectProto.perspective = object._perspective;
     }
-    if (object.#delay != null) {
-      objectProto.delay = packProtoDuration(object.#delay);
+    if (object._delay != null) {
+      objectProto.delay = packProtoDuration(object._delay);
     }
-    if (object.#duration != null) {
-      objectProto.duration = object.#duration;
+    if (object._duration != null) {
+      objectProto.duration = object._duration;
     }
-    if (object.#threshold != null) {
-      objectProto.threshold = object.#threshold;
+    if (object._threshold != null) {
+      objectProto.threshold = object._threshold;
     }
-    if (object.#once != null) {
-      objectProto.once = object.#once;
+    if (object._once != null) {
+      objectProto.once = object._once;
     }
-    if (object.#repeat != null) {
-      objectProto.repeat = Number(object.#repeat) as RepeatTypeProto;
+    if (object._repeat != null) {
+      objectProto.repeat = Number(object._repeat) as RepeatTypeProto;
     }
-    if (object.#split != null) {
-      objectProto.split = Number(object.#split) as TextSplitTypeProto;
+    if (object._split != null) {
+      objectProto.split = Number(object._split) as TextSplitTypeProto;
     }
-    if (object.#offscreen != null) {
-      objectProto.offscreen = Number(object.#offscreen) as OffscreenBehaviorProto;
+    if (object._offscreen != null) {
+      objectProto.offscreen = Number(object._offscreen) as OffscreenBehaviorProto;
     }
-    if (object.#transition != null) {
-      objectProto.transition = object.#transition.toProto();
+    if (object._transition != null) {
+      objectProto.transition = object._transition.toProto();
     }
     return objectProto as EffectStyleProto;
   }

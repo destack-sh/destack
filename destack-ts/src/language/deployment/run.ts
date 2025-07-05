@@ -4014,10 +4014,10 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4027,9 +4027,9 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * Run.target
@@ -4049,10 +4049,10 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     }
   }
   get targetPtr(): NodeReference | null {
-    return this.#targetPtr;
+    return this._targetPtr;
   }
   set targetPtr(value: NodeReference | null) {
-    const oldValue = this.#targetPtr;
+    const oldValue = this._targetPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4062,18 +4062,18 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#targetPtr = value;
+    this._targetPtr = value;
   }
-  #targetPtr: NodeReference | null;
+  _targetPtr: NodeReference | null;
 
   /**
    * Run.status
    */
   get status(): RunStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: RunStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4083,18 +4083,18 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: RunStatus;
+  _status: RunStatus;
 
   /**
    * Duration from first attempt start to last attempt termination.
    */
   get duration(): Temporal.Duration | null {
-    return this.#duration;
+    return this._duration;
   }
   set duration(value: Temporal.Duration | null) {
-    const oldValue = this.#duration;
+    const oldValue = this._duration;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4104,18 +4104,18 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#duration = value;
+    this._duration = value;
   }
-  #duration: Temporal.Duration | null;
+  _duration: Temporal.Duration | null;
 
   /**
    * When the Run is scheduled to start.
    */
   get scheduledAt(): Temporal.ZonedDateTime | null {
-    return this.#scheduledAt;
+    return this._scheduledAt;
   }
   set scheduledAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#scheduledAt;
+    const oldValue = this._scheduledAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4125,18 +4125,18 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#scheduledAt = value;
+    this._scheduledAt = value;
   }
-  #scheduledAt: Temporal.ZonedDateTime | null;
+  _scheduledAt: Temporal.ZonedDateTime | null;
 
   /**
    * When the Run first started.
    */
   get startedAt(): Temporal.ZonedDateTime | null {
-    return this.#startedAt;
+    return this._startedAt;
   }
   set startedAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#startedAt;
+    const oldValue = this._startedAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4146,18 +4146,18 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#startedAt = value;
+    this._startedAt = value;
   }
-  #startedAt: Temporal.ZonedDateTime | null;
+  _startedAt: Temporal.ZonedDateTime | null;
 
   /**
    * When the Run was last active.
    */
   get seenAt(): Temporal.ZonedDateTime | null {
-    return this.#seenAt;
+    return this._seenAt;
   }
   set seenAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#seenAt;
+    const oldValue = this._seenAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4167,18 +4167,18 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#seenAt = value;
+    this._seenAt = value;
   }
-  #seenAt: Temporal.ZonedDateTime | null;
+  _seenAt: Temporal.ZonedDateTime | null;
 
   /**
    * When the Run was interrupted.
    */
   get interruptedAt(): Temporal.ZonedDateTime | null {
-    return this.#interruptedAt;
+    return this._interruptedAt;
   }
   set interruptedAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#interruptedAt;
+    const oldValue = this._interruptedAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4188,18 +4188,18 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#interruptedAt = value;
+    this._interruptedAt = value;
   }
-  #interruptedAt: Temporal.ZonedDateTime | null;
+  _interruptedAt: Temporal.ZonedDateTime | null;
 
   /**
    * When the Run was last terminated.
    */
   get terminatedAt(): Temporal.ZonedDateTime | null {
-    return this.#terminatedAt;
+    return this._terminatedAt;
   }
   set terminatedAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#terminatedAt;
+    const oldValue = this._terminatedAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4209,9 +4209,9 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#terminatedAt = value;
+    this._terminatedAt = value;
   }
-  #terminatedAt: Temporal.ZonedDateTime | null;
+  _terminatedAt: Temporal.ZonedDateTime | null;
 
   /**
    * The latest Interruption.
@@ -4231,10 +4231,10 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     }
   }
   get interruptionPtr(): NodeReference | null {
-    return this.#interruptionPtr;
+    return this._interruptionPtr;
   }
   set interruptionPtr(value: NodeReference | null) {
-    const oldValue = this.#interruptionPtr;
+    const oldValue = this._interruptionPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -4244,9 +4244,9 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#interruptionPtr = value;
+    this._interruptionPtr = value;
   }
-  #interruptionPtr: NodeReference | null;
+  _interruptionPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -4342,34 +4342,34 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _target = options.target ?? null;
     if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
       _target = (_target as Node).toRef();
     }
-    this.#targetPtr = _target;
+    this._targetPtr = _target;
     let _status = options.status;
     if (_status === null) {
       throw new Error(`Run.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _duration = options.duration ?? null;
-    this.#duration = _duration;
+    this._duration = _duration;
     let _scheduledAt = options.scheduledAt ?? null;
-    this.#scheduledAt = _scheduledAt;
+    this._scheduledAt = _scheduledAt;
     let _startedAt = options.startedAt ?? null;
-    this.#startedAt = _startedAt;
+    this._startedAt = _startedAt;
     let _seenAt = options.seenAt ?? null;
-    this.#seenAt = _seenAt;
+    this._seenAt = _seenAt;
     let _interruptedAt = options.interruptedAt ?? null;
-    this.#interruptedAt = _interruptedAt;
+    this._interruptedAt = _interruptedAt;
     let _terminatedAt = options.terminatedAt ?? null;
-    this.#terminatedAt = _terminatedAt;
+    this._terminatedAt = _terminatedAt;
     let _interruption = options.interruption ?? null;
     if (_interruption != null && _interruption.metatype != StructType.NODE_REFERENCE) {
       _interruption = (_interruption as Node).toRef();
     }
-    this.#interruptionPtr = _interruption;
+    this._interruptionPtr = _interruption;
 
     // identity
     if (options.id == null) {
@@ -4403,44 +4403,44 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#targetPtr?.id === other.#targetPtr?.id)) {
+    if (!(this._targetPtr?.id === other._targetPtr?.id)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.#duration === other.#duration)) {
+    if (!(this._duration === other._duration)) {
       return false;
     }
-    if (!(this.#scheduledAt === other.#scheduledAt)) {
+    if (!(this._scheduledAt === other._scheduledAt)) {
       return false;
     }
-    if (!(this.#startedAt === other.#startedAt)) {
+    if (!(this._startedAt === other._startedAt)) {
       return false;
     }
-    if (!(this.#seenAt === other.#seenAt)) {
+    if (!(this._seenAt === other._seenAt)) {
       return false;
     }
-    if (!(this.#interruptedAt === other.#interruptedAt)) {
+    if (!(this._interruptedAt === other._interruptedAt)) {
       return false;
     }
-    if (!(this.#terminatedAt === other.#terminatedAt)) {
+    if (!(this._terminatedAt === other._terminatedAt)) {
       return false;
     }
-    if (!(this.#interruptionPtr?.id === other.#interruptionPtr?.id)) {
+    if (!(this._interruptionPtr?.id === other._interruptionPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -4465,38 +4465,38 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.#targetPtr !== null) {
-      h = (h * 31 + hashString(this.#targetPtr.id)) & 0xffffffff;
+    if (this._targetPtr !== null) {
+      h = (h * 31 + hashString(this._targetPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#status) & 0xffffffff;
-    if (this.#duration !== null) {
-      h = (h * 31 + hashFloat(this.#duration.total("seconds"))) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
+    if (this._duration !== null) {
+      h = (h * 31 + hashFloat(this._duration.total("seconds"))) & 0xffffffff;
     }
-    if (this.#scheduledAt !== null) {
-      h = (h * 31 + hashString(this.#scheduledAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this._scheduledAt !== null) {
+      h = (h * 31 + hashString(this._scheduledAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#startedAt !== null) {
-      h = (h * 31 + hashString(this.#startedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this._startedAt !== null) {
+      h = (h * 31 + hashString(this._startedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#seenAt !== null) {
-      h = (h * 31 + hashString(this.#seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this._seenAt !== null) {
+      h = (h * 31 + hashString(this._seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#interruptedAt !== null) {
+    if (this._interruptedAt !== null) {
       h =
-        (h * 31 + hashString(this.#interruptedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+        (h * 31 + hashString(this._interruptedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#terminatedAt !== null) {
+    if (this._terminatedAt !== null) {
       h =
-        (h * 31 + hashString(this.#terminatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+        (h * 31 + hashString(this._terminatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#interruptionPtr !== null) {
-      h = (h * 31 + hashString(this.#interruptionPtr.id)) & 0xffffffff;
+    if (this._interruptionPtr !== null) {
+      h = (h * 31 + hashString(this._interruptionPtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -4609,37 +4609,37 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
-    if (object.#targetPtr != null) {
-      objectValue["111"] = object.#targetPtr.toValue();
+    if (object._targetPtr != null) {
+      objectValue["111"] = object._targetPtr.toValue();
     }
-    objectValue["112"] = object.#status;
-    if (object.#duration != null) {
-      objectValue["113"] = timedeltaToISOFormat(object.#duration);
+    objectValue["112"] = object._status;
+    if (object._duration != null) {
+      objectValue["113"] = timedeltaToISOFormat(object._duration);
     }
-    if (object.#scheduledAt != null) {
-      objectValue["116"] = object.#scheduledAt.toString({ timeZoneName: "never" });
+    if (object._scheduledAt != null) {
+      objectValue["116"] = object._scheduledAt.toString({ timeZoneName: "never" });
     }
-    if (object.#startedAt != null) {
-      objectValue["117"] = object.#startedAt.toString({ timeZoneName: "never" });
+    if (object._startedAt != null) {
+      objectValue["117"] = object._startedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#seenAt != null) {
-      objectValue["118"] = object.#seenAt.toString({ timeZoneName: "never" });
+    if (object._seenAt != null) {
+      objectValue["118"] = object._seenAt.toString({ timeZoneName: "never" });
     }
-    if (object.#interruptedAt != null) {
-      objectValue["119"] = object.#interruptedAt.toString({ timeZoneName: "never" });
+    if (object._interruptedAt != null) {
+      objectValue["119"] = object._interruptedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#terminatedAt != null) {
-      objectValue["120"] = object.#terminatedAt.toString({ timeZoneName: "never" });
+    if (object._terminatedAt != null) {
+      objectValue["120"] = object._terminatedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#interruptionPtr != null) {
-      objectValue["121"] = object.#interruptionPtr.toValue();
+    if (object._interruptionPtr != null) {
+      objectValue["121"] = object._interruptionPtr.toValue();
     }
     return objectValue;
   }
@@ -4813,36 +4813,36 @@ export class Run extends Entity implements IsSpatial, IsCustomizable {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    if (object.#targetPtr != null) {
-      objectProto.targetPtr = object.#targetPtr.toProto();
+    if (object._targetPtr != null) {
+      objectProto.targetPtr = object._targetPtr.toProto();
     }
-    objectProto.status = Number(object.#status) as RunStatusProto;
-    if (object.#duration != null) {
-      objectProto.duration = packProtoDuration(object.#duration);
+    objectProto.status = Number(object._status) as RunStatusProto;
+    if (object._duration != null) {
+      objectProto.duration = packProtoDuration(object._duration);
     }
-    if (object.#scheduledAt != null) {
-      objectProto.scheduledAt = packProtoTimestamp(object.#scheduledAt);
+    if (object._scheduledAt != null) {
+      objectProto.scheduledAt = packProtoTimestamp(object._scheduledAt);
     }
-    if (object.#startedAt != null) {
-      objectProto.startedAt = packProtoTimestamp(object.#startedAt);
+    if (object._startedAt != null) {
+      objectProto.startedAt = packProtoTimestamp(object._startedAt);
     }
-    if (object.#seenAt != null) {
-      objectProto.seenAt = packProtoTimestamp(object.#seenAt);
+    if (object._seenAt != null) {
+      objectProto.seenAt = packProtoTimestamp(object._seenAt);
     }
-    if (object.#interruptedAt != null) {
-      objectProto.interruptedAt = packProtoTimestamp(object.#interruptedAt);
+    if (object._interruptedAt != null) {
+      objectProto.interruptedAt = packProtoTimestamp(object._interruptedAt);
     }
-    if (object.#terminatedAt != null) {
-      objectProto.terminatedAt = packProtoTimestamp(object.#terminatedAt);
+    if (object._terminatedAt != null) {
+      objectProto.terminatedAt = packProtoTimestamp(object._terminatedAt);
     }
-    if (object.#interruptionPtr != null) {
-      objectProto.interruptionPtr = object.#interruptionPtr.toProto();
+    if (object._interruptionPtr != null) {
+      objectProto.interruptionPtr = object._interruptionPtr.toProto();
     }
     return objectProto as RunProto;
   }

@@ -24,7 +24,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:111000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:106000 ==== */
 /**
  * A Route is a path to a Scene.
  */
@@ -173,10 +173,10 @@ export class Route
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -186,18 +186,18 @@ export class Route
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * The name of the Route.
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -207,9 +207,9 @@ export class Route
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * The Scene to route to.
@@ -229,10 +229,10 @@ export class Route
     }
   }
   get scenePtr(): NodeReference | null {
-    return this.#scenePtr;
+    return this._scenePtr;
   }
   set scenePtr(value: NodeReference | null) {
-    const oldValue = this.#scenePtr;
+    const oldValue = this._scenePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -242,9 +242,9 @@ export class Route
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#scenePtr = value;
+    this._scenePtr = value;
   }
-  #scenePtr: NodeReference | null;
+  _scenePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -345,17 +345,17 @@ export class Route
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Route.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _scene = options.scene ?? null;
     if (_scene != null && _scene.metatype != StructType.NODE_REFERENCE) {
       _scene = (_scene as Node).toRef();
     }
-    this.#scenePtr = _scene;
+    this._scenePtr = _scene;
 
     // identity
     if (options.id == null) {
@@ -389,16 +389,16 @@ export class Route
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
-    if (!(this.#scenePtr?.id === other.#scenePtr?.id)) {
+    if (!(this._scenePtr?.id === other._scenePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -422,9 +422,9 @@ export class Route
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#scenePtr !== null) {
-      h = (h * 31 + hashString(this.#scenePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._scenePtr !== null) {
+      h = (h * 31 + hashString(this._scenePtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -433,8 +433,8 @@ export class Route
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -512,7 +512,7 @@ export class Route
 
   static __packValue__(object: Route): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 111000;
+    objectValue["1"] = 106000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -545,12 +545,12 @@ export class Route
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["101"] = object.#name;
-    if (object.#scenePtr != null) {
-      objectValue["110"] = object.#scenePtr.toValue();
+    objectValue["101"] = object._name;
+    if (object._scenePtr != null) {
+      objectValue["110"] = object._scenePtr.toValue();
     }
     return objectValue;
   }
@@ -657,7 +657,7 @@ export class Route
   }
 
   static __packProto__(object: Route): RouteProto {
-    const objectProto: Partial<RouteProto> = { metatype: 111000 };
+    const objectProto: Partial<RouteProto> = { metatype: 106000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -690,12 +690,12 @@ export class Route
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.name = object.#name;
-    if (object.#scenePtr != null) {
-      objectProto.scenePtr = object.#scenePtr.toProto();
+    objectProto.name = object._name;
+    if (object._scenePtr != null) {
+      objectProto.scenePtr = object._scenePtr.toProto();
     }
     return objectProto as RouteProto;
   }
@@ -844,4 +844,4 @@ export class Route
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROUTE, Route);
-/* ==== DESTACK_GENERATED_END:NODE:111000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:106000 ==== */

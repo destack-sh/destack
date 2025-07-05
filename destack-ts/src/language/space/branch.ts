@@ -162,10 +162,10 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -175,18 +175,18 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Branch.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -196,18 +196,18 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Branch.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -217,9 +217,9 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   /**
    * Branch.head
@@ -239,10 +239,10 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     }
   }
   get headPtr(): NodeReference | null {
-    return this.#headPtr;
+    return this._headPtr;
   }
   set headPtr(value: NodeReference | null) {
-    const oldValue = this.#headPtr;
+    const oldValue = this._headPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -252,9 +252,9 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#headPtr = value;
+    this._headPtr = value;
   }
-  #headPtr: NodeReference | null;
+  _headPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -347,19 +347,19 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Branch.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
     let _head = options.head ?? null;
     if (_head != null && _head.metatype != StructType.NODE_REFERENCE) {
       _head = (_head as Node).toRef();
     }
-    this.#headPtr = _head;
+    this._headPtr = _head;
 
     // identity
     if (options.id == null) {
@@ -393,22 +393,22 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
-    if (!(this.#headPtr?.id === other.#headPtr?.id)) {
+    if (!(this._headPtr?.id === other._headPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -432,18 +432,18 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.#headPtr !== null) {
-      h = (h * 31 + hashString(this.#headPtr.id)) & 0xffffffff;
+    if (this._headPtr !== null) {
+      h = (h * 31 + hashString(this._headPtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -553,15 +553,15 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
-    if (object.#headPtr != null) {
-      objectValue["110"] = object.#headPtr.toValue();
+    if (object._headPtr != null) {
+      objectValue["110"] = object._headPtr.toValue();
     }
     return objectValue;
   }
@@ -706,15 +706,15 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
-    if (object.#headPtr != null) {
-      objectProto.headPtr = object.#headPtr.toProto();
+    if (object._headPtr != null) {
+      objectProto.headPtr = object._headPtr.toProto();
     }
     return objectProto as BranchProto;
   }

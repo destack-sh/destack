@@ -367,10 +367,10 @@ export class CustomEntityDefinition
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -380,9 +380,9 @@ export class CustomEntityDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -407,10 +407,10 @@ export class CustomEntityDefinition
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -420,18 +420,18 @@ export class CustomEntityDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * CustomEntityDefinition.baseType
    */
   get baseType(): NodeDefinitionReference {
-    return this.#baseType;
+    return this._baseType;
   }
   set baseType(value: NodeDefinitionReference) {
-    const oldValue = this.#baseType;
+    const oldValue = this._baseType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -441,18 +441,18 @@ export class CustomEntityDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#baseType = value;
+    this._baseType = value;
   }
-  #baseType: NodeDefinitionReference;
+  _baseType: NodeDefinitionReference;
 
   /**
    * CustomEntityDefinition.baseTraits
    */
   get baseTraits(): Array<NodeDefinitionReference> {
-    return this.#baseTraits;
+    return this._baseTraits;
   }
   set baseTraits(value: Array<NodeDefinitionReference>) {
-    const oldValue = this.#baseTraits;
+    const oldValue = this._baseTraits;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -462,18 +462,18 @@ export class CustomEntityDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#baseTraits = value;
+    this._baseTraits = value;
   }
-  #baseTraits: Array<NodeDefinitionReference>;
+  _baseTraits: Array<NodeDefinitionReference>;
 
   /**
    * CustomEntityDefinition.isAbstract
    */
   get isAbstract(): boolean {
-    return this.#isAbstract;
+    return this._isAbstract;
   }
   set isAbstract(value: boolean) {
-    const oldValue = this.#isAbstract;
+    const oldValue = this._isAbstract;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -483,9 +483,9 @@ export class CustomEntityDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isAbstract = value;
+    this._isAbstract = value;
   }
-  #isAbstract: boolean;
+  _isAbstract: boolean;
 
   /**
    * A custom Entity's prototype is the default template new CustomEntity instances are based on.
@@ -505,10 +505,10 @@ export class CustomEntityDefinition
     }
   }
   get prototypePtr(): NodeReference | null {
-    return this.#prototypePtr;
+    return this._prototypePtr;
   }
   set prototypePtr(value: NodeReference | null) {
-    const oldValue = this.#prototypePtr;
+    const oldValue = this._prototypePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -518,9 +518,9 @@ export class CustomEntityDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#prototypePtr = value;
+    this._prototypePtr = value;
   }
-  #prototypePtr: NodeReference | null;
+  _prototypePtr: NodeReference | null;
 
   /**
    * IsSourceable.source
@@ -552,10 +552,10 @@ export class CustomEntityDefinition
     }
   }
   get scriptPtr(): NodeReference | null {
-    return this.#scriptPtr;
+    return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this.#scriptPtr;
+    const oldValue = this._scriptPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -565,18 +565,18 @@ export class CustomEntityDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#scriptPtr = value;
+    this._scriptPtr = value;
   }
-  #scriptPtr: NodeReference | null;
+  _scriptPtr: NodeReference | null;
 
   /**
    * CustomEntityDefinition.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -586,18 +586,18 @@ export class CustomEntityDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * CustomEntityDefinition.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -607,9 +607,9 @@ export class CustomEntityDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -709,7 +709,7 @@ export class CustomEntityDefinition
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -722,17 +722,17 @@ export class CustomEntityDefinition
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _baseType = options.baseType;
     if (_baseType === null) {
       throw new Error(`CustomEntityDefinition.baseType is required`);
     }
-    this.#baseType = _baseType;
+    this._baseType = _baseType;
     let _baseTraits = options.baseTraits ?? null;
     if (_baseTraits === null) {
       _baseTraits = [];
     }
-    this.#baseTraits = _baseTraits;
+    this._baseTraits = _baseTraits;
     let _isAbstract = options.isAbstract ?? null;
     if (_isAbstract === null) {
       _isAbstract = false;
@@ -740,12 +740,12 @@ export class CustomEntityDefinition
     if (_isAbstract === null) {
       throw new Error(`CustomEntityDefinition.isAbstract is required`);
     }
-    this.#isAbstract = _isAbstract;
+    this._isAbstract = _isAbstract;
     let _prototype = options.prototype ?? null;
     if (_prototype != null && _prototype.metatype != StructType.NODE_REFERENCE) {
       _prototype = (_prototype as Node).toRef();
     }
-    this.#prototypePtr = _prototype;
+    this._prototypePtr = _prototype;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -755,14 +755,14 @@ export class CustomEntityDefinition
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
-    this.#scriptPtr = _script;
+    this._scriptPtr = _script;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`CustomEntityDefinition.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -798,50 +798,50 @@ export class CustomEntityDefinition
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!this.#baseType.equals(other.#baseType)) {
+    if (!this._baseType.equals(other._baseType)) {
       return false;
     }
-    if (this.#baseTraits.length !== other.#baseTraits.length) {
+    if (this._baseTraits.length !== other._baseTraits.length) {
       return false;
     }
-    for (let i = 0; i < this.#baseTraits.length; i++) {
-      if (!this.#baseTraits[i].equals(other.#baseTraits[i])) {
+    for (let i = 0; i < this._baseTraits.length; i++) {
+      if (!this._baseTraits[i].equals(other._baseTraits[i])) {
         return false;
       }
     }
-    if (!(this.#isAbstract === other.#isAbstract)) {
+    if (!(this._isAbstract === other._isAbstract)) {
       return false;
     }
-    if (!(this.#prototypePtr?.id === other.#prototypePtr?.id)) {
+    if (!(this._prototypePtr?.id === other._prototypePtr?.id)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
-    if (!(this.#scriptPtr?.id === other.#scriptPtr?.id)) {
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
@@ -868,37 +868,37 @@ export class CustomEntityDefinition
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#baseType.hash()) & 0xffffffff;
-    if (this.#baseTraits && this.#baseTraits.length > 0) {
-      for (const _item of this.#baseTraits) {
+    h = (h * 31 + this._baseType.hash()) & 0xffffffff;
+    if (this._baseTraits && this._baseTraits.length > 0) {
+      for (const _item of this._baseTraits) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashBool(this.#isAbstract)) & 0xffffffff;
-    if (this.#prototypePtr !== null) {
-      h = (h * 31 + hashString(this.#prototypePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashBool(this._isAbstract)) & 0xffffffff;
+    if (this._prototypePtr !== null) {
+      h = (h * 31 + hashString(this._prototypePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#scriptPtr !== null) {
-      h = (h * 31 + hashString(this.#scriptPtr.id)) & 0xffffffff;
+    if (this._scriptPtr !== null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
@@ -1009,38 +1009,38 @@ export class CustomEntityDefinition
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["40"] = object.#baseType.toValue();
-    if (object.#baseTraits.length > 0) {
+    objectValue["40"] = object._baseType.toValue();
+    if (object._baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
-      for (const item of object.#baseTraits) {
+      for (const item of object._baseTraits) {
         packedBaseTraits.push(item.toValue());
       }
       objectValue["41"] = packedBaseTraits;
     }
-    objectValue["45"] = object.#isAbstract;
-    if (object.#prototypePtr != null) {
-      objectValue["50"] = object.#prototypePtr.toValue();
+    objectValue["45"] = object._isAbstract;
+    if (object._prototypePtr != null) {
+      objectValue["50"] = object._prototypePtr.toValue();
     }
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    if (object.#scriptPtr != null) {
-      objectValue["70"] = object.#scriptPtr.toValue();
+    if (object._scriptPtr != null) {
+      objectValue["70"] = object._scriptPtr.toValue();
     }
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
     return objectValue;
   }
@@ -1235,37 +1235,37 @@ export class CustomEntityDefinition
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.baseType = object.#baseType.toProto();
-    if (object.#baseTraits) {
+    objectProto.baseType = object._baseType.toProto();
+    if (object._baseTraits) {
       const packedBaseTraits: any[] = [];
-      for (const item of object.#baseTraits) {
+      for (const item of object._baseTraits) {
         packedBaseTraits.push(item.toProto());
       }
       objectProto.baseTraits = packedBaseTraits;
     }
-    objectProto.isAbstract = object.#isAbstract;
-    if (object.#prototypePtr != null) {
-      objectProto.prototypePtr = object.#prototypePtr.toProto();
+    objectProto.isAbstract = object._isAbstract;
+    if (object._prototypePtr != null) {
+      objectProto.prototypePtr = object._prototypePtr.toProto();
     }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    if (object.#scriptPtr != null) {
-      objectProto.scriptPtr = object.#scriptPtr.toProto();
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
     }
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
     return objectProto as CustomEntityDefinitionProto;
   }
@@ -1608,10 +1608,10 @@ export class CustomTraitDefinition
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1621,9 +1621,9 @@ export class CustomTraitDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -1634,10 +1634,10 @@ export class CustomTraitDefinition
    * CustomTraitDefinition.baseType
    */
   get baseType(): NodeDefinitionReference | null {
-    return this.#baseType;
+    return this._baseType;
   }
   set baseType(value: NodeDefinitionReference | null) {
-    const oldValue = this.#baseType;
+    const oldValue = this._baseType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1647,18 +1647,18 @@ export class CustomTraitDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#baseType = value;
+    this._baseType = value;
   }
-  #baseType: NodeDefinitionReference | null;
+  _baseType: NodeDefinitionReference | null;
 
   /**
    * CustomTraitDefinition.baseTraits
    */
   get baseTraits(): Array<NodeDefinitionReference> {
-    return this.#baseTraits;
+    return this._baseTraits;
   }
   set baseTraits(value: Array<NodeDefinitionReference>) {
-    const oldValue = this.#baseTraits;
+    const oldValue = this._baseTraits;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1668,18 +1668,18 @@ export class CustomTraitDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#baseTraits = value;
+    this._baseTraits = value;
   }
-  #baseTraits: Array<NodeDefinitionReference>;
+  _baseTraits: Array<NodeDefinitionReference>;
 
   /**
    * CustomTraitDefinition.isAbstract
    */
   get isAbstract(): boolean {
-    return this.#isAbstract;
+    return this._isAbstract;
   }
   set isAbstract(value: boolean) {
-    const oldValue = this.#isAbstract;
+    const oldValue = this._isAbstract;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1689,9 +1689,9 @@ export class CustomTraitDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isAbstract = value;
+    this._isAbstract = value;
   }
-  #isAbstract: boolean;
+  _isAbstract: boolean;
 
   /**
    * IsSourceable.source
@@ -1723,10 +1723,10 @@ export class CustomTraitDefinition
     }
   }
   get scriptPtr(): NodeReference | null {
-    return this.#scriptPtr;
+    return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this.#scriptPtr;
+    const oldValue = this._scriptPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1736,18 +1736,18 @@ export class CustomTraitDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#scriptPtr = value;
+    this._scriptPtr = value;
   }
-  #scriptPtr: NodeReference | null;
+  _scriptPtr: NodeReference | null;
 
   /**
    * CustomTraitDefinition.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1757,18 +1757,18 @@ export class CustomTraitDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * CustomTraitDefinition.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1778,9 +1778,9 @@ export class CustomTraitDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -1878,7 +1878,7 @@ export class CustomTraitDefinition
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -1888,12 +1888,12 @@ export class CustomTraitDefinition
     }
     this.orderKey = _orderKey;
     let _baseType = options.baseType ?? null;
-    this.#baseType = _baseType;
+    this._baseType = _baseType;
     let _baseTraits = options.baseTraits ?? null;
     if (_baseTraits === null) {
       _baseTraits = [];
     }
-    this.#baseTraits = _baseTraits;
+    this._baseTraits = _baseTraits;
     let _isAbstract = options.isAbstract ?? null;
     if (_isAbstract === null) {
       _isAbstract = false;
@@ -1901,7 +1901,7 @@ export class CustomTraitDefinition
     if (_isAbstract === null) {
       throw new Error(`CustomTraitDefinition.isAbstract is required`);
     }
-    this.#isAbstract = _isAbstract;
+    this._isAbstract = _isAbstract;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -1911,14 +1911,14 @@ export class CustomTraitDefinition
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
-    this.#scriptPtr = _script;
+    this._scriptPtr = _script;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`CustomTraitDefinition.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -1955,28 +1955,28 @@ export class CustomTraitDefinition
       return false;
     }
     if (
-      (this.#baseType == null) !== (other.#baseType == null) ||
-      (this.#baseType != null && !this.#baseType.equals(other.#baseType))
+      (this._baseType == null) !== (other._baseType == null) ||
+      (this._baseType != null && !this._baseType.equals(other._baseType))
     ) {
       return false;
     }
-    if (this.#baseTraits.length !== other.#baseTraits.length) {
+    if (this._baseTraits.length !== other._baseTraits.length) {
       return false;
     }
-    for (let i = 0; i < this.#baseTraits.length; i++) {
-      if (!this.#baseTraits[i].equals(other.#baseTraits[i])) {
+    for (let i = 0; i < this._baseTraits.length; i++) {
+      if (!this._baseTraits[i].equals(other._baseTraits[i])) {
         return false;
       }
     }
-    if (!(this.#isAbstract === other.#isAbstract)) {
+    if (!(this._isAbstract === other._isAbstract)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
@@ -1986,17 +1986,17 @@ export class CustomTraitDefinition
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
-    if (!(this.#scriptPtr?.id === other.#scriptPtr?.id)) {
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -2021,18 +2021,18 @@ export class CustomTraitDefinition
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.#baseType !== null) {
-      h = (h * 31 + this.#baseType.hash()) & 0xffffffff;
+    if (this._baseType !== null) {
+      h = (h * 31 + this._baseType.hash()) & 0xffffffff;
     }
-    if (this.#baseTraits && this.#baseTraits.length > 0) {
-      for (const _item of this.#baseTraits) {
+    if (this._baseTraits && this._baseTraits.length > 0) {
+      for (const _item of this._baseTraits) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashBool(this.#isAbstract)) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashBool(this._isAbstract)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -2043,11 +2043,11 @@ export class CustomTraitDefinition
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#scriptPtr !== null) {
-      h = (h * 31 + hashString(this.#scriptPtr.id)) & 0xffffffff;
+    if (this._scriptPtr !== null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -2155,34 +2155,34 @@ export class CustomTraitDefinition
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    if (object.#baseType != null) {
-      objectValue["40"] = object.#baseType.toValue();
+    if (object._baseType != null) {
+      objectValue["40"] = object._baseType.toValue();
     }
-    if (object.#baseTraits.length > 0) {
+    if (object._baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
-      for (const item of object.#baseTraits) {
+      for (const item of object._baseTraits) {
         packedBaseTraits.push(item.toValue());
       }
       objectValue["41"] = packedBaseTraits;
     }
-    objectValue["45"] = object.#isAbstract;
+    objectValue["45"] = object._isAbstract;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    if (object.#scriptPtr != null) {
-      objectValue["70"] = object.#scriptPtr.toValue();
+    if (object._scriptPtr != null) {
+      objectValue["70"] = object._scriptPtr.toValue();
     }
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
     return objectValue;
   }
@@ -2370,33 +2370,33 @@ export class CustomTraitDefinition
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    if (object.#baseType != null) {
-      objectProto.baseType = object.#baseType.toProto();
+    if (object._baseType != null) {
+      objectProto.baseType = object._baseType.toProto();
     }
-    if (object.#baseTraits) {
+    if (object._baseTraits) {
       const packedBaseTraits: any[] = [];
-      for (const item of object.#baseTraits) {
+      for (const item of object._baseTraits) {
         packedBaseTraits.push(item.toProto());
       }
       objectProto.baseTraits = packedBaseTraits;
     }
-    objectProto.isAbstract = object.#isAbstract;
+    objectProto.isAbstract = object._isAbstract;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    if (object.#scriptPtr != null) {
-      objectProto.scriptPtr = object.#scriptPtr.toProto();
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
     }
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
     return objectProto as CustomTraitDefinitionProto;
   }
@@ -2994,10 +2994,10 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -3007,9 +3007,9 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Snapshot.type
@@ -3020,10 +3020,10 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
    * Snapshot.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -3033,18 +3033,18 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Snapshot.status
    */
   get status(): SnapshotStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: SnapshotStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -3054,9 +3054,9 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: SnapshotStatus;
+  _status: SnapshotStatus;
 
   constructor(options: {
     id?: string;
@@ -3158,7 +3158,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 1 /* SnapshotType.PARTIAL */;
@@ -3171,7 +3171,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (_name === null) {
       throw new Error(`Snapshot.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 10 /* SnapshotStatus.ACTIVE */;
@@ -3179,7 +3179,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (_status === null) {
       throw new Error(`Snapshot.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
 
     // identity
     if (options.id == null) {
@@ -3224,16 +3224,16 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
@@ -3256,13 +3256,13 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    h = (h * 31 + this.#status) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.archivedAt !== null) {
       h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -3370,12 +3370,12 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
     objectValue["100"] = object.type;
-    objectValue["101"] = object.#name;
-    objectValue["110"] = object.#status;
+    objectValue["101"] = object._name;
+    objectValue["110"] = object._status;
     return objectValue;
   }
 
@@ -3516,12 +3516,12 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
     objectProto.type = Number(object.type) as SnapshotTypeProto;
-    objectProto.name = object.#name;
-    objectProto.status = Number(object.#status) as SnapshotStatusProto;
+    objectProto.name = object._name;
+    objectProto.status = Number(object._status) as SnapshotStatusProto;
     return objectProto as SnapshotProto;
   }
 

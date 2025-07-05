@@ -207,10 +207,10 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -220,18 +220,18 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Variant.type
    */
   get type(): VariantType {
-    return this.#type;
+    return this._type;
   }
   set type(value: VariantType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -241,18 +241,18 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: VariantType;
+  _type: VariantType;
 
   /**
    * Variant.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -262,18 +262,18 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Variant.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -283,18 +283,18 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   /**
    * Variant.maxWidth
    */
   get maxWidth(): Length | null {
-    return this.#maxWidth;
+    return this._maxWidth;
   }
   set maxWidth(value: Length | null) {
-    const oldValue = this.#maxWidth;
+    const oldValue = this._maxWidth;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -304,18 +304,18 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#maxWidth = value;
+    this._maxWidth = value;
   }
-  #maxWidth: Length | null;
+  _maxWidth: Length | null;
 
   /**
    * Variant.maxHeight
    */
   get maxHeight(): Length | null {
-    return this.#maxHeight;
+    return this._maxHeight;
   }
   set maxHeight(value: Length | null) {
-    const oldValue = this.#maxHeight;
+    const oldValue = this._maxHeight;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -325,18 +325,18 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#maxHeight = value;
+    this._maxHeight = value;
   }
-  #maxHeight: Length | null;
+  _maxHeight: Length | null;
 
   /**
    * Variant.minWidth
    */
   get minWidth(): Length | null {
-    return this.#minWidth;
+    return this._minWidth;
   }
   set minWidth(value: Length | null) {
-    const oldValue = this.#minWidth;
+    const oldValue = this._minWidth;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -346,18 +346,18 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#minWidth = value;
+    this._minWidth = value;
   }
-  #minWidth: Length | null;
+  _minWidth: Length | null;
 
   /**
    * Variant.minHeight
    */
   get minHeight(): Length | null {
-    return this.#minHeight;
+    return this._minHeight;
   }
   set minHeight(value: Length | null) {
-    const oldValue = this.#minHeight;
+    const oldValue = this._minHeight;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -367,9 +367,9 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#minHeight = value;
+    this._minHeight = value;
   }
-  #minHeight: Length | null;
+  _minHeight: Length | null;
 
   constructor(options: {
     id?: string;
@@ -466,27 +466,27 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Variant.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Variant.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
     let _maxWidth = options.maxWidth ?? null;
-    this.#maxWidth = _maxWidth;
+    this._maxWidth = _maxWidth;
     let _maxHeight = options.maxHeight ?? null;
-    this.#maxHeight = _maxHeight;
+    this._maxHeight = _maxHeight;
     let _minWidth = options.minWidth ?? null;
-    this.#minWidth = _minWidth;
+    this._minWidth = _minWidth;
     let _minHeight = options.minHeight ?? null;
-    this.#minHeight = _minHeight;
+    this._minHeight = _minHeight;
 
     // identity
     if (options.id == null) {
@@ -520,46 +520,46 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
     if (
-      (this.#maxWidth == null) !== (other.#maxWidth == null) ||
-      (this.#maxWidth != null && !this.#maxWidth.equals(other.#maxWidth))
+      (this._maxWidth == null) !== (other._maxWidth == null) ||
+      (this._maxWidth != null && !this._maxWidth.equals(other._maxWidth))
     ) {
       return false;
     }
     if (
-      (this.#maxHeight == null) !== (other.#maxHeight == null) ||
-      (this.#maxHeight != null && !this.#maxHeight.equals(other.#maxHeight))
+      (this._maxHeight == null) !== (other._maxHeight == null) ||
+      (this._maxHeight != null && !this._maxHeight.equals(other._maxHeight))
     ) {
       return false;
     }
     if (
-      (this.#minWidth == null) !== (other.#minWidth == null) ||
-      (this.#minWidth != null && !this.#minWidth.equals(other.#minWidth))
+      (this._minWidth == null) !== (other._minWidth == null) ||
+      (this._minWidth != null && !this._minWidth.equals(other._minWidth))
     ) {
       return false;
     }
     if (
-      (this.#minHeight == null) !== (other.#minHeight == null) ||
-      (this.#minHeight != null && !this.#minHeight.equals(other.#minHeight))
+      (this._minHeight == null) !== (other._minHeight == null) ||
+      (this._minHeight != null && !this._minHeight.equals(other._minHeight))
     ) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -583,28 +583,28 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#type) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.#maxWidth !== null) {
-      h = (h * 31 + this.#maxWidth.hash()) & 0xffffffff;
+    if (this._maxWidth !== null) {
+      h = (h * 31 + this._maxWidth.hash()) & 0xffffffff;
     }
-    if (this.#maxHeight !== null) {
-      h = (h * 31 + this.#maxHeight.hash()) & 0xffffffff;
+    if (this._maxHeight !== null) {
+      h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
-    if (this.#minWidth !== null) {
-      h = (h * 31 + this.#minWidth.hash()) & 0xffffffff;
+    if (this._minWidth !== null) {
+      h = (h * 31 + this._minWidth.hash()) & 0xffffffff;
     }
-    if (this.#minHeight !== null) {
-      h = (h * 31 + this.#minHeight.hash()) & 0xffffffff;
+    if (this._minHeight !== null) {
+      h = (h * 31 + this._minHeight.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -714,25 +714,25 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
-    if (object.#maxWidth != null) {
-      objectValue["110"] = object.#maxWidth.toValue();
+    if (object._maxWidth != null) {
+      objectValue["110"] = object._maxWidth.toValue();
     }
-    if (object.#maxHeight != null) {
-      objectValue["111"] = object.#maxHeight.toValue();
+    if (object._maxHeight != null) {
+      objectValue["111"] = object._maxHeight.toValue();
     }
-    if (object.#minWidth != null) {
-      objectValue["112"] = object.#minWidth.toValue();
+    if (object._minWidth != null) {
+      objectValue["112"] = object._minWidth.toValue();
     }
-    if (object.#minHeight != null) {
-      objectValue["113"] = object.#minHeight.toValue();
+    if (object._minHeight != null) {
+      objectValue["113"] = object._minHeight.toValue();
     }
     return objectValue;
   }
@@ -897,25 +897,25 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.type = Number(object.#type) as VariantTypeProto;
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.type = Number(object._type) as VariantTypeProto;
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
-    if (object.#maxWidth != null) {
-      objectProto.maxWidth = object.#maxWidth.toProto();
+    if (object._maxWidth != null) {
+      objectProto.maxWidth = object._maxWidth.toProto();
     }
-    if (object.#maxHeight != null) {
-      objectProto.maxHeight = object.#maxHeight.toProto();
+    if (object._maxHeight != null) {
+      objectProto.maxHeight = object._maxHeight.toProto();
     }
-    if (object.#minWidth != null) {
-      objectProto.minWidth = object.#minWidth.toProto();
+    if (object._minWidth != null) {
+      objectProto.minWidth = object._minWidth.toProto();
     }
-    if (object.#minHeight != null) {
-      objectProto.minHeight = object.#minHeight.toProto();
+    if (object._minHeight != null) {
+      objectProto.minHeight = object._minHeight.toProto();
     }
     return objectProto as VariantProto;
   }

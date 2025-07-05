@@ -702,10 +702,10 @@ export class TransitionStyle extends Style {
    * TransitionStyle.type
    */
   get type(): TransitionType {
-    return this.#type;
+    return this._type;
   }
   set type(value: TransitionType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -715,18 +715,18 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: TransitionType;
+  _type: TransitionType;
 
   /**
    * Style.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -736,18 +736,18 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * TransitionStyle.delay
    */
   get delay(): number | null {
-    return this.#delay;
+    return this._delay;
   }
   set delay(value: number | null) {
-    const oldValue = this.#delay;
+    const oldValue = this._delay;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -757,18 +757,18 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#delay = value;
+    this._delay = value;
   }
-  #delay: number | null;
+  _delay: number | null;
 
   /**
    * TransitionStyle.duration
    */
   get duration(): number | null {
-    return this.#duration;
+    return this._duration;
   }
   set duration(value: number | null) {
-    const oldValue = this.#duration;
+    const oldValue = this._duration;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -778,18 +778,18 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#duration = value;
+    this._duration = value;
   }
-  #duration: number | null;
+  _duration: number | null;
 
   /**
    * TransitionStyle.ease
    */
   get ease(): Array<number> {
-    return this.#ease;
+    return this._ease;
   }
   set ease(value: Array<number>) {
-    const oldValue = this.#ease;
+    const oldValue = this._ease;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -799,18 +799,18 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ease = value;
+    this._ease = value;
   }
-  #ease: Array<number>;
+  _ease: Array<number>;
 
   /**
    * TransitionStyle.stiffness
    */
   get stiffness(): number | null {
-    return this.#stiffness;
+    return this._stiffness;
   }
   set stiffness(value: number | null) {
-    const oldValue = this.#stiffness;
+    const oldValue = this._stiffness;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -820,18 +820,18 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#stiffness = value;
+    this._stiffness = value;
   }
-  #stiffness: number | null;
+  _stiffness: number | null;
 
   /**
    * TransitionStyle.damping
    */
   get damping(): number | null {
-    return this.#damping;
+    return this._damping;
   }
   set damping(value: number | null) {
-    const oldValue = this.#damping;
+    const oldValue = this._damping;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -841,18 +841,18 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#damping = value;
+    this._damping = value;
   }
-  #damping: number | null;
+  _damping: number | null;
 
   /**
    * TransitionStyle.mass
    */
   get mass(): number | null {
-    return this.#mass;
+    return this._mass;
   }
   set mass(value: number | null) {
-    const oldValue = this.#mass;
+    const oldValue = this._mass;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -862,18 +862,18 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#mass = value;
+    this._mass = value;
   }
-  #mass: number | null;
+  _mass: number | null;
 
   /**
    * TransitionStyle.bounce
    */
   get bounce(): number | null {
-    return this.#bounce;
+    return this._bounce;
   }
   set bounce(value: number | null) {
-    const oldValue = this.#bounce;
+    const oldValue = this._bounce;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -883,18 +883,18 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#bounce = value;
+    this._bounce = value;
   }
-  #bounce: number | null;
+  _bounce: number | null;
 
   /**
    * TransitionStyle.springType
    */
   get springType(): SpringType | null {
-    return this.#springType;
+    return this._springType;
   }
   set springType(value: SpringType | null) {
-    const oldValue = this.#springType;
+    const oldValue = this._springType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -904,9 +904,9 @@ export class TransitionStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#springType = value;
+    this._springType = value;
   }
-  #springType: SpringType | null;
+  _springType: SpringType | null;
 
   constructor(options: {
     id?: string;
@@ -1017,31 +1017,31 @@ export class TransitionStyle extends Style {
     if (_type === null) {
       throw new Error(`TransitionStyle.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`TransitionStyle.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _delay = options.delay ?? null;
-    this.#delay = _delay;
+    this._delay = _delay;
     let _duration = options.duration ?? null;
-    this.#duration = _duration;
+    this._duration = _duration;
     let _ease = options.ease ?? null;
     if (_ease === null) {
       _ease = [];
     }
-    this.#ease = _ease;
+    this._ease = _ease;
     let _stiffness = options.stiffness ?? null;
-    this.#stiffness = _stiffness;
+    this._stiffness = _stiffness;
     let _damping = options.damping ?? null;
-    this.#damping = _damping;
+    this._damping = _damping;
     let _mass = options.mass ?? null;
-    this.#mass = _mass;
+    this._mass = _mass;
     let _bounce = options.bounce ?? null;
-    this.#bounce = _bounce;
+    this._bounce = _bounce;
     let _springType = options.springType ?? null;
-    this.#springType = _springType;
+    this._springType = _springType;
 
     // identity
     if (options.id == null) {
@@ -1077,66 +1077,66 @@ export class TransitionStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
     if (
-      (this.#delay == null) !== (other.#delay == null) ||
-      (this.#delay != null &&
-        !(this.#delay === other.#delay || Math.abs(this.#delay - other.#delay) < 1e-10))
+      (this._delay == null) !== (other._delay == null) ||
+      (this._delay != null &&
+        !(this._delay === other._delay || Math.abs(this._delay - other._delay) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.#duration == null) !== (other.#duration == null) ||
-      (this.#duration != null &&
-        !(this.#duration === other.#duration || Math.abs(this.#duration - other.#duration) < 1e-10))
+      (this._duration == null) !== (other._duration == null) ||
+      (this._duration != null &&
+        !(this._duration === other._duration || Math.abs(this._duration - other._duration) < 1e-10))
     ) {
       return false;
     }
-    if (this.#ease.length !== other.#ease.length) {
+    if (this._ease.length !== other._ease.length) {
       return false;
     }
-    for (let i = 0; i < this.#ease.length; i++) {
-      if (!(this.#ease[i] === other.#ease[i] || Math.abs(this.#ease[i] - other.#ease[i]) < 1e-10)) {
+    for (let i = 0; i < this._ease.length; i++) {
+      if (!(this._ease[i] === other._ease[i] || Math.abs(this._ease[i] - other._ease[i]) < 1e-10)) {
         return false;
       }
     }
     if (
-      (this.#stiffness == null) !== (other.#stiffness == null) ||
-      (this.#stiffness != null &&
+      (this._stiffness == null) !== (other._stiffness == null) ||
+      (this._stiffness != null &&
         !(
-          this.#stiffness === other.#stiffness ||
-          Math.abs(this.#stiffness - other.#stiffness) < 1e-10
+          this._stiffness === other._stiffness ||
+          Math.abs(this._stiffness - other._stiffness) < 1e-10
         ))
     ) {
       return false;
     }
     if (
-      (this.#damping == null) !== (other.#damping == null) ||
-      (this.#damping != null &&
-        !(this.#damping === other.#damping || Math.abs(this.#damping - other.#damping) < 1e-10))
+      (this._damping == null) !== (other._damping == null) ||
+      (this._damping != null &&
+        !(this._damping === other._damping || Math.abs(this._damping - other._damping) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.#mass == null) !== (other.#mass == null) ||
-      (this.#mass != null &&
-        !(this.#mass === other.#mass || Math.abs(this.#mass - other.#mass) < 1e-10))
+      (this._mass == null) !== (other._mass == null) ||
+      (this._mass != null &&
+        !(this._mass === other._mass || Math.abs(this._mass - other._mass) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.#bounce == null) !== (other.#bounce == null) ||
-      (this.#bounce != null &&
-        !(this.#bounce === other.#bounce || Math.abs(this.#bounce - other.#bounce) < 1e-10))
+      (this._bounce == null) !== (other._bounce == null) ||
+      (this._bounce != null &&
+        !(this._bounce === other._bounce || Math.abs(this._bounce - other._bounce) < 1e-10))
     ) {
       return false;
     }
-    if (!(this.#springType === other.#springType)) {
+    if (!(this._springType === other._springType)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1160,37 +1160,37 @@ export class TransitionStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#type) & 0xffffffff;
-    if (this.#delay !== null) {
-      h = (h * 31 + hashFloat(this.#delay)) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._delay !== null) {
+      h = (h * 31 + hashFloat(this._delay)) & 0xffffffff;
     }
-    if (this.#duration !== null) {
-      h = (h * 31 + hashFloat(this.#duration)) & 0xffffffff;
+    if (this._duration !== null) {
+      h = (h * 31 + hashFloat(this._duration)) & 0xffffffff;
     }
-    if (this.#ease && this.#ease.length > 0) {
-      for (const _item of this.#ease) {
+    if (this._ease && this._ease.length > 0) {
+      for (const _item of this._ease) {
         h = (h * 31 + hashFloat(_item)) & 0xffffffff;
       }
     }
-    if (this.#stiffness !== null) {
-      h = (h * 31 + hashFloat(this.#stiffness)) & 0xffffffff;
+    if (this._stiffness !== null) {
+      h = (h * 31 + hashFloat(this._stiffness)) & 0xffffffff;
     }
-    if (this.#damping !== null) {
-      h = (h * 31 + hashFloat(this.#damping)) & 0xffffffff;
+    if (this._damping !== null) {
+      h = (h * 31 + hashFloat(this._damping)) & 0xffffffff;
     }
-    if (this.#mass !== null) {
-      h = (h * 31 + hashFloat(this.#mass)) & 0xffffffff;
+    if (this._mass !== null) {
+      h = (h * 31 + hashFloat(this._mass)) & 0xffffffff;
     }
-    if (this.#bounce !== null) {
-      h = (h * 31 + hashFloat(this.#bounce)) & 0xffffffff;
+    if (this._bounce !== null) {
+      h = (h * 31 + hashFloat(this._bounce)) & 0xffffffff;
     }
-    if (this.#springType !== null) {
-      h = (h * 31 + this.#springType) & 0xffffffff;
+    if (this._springType !== null) {
+      h = (h * 31 + this._springType) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1326,35 +1326,35 @@ export class TransitionStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#delay != null) {
-      objectValue["102"] = object.#delay;
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._delay != null) {
+      objectValue["102"] = object._delay;
     }
-    if (object.#duration != null) {
-      objectValue["103"] = object.#duration;
+    if (object._duration != null) {
+      objectValue["103"] = object._duration;
     }
-    if (object.#ease.length > 0) {
+    if (object._ease.length > 0) {
       const packedEase: any[] = [];
-      for (const item of object.#ease) {
+      for (const item of object._ease) {
         packedEase.push(item);
       }
       objectValue["104"] = packedEase;
     }
-    if (object.#stiffness != null) {
-      objectValue["105"] = object.#stiffness;
+    if (object._stiffness != null) {
+      objectValue["105"] = object._stiffness;
     }
-    if (object.#damping != null) {
-      objectValue["106"] = object.#damping;
+    if (object._damping != null) {
+      objectValue["106"] = object._damping;
     }
-    if (object.#mass != null) {
-      objectValue["107"] = object.#mass;
+    if (object._mass != null) {
+      objectValue["107"] = object._mass;
     }
-    if (object.#bounce != null) {
-      objectValue["108"] = object.#bounce;
+    if (object._bounce != null) {
+      objectValue["108"] = object._bounce;
     }
-    if (object.#springType != null) {
-      objectValue["109"] = object.#springType;
+    if (object._springType != null) {
+      objectValue["109"] = object._springType;
     }
     return objectValue;
   }
@@ -1511,35 +1511,35 @@ export class TransitionStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.#type) as TransitionTypeProto;
-    objectProto.name = object.#name;
-    if (object.#delay != null) {
-      objectProto.delay = object.#delay;
+    objectProto.type = Number(object._type) as TransitionTypeProto;
+    objectProto.name = object._name;
+    if (object._delay != null) {
+      objectProto.delay = object._delay;
     }
-    if (object.#duration != null) {
-      objectProto.duration = object.#duration;
+    if (object._duration != null) {
+      objectProto.duration = object._duration;
     }
-    if (object.#ease) {
+    if (object._ease) {
       const packedEase: any[] = [];
-      for (const item of object.#ease) {
+      for (const item of object._ease) {
         packedEase.push(item);
       }
       objectProto.ease = packedEase;
     }
-    if (object.#stiffness != null) {
-      objectProto.stiffness = object.#stiffness;
+    if (object._stiffness != null) {
+      objectProto.stiffness = object._stiffness;
     }
-    if (object.#damping != null) {
-      objectProto.damping = object.#damping;
+    if (object._damping != null) {
+      objectProto.damping = object._damping;
     }
-    if (object.#mass != null) {
-      objectProto.mass = object.#mass;
+    if (object._mass != null) {
+      objectProto.mass = object._mass;
     }
-    if (object.#bounce != null) {
-      objectProto.bounce = object.#bounce;
+    if (object._bounce != null) {
+      objectProto.bounce = object._bounce;
     }
-    if (object.#springType != null) {
-      objectProto.springType = Number(object.#springType) as SpringTypeProto;
+    if (object._springType != null) {
+      objectProto.springType = Number(object._springType) as SpringTypeProto;
     }
     return objectProto as TransitionStyleProto;
   }

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.07.05.0"
+VERSION = "2025.07.05.1"
 
 # import from all generated files
 from .health_pb2 import *
@@ -140,6 +140,7 @@ AnyNodeProto = Union[
     MiddleClickEventProto,
     DoubleClickEventProto,
     WheelEventProto,
+    MethodProto,
     ActionProto,
     CursorProto,
     EventCursorProto,

@@ -85,13 +85,13 @@ class EnumType(Enum):
     ICON_TYPE = 80_005
 
     # logic [100_000-120_000]
-    TRIGGER_TYPE = 112_400
-    SCHEDULE_FREQUENCY = 112_500
-    DAY_OF_WEEK = 112_501
-    MONTH = 112_502
-    TIMER_TYPE = 112_503
-    ACTION_CARDINALITY = 110_200
-    CURSOR_STATUS = 112_600
+    METHOD_CARDINALITY = 102_001
+    TRIGGER_TYPE = 105_000
+    TIMER_TYPE = 105_100
+    DAY_OF_WEEK = 105_101
+    MONTH = 105_102
+    SCHEDULE_FREQUENCY = 105_103
+    CURSOR_STATUS = 105_501
 
     # intelligence [120_000-140_000]
     MODEL_DEVELOPER = 120_000
@@ -537,23 +537,23 @@ class NodeType(Enum):
     # SETTINGS, ...
 
     # logic [100_000-120_000]
-    SERVICE = 100_000, "Service", None, "fas fa-screwdriver-wrench"
-    SCRIPT = 105_000, "Script", None, "fas fa-code"
-    # METHOD = 110_200, "Method", None, "fas fa-code"
-    ACTION = 110_300, "Action", None, "fas fa-code"
-    ROUTE = 111_000, "Route", None, "fas fa-route"
-    TRIGGER = 112_000, "Trigger", None, "fas fa-bolt"
-    TRIGGER_EVENT = 112_001, "Trigger Event", None, "fas fa-bolt"
-    TIMER = 112_100, "Timer", None, "fas fa-clock"
-    TIMER_EVENT = 112_101, "Timer Event", None, "fas fa-clock"
-    TIMER_STARTED_EVENT = 112_102, "Timer Started Event", None, "fas fa-clock"
-    TIMER_COMPLETED_EVENT = 112_103, "Timer Completed Event", None, "fas fa-clock"
-    TIMER_CANCELLED_EVENT = 112_104, "Timer Cancelled Event", None, "fas fa-clock"
-    CURSOR = 112_500, "Cursor", None, "fas fa-mouse-pointer"
-    EVENT_CURSOR = 112_600, "Event Cursor", None, "fas fa-signal"
-    SCREEN_CURSOR = 112_700, "Screen Cursor", None, "fas fa-mouse"
-    THREAD_CURSOR = 112_800, "Thread Cursor", None, "fas fa-magnifying-glass"
+    SCRIPT = 100_000, "Script", None, "fas fa-code"
+    SERVICE = 101_000, "Service", None, "fas fa-screwdriver-wrench"
+    METHOD = 102_000, "Method", None, "fas fa-code"
+    ACTION = 102_100, "Action", None, "fas fa-code"
+    TRIGGER = 105_000, "Trigger", None, "fas fa-bolt"
+    TRIGGER_EVENT = 105_001, "Trigger Event", None, "fas fa-bolt"
+    TIMER = 105_100, "Timer", None, "fas fa-clock"
+    TIMER_EVENT = 105_101, "Timer Event", None, "fas fa-clock"
+    TIMER_STARTED_EVENT = 105_102, "Timer Started Event", None, "fas fa-clock"
+    TIMER_COMPLETED_EVENT = 105_103, "Timer Completed Event", None, "fas fa-clock"
+    TIMER_CANCELLED_EVENT = 105_104, "Timer Cancelled Event", None, "fas fa-clock"
+    CURSOR = 105_500, "Cursor", None, "fas fa-mouse-pointer"
+    EVENT_CURSOR = 105_600, "Event Cursor", None, "fas fa-signal"
+    SCREEN_CURSOR = 105_700, "Screen Cursor", None, "fas fa-mouse"
+    THREAD_CURSOR = 105_800, "Thread Cursor", None, "fas fa-magnifying-glass"
     # QUERY_CURSOR, WEB_CURSOR, ...
+    ROUTE = 106_000, "Route", None, "fas fa-route"
     # BREAKPOINT, ...
     # ROOM, CHANNEL, ...
     # SEMAPHORE, LOCK/LATCH, ...

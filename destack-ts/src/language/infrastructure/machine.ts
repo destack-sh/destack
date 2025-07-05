@@ -205,10 +205,10 @@ export class Machine extends Resource implements IsSpatial {
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -218,18 +218,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * Resource.status
    */
   get status(): ResourceStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: ResourceStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -239,18 +239,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: ResourceStatus;
+  _status: ResourceStatus;
 
   /**
    * Machine.type
    */
   get type(): MachineType {
-    return this.#type;
+    return this._type;
   }
   set type(value: MachineType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -260,18 +260,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: MachineType;
+  _type: MachineType;
 
   /**
    * Machine.version
    */
   get version(): string {
-    return this.#version;
+    return this._version;
   }
   set version(value: string) {
-    const oldValue = this.#version;
+    const oldValue = this._version;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -281,18 +281,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#version = value;
+    this._version = value;
   }
-  #version: string;
+  _version: string;
 
   /**
    * Machine.externalName
    */
   get externalName(): string | null {
-    return this.#externalName;
+    return this._externalName;
   }
   set externalName(value: string | null) {
-    const oldValue = this.#externalName;
+    const oldValue = this._externalName;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -302,18 +302,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#externalName = value;
+    this._externalName = value;
   }
-  #externalName: string | null;
+  _externalName: string | null;
 
   /**
    * Machine.externalId
    */
   get externalId(): string | null {
-    return this.#externalId;
+    return this._externalId;
   }
   set externalId(value: string | null) {
-    const oldValue = this.#externalId;
+    const oldValue = this._externalId;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -323,18 +323,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#externalId = value;
+    this._externalId = value;
   }
-  #externalId: string | null;
+  _externalId: string | null;
 
   /**
    * Machine.imageId
    */
   get imageId(): string | null {
-    return this.#imageId;
+    return this._imageId;
   }
   set imageId(value: string | null) {
-    const oldValue = this.#imageId;
+    const oldValue = this._imageId;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -344,18 +344,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#imageId = value;
+    this._imageId = value;
   }
-  #imageId: string | null;
+  _imageId: string | null;
 
   /**
    * Machine.grpcUrl
    */
   get grpcUrl(): string | null {
-    return this.#grpcUrl;
+    return this._grpcUrl;
   }
   set grpcUrl(value: string | null) {
-    const oldValue = this.#grpcUrl;
+    const oldValue = this._grpcUrl;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -365,18 +365,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#grpcUrl = value;
+    this._grpcUrl = value;
   }
-  #grpcUrl: string | null;
+  _grpcUrl: string | null;
 
   /**
    * Machine.vncUrl
    */
   get vncUrl(): string | null {
-    return this.#vncUrl;
+    return this._vncUrl;
   }
   set vncUrl(value: string | null) {
-    const oldValue = this.#vncUrl;
+    const oldValue = this._vncUrl;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -386,9 +386,9 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#vncUrl = value;
+    this._vncUrl = value;
   }
-  #vncUrl: string | null;
+  _vncUrl: string | null;
 
   /**
    * Machine.client
@@ -408,10 +408,10 @@ export class Machine extends Resource implements IsSpatial {
     }
   }
   get clientPtr(): NodeReference | null {
-    return this.#clientPtr;
+    return this._clientPtr;
   }
   set clientPtr(value: NodeReference | null) {
-    const oldValue = this.#clientPtr;
+    const oldValue = this._clientPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -421,18 +421,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#clientPtr = value;
+    this._clientPtr = value;
   }
-  #clientPtr: NodeReference | null;
+  _clientPtr: NodeReference | null;
 
   /**
    * vCPU count
    */
   get cpu(): number {
-    return this.#cpu;
+    return this._cpu;
   }
   set cpu(value: number) {
-    const oldValue = this.#cpu;
+    const oldValue = this._cpu;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -442,18 +442,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#cpu = value;
+    this._cpu = value;
   }
-  #cpu: number;
+  _cpu: number;
 
   /**
    * GB
    */
   get ram(): number {
-    return this.#ram;
+    return this._ram;
   }
   set ram(value: number) {
-    const oldValue = this.#ram;
+    const oldValue = this._ram;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -463,18 +463,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ram = value;
+    this._ram = value;
   }
-  #ram: number;
+  _ram: number;
 
   /**
    * Machine.width
    */
   get width(): number {
-    return this.#width;
+    return this._width;
   }
   set width(value: number) {
-    const oldValue = this.#width;
+    const oldValue = this._width;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -484,18 +484,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#width = value;
+    this._width = value;
   }
-  #width: number;
+  _width: number;
 
   /**
    * Machine.height
    */
   get height(): number {
-    return this.#height;
+    return this._height;
   }
   set height(value: number) {
-    const oldValue = this.#height;
+    const oldValue = this._height;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -505,18 +505,18 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#height = value;
+    this._height = value;
   }
-  #height: number;
+  _height: number;
 
   /**
    * Machine.isHeadless
    */
   get isHeadless(): boolean {
-    return this.#isHeadless;
+    return this._isHeadless;
   }
   set isHeadless(value: boolean) {
-    const oldValue = this.#isHeadless;
+    const oldValue = this._isHeadless;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -526,9 +526,9 @@ export class Machine extends Resource implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isHeadless = value;
+    this._isHeadless = value;
   }
-  #isHeadless: boolean;
+  _isHeadless: boolean;
 
   constructor(options: {
     id?: string;
@@ -641,7 +641,7 @@ export class Machine extends Resource implements IsSpatial {
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* ResourceStatus.PENDING */;
@@ -649,7 +649,7 @@ export class Machine extends Resource implements IsSpatial {
     if (_status === null) {
       throw new Error(`Machine.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 10 /* MachineType.RUNTIME */;
@@ -657,7 +657,7 @@ export class Machine extends Resource implements IsSpatial {
     if (_type === null) {
       throw new Error(`Machine.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _version = options.version ?? null;
     if (_version === null) {
       _version = "2025.07.05.0";
@@ -665,22 +665,22 @@ export class Machine extends Resource implements IsSpatial {
     if (_version === null) {
       throw new Error(`Machine.version is required`);
     }
-    this.#version = _version;
+    this._version = _version;
     let _externalName = options.externalName ?? null;
-    this.#externalName = _externalName;
+    this._externalName = _externalName;
     let _externalId = options.externalId ?? null;
-    this.#externalId = _externalId;
+    this._externalId = _externalId;
     let _imageId = options.imageId ?? null;
-    this.#imageId = _imageId;
+    this._imageId = _imageId;
     let _grpcUrl = options.grpcUrl ?? null;
-    this.#grpcUrl = _grpcUrl;
+    this._grpcUrl = _grpcUrl;
     let _vncUrl = options.vncUrl ?? null;
-    this.#vncUrl = _vncUrl;
+    this._vncUrl = _vncUrl;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
     }
-    this.#clientPtr = _client;
+    this._clientPtr = _client;
     let _cpu = options.cpu ?? null;
     if (_cpu === null) {
       _cpu = 1.0;
@@ -688,7 +688,7 @@ export class Machine extends Resource implements IsSpatial {
     if (_cpu === null) {
       throw new Error(`Machine.cpu is required`);
     }
-    this.#cpu = _cpu;
+    this._cpu = _cpu;
     let _ram = options.ram ?? null;
     if (_ram === null) {
       _ram = 1.0;
@@ -696,7 +696,7 @@ export class Machine extends Resource implements IsSpatial {
     if (_ram === null) {
       throw new Error(`Machine.ram is required`);
     }
-    this.#ram = _ram;
+    this._ram = _ram;
     let _width = options.width ?? null;
     if (_width === null) {
       _width = 1280;
@@ -704,7 +704,7 @@ export class Machine extends Resource implements IsSpatial {
     if (_width === null) {
       throw new Error(`Machine.width is required`);
     }
-    this.#width = _width;
+    this._width = _width;
     let _height = options.height ?? null;
     if (_height === null) {
       _height = 960;
@@ -712,7 +712,7 @@ export class Machine extends Resource implements IsSpatial {
     if (_height === null) {
       throw new Error(`Machine.height is required`);
     }
-    this.#height = _height;
+    this._height = _height;
     let _isHeadless = options.isHeadless ?? null;
     if (_isHeadless === null) {
       _isHeadless = false;
@@ -720,7 +720,7 @@ export class Machine extends Resource implements IsSpatial {
     if (_isHeadless === null) {
       throw new Error(`Machine.isHeadless is required`);
     }
-    this.#isHeadless = _isHeadless;
+    this._isHeadless = _isHeadless;
 
     // identity
     if (options.id == null) {
@@ -754,49 +754,49 @@ export class Machine extends Resource implements IsSpatial {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#version === other.#version)) {
+    if (!(this._version === other._version)) {
       return false;
     }
-    if (!(this.#externalName === other.#externalName)) {
+    if (!(this._externalName === other._externalName)) {
       return false;
     }
-    if (!(this.#externalId === other.#externalId)) {
+    if (!(this._externalId === other._externalId)) {
       return false;
     }
-    if (!(this.#imageId === other.#imageId)) {
+    if (!(this._imageId === other._imageId)) {
       return false;
     }
-    if (!(this.#grpcUrl === other.#grpcUrl)) {
+    if (!(this._grpcUrl === other._grpcUrl)) {
       return false;
     }
-    if (!(this.#vncUrl === other.#vncUrl)) {
+    if (!(this._vncUrl === other._vncUrl)) {
       return false;
     }
-    if (!(this.#clientPtr?.id === other.#clientPtr?.id)) {
+    if (!(this._clientPtr?.id === other._clientPtr?.id)) {
       return false;
     }
-    if (!(this.#cpu === other.#cpu || Math.abs(this.#cpu - other.#cpu) < 1e-10)) {
+    if (!(this._cpu === other._cpu || Math.abs(this._cpu - other._cpu) < 1e-10)) {
       return false;
     }
-    if (!(this.#ram === other.#ram || Math.abs(this.#ram - other.#ram) < 1e-10)) {
+    if (!(this._ram === other._ram || Math.abs(this._ram - other._ram) < 1e-10)) {
       return false;
     }
-    if (!(this.#width === other.#width)) {
+    if (!(this._width === other._width)) {
       return false;
     }
-    if (!(this.#height === other.#height)) {
+    if (!(this._height === other._height)) {
       return false;
     }
-    if (!(this.#isHeadless === other.#isHeadless)) {
+    if (!(this._isHeadless === other._isHeadless)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -820,14 +820,14 @@ export class Machine extends Resource implements IsSpatial {
     if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -837,35 +837,35 @@ export class Machine extends Resource implements IsSpatial {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#type) & 0xffffffff;
-    h = (h * 31 + hashString(this.#version)) & 0xffffffff;
-    if (this.#externalName !== null) {
-      h = (h * 31 + hashString(this.#externalName)) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + hashString(this._version)) & 0xffffffff;
+    if (this._externalName !== null) {
+      h = (h * 31 + hashString(this._externalName)) & 0xffffffff;
     }
-    if (this.#externalId !== null) {
-      h = (h * 31 + hashString(this.#externalId)) & 0xffffffff;
+    if (this._externalId !== null) {
+      h = (h * 31 + hashString(this._externalId)) & 0xffffffff;
     }
-    if (this.#imageId !== null) {
-      h = (h * 31 + hashString(this.#imageId)) & 0xffffffff;
+    if (this._imageId !== null) {
+      h = (h * 31 + hashString(this._imageId)) & 0xffffffff;
     }
-    if (this.#grpcUrl !== null) {
-      h = (h * 31 + hashString(this.#grpcUrl)) & 0xffffffff;
+    if (this._grpcUrl !== null) {
+      h = (h * 31 + hashString(this._grpcUrl)) & 0xffffffff;
     }
-    if (this.#vncUrl !== null) {
-      h = (h * 31 + hashString(this.#vncUrl)) & 0xffffffff;
+    if (this._vncUrl !== null) {
+      h = (h * 31 + hashString(this._vncUrl)) & 0xffffffff;
     }
-    if (this.#clientPtr !== null) {
-      h = (h * 31 + hashString(this.#clientPtr.id)) & 0xffffffff;
+    if (this._clientPtr !== null) {
+      h = (h * 31 + hashString(this._clientPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashFloat(this.#cpu)) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.#ram)) & 0xffffffff;
-    h = (h * 31 + hashInt(this.#width)) & 0xffffffff;
-    h = (h * 31 + hashInt(this.#height)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.#isHeadless)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this._cpu)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this._ram)) & 0xffffffff;
+    h = (h * 31 + hashInt(this._width)) & 0xffffffff;
+    h = (h * 31 + hashInt(this._height)) & 0xffffffff;
+    h = (h * 31 + hashBool(this._isHeadless)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#status) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -899,8 +899,8 @@ export class Machine extends Resource implements IsSpatial {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -991,39 +991,39 @@ export class Machine extends Resource implements IsSpatial {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
-    objectValue["90"] = object.#status;
-    objectValue["100"] = object.#type;
-    objectValue["110"] = object.#version;
-    if (object.#externalName != null) {
-      objectValue["112"] = object.#externalName;
+    objectValue["90"] = object._status;
+    objectValue["100"] = object._type;
+    objectValue["110"] = object._version;
+    if (object._externalName != null) {
+      objectValue["112"] = object._externalName;
     }
-    if (object.#externalId != null) {
-      objectValue["113"] = object.#externalId;
+    if (object._externalId != null) {
+      objectValue["113"] = object._externalId;
     }
-    if (object.#imageId != null) {
-      objectValue["114"] = object.#imageId;
+    if (object._imageId != null) {
+      objectValue["114"] = object._imageId;
     }
-    if (object.#grpcUrl != null) {
-      objectValue["115"] = object.#grpcUrl;
+    if (object._grpcUrl != null) {
+      objectValue["115"] = object._grpcUrl;
     }
-    if (object.#vncUrl != null) {
-      objectValue["116"] = object.#vncUrl;
+    if (object._vncUrl != null) {
+      objectValue["116"] = object._vncUrl;
     }
-    if (object.#clientPtr != null) {
-      objectValue["119"] = object.#clientPtr.toValue();
+    if (object._clientPtr != null) {
+      objectValue["119"] = object._clientPtr.toValue();
     }
-    objectValue["120"] = object.#cpu;
-    objectValue["121"] = object.#ram;
-    objectValue["122"] = object.#width;
-    objectValue["123"] = object.#height;
-    objectValue["124"] = object.#isHeadless;
+    objectValue["120"] = object._cpu;
+    objectValue["121"] = object._ram;
+    objectValue["122"] = object._width;
+    objectValue["123"] = object._height;
+    objectValue["124"] = object._isHeadless;
     return objectValue;
   }
 
@@ -1214,38 +1214,38 @@ export class Machine extends Resource implements IsSpatial {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.status = Number(object.#status) as ResourceStatusProto;
-    objectProto.type = Number(object.#type) as MachineTypeProto;
-    objectProto.version = object.#version;
-    if (object.#externalName != null) {
-      objectProto.externalName = object.#externalName;
+    objectProto.status = Number(object._status) as ResourceStatusProto;
+    objectProto.type = Number(object._type) as MachineTypeProto;
+    objectProto.version = object._version;
+    if (object._externalName != null) {
+      objectProto.externalName = object._externalName;
     }
-    if (object.#externalId != null) {
-      objectProto.externalId = object.#externalId;
+    if (object._externalId != null) {
+      objectProto.externalId = object._externalId;
     }
-    if (object.#imageId != null) {
-      objectProto.imageId = object.#imageId;
+    if (object._imageId != null) {
+      objectProto.imageId = object._imageId;
     }
-    if (object.#grpcUrl != null) {
-      objectProto.grpcUrl = object.#grpcUrl;
+    if (object._grpcUrl != null) {
+      objectProto.grpcUrl = object._grpcUrl;
     }
-    if (object.#vncUrl != null) {
-      objectProto.vncUrl = object.#vncUrl;
+    if (object._vncUrl != null) {
+      objectProto.vncUrl = object._vncUrl;
     }
-    if (object.#clientPtr != null) {
-      objectProto.clientPtr = object.#clientPtr.toProto();
+    if (object._clientPtr != null) {
+      objectProto.clientPtr = object._clientPtr.toProto();
     }
-    objectProto.cpu = object.#cpu;
-    objectProto.ram = object.#ram;
-    objectProto.width = object.#width;
-    objectProto.height = object.#height;
-    objectProto.isHeadless = object.#isHeadless;
+    objectProto.cpu = object._cpu;
+    objectProto.ram = object._ram;
+    objectProto.width = object._width;
+    objectProto.height = object._height;
+    objectProto.isHeadless = object._isHeadless;
     return objectProto as MachineProto;
   }
 

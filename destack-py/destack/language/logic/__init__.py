@@ -1,5 +1,6 @@
-from .action import Action, ActionCardinality
+from .action import Action
 from .cursor import Cursor, CursorStatus, EventCursor, ScreenCursor, ThreadCursor
+from .method import Method, MethodCardinality
 from .route import Route
 from .schedule import DayOfWeek, Month, Schedule, ScheduleFrequency
 from .script import Script
@@ -9,11 +10,12 @@ from .trigger import Trigger, TriggerType
 
 __all__ = [
     "Action",
-    "ActionCardinality",
     "Cursor",
     "CursorStatus",
     "DayOfWeek",
     "EventCursor",
+    "Method",
+    "MethodCardinality",
     "Month",
     "Route",
     "Schedule",

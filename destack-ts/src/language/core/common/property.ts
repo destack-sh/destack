@@ -218,10 +218,10 @@ export class CustomProperty
    * CustomProperty.type
    */
   get type(): PropertyType {
-    return this.#type;
+    return this._type;
   }
   set type(value: PropertyType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -231,18 +231,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: PropertyType;
+  _type: PropertyType;
 
   /**
    * CustomProperty.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -252,18 +252,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * CustomProperty.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -273,9 +273,9 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   /**
    * CustomProperty.group
@@ -295,10 +295,10 @@ export class CustomProperty
     }
   }
   get groupPtr(): NodeReference | null {
-    return this.#groupPtr;
+    return this._groupPtr;
   }
   set groupPtr(value: NodeReference | null) {
-    const oldValue = this.#groupPtr;
+    const oldValue = this._groupPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -308,18 +308,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#groupPtr = value;
+    this._groupPtr = value;
   }
-  #groupPtr: NodeReference | null;
+  _groupPtr: NodeReference | null;
 
   /**
    * CustomProperty.cardinality
    */
   get cardinality(): TypeCardinality {
-    return this.#cardinality;
+    return this._cardinality;
   }
   set cardinality(value: TypeCardinality) {
-    const oldValue = this.#cardinality;
+    const oldValue = this._cardinality;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -329,18 +329,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#cardinality = value;
+    this._cardinality = value;
   }
-  #cardinality: TypeCardinality;
+  _cardinality: TypeCardinality;
 
   /**
    * CustomProperty.scalarType
    */
   get scalarType(): ScalarType {
-    return this.#scalarType;
+    return this._scalarType;
   }
   set scalarType(value: ScalarType) {
-    const oldValue = this.#scalarType;
+    const oldValue = this._scalarType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -350,18 +350,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#scalarType = value;
+    this._scalarType = value;
   }
-  #scalarType: ScalarType;
+  _scalarType: ScalarType;
 
   /**
    * CustomProperty.primitiveType
    */
   get primitiveType(): PrimitiveType | null {
-    return this.#primitiveType;
+    return this._primitiveType;
   }
   set primitiveType(value: PrimitiveType | null) {
-    const oldValue = this.#primitiveType;
+    const oldValue = this._primitiveType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -371,18 +371,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#primitiveType = value;
+    this._primitiveType = value;
   }
-  #primitiveType: PrimitiveType | null;
+  _primitiveType: PrimitiveType | null;
 
   /**
    * CustomProperty.enumType
    */
   get enumType(): EnumType | null {
-    return this.#enumType;
+    return this._enumType;
   }
   set enumType(value: EnumType | null) {
-    const oldValue = this.#enumType;
+    const oldValue = this._enumType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -392,18 +392,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#enumType = value;
+    this._enumType = value;
   }
-  #enumType: EnumType | null;
+  _enumType: EnumType | null;
 
   /**
    * CustomProperty.nodeType
    */
   get nodeType(): NodeType | null {
-    return this.#nodeType;
+    return this._nodeType;
   }
   set nodeType(value: NodeType | null) {
-    const oldValue = this.#nodeType;
+    const oldValue = this._nodeType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -413,18 +413,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#nodeType = value;
+    this._nodeType = value;
   }
-  #nodeType: NodeType | null;
+  _nodeType: NodeType | null;
 
   /**
    * CustomProperty.structType
    */
   get structType(): StructType | null {
-    return this.#structType;
+    return this._structType;
   }
   set structType(value: StructType | null) {
-    const oldValue = this.#structType;
+    const oldValue = this._structType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -434,9 +434,9 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#structType = value;
+    this._structType = value;
   }
-  #structType: StructType | null;
+  _structType: StructType | null;
 
   /**
    * CustomProperty.definition
@@ -476,10 +476,10 @@ export class CustomProperty
     }
   }
   get definitionPtr(): NodeReference | null {
-    return this.#definitionPtr;
+    return this._definitionPtr;
   }
   set definitionPtr(value: NodeReference | null) {
-    const oldValue = this.#definitionPtr;
+    const oldValue = this._definitionPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -489,18 +489,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#definitionPtr = value;
+    this._definitionPtr = value;
   }
-  #definitionPtr: NodeReference | null;
+  _definitionPtr: NodeReference | null;
 
   /**
    * CustomProperty.keyType
    */
   get keyType(): Type | null {
-    return this.#keyType;
+    return this._keyType;
   }
   set keyType(value: Type | null) {
-    const oldValue = this.#keyType;
+    const oldValue = this._keyType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -510,18 +510,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#keyType = value;
+    this._keyType = value;
   }
-  #keyType: Type | null;
+  _keyType: Type | null;
 
   /**
    * CustomProperty.value
    */
   get value(): Value | null {
-    return this.#value;
+    return this._value;
   }
   set value(value: Value | null) {
-    const oldValue = this.#value;
+    const oldValue = this._value;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -531,18 +531,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#value = value;
+    this._value = value;
   }
-  #value: Value | null;
+  _value: Value | null;
 
   /**
    * CustomProperty.valueFactory
    */
   get valueFactory(): ValueFactory | null {
-    return this.#valueFactory;
+    return this._valueFactory;
   }
   set valueFactory(value: ValueFactory | null) {
-    const oldValue = this.#valueFactory;
+    const oldValue = this._valueFactory;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -552,18 +552,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#valueFactory = value;
+    this._valueFactory = value;
   }
-  #valueFactory: ValueFactory | null;
+  _valueFactory: ValueFactory | null;
 
   /**
    * CustomProperty.collectionConstraint
    */
   get collectionConstraint(): CollectionConstraint | null {
-    return this.#collectionConstraint;
+    return this._collectionConstraint;
   }
   set collectionConstraint(value: CollectionConstraint | null) {
-    const oldValue = this.#collectionConstraint;
+    const oldValue = this._collectionConstraint;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -573,18 +573,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#collectionConstraint = value;
+    this._collectionConstraint = value;
   }
-  #collectionConstraint: CollectionConstraint | null;
+  _collectionConstraint: CollectionConstraint | null;
 
   /**
    * CustomProperty.stringConstraint
    */
   get stringConstraint(): StringConstraint | null {
-    return this.#stringConstraint;
+    return this._stringConstraint;
   }
   set stringConstraint(value: StringConstraint | null) {
-    const oldValue = this.#stringConstraint;
+    const oldValue = this._stringConstraint;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -594,18 +594,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#stringConstraint = value;
+    this._stringConstraint = value;
   }
-  #stringConstraint: StringConstraint | null;
+  _stringConstraint: StringConstraint | null;
 
   /**
    * CustomProperty.numberConstraint
    */
   get numberConstraint(): NumberConstraint | null {
-    return this.#numberConstraint;
+    return this._numberConstraint;
   }
   set numberConstraint(value: NumberConstraint | null) {
-    const oldValue = this.#numberConstraint;
+    const oldValue = this._numberConstraint;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -615,18 +615,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#numberConstraint = value;
+    this._numberConstraint = value;
   }
-  #numberConstraint: NumberConstraint | null;
+  _numberConstraint: NumberConstraint | null;
 
   /**
    * CustomProperty.nodeConstraint
    */
   get nodeConstraint(): NodeConstraint | null {
-    return this.#nodeConstraint;
+    return this._nodeConstraint;
   }
   set nodeConstraint(value: NodeConstraint | null) {
-    const oldValue = this.#nodeConstraint;
+    const oldValue = this._nodeConstraint;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -636,18 +636,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#nodeConstraint = value;
+    this._nodeConstraint = value;
   }
-  #nodeConstraint: NodeConstraint | null;
+  _nodeConstraint: NodeConstraint | null;
 
   /**
    * CustomProperty.edgeType
    */
   get edgeType(): EdgeType | null {
-    return this.#edgeType;
+    return this._edgeType;
   }
   set edgeType(value: EdgeType | null) {
-    const oldValue = this.#edgeType;
+    const oldValue = this._edgeType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -657,18 +657,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#edgeType = value;
+    this._edgeType = value;
   }
-  #edgeType: EdgeType | null;
+  _edgeType: EdgeType | null;
 
   /**
    * CustomProperty.cascade
    */
   get cascade(): CascadeAction | null {
-    return this.#cascade;
+    return this._cascade;
   }
   set cascade(value: CascadeAction | null) {
-    const oldValue = this.#cascade;
+    const oldValue = this._cascade;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -678,18 +678,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#cascade = value;
+    this._cascade = value;
   }
-  #cascade: CascadeAction | null;
+  _cascade: CascadeAction | null;
 
   /**
    * CustomProperty.isRequired
    */
   get isRequired(): boolean | null {
-    return this.#isRequired;
+    return this._isRequired;
   }
   set isRequired(value: boolean | null) {
-    const oldValue = this.#isRequired;
+    const oldValue = this._isRequired;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -699,18 +699,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isRequired = value;
+    this._isRequired = value;
   }
-  #isRequired: boolean | null;
+  _isRequired: boolean | null;
 
   /**
    * CustomProperty.isUnique
    */
   get isUnique(): boolean | null {
-    return this.#isUnique;
+    return this._isUnique;
   }
   set isUnique(value: boolean | null) {
-    const oldValue = this.#isUnique;
+    const oldValue = this._isUnique;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -720,18 +720,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isUnique = value;
+    this._isUnique = value;
   }
-  #isUnique: boolean | null;
+  _isUnique: boolean | null;
 
   /**
    * CustomProperty.isComputed
    */
   get isComputed(): boolean | null {
-    return this.#isComputed;
+    return this._isComputed;
   }
   set isComputed(value: boolean | null) {
-    const oldValue = this.#isComputed;
+    const oldValue = this._isComputed;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -741,18 +741,18 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isComputed = value;
+    this._isComputed = value;
   }
-  #isComputed: boolean | null;
+  _isComputed: boolean | null;
 
   /**
    * CustomProperty.isReadonly
    */
   get isReadonly(): boolean | null {
-    return this.#isReadonly;
+    return this._isReadonly;
   }
   set isReadonly(value: boolean | null) {
-    const oldValue = this.#isReadonly;
+    const oldValue = this._isReadonly;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -762,9 +762,9 @@ export class CustomProperty
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isReadonly = value;
+    this._isReadonly = value;
   }
-  #isReadonly: boolean | null;
+  _isReadonly: boolean | null;
 
   constructor(options: {
     id?: string;
@@ -905,19 +905,19 @@ export class CustomProperty
     if (_type === null) {
       throw new Error(`CustomProperty.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`CustomProperty.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
     let _group = options.group ?? null;
     if (_group != null && _group.metatype != StructType.NODE_REFERENCE) {
       _group = (_group as Node).toRef();
     }
-    this.#groupPtr = _group;
+    this._groupPtr = _group;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
       _cardinality = 1 /* TypeCardinality.SCALAR */;
@@ -925,51 +925,51 @@ export class CustomProperty
     if (_cardinality === null) {
       throw new Error(`CustomProperty.cardinality is required`);
     }
-    this.#cardinality = _cardinality;
+    this._cardinality = _cardinality;
     let _scalarType = options.scalarType;
     if (_scalarType === null) {
       throw new Error(`CustomProperty.scalarType is required`);
     }
-    this.#scalarType = _scalarType;
+    this._scalarType = _scalarType;
     let _primitiveType = options.primitiveType ?? null;
-    this.#primitiveType = _primitiveType;
+    this._primitiveType = _primitiveType;
     let _enumType = options.enumType ?? null;
-    this.#enumType = _enumType;
+    this._enumType = _enumType;
     let _nodeType = options.nodeType ?? null;
-    this.#nodeType = _nodeType;
+    this._nodeType = _nodeType;
     let _structType = options.structType ?? null;
-    this.#structType = _structType;
+    this._structType = _structType;
     let _definition = options.definition ?? null;
     if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
       _definition = (_definition as Node).toRef();
     }
-    this.#definitionPtr = _definition;
+    this._definitionPtr = _definition;
     let _keyType = options.keyType ?? null;
-    this.#keyType = _keyType;
+    this._keyType = _keyType;
     let _value = options.value ?? null;
-    this.#value = _value;
+    this._value = _value;
     let _valueFactory = options.valueFactory ?? null;
-    this.#valueFactory = _valueFactory;
+    this._valueFactory = _valueFactory;
     let _collectionConstraint = options.collectionConstraint ?? null;
-    this.#collectionConstraint = _collectionConstraint;
+    this._collectionConstraint = _collectionConstraint;
     let _stringConstraint = options.stringConstraint ?? null;
-    this.#stringConstraint = _stringConstraint;
+    this._stringConstraint = _stringConstraint;
     let _numberConstraint = options.numberConstraint ?? null;
-    this.#numberConstraint = _numberConstraint;
+    this._numberConstraint = _numberConstraint;
     let _nodeConstraint = options.nodeConstraint ?? null;
-    this.#nodeConstraint = _nodeConstraint;
+    this._nodeConstraint = _nodeConstraint;
     let _edgeType = options.edgeType ?? null;
-    this.#edgeType = _edgeType;
+    this._edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
-    this.#cascade = _cascade;
+    this._cascade = _cascade;
     let _isRequired = options.isRequired ?? null;
-    this.#isRequired = _isRequired;
+    this._isRequired = _isRequired;
     let _isUnique = options.isUnique ?? null;
-    this.#isUnique = _isUnique;
+    this._isUnique = _isUnique;
     let _isComputed = options.isComputed ?? null;
-    this.#isComputed = _isComputed;
+    this._isComputed = _isComputed;
     let _isReadonly = options.isReadonly ?? null;
-    this.#isReadonly = _isReadonly;
+    this._isReadonly = _isReadonly;
 
     // identity
     if (options.id == null) {
@@ -1005,98 +1005,98 @@ export class CustomProperty
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
-    if (!(this.#groupPtr?.id === other.#groupPtr?.id)) {
+    if (!(this._groupPtr?.id === other._groupPtr?.id)) {
       return false;
     }
-    if (!(this.#cardinality === other.#cardinality)) {
+    if (!(this._cardinality === other._cardinality)) {
       return false;
     }
-    if (!(this.#scalarType === other.#scalarType)) {
+    if (!(this._scalarType === other._scalarType)) {
       return false;
     }
-    if (!(this.#primitiveType === other.#primitiveType)) {
+    if (!(this._primitiveType === other._primitiveType)) {
       return false;
     }
-    if (!(this.#enumType === other.#enumType)) {
+    if (!(this._enumType === other._enumType)) {
       return false;
     }
-    if (!(this.#nodeType === other.#nodeType)) {
+    if (!(this._nodeType === other._nodeType)) {
       return false;
     }
-    if (!(this.#structType === other.#structType)) {
+    if (!(this._structType === other._structType)) {
       return false;
     }
-    if (!(this.#definitionPtr?.id === other.#definitionPtr?.id)) {
-      return false;
-    }
-    if (
-      (this.#keyType == null) !== (other.#keyType == null) ||
-      (this.#keyType != null && !this.#keyType.equals(other.#keyType))
-    ) {
+    if (!(this._definitionPtr?.id === other._definitionPtr?.id)) {
       return false;
     }
     if (
-      (this.#value == null) !== (other.#value == null) ||
-      (this.#value != null && !this.#value.equals(other.#value))
-    ) {
-      return false;
-    }
-    if (!(this.#valueFactory === other.#valueFactory)) {
-      return false;
-    }
-    if (
-      (this.#collectionConstraint == null) !== (other.#collectionConstraint == null) ||
-      (this.#collectionConstraint != null &&
-        !this.#collectionConstraint.equals(other.#collectionConstraint))
+      (this._keyType == null) !== (other._keyType == null) ||
+      (this._keyType != null && !this._keyType.equals(other._keyType))
     ) {
       return false;
     }
     if (
-      (this.#stringConstraint == null) !== (other.#stringConstraint == null) ||
-      (this.#stringConstraint != null && !this.#stringConstraint.equals(other.#stringConstraint))
+      (this._value == null) !== (other._value == null) ||
+      (this._value != null && !this._value.equals(other._value))
+    ) {
+      return false;
+    }
+    if (!(this._valueFactory === other._valueFactory)) {
+      return false;
+    }
+    if (
+      (this._collectionConstraint == null) !== (other._collectionConstraint == null) ||
+      (this._collectionConstraint != null &&
+        !this._collectionConstraint.equals(other._collectionConstraint))
     ) {
       return false;
     }
     if (
-      (this.#numberConstraint == null) !== (other.#numberConstraint == null) ||
-      (this.#numberConstraint != null && !this.#numberConstraint.equals(other.#numberConstraint))
+      (this._stringConstraint == null) !== (other._stringConstraint == null) ||
+      (this._stringConstraint != null && !this._stringConstraint.equals(other._stringConstraint))
     ) {
       return false;
     }
     if (
-      (this.#nodeConstraint == null) !== (other.#nodeConstraint == null) ||
-      (this.#nodeConstraint != null && !this.#nodeConstraint.equals(other.#nodeConstraint))
+      (this._numberConstraint == null) !== (other._numberConstraint == null) ||
+      (this._numberConstraint != null && !this._numberConstraint.equals(other._numberConstraint))
     ) {
       return false;
     }
-    if (!(this.#edgeType === other.#edgeType)) {
+    if (
+      (this._nodeConstraint == null) !== (other._nodeConstraint == null) ||
+      (this._nodeConstraint != null && !this._nodeConstraint.equals(other._nodeConstraint))
+    ) {
       return false;
     }
-    if (!(this.#cascade === other.#cascade)) {
+    if (!(this._edgeType === other._edgeType)) {
       return false;
     }
-    if (!(this.#isRequired === other.#isRequired)) {
+    if (!(this._cascade === other._cascade)) {
       return false;
     }
-    if (!(this.#isUnique === other.#isUnique)) {
+    if (!(this._isRequired === other._isRequired)) {
       return false;
     }
-    if (!(this.#isComputed === other.#isComputed)) {
+    if (!(this._isUnique === other._isUnique)) {
       return false;
     }
-    if (!(this.#isReadonly === other.#isReadonly)) {
+    if (!(this._isComputed === other._isComputed)) {
+      return false;
+    }
+    if (!(this._isReadonly === other._isReadonly)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1126,69 +1126,69 @@ export class CustomProperty
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#type) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.#groupPtr !== null) {
-      h = (h * 31 + hashString(this.#groupPtr.id)) & 0xffffffff;
+    if (this._groupPtr !== null) {
+      h = (h * 31 + hashString(this._groupPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#cardinality) & 0xffffffff;
-    h = (h * 31 + this.#scalarType) & 0xffffffff;
-    if (this.#primitiveType !== null) {
-      h = (h * 31 + this.#primitiveType) & 0xffffffff;
+    h = (h * 31 + this._cardinality) & 0xffffffff;
+    h = (h * 31 + this._scalarType) & 0xffffffff;
+    if (this._primitiveType !== null) {
+      h = (h * 31 + this._primitiveType) & 0xffffffff;
     }
-    if (this.#enumType !== null) {
-      h = (h * 31 + this.#enumType) & 0xffffffff;
+    if (this._enumType !== null) {
+      h = (h * 31 + this._enumType) & 0xffffffff;
     }
-    if (this.#nodeType !== null) {
-      h = (h * 31 + this.#nodeType) & 0xffffffff;
+    if (this._nodeType !== null) {
+      h = (h * 31 + this._nodeType) & 0xffffffff;
     }
-    if (this.#structType !== null) {
-      h = (h * 31 + this.#structType) & 0xffffffff;
+    if (this._structType !== null) {
+      h = (h * 31 + this._structType) & 0xffffffff;
     }
-    if (this.#definitionPtr !== null) {
-      h = (h * 31 + hashString(this.#definitionPtr.id)) & 0xffffffff;
+    if (this._definitionPtr !== null) {
+      h = (h * 31 + hashString(this._definitionPtr.id)) & 0xffffffff;
     }
-    if (this.#keyType !== null) {
-      h = (h * 31 + this.#keyType.hash()) & 0xffffffff;
+    if (this._keyType !== null) {
+      h = (h * 31 + this._keyType.hash()) & 0xffffffff;
     }
-    if (this.#value !== null) {
-      h = (h * 31 + this.#value.hash()) & 0xffffffff;
+    if (this._value !== null) {
+      h = (h * 31 + this._value.hash()) & 0xffffffff;
     }
-    if (this.#valueFactory !== null) {
-      h = (h * 31 + this.#valueFactory) & 0xffffffff;
+    if (this._valueFactory !== null) {
+      h = (h * 31 + this._valueFactory) & 0xffffffff;
     }
-    if (this.#collectionConstraint !== null) {
-      h = (h * 31 + this.#collectionConstraint.hash()) & 0xffffffff;
+    if (this._collectionConstraint !== null) {
+      h = (h * 31 + this._collectionConstraint.hash()) & 0xffffffff;
     }
-    if (this.#stringConstraint !== null) {
-      h = (h * 31 + this.#stringConstraint.hash()) & 0xffffffff;
+    if (this._stringConstraint !== null) {
+      h = (h * 31 + this._stringConstraint.hash()) & 0xffffffff;
     }
-    if (this.#numberConstraint !== null) {
-      h = (h * 31 + this.#numberConstraint.hash()) & 0xffffffff;
+    if (this._numberConstraint !== null) {
+      h = (h * 31 + this._numberConstraint.hash()) & 0xffffffff;
     }
-    if (this.#nodeConstraint !== null) {
-      h = (h * 31 + this.#nodeConstraint.hash()) & 0xffffffff;
+    if (this._nodeConstraint !== null) {
+      h = (h * 31 + this._nodeConstraint.hash()) & 0xffffffff;
     }
-    if (this.#edgeType !== null) {
-      h = (h * 31 + this.#edgeType) & 0xffffffff;
+    if (this._edgeType !== null) {
+      h = (h * 31 + this._edgeType) & 0xffffffff;
     }
-    if (this.#cascade !== null) {
-      h = (h * 31 + this.#cascade) & 0xffffffff;
+    if (this._cascade !== null) {
+      h = (h * 31 + this._cascade) & 0xffffffff;
     }
-    if (this.#isRequired !== null) {
-      h = (h * 31 + hashBool(this.#isRequired)) & 0xffffffff;
+    if (this._isRequired !== null) {
+      h = (h * 31 + hashBool(this._isRequired)) & 0xffffffff;
     }
-    if (this.#isUnique !== null) {
-      h = (h * 31 + hashBool(this.#isUnique)) & 0xffffffff;
+    if (this._isUnique !== null) {
+      h = (h * 31 + hashBool(this._isUnique)) & 0xffffffff;
     }
-    if (this.#isComputed !== null) {
-      h = (h * 31 + hashBool(this.#isComputed)) & 0xffffffff;
+    if (this._isComputed !== null) {
+      h = (h * 31 + hashBool(this._isComputed)) & 0xffffffff;
     }
-    if (this.#isReadonly !== null) {
-      h = (h * 31 + hashBool(this.#isReadonly)) & 0xffffffff;
+    if (this._isReadonly !== null) {
+      h = (h * 31 + hashBool(this._isReadonly)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1332,69 +1332,69 @@ export class CustomProperty
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
-    if (object.#groupPtr != null) {
-      objectValue["105"] = object.#groupPtr.toValue();
+    if (object._groupPtr != null) {
+      objectValue["105"] = object._groupPtr.toValue();
     }
-    objectValue["110"] = object.#cardinality;
-    objectValue["111"] = object.#scalarType;
-    if (object.#primitiveType != null) {
-      objectValue["112"] = object.#primitiveType;
+    objectValue["110"] = object._cardinality;
+    objectValue["111"] = object._scalarType;
+    if (object._primitiveType != null) {
+      objectValue["112"] = object._primitiveType;
     }
-    if (object.#enumType != null) {
-      objectValue["113"] = object.#enumType;
+    if (object._enumType != null) {
+      objectValue["113"] = object._enumType;
     }
-    if (object.#nodeType != null) {
-      objectValue["114"] = object.#nodeType;
+    if (object._nodeType != null) {
+      objectValue["114"] = object._nodeType;
     }
-    if (object.#structType != null) {
-      objectValue["115"] = object.#structType;
+    if (object._structType != null) {
+      objectValue["115"] = object._structType;
     }
-    if (object.#definitionPtr != null) {
-      objectValue["116"] = object.#definitionPtr.toValue();
+    if (object._definitionPtr != null) {
+      objectValue["116"] = object._definitionPtr.toValue();
     }
-    if (object.#keyType != null) {
-      objectValue["117"] = object.#keyType.toValue();
+    if (object._keyType != null) {
+      objectValue["117"] = object._keyType.toValue();
     }
-    if (object.#value != null) {
-      objectValue["120"] = object.#value.toValue();
+    if (object._value != null) {
+      objectValue["120"] = object._value.toValue();
     }
-    if (object.#valueFactory != null) {
-      objectValue["121"] = object.#valueFactory;
+    if (object._valueFactory != null) {
+      objectValue["121"] = object._valueFactory;
     }
-    if (object.#collectionConstraint != null) {
-      objectValue["130"] = object.#collectionConstraint.toValue();
+    if (object._collectionConstraint != null) {
+      objectValue["130"] = object._collectionConstraint.toValue();
     }
-    if (object.#stringConstraint != null) {
-      objectValue["131"] = object.#stringConstraint.toValue();
+    if (object._stringConstraint != null) {
+      objectValue["131"] = object._stringConstraint.toValue();
     }
-    if (object.#numberConstraint != null) {
-      objectValue["132"] = object.#numberConstraint.toValue();
+    if (object._numberConstraint != null) {
+      objectValue["132"] = object._numberConstraint.toValue();
     }
-    if (object.#nodeConstraint != null) {
-      objectValue["133"] = object.#nodeConstraint.toValue();
+    if (object._nodeConstraint != null) {
+      objectValue["133"] = object._nodeConstraint.toValue();
     }
-    if (object.#edgeType != null) {
-      objectValue["140"] = object.#edgeType;
+    if (object._edgeType != null) {
+      objectValue["140"] = object._edgeType;
     }
-    if (object.#cascade != null) {
-      objectValue["141"] = object.#cascade;
+    if (object._cascade != null) {
+      objectValue["141"] = object._cascade;
     }
-    if (object.#isRequired != null) {
-      objectValue["150"] = object.#isRequired;
+    if (object._isRequired != null) {
+      objectValue["150"] = object._isRequired;
     }
-    if (object.#isUnique != null) {
-      objectValue["151"] = object.#isUnique;
+    if (object._isUnique != null) {
+      objectValue["151"] = object._isUnique;
     }
-    if (object.#isComputed != null) {
-      objectValue["152"] = object.#isComputed;
+    if (object._isComputed != null) {
+      objectValue["152"] = object._isComputed;
     }
-    if (object.#isReadonly != null) {
-      objectValue["153"] = object.#isReadonly;
+    if (object._isReadonly != null) {
+      objectValue["153"] = object._isReadonly;
     }
     return objectValue;
   }
@@ -1664,69 +1664,69 @@ export class CustomProperty
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.type = Number(object.#type) as PropertyTypeProto;
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.type = Number(object._type) as PropertyTypeProto;
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
-    if (object.#groupPtr != null) {
-      objectProto.groupPtr = object.#groupPtr.toProto();
+    if (object._groupPtr != null) {
+      objectProto.groupPtr = object._groupPtr.toProto();
     }
-    objectProto.cardinality = Number(object.#cardinality) as TypeCardinalityProto;
-    objectProto.scalarType = Number(object.#scalarType) as ScalarTypeProto;
-    if (object.#primitiveType != null) {
-      objectProto.primitiveType = Number(object.#primitiveType) as PrimitiveTypeProto;
+    objectProto.cardinality = Number(object._cardinality) as TypeCardinalityProto;
+    objectProto.scalarType = Number(object._scalarType) as ScalarTypeProto;
+    if (object._primitiveType != null) {
+      objectProto.primitiveType = Number(object._primitiveType) as PrimitiveTypeProto;
     }
-    if (object.#enumType != null) {
-      objectProto.enumType = Number(object.#enumType) as EnumTypeProto;
+    if (object._enumType != null) {
+      objectProto.enumType = Number(object._enumType) as EnumTypeProto;
     }
-    if (object.#nodeType != null) {
-      objectProto.nodeType = Number(object.#nodeType) as NodeTypeProto;
+    if (object._nodeType != null) {
+      objectProto.nodeType = Number(object._nodeType) as NodeTypeProto;
     }
-    if (object.#structType != null) {
-      objectProto.structType = Number(object.#structType) as StructTypeProto;
+    if (object._structType != null) {
+      objectProto.structType = Number(object._structType) as StructTypeProto;
     }
-    if (object.#definitionPtr != null) {
-      objectProto.definitionPtr = object.#definitionPtr.toProto();
+    if (object._definitionPtr != null) {
+      objectProto.definitionPtr = object._definitionPtr.toProto();
     }
-    if (object.#keyType != null) {
-      objectProto.keyType = object.#keyType.toProto();
+    if (object._keyType != null) {
+      objectProto.keyType = object._keyType.toProto();
     }
-    if (object.#value != null) {
-      objectProto.value = object.#value.toProto();
+    if (object._value != null) {
+      objectProto.value = object._value.toProto();
     }
-    if (object.#valueFactory != null) {
-      objectProto.valueFactory = Number(object.#valueFactory) as ValueFactoryProto;
+    if (object._valueFactory != null) {
+      objectProto.valueFactory = Number(object._valueFactory) as ValueFactoryProto;
     }
-    if (object.#collectionConstraint != null) {
-      objectProto.collectionConstraint = object.#collectionConstraint.toProto();
+    if (object._collectionConstraint != null) {
+      objectProto.collectionConstraint = object._collectionConstraint.toProto();
     }
-    if (object.#stringConstraint != null) {
-      objectProto.stringConstraint = object.#stringConstraint.toProto();
+    if (object._stringConstraint != null) {
+      objectProto.stringConstraint = object._stringConstraint.toProto();
     }
-    if (object.#numberConstraint != null) {
-      objectProto.numberConstraint = object.#numberConstraint.toProto();
+    if (object._numberConstraint != null) {
+      objectProto.numberConstraint = object._numberConstraint.toProto();
     }
-    if (object.#nodeConstraint != null) {
-      objectProto.nodeConstraint = object.#nodeConstraint.toProto();
+    if (object._nodeConstraint != null) {
+      objectProto.nodeConstraint = object._nodeConstraint.toProto();
     }
-    if (object.#edgeType != null) {
-      objectProto.edgeType = Number(object.#edgeType) as EdgeTypeProto;
+    if (object._edgeType != null) {
+      objectProto.edgeType = Number(object._edgeType) as EdgeTypeProto;
     }
-    if (object.#cascade != null) {
-      objectProto.cascade = Number(object.#cascade) as CascadeActionProto;
+    if (object._cascade != null) {
+      objectProto.cascade = Number(object._cascade) as CascadeActionProto;
     }
-    if (object.#isRequired != null) {
-      objectProto.isRequired = object.#isRequired;
+    if (object._isRequired != null) {
+      objectProto.isRequired = object._isRequired;
     }
-    if (object.#isUnique != null) {
-      objectProto.isUnique = object.#isUnique;
+    if (object._isUnique != null) {
+      objectProto.isUnique = object._isUnique;
     }
-    if (object.#isComputed != null) {
-      objectProto.isComputed = object.#isComputed;
+    if (object._isComputed != null) {
+      objectProto.isComputed = object._isComputed;
     }
-    if (object.#isReadonly != null) {
-      objectProto.isReadonly = object.#isReadonly;
+    if (object._isReadonly != null) {
+      objectProto.isReadonly = object._isReadonly;
     }
     return objectProto as CustomPropertyProto;
   }
@@ -2203,10 +2203,10 @@ export class CustomPropertyGroup
    * CustomPropertyGroup.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -2216,18 +2216,18 @@ export class CustomPropertyGroup
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * CustomPropertyGroup.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -2237,9 +2237,9 @@ export class CustomPropertyGroup
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -2348,9 +2348,9 @@ export class CustomPropertyGroup
     if (_name === null) {
       throw new Error(`CustomPropertyGroup.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -2386,12 +2386,12 @@ export class CustomPropertyGroup
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
@@ -2422,9 +2422,9 @@ export class CustomPropertyGroup
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -2548,9 +2548,9 @@ export class CustomPropertyGroup
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
     return objectValue;
   }
@@ -2709,9 +2709,9 @@ export class CustomPropertyGroup
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
     return objectProto as CustomPropertyGroupProto;
   }
