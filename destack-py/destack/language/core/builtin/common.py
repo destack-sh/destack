@@ -341,7 +341,7 @@ class TraitType(Enum):
     # storage
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
 
-    # behavior
+    # common
     ORDERED = 100, "Ordered", "Is ordered", "fas fa-sort"
     ARCHIVABLE = 101, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 102, "Deletable", "Can be deleted", "fas fa-trash"
@@ -355,16 +355,16 @@ class TraitType(Enum):
     IRREVERSIBLE = 120, "Irreversible", "Cannot be rewound", "fas fa-clock-rotate-left"
 
     # universe [20_000-40_000]
-    OWNABLE = 20_000, "Ownable", "Is ownable", "fas fa-user"
-    OWNER = 20_001, "Owner", "Is an Owner", "fas fa-user"
-    JOINABLE = 20_002, "Joinable", "Is joinable", "fas fa-users"
-    SUBJECT = 20_003, "Subject", "Is a Subject", "fas fa-user"
+    # ...
 
     # space [40_000-60_000]
     TAGGABLE = 40_000, "Taggable", "Can be tagged", "fas fa-tag"
 
     # access [60_000-80_000]
-    # ...
+    OWNABLE = 60_000, "Ownable", "Is ownable", "fas fa-user"
+    OWNER = 60_001, "Owner", "Is an Owner", "fas fa-user"
+    JOINABLE = 60_002, "Joinable", "Is joinable", "fas fa-users"
+    SUBJECT = 60_003, "Subject", "Is a Subject", "fas fa-user"
 
     # data [80_000-100_000]
     # ...

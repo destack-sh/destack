@@ -1284,9 +1284,6 @@ export class AnnotationShape extends Shape {
     if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
       return false;
     }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -1306,6 +1303,9 @@ export class AnnotationShape extends Shape {
       if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
     }
     return true;
   }
@@ -1425,9 +1425,6 @@ export class AnnotationShape extends Shape {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this._scriptPtr !== null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
-    }
     if (this.definitionPtr !== null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -1443,6 +1440,9 @@ export class AnnotationShape extends Shape {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
+    }
+    if (this._scriptPtr !== null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -1813,11 +1813,6 @@ export class AnnotationShape extends Shape {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scriptPtrValue = objectValue["70"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const definitionPtrValue = objectValue["6"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
@@ -1848,6 +1843,11 @@ export class AnnotationShape extends Shape {
         );
       }
     }
+    const scriptPtrValue = objectValue["70"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new AnnotationShape({
       text: unpackedText,
       stroke: unpackedStroke,
@@ -1890,12 +1890,12 @@ export class AnnotationShape extends Shape {
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       orderKey: objectValue["27"],
-      script: unpackedScriptPtr,
       definition: unpackedDefinitionPtr,
       baseType: unpackedBaseType,
       deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       _session,
       _graph,
       _connection,
@@ -2261,16 +2261,6 @@ export class AnnotationShape extends Shape {
             )
           : null,
       orderKey: objectProto.orderKey,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -2295,6 +2285,16 @@ export class AnnotationShape extends Shape {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       id: String(objectProto.id),
       customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       _session,
       _graph,
       _connection,

@@ -7,6 +7,7 @@ from destack.language.core import (
     EnumType,
     Event,
     IsCustomizable,
+    IsIrreversible,
     IsRunnable,
     IsSpatial,
     NodeType,
@@ -133,19 +134,9 @@ class RunCompletedEvent(RunEvent):
 
 @builtin_node(
     NodeType.RUN,
-    event_types=(
-        NodeType.RUN_STARTED_EVENT,
-        NodeType.RUN_PAUSE_REQUESTED_EVENT,
-        NodeType.RUN_STOP_REQUESTED_EVENT,
-        NodeType.RUN_PAUSED_EVENT,
-        NodeType.RUN_RESUME_REQUESTED_EVENT,
-        NodeType.RUN_RESUMED_EVENT,
-        NodeType.RUN_STOP_REQUESTED_EVENT,
-        NodeType.RUN_FAILED_EVENT,
-        NodeType.RUN_COMPLETED_EVENT,
-    ),
+    event_types=(NodeType.RUN_EVENT,),
 )
-class Run(IsSpatial, IsCustomizable, Entity):
+class Run(IsSpatial, IsCustomizable, IsIrreversible, Entity):
     """
     Run something somewhere, somehow.
     """

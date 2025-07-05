@@ -20,7 +20,8 @@ get_path: Any = ...
 log: Any = ...
 
 
-Entity: Any = ...
+Record: Any = ...
+Service: Any = ...
 Event: Any = ...
 Enum: Any = ...
 Struct: Any = ...
@@ -36,6 +37,10 @@ IsFollowable: Any = ...
 
 @contextmanager
 def span(func):
+    return func
+
+
+def method(func, *args, **kwargs):
     return func
 
 
@@ -55,9 +60,17 @@ def entity(cls, *args, **kwargs):
     return cls
 
 
+def service(cls, *args, **kwargs):
+    return cls
+
+
 def event(cls, *args, **kwargs):
     return cls
 
 
-def on(func, *args, **kwargs):
+def signal(func, *args, **kwargs):
+    return func
+
+
+def trigger(func, *args, **kwargs):
     return func

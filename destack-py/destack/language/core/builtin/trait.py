@@ -147,6 +147,11 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     __event_types__: ClassVar[tuple[NodeType, ...]] = ()
 
 
+#
+# Where
+#
+
+
 @builtin_trait(TraitType.GLOBAL)
 class IsGlobal(Trait):
     """A Node that is global."""
@@ -178,6 +183,113 @@ class IsOrdered(Trait):
         default=INTEGER_ZERO,
         description="The absolute order key of this Node in its parent.",
     )
+
+
+#
+# Access
+#
+
+
+@builtin_trait(TraitType.OWNABLE, is_extensible=True)
+class IsOwnable(Trait):
+    """A Node that can be owned by another Node."""
+
+    owned_by: Optional["IsOwner"] = builtin_property(28, is_repr=True)
+    if TYPE_CHECKING:
+        owned_by_ptr: Optional[NodeReference] = None
+
+
+@builtin_trait(TraitType.JOINABLE, is_extensible=True)
+class IsJoinable(Trait):
+    """A Node that can be joined by Subjects."""
+
+    pass
+
+
+@builtin_trait(TraitType.SUBJECT)
+class IsSubject(Trait):
+    """A Node that can be a Subject."""
+
+    pass
+
+
+@builtin_trait(TraitType.OWNER)
+class IsOwner(Trait):
+    """A Node that can be an Owner."""
+
+    pass
+
+
+#
+# Space
+#
+
+
+@builtin_trait(TraitType.TAGGABLE, is_extensible=True)
+class IsTaggable(Trait):
+    """A Node that can be tagged (with a Tag)."""
+
+    pass
+
+
+#
+# Social
+#
+
+
+@builtin_trait(TraitType.REACTABLE, is_extensible=True)
+class IsReactable(Trait):
+    """A Node that can be reacted to (with Reactions)."""
+
+    pass
+
+
+@builtin_trait(TraitType.STARABLE, is_extensible=True)
+class IsStarable(Trait):
+    """A Node that can be starred (with Stars)."""
+
+    pass
+
+
+@builtin_trait(TraitType.FOLLOWABLE, is_extensible=True)
+class IsFollowable(Trait):
+    """A Node that can be followed (with Follows)."""
+
+    pass
+
+
+#
+# Logic
+#
+
+
+@builtin_trait(TraitType.SOURCEABLE)
+class IsSourceable(IsOrdered):
+    """A Node that can be sourced from / defined by a Script."""
+
+    source: Optional["Script"] = builtin_property(60, is_managed=True)
+    # token_range, ...
+
+
+@builtin_trait(TraitType.SCRIPTABLE)
+class IsScriptable(Trait):
+    """A Node that can be scripted."""
+
+    script: Optional["Script"] = builtin_property(
+        70, description="The main / root Script of this Node."
+    )
+
+
+@builtin_trait(TraitType.RUNNABLE)
+class IsRunnable(Trait):
+    """A Node that can be run (with Runs)."""
+
+    pass
+
+
+#
+# Common
+#
 
 
 @builtin_trait(TraitType.ARCHIVABLE, is_extensible=True)
@@ -241,7 +353,7 @@ class IsCustomizable(Trait):
 
 
 @builtin_trait(TraitType.EXTENSIBLE)
-class IsExtensible(IsCustomizable):
+class IsExtensible(IsCustomizable, IsScriptable):
     """A Node that be extended by custom Nodes (i.e. used as a base type)."""
 
     definition: Union["CustomEntityDefinition", "CustomEventDefinition", None] = builtin_property(
@@ -271,87 +383,5 @@ class IsExtensible(IsCustomizable):
 @builtin_trait(TraitType.IRREVERSIBLE, is_extensible=True)
 class IsIrreversible(Trait):
     """A Node that cannot be rewound in spacetime."""
-
-    pass
-
-
-@builtin_trait(TraitType.OWNABLE, is_extensible=True)
-class IsOwnable(Trait):
-    """A Node that can be owned by another Node."""
-
-    owned_by: Optional["IsOwner"] = builtin_property(28, is_repr=True)
-    if TYPE_CHECKING:
-        owned_by_ptr: Optional[NodeReference] = None
-
-
-@builtin_trait(TraitType.JOINABLE, is_extensible=True)
-class IsJoinable(Trait):
-    """A Node that can be joined by Subjects."""
-
-    pass
-
-
-@builtin_trait(TraitType.SUBJECT)
-class IsSubject(Trait):
-    """A Node that can be a Subject."""
-
-    pass
-
-
-@builtin_trait(TraitType.OWNER)
-class IsOwner(Trait):
-    """A Node that can be an Owner."""
-
-    pass
-
-
-@builtin_trait(TraitType.TAGGABLE, is_extensible=True)
-class IsTaggable(Trait):
-    """A Node that can be tagged (with a Tag)."""
-
-    pass
-
-
-@builtin_trait(TraitType.REACTABLE, is_extensible=True)
-class IsReactable(Trait):
-    """A Node that can be reacted to (with Reactions)."""
-
-    pass
-
-
-@builtin_trait(TraitType.STARABLE, is_extensible=True)
-class IsStarable(Trait):
-    """A Node that can be starred (with Stars)."""
-
-    pass
-
-
-@builtin_trait(TraitType.FOLLOWABLE, is_extensible=True)
-class IsFollowable(Trait):
-    """A Node that can be followed (with Follows)."""
-
-    pass
-
-
-@builtin_trait(TraitType.SOURCEABLE)
-class IsSourceable(IsOrdered):
-    """A Node that can be sourced from / defined by a Script."""
-
-    source: Optional["Script"] = builtin_property(60, is_managed=True)
-    # token_range, ...
-
-
-@builtin_trait(TraitType.SCRIPTABLE)
-class IsScriptable(Trait):
-    """A Node that can be scripted."""
-
-    script: Optional["Script"] = builtin_property(
-        70, description="The main / root Script of this Node."
-    )
-
-
-@builtin_trait(TraitType.RUNNABLE)
-class IsRunnable(Trait):
-    """A Node that can be run (with Runs)."""
 
     pass

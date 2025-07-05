@@ -1147,6 +1147,9 @@ export abstract class Signal extends Event implements IsExtensible {
    */
   declare readonly customValues: Map<string, Value>;
 
+  abstract get script(): Script | null;
+  declare readonly scriptPtr: NodeReference | null;
+
   abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 

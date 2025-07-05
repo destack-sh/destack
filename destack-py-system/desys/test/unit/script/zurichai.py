@@ -22,23 +22,26 @@ SECRET = script.field("secret_key", 1, str)
 
 
 @entity
-class MeetupSeries(IsStarable, IsFollowable, Entity):
+class MeetupSeries(IsStarable, IsFollowable, Record):
     name: str
 
 
 # ===============================================
-# ZurichAI/Meetup [Entity]
+# ZurichAI/Meetup [Record]
 # ===============================================
 
 
 @entity
-class Meetup(IsStarable, Entity):
+class Meetup(IsStarable, Record):
     id: int
     name: str | None
     capacity: int
     series: MeetupSeries | None
     starts_at: datetime
     ends_at: datetime | None
+
+    @method
+    def do_something(self: "Meetup"): ...
 
     @action
     def cancel(self: "Meetup"): ...
@@ -76,53 +79,58 @@ class MeetupEnded(Event):
 
 
 # ===============================================
-# ZurichAI/Emails [Script]
+# ZurichAI/EmailSender [Service]
 # ===============================================
 
-announcement_template = script.field("announcement_template", 1, EmailTemplate)
-reminder_template = script.field("reminder_template", 2, EmailTemplate)
 
+@service
+class EmailSender(Service):
+    announcement_template: EmailTemplate
+    reminder_template: EmailTemplate
 
-def _create_timers(meetup: Meetup):
-    announcement_timer = Timer(name="AnnouncementTimer", at=meetup.starts_at - timedelta(days=14))
-    announcement_timer.on(
-        Timer.TimerExpired,
-        send_meetup_email(meetup=meetup, template=announcement_template),
-    )
-    meetup.add_child(announcement_timer)
-
-    reminder_timer = Timer(name="ReminderTimer", at=meetup.starts_at - timedelta(days=7))
-    reminder_timer.on(
-        Timer.TimerExpired,
-        send_meetup_email(meetup=meetup, template=reminder_template),
-    )
-    meetup.add_child(reminder_timer)
-
-
-@on(Meetup.event(EditType.CREATE))
-@action
-def on_meetup_created(meetup: Meetup):
-    _create_timers(meetup)
-
-
-@on(Meetup.event(EditType.UPDATE), TriggerBehavior.COALESCE_LAST)
-@action
-def on_meetup_updated(meetup: Meetup):
-    """Update Timers when meetup is updated."""
-    for timer in meetup.get_children(Timer):
-        timer.delete()
-    _create_timers(meetup)
-
-
-@action
-async def send_meetup_email(meetup: Meetup, template: EmailTemplate):
-    for membership in space.get_children(Membership):
-        email = template.instance(
-            email=membership.user.email,
-            meetup=meetup,
+    @method
+    def _create_timers(
+        self,
+        meetup: Meetup,
+    ):
+        announcement_timer = Timer(
+            name="AnnouncementTimer", at=meetup.starts_at - timedelta(days=14)
         )
-        await email.send()
-        log("email.sent", membership=membership, email=email)
+        announcement_timer.on(
+            Timer.TimerExpired,
+            self.send_meetup_email(meetup=meetup, template=self.announcement_template),
+        )
+        meetup.add_child(announcement_timer)
+
+        reminder_timer = Timer(name="ReminderTimer", at=meetup.starts_at - timedelta(days=7))
+        reminder_timer.on(
+            Timer.TimerExpired,
+            self.send_meetup_email(meetup=meetup, template=self.reminder_template),
+        )
+        meetup.add_child(reminder_timer)
+
+    @trigger(Meetup.event(EditType.CREATE))
+    @action
+    def on_meetup_created(self, meetup: Meetup):
+        self._create_timers(meetup)
+
+    @trigger(Meetup.event(EditType.UPDATE), TriggerBehavior.COALESCE_LAST)
+    @action
+    def on_meetup_updated(self, meetup: Meetup):
+        """Update Timers when meetup is updated."""
+        for timer in meetup.get_children(Timer):
+            timer.delete()
+        self._create_timers(meetup)
+
+    @action
+    async def send_meetup_email(self, meetup: Meetup, template: EmailTemplate):
+        for membership in space.get_children(Membership):
+            email = template.instance(
+                email=membership.user.email,
+                meetup=meetup,
+            )
+            await email.send()
+            log("email.sent", membership=membership, email=email)
 
 
 # ===============================================
@@ -138,10 +146,23 @@ class MeetupResponseType(Enum):
 
 
 @entity
-class MeetupResponse(IsOwnable, Entity):
+class MeetupResponse(IsOwnable, Record):
     meetup: Meetup
     user: User
     response_type: MeetupResponseType
+
+    @action
+    def do_something_else(self, event: Meetup):
+        pass
+
+    @action
+    def on_new_response(self, event: Meetup):
+        pass
+
+    @trigger(Meetup.MeetupFull)
+    @action
+    def on_event_full(self, event: Meetup):
+        pass
 
 
 @event
@@ -149,19 +170,3 @@ class MeetupResponded(Event):
     meetup: Meetup
     response_type: MeetupResponseType
     response: MeetupResponse
-
-
-@action
-def do_something_else(event: Meetup):
-    pass
-
-
-@action
-def on_new_response(event: Meetup):
-    pass
-
-
-@on(Meetup.MeetupFull)
-@action
-def on_event_full(event: Meetup):
-    pass
