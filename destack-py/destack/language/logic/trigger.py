@@ -34,7 +34,9 @@ class TriggerType(Enum):
     EVENT = 1
 
 
-@builtin_node(NodeType.TRIGGER)
+@builtin_node(
+    NodeType.TRIGGER,
+)
 class Trigger(IsSpatial, Entity):
     """A Trigger is a dynamic event to run something."""
 

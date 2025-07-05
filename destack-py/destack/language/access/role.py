@@ -45,7 +45,10 @@ class RoleUnassignedEvent(RoleEvent):
     pass
 
 
-@builtin_node(NodeType.ROLE)
+@builtin_node(
+    NodeType.ROLE,
+    event_types=(NodeType.ROLE_EVENT,),
+)
 class Role(
     IsGlobal,
     IsSpatial,

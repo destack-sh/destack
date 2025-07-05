@@ -34,7 +34,6 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Folder } from "@destack/language/folder";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -42,8 +41,9 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
-import type { Space } from "@destack/language/space";
+import type { Folder } from "@destack/language/space";
 import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
+import type { Space } from "@destack/language/universe";
 import type { ContainerView } from "@destack/language/view";
 import {
   AlignProto,
@@ -58,7 +58,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:250200 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:540200 ==== */
 /**
  * A Line is a list of points.
  */
@@ -186,7 +186,7 @@ export class Line extends StructFrozen {
 
   static __packValue__(object: Line): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 250200;
+    objectValue["1"] = 540200;
     if (object.stroke != null) {
       objectValue["200"] = object.stroke.toValue();
     }
@@ -247,7 +247,7 @@ export class Line extends StructFrozen {
   }
 
   static __packProto__(object: Line): LineProto {
-    const objectProto: Partial<LineProto> = { metatype: 250200 };
+    const objectProto: Partial<LineProto> = { metatype: 540200 };
     if (object.stroke != null) {
       objectProto.stroke = object.stroke.toProto();
     }
@@ -308,9 +308,9 @@ export class Line extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.LINE, Line);
-/* ==== DESTACK_GENERATED_END:STRUCT:250200 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:540200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:250200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:540200 ==== */
 /**
  * A LineShape is a shape that represents a line.
  */
@@ -1761,7 +1761,7 @@ export class LineShape extends Shape {
 
   static __packValue__(object: LineShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 250200;
+    objectValue["1"] = 540200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2185,7 +2185,7 @@ export class LineShape extends Shape {
   }
 
   static __packProto__(object: LineShape): LineShapeProto {
-    const objectProto: Partial<LineShapeProto> = { metatype: 250200 };
+    const objectProto: Partial<LineShapeProto> = { metatype: 540200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2596,4 +2596,4 @@ export class LineShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LINE_SHAPE, LineShape);
-/* ==== DESTACK_GENERATED_END:NODE:250200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:540200 ==== */

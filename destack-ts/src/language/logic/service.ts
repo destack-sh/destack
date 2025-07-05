@@ -25,13 +25,13 @@ import type {
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic/script";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, ServiceProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:70100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:100000 ==== */
 /**
  * A Service provides functionality.
  */
@@ -671,7 +671,7 @@ export class Service
 
   static __packValue__(object: Service): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 70100;
+    objectValue["1"] = 100000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -880,7 +880,7 @@ export class Service
   }
 
   static __packProto__(object: Service): ServiceProto {
-    const objectProto: Partial<ServiceProto> = { metatype: 70100 };
+    const objectProto: Partial<ServiceProto> = { metatype: 100000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1134,4 +1134,4 @@ export class Service
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SERVICE, Service);
-/* ==== DESTACK_GENERATED_END:NODE:70100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:100000 ==== */

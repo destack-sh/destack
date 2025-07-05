@@ -15,13 +15,13 @@ import type {
 } from "@destack/language/core";
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, PaletteProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:270100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:600100 ==== */
 /**
  * A Palette of Colors.
  */
@@ -439,7 +439,7 @@ export class Palette extends Entity implements IsSpatial, IsOrdered, IsTaggable,
 
   static __packValue__(object: Palette): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270100;
+    objectValue["1"] = 600100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -576,7 +576,7 @@ export class Palette extends Entity implements IsSpatial, IsOrdered, IsTaggable,
   }
 
   static __packProto__(object: Palette): PaletteProto {
-    const objectProto: Partial<PaletteProto> = { metatype: 270100 };
+    const objectProto: Partial<PaletteProto> = { metatype: 600100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -745,4 +745,4 @@ export class Palette extends Entity implements IsSpatial, IsOrdered, IsTaggable,
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PALETTE, Palette);
-/* ==== DESTACK_GENERATED_END:NODE:270100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:600100 ==== */

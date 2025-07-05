@@ -16,15 +16,15 @@ import type {
   Value,
 } from "@destack/language/core";
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
-import type { Folder } from "@destack/language/folder";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Folder } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, ScriptProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:70000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105000 ==== */
 /**
  * A Script.
  */
@@ -486,7 +486,7 @@ export class Script
 
   static __packValue__(object: Script): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 70000;
+    objectValue["1"] = 105000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -637,7 +637,7 @@ export class Script
   }
 
   static __packProto__(object: Script): ScriptProto {
-    const objectProto: Partial<ScriptProto> = { metatype: 70000 };
+    const objectProto: Partial<ScriptProto> = { metatype: 105000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -819,4 +819,4 @@ export class Script
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCRIPT, Script);
-/* ==== DESTACK_GENERATED_END:NODE:70000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105000 ==== */

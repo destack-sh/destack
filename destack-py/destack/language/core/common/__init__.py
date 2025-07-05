@@ -1,6 +1,5 @@
 from .definition import (
     BuiltinDefinition,
-    BuiltinObjectDefinition,
     ConstantDefinition,
     EnumDefinition,
     NodeDefinition,
@@ -22,14 +21,6 @@ from .edit import (
 )
 from .enum import CustomEnumDefinition, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .metric import (
-    CounterMeasurementEvent,
-    CounterMetric,
-    GaugeMeasurementEvent,
-    GaugeMetric,
-    HistogramMeasurementEvent,
-    HistogramMetric,
-)
 from .property import CustomProperty, CustomPropertyGroup
 from .query import (
     Aggregation,
@@ -125,7 +116,6 @@ __all__ = [
     "Axis2",
     "Axis3",
     "BuiltinDefinition",
-    "BuiltinObjectDefinition",
     "Change",
     "ChangeDebounce",
     "ChangeResult",
@@ -136,8 +126,6 @@ __all__ = [
     "ConstantDefinition",
     "Constraint",
     "Corners",
-    "CounterMeasurementEvent",
-    "CounterMetric",
     "CustomEnumDefinition",
     "CustomOption",
     "CustomProperty",
@@ -158,12 +146,8 @@ __all__ = [
     "Format",
     "Function",
     "FunctionType",
-    "GaugeMeasurementEvent",
-    "GaugeMetric",
     "Grid",
     "GridSpan",
-    "HistogramMeasurementEvent",
-    "HistogramMetric",
     "Icon",
     "IconIn",
     "IconType",

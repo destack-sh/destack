@@ -60,7 +60,10 @@ class InviteRejectedEvent(InviteEvent):
     pass
 
 
-@builtin_node(NodeType.INVITE)
+@builtin_node(
+    NodeType.INVITE,
+    event_types=(NodeType.INVITE_EVENT,),
+)
 class Invite(IsGlobal, IsSpatial, IsOwnable, IsDeletable, Entity):
     """An Invite to a Joinable."""
 

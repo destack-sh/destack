@@ -58,7 +58,11 @@ class Materialization(Enum):
     FULL = 32, "Full Node"
 
 
-@builtin_node(NodeType.ENTITY, is_abstract=True)
+@builtin_node(
+    NodeType.ENTITY,
+    is_abstract=True,
+    event_types=(NodeType.EDIT_EVENT,),
+)
 class Entity(Node):
     """
     An Entity is a versioned, stateful Node.

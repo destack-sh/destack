@@ -1,7 +1,14 @@
-import type { Entity, Node, NodeClass } from "@destack/language/core";
+import type {
+  Entity,
+  IsSubject,
+  Node,
+  NodeClass,
+  QueryConnection,
+  Space,
+  Store,
+} from "@destack/language";
 import { TypeCardinality } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
-import type { IsSubject } from "@destack/language/core/builtin/trait";
 import {
   Change,
   ChangeResult,
@@ -12,11 +19,8 @@ import {
   Origin,
 } from "@destack/language/core/common/edit";
 import { toValue, Value } from "@destack/language/core/common/value";
-import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import { Supergraph } from "@destack/language/core/runtime/graph";
 import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";
-import type { Store } from "@destack/language/core/runtime/store";
-import type { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /**

@@ -29,13 +29,13 @@ import {
 } from "@destack/language/registry";
 import type { Layer } from "@destack/language/scene/layer";
 import type { Scene } from "@destack/language/scene/scene";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, VariantProto, VariantTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:190300 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:500300 ==== */
 /**
  * VariantType
  */
@@ -49,9 +49,9 @@ export enum VariantType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.VARIANT_TYPE, VariantType);
-/* ==== DESTACK_GENERATED_END:ENUM:190300 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:500300 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:190301 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:500301 ==== */
 /**
  * VariantStateType
  */
@@ -64,9 +64,9 @@ export enum VariantStateType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.VARIANT_STATE_TYPE, VariantStateType);
-/* ==== DESTACK_GENERATED_END:ENUM:190301 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:500301 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:190300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:500300 ==== */
 /**
  * A Variant is an alternative presentation of a visual.
  */
@@ -682,7 +682,7 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
 
   static __packValue__(object: Variant): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 190300;
+    objectValue["1"] = 500300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -865,7 +865,7 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   }
 
   static __packProto__(object: Variant): VariantProto {
-    const objectProto: Partial<VariantProto> = { metatype: 190300 };
+    const objectProto: Partial<VariantProto> = { metatype: 500300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1076,4 +1076,4 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.VARIANT, Variant);
-/* ==== DESTACK_GENERATED_END:NODE:190300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:500300 ==== */

@@ -72,7 +72,10 @@ class NotificationExpiredEvent(NotificationEvent):
     pass
 
 
-@builtin_node(NodeType.NOTIFICATION)
+@builtin_node(
+    NodeType.NOTIFICATION,
+    event_types=(NodeType.NOTIFICATION_EVENT,),
+)
 class Notification(IsSpatial, IsOwnable, Entity):
     """A Notification is a message about something."""
 

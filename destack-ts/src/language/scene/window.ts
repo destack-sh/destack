@@ -26,13 +26,13 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import { MaterializationProto, WindowProto, WindowTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:190000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:500000 ==== */
 /**
  * WindowType
  */
@@ -46,9 +46,9 @@ export enum WindowType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
-/* ==== DESTACK_GENERATED_END:ENUM:190000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:500000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:190000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:500000 ==== */
 /**
  * A Window for someone to interact with a Space via Scenes.
  */
@@ -515,7 +515,7 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
 
   static __packValue__(object: Window): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 190000;
+    objectValue["1"] = 500000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -653,7 +653,7 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
   }
 
   static __packProto__(object: Window): WindowProto {
-    const objectProto: Partial<WindowProto> = { metatype: 190000 };
+    const objectProto: Partial<WindowProto> = { metatype: 500000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -829,4 +829,4 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.WINDOW, Window);
-/* ==== DESTACK_GENERATED_END:NODE:190000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:500000 ==== */

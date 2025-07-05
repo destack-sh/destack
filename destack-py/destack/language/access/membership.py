@@ -45,7 +45,10 @@ class MembershipLeftEvent(MembershipEvent):
     pass
 
 
-@builtin_node(NodeType.MEMBERSHIP)
+@builtin_node(
+    NodeType.MEMBERSHIP,
+    event_types=(NodeType.MEMBERSHIP_EVENT,),
+)
 class Membership(
     IsGlobal,
     IsSpatial,

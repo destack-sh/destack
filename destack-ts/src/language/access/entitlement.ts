@@ -25,7 +25,7 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import {
   EntitlementExpiredEventProto,
   EntitlementGrantedEventProto,
@@ -39,7 +39,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:20500 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:60500 ==== */
 /**
  * EntitlementType
  */
@@ -52,9 +52,9 @@ export enum EntitlementType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ENTITLEMENT_TYPE, EntitlementType);
-/* ==== DESTACK_GENERATED_END:ENUM:20500 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:60500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30501 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60501 ==== */
 /**
  * EntitlementEvent
  */
@@ -89,9 +89,9 @@ export abstract class EntitlementEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITLEMENT_EVENT, EntitlementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30501 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60501 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30502 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60502 ==== */
 /**
  * EntitlementRequestedEvent
  */
@@ -349,7 +349,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
 
   static __packValue__(object: EntitlementRequestedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30502;
+    objectValue["1"] = 60502;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -445,7 +445,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   }
 
   static __packProto__(object: EntitlementRequestedEvent): EntitlementRequestedEventProto {
-    const objectProto: Partial<EntitlementRequestedEventProto> = { metatype: 30502 };
+    const objectProto: Partial<EntitlementRequestedEventProto> = { metatype: 60502 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -563,9 +563,9 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITLEMENT_REQUESTED_EVENT, EntitlementRequestedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30502 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60502 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30503 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60503 ==== */
 /**
  * EntitlementGrantedEvent
  */
@@ -823,7 +823,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
 
   static __packValue__(object: EntitlementGrantedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30503;
+    objectValue["1"] = 60503;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -919,7 +919,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   }
 
   static __packProto__(object: EntitlementGrantedEvent): EntitlementGrantedEventProto {
-    const objectProto: Partial<EntitlementGrantedEventProto> = { metatype: 30503 };
+    const objectProto: Partial<EntitlementGrantedEventProto> = { metatype: 60503 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1037,9 +1037,9 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITLEMENT_GRANTED_EVENT, EntitlementGrantedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30503 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60503 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30504 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60504 ==== */
 /**
  * EntitlementRevokedEvent
  */
@@ -1297,7 +1297,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
 
   static __packValue__(object: EntitlementRevokedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30504;
+    objectValue["1"] = 60504;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1393,7 +1393,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   }
 
   static __packProto__(object: EntitlementRevokedEvent): EntitlementRevokedEventProto {
-    const objectProto: Partial<EntitlementRevokedEventProto> = { metatype: 30504 };
+    const objectProto: Partial<EntitlementRevokedEventProto> = { metatype: 60504 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1511,9 +1511,9 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITLEMENT_REVOKED_EVENT, EntitlementRevokedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30504 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60504 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30505 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60505 ==== */
 /**
  * EntitlementExpiredEvent
  */
@@ -1771,7 +1771,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
 
   static __packValue__(object: EntitlementExpiredEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30505;
+    objectValue["1"] = 60505;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1867,7 +1867,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   }
 
   static __packProto__(object: EntitlementExpiredEvent): EntitlementExpiredEventProto {
-    const objectProto: Partial<EntitlementExpiredEventProto> = { metatype: 30505 };
+    const objectProto: Partial<EntitlementExpiredEventProto> = { metatype: 60505 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1985,9 +1985,9 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITLEMENT_EXPIRED_EVENT, EntitlementExpiredEvent);
-/* ==== DESTACK_GENERATED_END:NODE:30505 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60505 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:60500 ==== */
 /**
  * A Entitlement to some Subject.
  */
@@ -2431,7 +2431,7 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
 
   static __packValue__(object: Entitlement): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30500;
+    objectValue["1"] = 60500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2573,7 +2573,7 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   }
 
   static __packProto__(object: Entitlement): EntitlementProto {
-    const objectProto: Partial<EntitlementProto> = { metatype: 30500 };
+    const objectProto: Partial<EntitlementProto> = { metatype: 60500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2745,4 +2745,4 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITLEMENT, Entitlement);
-/* ==== DESTACK_GENERATED_END:NODE:30500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:60500 ==== */

@@ -25,11 +25,11 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
-import type { Space } from "@destack/language/space";
 import type { Fill } from "@destack/language/style/fill";
 import type { Palette } from "@destack/language/style/palette";
 import { Style } from "@destack/language/style/style";
 import type { Theme } from "@destack/language/style/theme";
+import type { Space } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import {
   FontProto,
@@ -46,7 +46,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:270200 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600200 ==== */
 /**
  * FontType
  */
@@ -60,9 +60,9 @@ export enum FontType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FONT_TYPE, FontType);
-/* ==== DESTACK_GENERATED_END:ENUM:270200 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600200 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:270201 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600201 ==== */
 /**
  * FontWeight
  */
@@ -82,9 +82,9 @@ export enum FontWeight {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FONT_WEIGHT, FontWeight);
-/* ==== DESTACK_GENERATED_END:ENUM:270201 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600201 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:270202 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600202 ==== */
 /**
  * FontSize
  */
@@ -106,9 +106,9 @@ export enum FontSize {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FONT_SIZE, FontSize);
-/* ==== DESTACK_GENERATED_END:ENUM:270202 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600202 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:270203 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600203 ==== */
 /**
  * TextAlign
  */
@@ -123,9 +123,9 @@ export enum TextAlign {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_ALIGN, TextAlign);
-/* ==== DESTACK_GENERATED_END:ENUM:270203 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600203 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:270204 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600204 ==== */
 /**
  * TextDecoration
  */
@@ -139,9 +139,9 @@ export enum TextDecoration {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_DECORATION, TextDecoration);
-/* ==== DESTACK_GENERATED_END:ENUM:270204 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600204 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:270205 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600205 ==== */
 /**
  * TextTransform
  */
@@ -156,9 +156,515 @@ export enum TextTransform {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
-/* ==== DESTACK_GENERATED_END:ENUM:270205 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600205 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:270500 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:600500 ==== */
+/**
+ * A font value.
+ */
+export class Font extends StructFrozen {
+  static metatype: StructType = StructType.FONT;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Font.type
+   */
+  readonly type: FontType;
+
+  /**
+   * Font.style
+   */
+  get style(): FontStyle | null {
+    const nodePtr: NodeReference | null = this.stylePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as FontStyle | null;
+    }
+    return null;
+  }
+  readonly stylePtr: NodeReference | null;
+
+  /**
+   * Font.weight
+   */
+  readonly weight: FontWeight | null;
+
+  /**
+   * Font.color
+   */
+  readonly color: Fill | null;
+
+  /**
+   * Font.size
+   */
+  readonly size: FontSize | null;
+
+  /**
+   * Font.align
+   */
+  readonly align: TextAlign | null;
+
+  /**
+   * Font.lineHeight
+   */
+  readonly lineHeight: Length | null;
+
+  /**
+   * Font.letterSpacing
+   */
+  readonly letterSpacing: Length | null;
+
+  /**
+   * Font.decoration
+   */
+  readonly decoration: TextDecoration | null;
+
+  /**
+   * Font.transform
+   */
+  readonly transform: TextTransform | null;
+
+  constructor(options: {
+    type?: FontType;
+    style?: FontStyle | NodeReference | null;
+    weight?: FontWeight | null;
+    color?: Fill | null;
+    size?: FontSize | null;
+    align?: TextAlign | null;
+    lineHeight?: Length | null;
+    letterSpacing?: Length | null;
+    decoration?: TextDecoration | null;
+    transform?: TextTransform | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = 11 /* FontType.SANS */;
+    }
+    if (_type === null) {
+      throw new Error(`Font.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style.metatype != StructType.NODE_REFERENCE) {
+      _style = (_style as Node).toRef();
+    }
+    this.stylePtr = _style;
+    let _weight = options.weight ?? null;
+    if (_weight === null) {
+      _weight = 400 /* FontWeight.NORMAL */;
+    }
+    this.weight = _weight;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _size = options.size ?? null;
+    if (_size === null) {
+      _size = 16 /* FontSize.BASE */;
+    }
+    this.size = _size;
+    let _align = options.align ?? null;
+    if (_align === null) {
+      _align = 1 /* TextAlign.LEFT */;
+    }
+    this.align = _align;
+    let _lineHeight = options.lineHeight ?? null;
+    this.lineHeight = _lineHeight;
+    let _letterSpacing = options.letterSpacing ?? null;
+    this.letterSpacing = _letterSpacing;
+    let _decoration = options.decoration ?? null;
+    if (_decoration === null) {
+      _decoration = 1 /* TextDecoration.NONE */;
+    }
+    this.decoration = _decoration;
+    let _transform = options.transform ?? null;
+    if (_transform === null) {
+      _transform = 1 /* TextTransform.NONE */;
+    }
+    this.transform = _transform;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+      return false;
+    }
+    if (!(this.weight === other.weight)) {
+      return false;
+    }
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
+      return false;
+    }
+    if (!(this.size === other.size)) {
+      return false;
+    }
+    if (!(this.align === other.align)) {
+      return false;
+    }
+    if (
+      (this.lineHeight == null) !== (other.lineHeight == null) ||
+      (this.lineHeight != null && !this.lineHeight.equals(other.lineHeight))
+    ) {
+      return false;
+    }
+    if (
+      (this.letterSpacing == null) !== (other.letterSpacing == null) ||
+      (this.letterSpacing != null && !this.letterSpacing.equals(other.letterSpacing))
+    ) {
+      return false;
+    }
+    if (!(this.decoration === other.decoration)) {
+      return false;
+    }
+    if (!(this.transform === other.transform)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${FontType[this.type]}`);
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style?.repr()}`);
+      }
+      if (this.weight !== null) {
+        propertyReprs.push(`weight=${FontWeight[this.weight]}`);
+      }
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      if (this.size !== null) {
+        propertyReprs.push(`size=${FontSize[this.size]}`);
+      }
+      if (this.align !== null) {
+        propertyReprs.push(`align=${TextAlign[this.align]}`);
+      }
+      if (this.lineHeight !== null) {
+        propertyReprs.push(`lineHeight=${this.lineHeight.repr()}`);
+      }
+      if (this.letterSpacing !== null) {
+        propertyReprs.push(`letterSpacing=${this.letterSpacing.repr()}`);
+      }
+      if (this.decoration !== null) {
+        propertyReprs.push(`decoration=${TextDecoration[this.decoration]}`);
+      }
+      if (this.transform !== null) {
+        propertyReprs.push(`transform=${TextTransform[this.transform]}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Font ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    if (this.weight !== null) {
+      h = (h * 31 + this.weight) & 0xffffffff;
+    }
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    if (this.size !== null) {
+      h = (h * 31 + this.size) & 0xffffffff;
+    }
+    if (this.align !== null) {
+      h = (h * 31 + this.align) & 0xffffffff;
+    }
+    if (this.lineHeight !== null) {
+      h = (h * 31 + this.lineHeight.hash()) & 0xffffffff;
+    }
+    if (this.letterSpacing !== null) {
+      h = (h * 31 + this.letterSpacing.hash()) & 0xffffffff;
+    }
+    if (this.decoration !== null) {
+      h = (h * 31 + this.decoration) & 0xffffffff;
+    }
+    if (this.transform !== null) {
+      h = (h * 31 + this.transform) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Font.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Font): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 600500;
+    objectValue["100"] = object.type;
+    if (object.stylePtr != null) {
+      objectValue["101"] = object.stylePtr.toValue();
+    }
+    if (object.weight != null) {
+      objectValue["102"] = object.weight;
+    }
+    if (object.color != null) {
+      objectValue["103"] = object.color.toValue();
+    }
+    if (object.size != null) {
+      objectValue["104"] = object.size;
+    }
+    if (object.align != null) {
+      objectValue["105"] = object.align;
+    }
+    if (object.lineHeight != null) {
+      objectValue["106"] = object.lineHeight.toValue();
+    }
+    if (object.letterSpacing != null) {
+      objectValue["107"] = object.letterSpacing.toValue();
+    }
+    if (object.decoration != null) {
+      objectValue["108"] = object.decoration;
+    }
+    if (object.transform != null) {
+      objectValue["109"] = object.transform;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Font {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
+    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    const stylePtrValue = objectValue["101"];
+    const unpackedStylePtr =
+      stylePtrValue != undefined
+        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const weightValue = objectValue["102"];
+    const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
+    const colorValue = objectValue["103"];
+    const unpackedColor =
+      colorValue != undefined
+        ? _Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const sizeValue = objectValue["104"];
+    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
+    const alignValue = objectValue["105"];
+    const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
+    const lineHeightValue = objectValue["106"];
+    const unpackedLineHeight =
+      lineHeightValue != undefined
+        ? _Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const letterSpacingValue = objectValue["107"];
+    const unpackedLetterSpacing =
+      letterSpacingValue != undefined
+        ? _Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const decorationValue = objectValue["108"];
+    const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
+    const transformValue = objectValue["109"];
+    const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
+    return new Font({
+      type: Number(objectValue["100"]),
+      style: unpackedStylePtr,
+      weight: unpackedWeight,
+      color: unpackedColor,
+      size: unpackedSize,
+      align: unpackedAlign,
+      lineHeight: unpackedLineHeight,
+      letterSpacing: unpackedLetterSpacing,
+      decoration: unpackedDecoration,
+      transform: unpackedTransform,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Font {
+    return Font.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): FontProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Font.__packProto__(this);
+    }
+    return this._proto as FontProto;
+  }
+
+  static __packProto__(object: Font): FontProto {
+    const objectProto: Partial<FontProto> = { metatype: 600500 };
+    objectProto.type = Number(object.type) as FontTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.weight != null) {
+      objectProto.weight = Number(object.weight) as FontWeightProto;
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.size != null) {
+      objectProto.size = Number(object.size) as FontSizeProto;
+    }
+    if (object.align != null) {
+      objectProto.align = Number(object.align) as TextAlignProto;
+    }
+    if (object.lineHeight != null) {
+      objectProto.lineHeight = object.lineHeight.toProto();
+    }
+    if (object.letterSpacing != null) {
+      objectProto.letterSpacing = object.letterSpacing.toProto();
+    }
+    if (object.decoration != null) {
+      objectProto.decoration = Number(object.decoration) as TextDecorationProto;
+    }
+    if (object.transform != null) {
+      objectProto.transform = Number(object.transform) as TextTransformProto;
+    }
+    return objectProto as FontProto;
+  }
+
+  static __unpackProto__(
+    objectProto: FontProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Font {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
+    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    return new Font({
+      type: Number(objectProto.type) as FontType,
+      style:
+        objectProto.stylePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
+      color:
+        objectProto.color != undefined
+          ? _Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      size: objectProto.size != undefined ? (Number(objectProto.size) as FontSize) : null,
+      align: objectProto.align != undefined ? (Number(objectProto.align) as TextAlign) : null,
+      lineHeight:
+        objectProto.lineHeight != undefined
+          ? _Length.fromProto(objectProto.lineHeight!, _session, _supergraph, _graph, _connection)
+          : null,
+      letterSpacing:
+        objectProto.letterSpacing != undefined
+          ? _Length.fromProto(
+              objectProto.letterSpacing!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      decoration:
+        objectProto.decoration != undefined
+          ? (Number(objectProto.decoration) as TextDecoration)
+          : null,
+      transform:
+        objectProto.transform != undefined
+          ? (Number(objectProto.transform) as TextTransform)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: FontProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Font {
+    return Font.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Font {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FontProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.FONT, Font);
+/* ==== DESTACK_GENERATED_END:STRUCT:600500 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:600500 ==== */
 /**
  * A font style.
  */
@@ -868,7 +1374,7 @@ export class FontStyle extends Style {
 
   static __packValue__(object: FontStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270500;
+    objectValue["1"] = 600500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1056,7 +1562,7 @@ export class FontStyle extends Style {
   }
 
   static __packProto__(object: FontStyle): FontStyleProto {
-    const objectProto: Partial<FontStyleProto> = { metatype: 270500 };
+    const objectProto: Partial<FontStyleProto> = { metatype: 600500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1274,510 +1780,4 @@ export class FontStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FONT_STYLE, FontStyle);
-/* ==== DESTACK_GENERATED_END:NODE:270500 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:270500 ==== */
-/**
- * A font value.
- */
-export class Font extends StructFrozen {
-  static metatype: StructType = StructType.FONT;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Font.type
-   */
-  readonly type: FontType;
-
-  /**
-   * Font.style
-   */
-  get style(): FontStyle | null {
-    const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as FontStyle | null;
-    }
-    return null;
-  }
-  readonly stylePtr: NodeReference | null;
-
-  /**
-   * Font.weight
-   */
-  readonly weight: FontWeight | null;
-
-  /**
-   * Font.color
-   */
-  readonly color: Fill | null;
-
-  /**
-   * Font.size
-   */
-  readonly size: FontSize | null;
-
-  /**
-   * Font.align
-   */
-  readonly align: TextAlign | null;
-
-  /**
-   * Font.lineHeight
-   */
-  readonly lineHeight: Length | null;
-
-  /**
-   * Font.letterSpacing
-   */
-  readonly letterSpacing: Length | null;
-
-  /**
-   * Font.decoration
-   */
-  readonly decoration: TextDecoration | null;
-
-  /**
-   * Font.transform
-   */
-  readonly transform: TextTransform | null;
-
-  constructor(options: {
-    type?: FontType;
-    style?: FontStyle | NodeReference | null;
-    weight?: FontWeight | null;
-    color?: Fill | null;
-    size?: FontSize | null;
-    align?: TextAlign | null;
-    lineHeight?: Length | null;
-    letterSpacing?: Length | null;
-    decoration?: TextDecoration | null;
-    transform?: TextTransform | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type ?? null;
-    if (_type === null) {
-      _type = 11 /* FontType.SANS */;
-    }
-    if (_type === null) {
-      throw new Error(`Font.type is required`);
-    }
-    this.type = _type;
-    let _style = options.style ?? null;
-    if (_style != null && _style.metatype != StructType.NODE_REFERENCE) {
-      _style = (_style as Node).toRef();
-    }
-    this.stylePtr = _style;
-    let _weight = options.weight ?? null;
-    if (_weight === null) {
-      _weight = 400 /* FontWeight.NORMAL */;
-    }
-    this.weight = _weight;
-    let _color = options.color ?? null;
-    this.color = _color;
-    let _size = options.size ?? null;
-    if (_size === null) {
-      _size = 16 /* FontSize.BASE */;
-    }
-    this.size = _size;
-    let _align = options.align ?? null;
-    if (_align === null) {
-      _align = 1 /* TextAlign.LEFT */;
-    }
-    this.align = _align;
-    let _lineHeight = options.lineHeight ?? null;
-    this.lineHeight = _lineHeight;
-    let _letterSpacing = options.letterSpacing ?? null;
-    this.letterSpacing = _letterSpacing;
-    let _decoration = options.decoration ?? null;
-    if (_decoration === null) {
-      _decoration = 1 /* TextDecoration.NONE */;
-    }
-    this.decoration = _decoration;
-    let _transform = options.transform ?? null;
-    if (_transform === null) {
-      _transform = 1 /* TextTransform.NONE */;
-    }
-    this.transform = _transform;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
-      return false;
-    }
-    if (!(this.weight === other.weight)) {
-      return false;
-    }
-    if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
-    ) {
-      return false;
-    }
-    if (!(this.size === other.size)) {
-      return false;
-    }
-    if (!(this.align === other.align)) {
-      return false;
-    }
-    if (
-      (this.lineHeight == null) !== (other.lineHeight == null) ||
-      (this.lineHeight != null && !this.lineHeight.equals(other.lineHeight))
-    ) {
-      return false;
-    }
-    if (
-      (this.letterSpacing == null) !== (other.letterSpacing == null) ||
-      (this.letterSpacing != null && !this.letterSpacing.equals(other.letterSpacing))
-    ) {
-      return false;
-    }
-    if (!(this.decoration === other.decoration)) {
-      return false;
-    }
-    if (!(this.transform === other.transform)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${FontType[this.type]}`);
-      if (this.style !== null) {
-        propertyReprs.push(`style=${this.style?.repr()}`);
-      }
-      if (this.weight !== null) {
-        propertyReprs.push(`weight=${FontWeight[this.weight]}`);
-      }
-      if (this.color !== null) {
-        propertyReprs.push(`color=${this.color.repr()}`);
-      }
-      if (this.size !== null) {
-        propertyReprs.push(`size=${FontSize[this.size]}`);
-      }
-      if (this.align !== null) {
-        propertyReprs.push(`align=${TextAlign[this.align]}`);
-      }
-      if (this.lineHeight !== null) {
-        propertyReprs.push(`lineHeight=${this.lineHeight.repr()}`);
-      }
-      if (this.letterSpacing !== null) {
-        propertyReprs.push(`letterSpacing=${this.letterSpacing.repr()}`);
-      }
-      if (this.decoration !== null) {
-        propertyReprs.push(`decoration=${TextDecoration[this.decoration]}`);
-      }
-      if (this.transform !== null) {
-        propertyReprs.push(`transform=${TextTransform[this.transform]}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<Font ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash !== null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
-      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
-    }
-    if (this.weight !== null) {
-      h = (h * 31 + this.weight) & 0xffffffff;
-    }
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
-    }
-    if (this.size !== null) {
-      h = (h * 31 + this.size) & 0xffffffff;
-    }
-    if (this.align !== null) {
-      h = (h * 31 + this.align) & 0xffffffff;
-    }
-    if (this.lineHeight !== null) {
-      h = (h * 31 + this.lineHeight.hash()) & 0xffffffff;
-    }
-    if (this.letterSpacing !== null) {
-      h = (h * 31 + this.letterSpacing.hash()) & 0xffffffff;
-    }
-    if (this.decoration !== null) {
-      h = (h * 31 + this.decoration) & 0xffffffff;
-    }
-    if (this.transform !== null) {
-      h = (h * 31 + this.transform) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Font.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Font): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270500;
-    objectValue["100"] = object.type;
-    if (object.stylePtr != null) {
-      objectValue["101"] = object.stylePtr.toValue();
-    }
-    if (object.weight != null) {
-      objectValue["102"] = object.weight;
-    }
-    if (object.color != null) {
-      objectValue["103"] = object.color.toValue();
-    }
-    if (object.size != null) {
-      objectValue["104"] = object.size;
-    }
-    if (object.align != null) {
-      objectValue["105"] = object.align;
-    }
-    if (object.lineHeight != null) {
-      objectValue["106"] = object.lineHeight.toValue();
-    }
-    if (object.letterSpacing != null) {
-      objectValue["107"] = object.letterSpacing.toValue();
-    }
-    if (object.decoration != null) {
-      objectValue["108"] = object.decoration;
-    }
-    if (object.transform != null) {
-      objectValue["109"] = object.transform;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Font {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
-    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const stylePtrValue = objectValue["101"];
-    const unpackedStylePtr =
-      stylePtrValue != undefined
-        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const weightValue = objectValue["102"];
-    const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
-    const colorValue = objectValue["103"];
-    const unpackedColor =
-      colorValue != undefined
-        ? _Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const sizeValue = objectValue["104"];
-    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
-    const alignValue = objectValue["105"];
-    const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const lineHeightValue = objectValue["106"];
-    const unpackedLineHeight =
-      lineHeightValue != undefined
-        ? _Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const letterSpacingValue = objectValue["107"];
-    const unpackedLetterSpacing =
-      letterSpacingValue != undefined
-        ? _Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const decorationValue = objectValue["108"];
-    const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
-    const transformValue = objectValue["109"];
-    const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
-    return new Font({
-      type: Number(objectValue["100"]),
-      style: unpackedStylePtr,
-      weight: unpackedWeight,
-      color: unpackedColor,
-      size: unpackedSize,
-      align: unpackedAlign,
-      lineHeight: unpackedLineHeight,
-      letterSpacing: unpackedLetterSpacing,
-      decoration: unpackedDecoration,
-      transform: unpackedTransform,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Font {
-    return Font.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): FontProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Font.__packProto__(this);
-    }
-    return this._proto as FontProto;
-  }
-
-  static __packProto__(object: Font): FontProto {
-    const objectProto: Partial<FontProto> = { metatype: 270500 };
-    objectProto.type = Number(object.type) as FontTypeProto;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
-    if (object.weight != null) {
-      objectProto.weight = Number(object.weight) as FontWeightProto;
-    }
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
-    }
-    if (object.size != null) {
-      objectProto.size = Number(object.size) as FontSizeProto;
-    }
-    if (object.align != null) {
-      objectProto.align = Number(object.align) as TextAlignProto;
-    }
-    if (object.lineHeight != null) {
-      objectProto.lineHeight = object.lineHeight.toProto();
-    }
-    if (object.letterSpacing != null) {
-      objectProto.letterSpacing = object.letterSpacing.toProto();
-    }
-    if (object.decoration != null) {
-      objectProto.decoration = Number(object.decoration) as TextDecorationProto;
-    }
-    if (object.transform != null) {
-      objectProto.transform = Number(object.transform) as TextTransformProto;
-    }
-    return objectProto as FontProto;
-  }
-
-  static __unpackProto__(
-    objectProto: FontProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Font {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
-    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    return new Font({
-      type: Number(objectProto.type) as FontType,
-      style:
-        objectProto.stylePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.stylePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
-      color:
-        objectProto.color != undefined
-          ? _Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      size: objectProto.size != undefined ? (Number(objectProto.size) as FontSize) : null,
-      align: objectProto.align != undefined ? (Number(objectProto.align) as TextAlign) : null,
-      lineHeight:
-        objectProto.lineHeight != undefined
-          ? _Length.fromProto(objectProto.lineHeight!, _session, _supergraph, _graph, _connection)
-          : null,
-      letterSpacing:
-        objectProto.letterSpacing != undefined
-          ? _Length.fromProto(
-              objectProto.letterSpacing!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      decoration:
-        objectProto.decoration != undefined
-          ? (Number(objectProto.decoration) as TextDecoration)
-          : null,
-      transform:
-        objectProto.transform != undefined
-          ? (Number(objectProto.transform) as TextTransform)
-          : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: FontProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Font {
-    return Font.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Font {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = FontProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.FONT, Font);
-/* ==== DESTACK_GENERATED_END:STRUCT:270500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:600500 ==== */

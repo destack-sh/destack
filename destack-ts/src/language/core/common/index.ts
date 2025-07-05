@@ -2,7 +2,6 @@ export * from "@destack/language/core/common/definition";
 export * from "@destack/language/core/common/edit";
 export * from "@destack/language/core/common/enum";
 export * from "@destack/language/core/common/icon";
-export * from "@destack/language/core/common/metric";
 export * from "@destack/language/core/common/property";
 export * from "@destack/language/core/common/query";
 export * from "@destack/language/core/common/struct";

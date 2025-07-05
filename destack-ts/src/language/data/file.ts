@@ -34,7 +34,7 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/space";
+import type { Space } from "@destack/language/universe";
 import {
   FileFormatProto,
   FileProto,
@@ -52,7 +52,7 @@ import {
 import { hashBytes, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:60001 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:80001 ==== */
 /**
  * FileSource
  */
@@ -66,9 +66,9 @@ export enum FileSource {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_SOURCE, FileSource);
-/* ==== DESTACK_GENERATED_END:ENUM:60001 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:80001 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:60000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:80000 ==== */
 /**
  * FileRetentionMode
  */
@@ -82,9 +82,9 @@ export enum FileRetentionMode {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_RETENTION_MODE, FileRetentionMode);
-/* ==== DESTACK_GENERATED_END:ENUM:60000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:80000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:60002 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:80002 ==== */
 /**
  * FileType
  */
@@ -105,9 +105,9 @@ export enum FileType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_TYPE, FileType);
-/* ==== DESTACK_GENERATED_END:ENUM:60002 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:80002 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:60003 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:80003 ==== */
 /**
  * FileFormat
  */
@@ -204,9 +204,9 @@ export enum FileFormat {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_FORMAT, FileFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:60003 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:80003 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:80000 ==== */
 /**
  * A File stored somewhere.
  */
@@ -1262,7 +1262,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
 
   static __packValue__(object: File): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60000;
+    objectValue["1"] = 80000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1537,7 +1537,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
 
   static __packProto__(object: File): FileProto {
-    const objectProto: Partial<FileProto> = { metatype: 60000 };
+    const objectProto: Partial<FileProto> = { metatype: 80000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1815,4 +1815,4 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FILE, File);
-/* ==== DESTACK_GENERATED_END:NODE:60000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:80000 ==== */

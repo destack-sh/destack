@@ -24,10 +24,10 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
-import type { Space } from "@destack/language/space";
 import type { Palette } from "@destack/language/style/palette";
 import { Style } from "@destack/language/style/style";
 import type { Theme } from "@destack/language/style/theme";
+import type { Space } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import {
   ColorHueProto,
@@ -42,7 +42,7 @@ import { base64Decode } from "@destack/utils";
 import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:270300 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:600300 ==== */
 /**
  * A color value.
  */
@@ -299,7 +299,7 @@ export class Color extends StructFrozen {
 
   static __packValue__(object: Color): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270300;
+    objectValue["1"] = 600300;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -389,7 +389,7 @@ export class Color extends StructFrozen {
   }
 
   static __packProto__(object: Color): ColorProto {
-    const objectProto: Partial<ColorProto> = { metatype: 270300 };
+    const objectProto: Partial<ColorProto> = { metatype: 600300 };
     objectProto.type = Number(object.type) as ColorTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -480,9 +480,9 @@ export class Color extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.COLOR, Color);
-/* ==== DESTACK_GENERATED_END:STRUCT:270300 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:600300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:270300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:600300 ==== */
 /**
  * A color style, with an optional dark variant.
  */
@@ -1178,7 +1178,7 @@ export class ColorStyle extends Style {
 
   static __packValue__(object: ColorStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 270300;
+    objectValue["1"] = 600300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1359,7 +1359,7 @@ export class ColorStyle extends Style {
   }
 
   static __packProto__(object: ColorStyle): ColorStyleProto {
-    const objectProto: Partial<ColorStyleProto> = { metatype: 270300 };
+    const objectProto: Partial<ColorStyleProto> = { metatype: 600300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1594,7 +1594,7 @@ export class ColorStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COLOR_STYLE, ColorStyle);
-/* ==== DESTACK_GENERATED_END:NODE:270300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:600300 ==== */
 
 /** y-encoded sRGB → linear */
 function srgbToLinear(c: number): number {
@@ -1768,7 +1768,7 @@ export function p3ToHsl(rp3: number, gp3: number, bp3: number): [number, number,
   return rgbToHsl(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
 }
 
-/* ==== DESTACK_GENERATED_START:ENUM:270000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600000 ==== */
 /**
  * ColorType
  */
@@ -1783,9 +1783,9 @@ export enum ColorType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_TYPE, ColorType);
-/* ==== DESTACK_GENERATED_END:ENUM:270000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:270002 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600002 ==== */
 /**
  * ColorHue
  */
@@ -1814,9 +1814,9 @@ export enum ColorHue {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_HUE, ColorHue);
-/* ==== DESTACK_GENERATED_END:ENUM:270002 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600002 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:270001 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600001 ==== */
 /**
  * ColorShade
  */
@@ -1839,9 +1839,9 @@ export enum ColorShade {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_SHADE, ColorShade);
-/* ==== DESTACK_GENERATED_END:ENUM:270001 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600001 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:270003 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:600003 ==== */
 /**
  * ColorIntent
  */
@@ -1859,4 +1859,4 @@ export enum ColorIntent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_INTENT, ColorIntent);
-/* ==== DESTACK_GENERATED_END:ENUM:270003 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:600003 ==== */
