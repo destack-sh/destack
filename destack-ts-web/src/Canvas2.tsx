@@ -2,7 +2,7 @@ import { LineShape } from "destack";
 
 // nocheckin: reactive TS Store/Queries/Edits
 export const Canvas2: React.FC = ({}) => {
-  // const { roots: lines } = useQuery({
+  // const { nodes: lines } = useQuery({
   //   query: LineShape.search({}),
   // });
 

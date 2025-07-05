@@ -69,7 +69,8 @@ class Session:
         self.store: Store | None = store
         self.supergraph = Supergraph(self)
 
-        # transaction (pending)
+        # state/events tracking
+        # nocheckin: track Events
         self.dirty: dict[UUID, Entity] = {}
         self.edits: list[Edit] = []
         self.changes: list[Change] = []

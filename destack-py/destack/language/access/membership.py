@@ -2,8 +2,6 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
-    Enum,
-    EnumType,
     Event,
     IsDeletable,
     IsGlobal,
@@ -12,7 +10,6 @@ from destack.language.core import (
     IsSpatial,
     IsSubject,
     NodeType,
-    builtin_enum,
     builtin_node,
     builtin_property,
     builtin_property_parent,
@@ -46,14 +43,6 @@ class MembershipLeftEvent(MembershipEvent):
     """A Event regarding a Membership Leave."""
 
     pass
-
-
-@builtin_enum(EnumType.MEMBERSHIP_PERMISSION)
-class MembershipPermission(Enum):
-    """A Permission for a Membership."""
-
-    KICK = 10
-    BAN = 11
 
 
 @builtin_node(NodeType.MEMBERSHIP)

@@ -20,7 +20,6 @@ import type {
   MembershipEvent,
   MembershipJoinedEvent,
   MembershipLeftEvent,
-  MembershipPermission,
 } from "@destack/language/access/membership";
 import type { Permission, PermissionType } from "@destack/language/access/permission";
 import type {
@@ -112,6 +111,7 @@ import type {
   IsExtensible,
   IsFollowable,
   IsGlobal,
+  IsIrreversible,
   IsJoinable,
   IsOrdered,
   IsOwnable,
@@ -124,7 +124,6 @@ import type {
   IsStarable,
   IsSubject,
   IsTaggable,
-  JoinablePermission,
 } from "@destack/language/core/builtin/trait";
 import type {
   BuiltinDefinition,
@@ -627,24 +626,25 @@ export type NodeTypeMapping = {
 };
 
 export type TraitTypeMapping = {
+  [TraitType.GLOBAL]: IsGlobal;
+  [TraitType.SPATIAL]: IsSpatial;
+  [TraitType.ORDERED]: IsOrdered;
   [TraitType.ARCHIVABLE]: IsArchivable;
   [TraitType.DELETABLE]: IsDeletable;
   [TraitType.CUSTOMIZABLE]: IsCustomizable;
   [TraitType.EXTENSIBLE]: IsExtensible;
-  [TraitType.ORDERED]: IsOrdered;
+  [TraitType.IRREVERSIBLE]: IsIrreversible;
+  [TraitType.OWNABLE]: IsOwnable;
+  [TraitType.JOINABLE]: IsJoinable;
+  [TraitType.SUBJECT]: IsSubject;
+  [TraitType.OWNER]: IsOwner;
+  [TraitType.TAGGABLE]: IsTaggable;
   [TraitType.REACTABLE]: IsReactable;
   [TraitType.STARABLE]: IsStarable;
   [TraitType.FOLLOWABLE]: IsFollowable;
   [TraitType.SOURCEABLE]: IsSourceable;
   [TraitType.SCRIPTABLE]: IsScriptable;
   [TraitType.RUNNABLE]: IsRunnable;
-  [TraitType.OWNABLE]: IsOwnable;
-  [TraitType.JOINABLE]: IsJoinable;
-  [TraitType.SUBJECT]: IsSubject;
-  [TraitType.OWNER]: IsOwner;
-  [TraitType.TAGGABLE]: IsTaggable;
-  [TraitType.GLOBAL]: IsGlobal;
-  [TraitType.SPATIAL]: IsSpatial;
 };
 
 export type StructTypeMapping = {
@@ -757,7 +757,6 @@ export type EnumTypeMapping = {
   [EnumType.RESOURCE_STATUS]: ResourceStatus;
   [EnumType.CLIENT_TYPE]: ClientType;
   [EnumType.TENANCY]: Tenancy;
-  [EnumType.JOINABLE_PERMISSION]: JoinablePermission;
   [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.NODE_DEFINITION_TYPE]: NodeDefinitionType;
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
@@ -792,7 +791,6 @@ export type EnumTypeMapping = {
   [EnumType.POSITION_TYPE]: PositionType;
   [EnumType.DIMENSION_TYPE]: DimensionType;
   [EnumType.ENTITLEMENT_TYPE]: EntitlementType;
-  [EnumType.MEMBERSHIP_PERMISSION]: MembershipPermission;
   [EnumType.PERMISSION_TYPE]: PermissionType;
   [EnumType.SANCTION_TYPE]: SanctionType;
   [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;

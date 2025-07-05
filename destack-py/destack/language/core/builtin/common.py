@@ -67,8 +67,6 @@ class EnumType(Enum):
     CLIENT_TYPE = 10_700
 
     # access [20_000-30_000]
-    JOINABLE_PERMISSION = 20_000
-    MEMBERSHIP_PERMISSION = 20_001
     ROLE_TYPE = 20_200
     PERMISSION_TYPE = 20_300
     SANCTION_TYPE = 20_400
@@ -286,13 +284,13 @@ class StructType(Enum):
     # space [10_000-20_000]
     # ...
 
-    # access [20_000-30_000]
+    # spacetime [20_000-30_000]
     # ...
 
-    # folder [30_000-40_000]
+    # access [30_000-40_000]
     # ...
 
-    # spacetime [40_000-50_000]
+    # folder [40_000-50_000]
     # ...
 
     # entity [50_000-60_000]
@@ -413,21 +411,22 @@ class TraitType(Enum):
         "fas fa-paint-roller",
     )
     EXTENSIBLE = 111, "Extensible", "Can be extended by custom Nodes", "fas fa-expand"
+    IRREVERSIBLE = 120, "Irreversible", "Cannot be rewound", "fas fa-clock-rotate-left"
 
     # space [10_000-20_000]
     # ...
 
-    # access [20_000-30_000]
+    # spacetime [30_000-40_000]
+    # ...
+
+    # access [30_000-40_000]
     OWNABLE = 20_000, "Ownable", "Is ownable", "fas fa-user"
     OWNER = 20_001, "Owner", "Is an Owner", "fas fa-user"
     JOINABLE = 20_002, "Joinable", "Is joinable", "fas fa-users"
     SUBJECT = 20_003, "Subject", "Is a Subject", "fas fa-user"
 
-    # folder [30_000-40_000]
+    # folder [40_000-50_000]
     TAGGABLE = 30_000, "Taggable", "Can be tagged", "fas fa-tag"
-
-    # spacetime [40_000-50_000]
-    # ...
 
     # entity [50_000-60_000]
     # ...
@@ -568,47 +567,47 @@ class NodeType(Enum):
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     CLIENT = 10_700, "Client", None, "fas fa-desktop"
 
-    # access [20_000-30_000]
-    MEMBERSHIP = 20_000, "Membership", "Membership in a Space/Folder", "fas fa-user-group"
-    MEMBERSHIP_EVENT = 20_001, "Membership Event", None, "fas fa-user-group"
-    MEMBERSHIP_JOINED_EVENT = 20_002, "Membership Join Event", None, "fas fa-user-group"
-    MEMBERSHIP_LEFT_EVENT = 20_003, "Membership Leave Event", None, "fas fa-user-group"
-    INVITE = 20_100, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
-    INVITE_EVENT = 20_101, "Invite Event", None, "fas fa-user-plus"
-    INVITE_SENT_EVENT = 20_102, "Invite Sent Event", None, "fas fa-user-plus"
-    INVITE_RESCINDED_EVENT = 20_103, "Invite Rescinded Event", None, "fas fa-user-plus"
-    INVITE_ACCEPTED_EVENT = 20_104, "Invite Accepted Event", None, "fas fa-user-plus"
-    INVITE_REJECTED_EVENT = 20_105, "Invite Rejected Event", None, "fas fa-user-plus"
-    ROLE = 20_200, "Role", "Role in something", "fas fa-user-tag"
-    ROLE_EVENT = 20_201, "Role Event", None, "fas fa-user-tag"
-    ROLE_ASSIGNED_EVENT = 20_202, "Role Assigned Event", None, "fas fa-user-tag"
-    ROLE_UNASSIGNED_EVENT = 20_203, "Role Unassigned Event", None, "fas fa-user-tag"
-    PERMISSION = 20_300, "Permission", "Permission for something", "fas fa-user-shield"
-    SANCTION = 20_400, "Sanction", "Temporary or permanent restriction", "fas fa-user-minus"
-    SANCTION_EVENT = 20_401, "Sanction Event", None, "fas fa-user-minus"
-    SANCTION_REQUESTED_EVENT = 20_402, "Sanction Requested Event", None, "fas fa-user-minus"
-    SANCTION_GRANTED_EVENT = 20_403, "Sanction Granted Event", None, "fas fa-user-minus"
-    SANCTION_REVOKED_EVENT = 20_404, "Sanction Revoked Event", None, "fas fa-user-minus"
-    SANCTION_EXPIRED_EVENT = 20_405, "Sanction Expired Event", None, "fas fa-user-minus"
-    ENTITLEMENT = 20_500, "Entitlement", "Temporary or permanent grant", "fas fa-user-check"
-    ENTITLEMENT_EVENT = 20_501, "Entitlement Event", None, "fas fa-user-check"
-    ENTITLEMENT_REQUESTED_EVENT = 20_502, "Entitlement Requested Event", None, "fas fa-user-check"
-    ENTITLEMENT_GRANTED_EVENT = 20_503, "Entitlement Granted Event", None, "fas fa-user-check"
-    ENTITLEMENT_REVOKED_EVENT = 20_504, "Entitlement Revoked Event", None, "fas fa-user-check"
-    ENTITLEMENT_EXPIRED_EVENT = 20_505, "Entitlement Expired Event", None, "fas fa-user-check"
-    AGENT = 20_600, "Agent", None, "fas fa-robot"
-    # CHALLENGE, ...
-
-    # folder [30_000-40_000]
-    FOLDER = 30_000, "Folder", "Sub-space of a Space", "fas fa-folder-open"
-    # DEPENDENCY, ...
-    TAG = 30_100, "Tag", None, "fas fa-tag"
-    TAGGING = 30_101, "Tagging", None, "fas fa-tag"
-
-    # spacetime [40_000-50_000]
-    BRANCH = 40_000, "Branch", None, "fas fa-code-branch"
+    # spacetime [20_000-30_000]
+    BRANCH = 20_000, "Branch", None, "fas fa-code-branch"
     # HISTORY, REPLAY, ...
     # FORK, ...
+
+    # access [30_000-40_000]
+    MEMBERSHIP = 30_000, "Membership", "Membership in a Space/Folder", "fas fa-user-group"
+    MEMBERSHIP_EVENT = 30_001, "Membership Event", None, "fas fa-user-group"
+    MEMBERSHIP_JOINED_EVENT = 30_002, "Membership Join Event", None, "fas fa-user-group"
+    MEMBERSHIP_LEFT_EVENT = 30_003, "Membership Leave Event", None, "fas fa-user-group"
+    INVITE = 30_100, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
+    INVITE_EVENT = 30_101, "Invite Event", None, "fas fa-user-plus"
+    INVITE_SENT_EVENT = 30_102, "Invite Sent Event", None, "fas fa-user-plus"
+    INVITE_RESCINDED_EVENT = 30_103, "Invite Rescinded Event", None, "fas fa-user-plus"
+    INVITE_ACCEPTED_EVENT = 30_104, "Invite Accepted Event", None, "fas fa-user-plus"
+    INVITE_REJECTED_EVENT = 30_105, "Invite Rejected Event", None, "fas fa-user-plus"
+    ROLE = 30_200, "Role", "Role in something", "fas fa-user-tag"
+    ROLE_EVENT = 30_201, "Role Event", None, "fas fa-user-tag"
+    ROLE_ASSIGNED_EVENT = 30_202, "Role Assigned Event", None, "fas fa-user-tag"
+    ROLE_UNASSIGNED_EVENT = 30_203, "Role Unassigned Event", None, "fas fa-user-tag"
+    PERMISSION = 30_300, "Permission", "Permission for something", "fas fa-user-shield"
+    SANCTION = 30_400, "Sanction", "Temporary or permanent restriction", "fas fa-user-minus"
+    SANCTION_EVENT = 30_401, "Sanction Event", None, "fas fa-user-minus"
+    SANCTION_REQUESTED_EVENT = 30_402, "Sanction Requested Event", None, "fas fa-user-minus"
+    SANCTION_GRANTED_EVENT = 30_403, "Sanction Granted Event", None, "fas fa-user-minus"
+    SANCTION_REVOKED_EVENT = 30_404, "Sanction Revoked Event", None, "fas fa-user-minus"
+    SANCTION_EXPIRED_EVENT = 30_405, "Sanction Expired Event", None, "fas fa-user-minus"
+    ENTITLEMENT = 30_500, "Entitlement", "Temporary or permanent grant", "fas fa-user-check"
+    ENTITLEMENT_EVENT = 30_501, "Entitlement Event", None, "fas fa-user-check"
+    ENTITLEMENT_REQUESTED_EVENT = 30_502, "Entitlement Requested Event", None, "fas fa-user-check"
+    ENTITLEMENT_GRANTED_EVENT = 30_503, "Entitlement Granted Event", None, "fas fa-user-check"
+    ENTITLEMENT_REVOKED_EVENT = 30_504, "Entitlement Revoked Event", None, "fas fa-user-check"
+    ENTITLEMENT_EXPIRED_EVENT = 30_505, "Entitlement Expired Event", None, "fas fa-user-check"
+    AGENT = 30_600, "Agent", None, "fas fa-robot"
+    # CHALLENGE, ...
+
+    # folder [40_000-50_000]
+    FOLDER = 40_000, "Folder", "Sub-space of a Space", "fas fa-folder-open"
+    # DEPENDENCY, ...
+    TAG = 40_100, "Tag", None, "fas fa-tag"
+    TAGGING = 40_101, "Tagging", None, "fas fa-tag"
 
     # entity [50_000-60_000]
     # INDEX, CONSTRAINT, MIGRATION, ...
