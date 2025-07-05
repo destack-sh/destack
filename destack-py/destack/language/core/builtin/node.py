@@ -95,18 +95,7 @@ def builtin_node(
         cls.__is_abstract__ = is_abstract
 
         # event types
-        all_event_types: list[NodeType] = []
         cls.__base_event_types__ = tuple(event_types)
-        for base in cls.__bases__:
-            if (
-                any(b.__name__ == "Node" for b in base.__bases__)
-                and issubclass(base, Node)
-                and base.__base_event_types__
-            ):
-                for event_type in base.__base_event_types__:
-                    if event_type not in all_event_types:
-                        all_event_types.append(event_type)
-        cls.__event_types__ = tuple(all_event_types)
 
         # abstract nodes cannot extend non-abstract nodes
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:

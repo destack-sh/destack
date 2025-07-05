@@ -134,8 +134,12 @@ class NodeDefinition(BuiltinDefinition):
         134, description="The descendant types of this Node type (directly and indirectly)."
     )
 
-    base_event_types: list[NodeType] = builtin_property(140)
-    event_types: list[NodeType] = builtin_property(141)
+    event_types: list[NodeType] = builtin_property(
+        140, description="The event types of this Node (directly and indirectly)."
+    )
+    base_event_types: list[NodeType] = builtin_property(
+        141, description="The base event types of this Node (directly)."
+    )
 
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
@@ -168,8 +172,8 @@ class NodeDefinition(BuiltinDefinition):
             child_types=list(node_cls.__child_types__),
             ancestor_types=list(node_cls.__ancestor_types__),
             descendant_types=list(node_cls.__descendant_types__),
-            base_event_types=list(node_cls.__base_event_types__),
             event_types=list(node_cls.__event_types__),
+            base_event_types=list(node_cls.__base_event_types__),
         )
 
 
@@ -195,6 +199,13 @@ class TraitDefinition(BuiltinDefinition):
         121, description="Traits directly inherited by this trait."
     )
 
+    event_types: list[NodeType] = builtin_property(
+        140, description="The event types of this Trait (directly and indirectly)."
+    )
+    base_event_types: list[NodeType] = builtin_property(
+        141, description="The base event types of this Trait (directly)."
+    )
+
     @classmethod
     def from_trait(cls, trait_cls: _type["Trait"]) -> "TraitDefinition":
         """Create TraitDefinition from a Trait class."""
@@ -214,6 +225,8 @@ class TraitDefinition(BuiltinDefinition):
             is_extensible=cast(type["Trait"], trait_cls).__is_extensible__,
             traits=list(trait_cls.__traits__),
             base_traits=list(trait_cls.__base_traits__),
+            event_types=list(trait_cls.__event_types__),
+            base_event_types=list(trait_cls.__base_event_types__),
         )
 
 
