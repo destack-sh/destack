@@ -796,10 +796,10 @@ export class FontStyle extends Style {
    * FontStyle.type
    */
   get type(): FontType {
-    return this.#type;
+    return this._type;
   }
   set type(value: FontType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -809,18 +809,18 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: FontType;
+  _type: FontType;
 
   /**
    * Style.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -830,18 +830,18 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * FontStyle.weight
    */
   get weight(): FontWeight | null {
-    return this.#weight;
+    return this._weight;
   }
   set weight(value: FontWeight | null) {
-    const oldValue = this.#weight;
+    const oldValue = this._weight;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -851,18 +851,18 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#weight = value;
+    this._weight = value;
   }
-  #weight: FontWeight | null;
+  _weight: FontWeight | null;
 
   /**
    * FontStyle.color
    */
   get color(): Fill | null {
-    return this.#color;
+    return this._color;
   }
   set color(value: Fill | null) {
-    const oldValue = this.#color;
+    const oldValue = this._color;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -872,18 +872,18 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#color = value;
+    this._color = value;
   }
-  #color: Fill | null;
+  _color: Fill | null;
 
   /**
    * FontStyle.size
    */
   get size(): FontSize | null {
-    return this.#size;
+    return this._size;
   }
   set size(value: FontSize | null) {
-    const oldValue = this.#size;
+    const oldValue = this._size;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -893,18 +893,18 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#size = value;
+    this._size = value;
   }
-  #size: FontSize | null;
+  _size: FontSize | null;
 
   /**
    * FontStyle.align
    */
   get align(): TextAlign | null {
-    return this.#align;
+    return this._align;
   }
   set align(value: TextAlign | null) {
-    const oldValue = this.#align;
+    const oldValue = this._align;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -914,18 +914,18 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#align = value;
+    this._align = value;
   }
-  #align: TextAlign | null;
+  _align: TextAlign | null;
 
   /**
    * FontStyle.lineHeight
    */
   get lineHeight(): Length | null {
-    return this.#lineHeight;
+    return this._lineHeight;
   }
   set lineHeight(value: Length | null) {
-    const oldValue = this.#lineHeight;
+    const oldValue = this._lineHeight;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -935,18 +935,18 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#lineHeight = value;
+    this._lineHeight = value;
   }
-  #lineHeight: Length | null;
+  _lineHeight: Length | null;
 
   /**
    * FontStyle.letterSpacing
    */
   get letterSpacing(): Length | null {
-    return this.#letterSpacing;
+    return this._letterSpacing;
   }
   set letterSpacing(value: Length | null) {
-    const oldValue = this.#letterSpacing;
+    const oldValue = this._letterSpacing;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -956,18 +956,18 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#letterSpacing = value;
+    this._letterSpacing = value;
   }
-  #letterSpacing: Length | null;
+  _letterSpacing: Length | null;
 
   /**
    * FontStyle.decoration
    */
   get decoration(): TextDecoration | null {
-    return this.#decoration;
+    return this._decoration;
   }
   set decoration(value: TextDecoration | null) {
-    const oldValue = this.#decoration;
+    const oldValue = this._decoration;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -977,18 +977,18 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#decoration = value;
+    this._decoration = value;
   }
-  #decoration: TextDecoration | null;
+  _decoration: TextDecoration | null;
 
   /**
    * FontStyle.transform
    */
   get transform(): TextTransform | null {
-    return this.#transform;
+    return this._transform;
   }
   set transform(value: TextTransform | null) {
-    const oldValue = this.#transform;
+    const oldValue = this._transform;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -998,9 +998,9 @@ export class FontStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#transform = value;
+    this._transform = value;
   }
-  #transform: TextTransform | null;
+  _transform: TextTransform | null;
 
   constructor(options: {
     id?: string;
@@ -1111,43 +1111,43 @@ export class FontStyle extends Style {
     if (_type === null) {
       throw new Error(`FontStyle.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`FontStyle.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _weight = options.weight ?? null;
     if (_weight === null) {
       _weight = 400 /* FontWeight.NORMAL */;
     }
-    this.#weight = _weight;
+    this._weight = _weight;
     let _color = options.color ?? null;
-    this.#color = _color;
+    this._color = _color;
     let _size = options.size ?? null;
     if (_size === null) {
       _size = 16 /* FontSize.BASE */;
     }
-    this.#size = _size;
+    this._size = _size;
     let _align = options.align ?? null;
     if (_align === null) {
       _align = 1 /* TextAlign.LEFT */;
     }
-    this.#align = _align;
+    this._align = _align;
     let _lineHeight = options.lineHeight ?? null;
-    this.#lineHeight = _lineHeight;
+    this._lineHeight = _lineHeight;
     let _letterSpacing = options.letterSpacing ?? null;
-    this.#letterSpacing = _letterSpacing;
+    this._letterSpacing = _letterSpacing;
     let _decoration = options.decoration ?? null;
     if (_decoration === null) {
       _decoration = 1 /* TextDecoration.NONE */;
     }
-    this.#decoration = _decoration;
+    this._decoration = _decoration;
     let _transform = options.transform ?? null;
     if (_transform === null) {
       _transform = 1 /* TextTransform.NONE */;
     }
-    this.#transform = _transform;
+    this._transform = _transform;
 
     // identity
     if (options.id == null) {
@@ -1183,43 +1183,43 @@ export class FontStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#weight === other.#weight)) {
-      return false;
-    }
-    if (
-      (this.#color == null) !== (other.#color == null) ||
-      (this.#color != null && !this.#color.equals(other.#color))
-    ) {
-      return false;
-    }
-    if (!(this.#size === other.#size)) {
-      return false;
-    }
-    if (!(this.#align === other.#align)) {
+    if (!(this._weight === other._weight)) {
       return false;
     }
     if (
-      (this.#lineHeight == null) !== (other.#lineHeight == null) ||
-      (this.#lineHeight != null && !this.#lineHeight.equals(other.#lineHeight))
+      (this._color == null) !== (other._color == null) ||
+      (this._color != null && !this._color.equals(other._color))
+    ) {
+      return false;
+    }
+    if (!(this._size === other._size)) {
+      return false;
+    }
+    if (!(this._align === other._align)) {
+      return false;
+    }
+    if (
+      (this._lineHeight == null) !== (other._lineHeight == null) ||
+      (this._lineHeight != null && !this._lineHeight.equals(other._lineHeight))
     ) {
       return false;
     }
     if (
-      (this.#letterSpacing == null) !== (other.#letterSpacing == null) ||
-      (this.#letterSpacing != null && !this.#letterSpacing.equals(other.#letterSpacing))
+      (this._letterSpacing == null) !== (other._letterSpacing == null) ||
+      (this._letterSpacing != null && !this._letterSpacing.equals(other._letterSpacing))
     ) {
       return false;
     }
-    if (!(this.#decoration === other.#decoration)) {
+    if (!(this._decoration === other._decoration)) {
       return false;
     }
-    if (!(this.#transform === other.#transform)) {
+    if (!(this._transform === other._transform)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1243,35 +1243,35 @@ export class FontStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#type) & 0xffffffff;
-    if (this.#weight !== null) {
-      h = (h * 31 + this.#weight) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._weight !== null) {
+      h = (h * 31 + this._weight) & 0xffffffff;
     }
-    if (this.#color !== null) {
-      h = (h * 31 + this.#color.hash()) & 0xffffffff;
+    if (this._color !== null) {
+      h = (h * 31 + this._color.hash()) & 0xffffffff;
     }
-    if (this.#size !== null) {
-      h = (h * 31 + this.#size) & 0xffffffff;
+    if (this._size !== null) {
+      h = (h * 31 + this._size) & 0xffffffff;
     }
-    if (this.#align !== null) {
-      h = (h * 31 + this.#align) & 0xffffffff;
+    if (this._align !== null) {
+      h = (h * 31 + this._align) & 0xffffffff;
     }
-    if (this.#lineHeight !== null) {
-      h = (h * 31 + this.#lineHeight.hash()) & 0xffffffff;
+    if (this._lineHeight !== null) {
+      h = (h * 31 + this._lineHeight.hash()) & 0xffffffff;
     }
-    if (this.#letterSpacing !== null) {
-      h = (h * 31 + this.#letterSpacing.hash()) & 0xffffffff;
+    if (this._letterSpacing !== null) {
+      h = (h * 31 + this._letterSpacing.hash()) & 0xffffffff;
     }
-    if (this.#decoration !== null) {
-      h = (h * 31 + this.#decoration) & 0xffffffff;
+    if (this._decoration !== null) {
+      h = (h * 31 + this._decoration) & 0xffffffff;
     }
-    if (this.#transform !== null) {
-      h = (h * 31 + this.#transform) & 0xffffffff;
+    if (this._transform !== null) {
+      h = (h * 31 + this._transform) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1407,31 +1407,31 @@ export class FontStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#weight != null) {
-      objectValue["102"] = object.#weight;
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._weight != null) {
+      objectValue["102"] = object._weight;
     }
-    if (object.#color != null) {
-      objectValue["103"] = object.#color.toValue();
+    if (object._color != null) {
+      objectValue["103"] = object._color.toValue();
     }
-    if (object.#size != null) {
-      objectValue["104"] = object.#size;
+    if (object._size != null) {
+      objectValue["104"] = object._size;
     }
-    if (object.#align != null) {
-      objectValue["105"] = object.#align;
+    if (object._align != null) {
+      objectValue["105"] = object._align;
     }
-    if (object.#lineHeight != null) {
-      objectValue["106"] = object.#lineHeight.toValue();
+    if (object._lineHeight != null) {
+      objectValue["106"] = object._lineHeight.toValue();
     }
-    if (object.#letterSpacing != null) {
-      objectValue["107"] = object.#letterSpacing.toValue();
+    if (object._letterSpacing != null) {
+      objectValue["107"] = object._letterSpacing.toValue();
     }
-    if (object.#decoration != null) {
-      objectValue["108"] = object.#decoration;
+    if (object._decoration != null) {
+      objectValue["108"] = object._decoration;
     }
-    if (object.#transform != null) {
-      objectValue["109"] = object.#transform;
+    if (object._transform != null) {
+      objectValue["109"] = object._transform;
     }
     return objectValue;
   }
@@ -1595,31 +1595,31 @@ export class FontStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.#type) as FontTypeProto;
-    objectProto.name = object.#name;
-    if (object.#weight != null) {
-      objectProto.weight = Number(object.#weight) as FontWeightProto;
+    objectProto.type = Number(object._type) as FontTypeProto;
+    objectProto.name = object._name;
+    if (object._weight != null) {
+      objectProto.weight = Number(object._weight) as FontWeightProto;
     }
-    if (object.#color != null) {
-      objectProto.color = object.#color.toProto();
+    if (object._color != null) {
+      objectProto.color = object._color.toProto();
     }
-    if (object.#size != null) {
-      objectProto.size = Number(object.#size) as FontSizeProto;
+    if (object._size != null) {
+      objectProto.size = Number(object._size) as FontSizeProto;
     }
-    if (object.#align != null) {
-      objectProto.align = Number(object.#align) as TextAlignProto;
+    if (object._align != null) {
+      objectProto.align = Number(object._align) as TextAlignProto;
     }
-    if (object.#lineHeight != null) {
-      objectProto.lineHeight = object.#lineHeight.toProto();
+    if (object._lineHeight != null) {
+      objectProto.lineHeight = object._lineHeight.toProto();
     }
-    if (object.#letterSpacing != null) {
-      objectProto.letterSpacing = object.#letterSpacing.toProto();
+    if (object._letterSpacing != null) {
+      objectProto.letterSpacing = object._letterSpacing.toProto();
     }
-    if (object.#decoration != null) {
-      objectProto.decoration = Number(object.#decoration) as TextDecorationProto;
+    if (object._decoration != null) {
+      objectProto.decoration = Number(object._decoration) as TextDecorationProto;
     }
-    if (object.#transform != null) {
-      objectProto.transform = Number(object.#transform) as TextTransformProto;
+    if (object._transform != null) {
+      objectProto.transform = Number(object._transform) as TextTransformProto;
     }
     return objectProto as FontStyleProto;
   }

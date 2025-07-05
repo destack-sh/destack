@@ -222,10 +222,10 @@ export class Layer extends ContainerView implements IsOwnable {
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -235,9 +235,9 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -262,10 +262,10 @@ export class Layer extends ContainerView implements IsOwnable {
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -275,9 +275,9 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * The main / root Script of this Node.
@@ -297,10 +297,10 @@ export class Layer extends ContainerView implements IsOwnable {
     }
   }
   get scriptPtr(): NodeReference | null {
-    return this.#scriptPtr;
+    return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this.#scriptPtr;
+    const oldValue = this._scriptPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -310,18 +310,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#scriptPtr = value;
+    this._scriptPtr = value;
   }
-  #scriptPtr: NodeReference | null;
+  _scriptPtr: NodeReference | null;
 
   /**
    * Layer.type
    */
   get type(): LayerType {
-    return this.#type;
+    return this._type;
   }
   set type(value: LayerType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -331,18 +331,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: LayerType;
+  _type: LayerType;
 
   /**
    * Layer.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -352,18 +352,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Layer.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -373,18 +373,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   /**
    * View.position
    */
   get position(): Position | null {
-    return this.#position;
+    return this._position;
   }
   set position(value: Position | null) {
-    const oldValue = this.#position;
+    const oldValue = this._position;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -394,18 +394,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#position = value;
+    this._position = value;
   }
-  #position: Position | null;
+  _position: Position | null;
 
   /**
    * View.width
    */
   get width(): Dimension | null {
-    return this.#width;
+    return this._width;
   }
   set width(value: Dimension | null) {
-    const oldValue = this.#width;
+    const oldValue = this._width;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -415,18 +415,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#width = value;
+    this._width = value;
   }
-  #width: Dimension | null;
+  _width: Dimension | null;
 
   /**
    * View.height
    */
   get height(): Dimension | null {
-    return this.#height;
+    return this._height;
   }
   set height(value: Dimension | null) {
-    const oldValue = this.#height;
+    const oldValue = this._height;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -436,18 +436,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#height = value;
+    this._height = value;
   }
-  #height: Dimension | null;
+  _height: Dimension | null;
 
   /**
    * View.minWidth
    */
   get minWidth(): Dimension | null {
-    return this.#minWidth;
+    return this._minWidth;
   }
   set minWidth(value: Dimension | null) {
-    const oldValue = this.#minWidth;
+    const oldValue = this._minWidth;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -457,18 +457,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#minWidth = value;
+    this._minWidth = value;
   }
-  #minWidth: Dimension | null;
+  _minWidth: Dimension | null;
 
   /**
    * View.minHeight
    */
   get minHeight(): Dimension | null {
-    return this.#minHeight;
+    return this._minHeight;
   }
   set minHeight(value: Dimension | null) {
-    const oldValue = this.#minHeight;
+    const oldValue = this._minHeight;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -478,18 +478,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#minHeight = value;
+    this._minHeight = value;
   }
-  #minHeight: Dimension | null;
+  _minHeight: Dimension | null;
 
   /**
    * View.maxWidth
    */
   get maxWidth(): Dimension | null {
-    return this.#maxWidth;
+    return this._maxWidth;
   }
   set maxWidth(value: Dimension | null) {
-    const oldValue = this.#maxWidth;
+    const oldValue = this._maxWidth;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -499,18 +499,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#maxWidth = value;
+    this._maxWidth = value;
   }
-  #maxWidth: Dimension | null;
+  _maxWidth: Dimension | null;
 
   /**
    * View.maxHeight
    */
   get maxHeight(): Dimension | null {
-    return this.#maxHeight;
+    return this._maxHeight;
   }
   set maxHeight(value: Dimension | null) {
-    const oldValue = this.#maxHeight;
+    const oldValue = this._maxHeight;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -520,18 +520,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#maxHeight = value;
+    this._maxHeight = value;
   }
-  #maxHeight: Dimension | null;
+  _maxHeight: Dimension | null;
 
   /**
    * ContainerView.layout
    */
   get layout(): Layout | null {
-    return this.#layout;
+    return this._layout;
   }
   set layout(value: Layout | null) {
-    const oldValue = this.#layout;
+    const oldValue = this._layout;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -541,18 +541,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#layout = value;
+    this._layout = value;
   }
-  #layout: Layout | null;
+  _layout: Layout | null;
 
   /**
    * ContainerView.direction
    */
   get direction(): Direction | null {
-    return this.#direction;
+    return this._direction;
   }
   set direction(value: Direction | null) {
-    const oldValue = this.#direction;
+    const oldValue = this._direction;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -562,18 +562,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#direction = value;
+    this._direction = value;
   }
-  #direction: Direction | null;
+  _direction: Direction | null;
 
   /**
    * ContainerView.distribute
    */
   get distribute(): Distribute | null {
-    return this.#distribute;
+    return this._distribute;
   }
   set distribute(value: Distribute | null) {
-    const oldValue = this.#distribute;
+    const oldValue = this._distribute;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -583,18 +583,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#distribute = value;
+    this._distribute = value;
   }
-  #distribute: Distribute | null;
+  _distribute: Distribute | null;
 
   /**
    * ContainerView.align
    */
   get align(): Align | null {
-    return this.#align;
+    return this._align;
   }
   set align(value: Align | null) {
-    const oldValue = this.#align;
+    const oldValue = this._align;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -604,18 +604,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#align = value;
+    this._align = value;
   }
-  #align: Align | null;
+  _align: Align | null;
 
   /**
    * ContainerView.gap
    */
   get gap(): Axis2 | null {
-    return this.#gap;
+    return this._gap;
   }
   set gap(value: Axis2 | null) {
-    const oldValue = this.#gap;
+    const oldValue = this._gap;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -625,18 +625,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#gap = value;
+    this._gap = value;
   }
-  #gap: Axis2 | null;
+  _gap: Axis2 | null;
 
   /**
    * ContainerView.padding
    */
   get padding(): Insets | null {
-    return this.#padding;
+    return this._padding;
   }
   set padding(value: Insets | null) {
-    const oldValue = this.#padding;
+    const oldValue = this._padding;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -646,18 +646,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#padding = value;
+    this._padding = value;
   }
-  #padding: Insets | null;
+  _padding: Insets | null;
 
   /**
    * ContainerView.grid
    */
   get grid(): Grid | null {
-    return this.#grid;
+    return this._grid;
   }
   set grid(value: Grid | null) {
-    const oldValue = this.#grid;
+    const oldValue = this._grid;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -667,18 +667,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#grid = value;
+    this._grid = value;
   }
-  #grid: Grid | null;
+  _grid: Grid | null;
 
   /**
    * ContainerView.gridSpan
    */
   get gridSpan(): GridSpan | null {
-    return this.#gridSpan;
+    return this._gridSpan;
   }
   set gridSpan(value: GridSpan | null) {
-    const oldValue = this.#gridSpan;
+    const oldValue = this._gridSpan;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -688,18 +688,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#gridSpan = value;
+    this._gridSpan = value;
   }
-  #gridSpan: GridSpan | null;
+  _gridSpan: GridSpan | null;
 
   /**
    * ContainerView.aspectRatio
    */
   get aspectRatio(): number | null {
-    return this.#aspectRatio;
+    return this._aspectRatio;
   }
   set aspectRatio(value: number | null) {
-    const oldValue = this.#aspectRatio;
+    const oldValue = this._aspectRatio;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -709,18 +709,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#aspectRatio = value;
+    this._aspectRatio = value;
   }
-  #aspectRatio: number | null;
+  _aspectRatio: number | null;
 
   /**
    * ContainerView.isWrap
    */
   get isWrap(): boolean | null {
-    return this.#isWrap;
+    return this._isWrap;
   }
   set isWrap(value: boolean | null) {
-    const oldValue = this.#isWrap;
+    const oldValue = this._isWrap;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -730,18 +730,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isWrap = value;
+    this._isWrap = value;
   }
-  #isWrap: boolean | null;
+  _isWrap: boolean | null;
 
   /**
    * ContainerView.isVisible
    */
   get isVisible(): boolean | null {
-    return this.#isVisible;
+    return this._isVisible;
   }
   set isVisible(value: boolean | null) {
-    const oldValue = this.#isVisible;
+    const oldValue = this._isVisible;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -751,18 +751,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isVisible = value;
+    this._isVisible = value;
   }
-  #isVisible: boolean | null;
+  _isVisible: boolean | null;
 
   /**
    * ContainerView.opacity
    */
   get opacity(): number | null {
-    return this.#opacity;
+    return this._opacity;
   }
   set opacity(value: number | null) {
-    const oldValue = this.#opacity;
+    const oldValue = this._opacity;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -772,18 +772,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#opacity = value;
+    this._opacity = value;
   }
-  #opacity: number | null;
+  _opacity: number | null;
 
   /**
    * ContainerView.fill
    */
   get fill(): Fill | null {
-    return this.#fill;
+    return this._fill;
   }
   set fill(value: Fill | null) {
-    const oldValue = this.#fill;
+    const oldValue = this._fill;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -793,18 +793,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#fill = value;
+    this._fill = value;
   }
-  #fill: Fill | null;
+  _fill: Fill | null;
 
   /**
    * ContainerView.rotation
    */
   get rotation(): Axis3 | null {
-    return this.#rotation;
+    return this._rotation;
   }
   set rotation(value: Axis3 | null) {
-    const oldValue = this.#rotation;
+    const oldValue = this._rotation;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -814,18 +814,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#rotation = value;
+    this._rotation = value;
   }
-  #rotation: Axis3 | null;
+  _rotation: Axis3 | null;
 
   /**
    * ContainerView.skew
    */
   get skew(): Vector2f | null {
-    return this.#skew;
+    return this._skew;
   }
   set skew(value: Vector2f | null) {
-    const oldValue = this.#skew;
+    const oldValue = this._skew;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -835,18 +835,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#skew = value;
+    this._skew = value;
   }
-  #skew: Vector2f | null;
+  _skew: Vector2f | null;
 
   /**
    * ContainerView.scale
    */
   get scale(): number | null {
-    return this.#scale;
+    return this._scale;
   }
   set scale(value: number | null) {
-    const oldValue = this.#scale;
+    const oldValue = this._scale;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -856,18 +856,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#scale = value;
+    this._scale = value;
   }
-  #scale: number | null;
+  _scale: number | null;
 
   /**
    * ContainerView.shadow
    */
   get shadow(): Shadow | null {
-    return this.#shadow;
+    return this._shadow;
   }
   set shadow(value: Shadow | null) {
-    const oldValue = this.#shadow;
+    const oldValue = this._shadow;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -877,18 +877,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#shadow = value;
+    this._shadow = value;
   }
-  #shadow: Shadow | null;
+  _shadow: Shadow | null;
 
   /**
    * ContainerView.border
    */
   get border(): Border | null {
-    return this.#border;
+    return this._border;
   }
   set border(value: Border | null) {
-    const oldValue = this.#border;
+    const oldValue = this._border;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -898,18 +898,18 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#border = value;
+    this._border = value;
   }
-  #border: Border | null;
+  _border: Border | null;
 
   /**
    * ContainerView.radius
    */
   get radius(): Corners | null {
-    return this.#radius;
+    return this._radius;
   }
   set radius(value: Corners | null) {
-    const oldValue = this.#radius;
+    const oldValue = this._radius;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -919,9 +919,9 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#radius = value;
+    this._radius = value;
   }
-  #radius: Corners | null;
+  _radius: Corners | null;
 
   constructor(options: {
     id?: string;
@@ -1052,7 +1052,7 @@ export class Layer extends ContainerView implements IsOwnable {
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -1065,12 +1065,12 @@ export class Layer extends ContainerView implements IsOwnable {
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
-    this.#scriptPtr = _script;
+    this._scriptPtr = _script;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 1 /* LayerType.GENERAL */;
@@ -1078,66 +1078,66 @@ export class Layer extends ContainerView implements IsOwnable {
     if (_type === null) {
       throw new Error(`Layer.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Layer.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
     let _position = options.position ?? null;
-    this.#position = _position;
+    this._position = _position;
     let _width = options.width ?? null;
-    this.#width = _width;
+    this._width = _width;
     let _height = options.height ?? null;
-    this.#height = _height;
+    this._height = _height;
     let _minWidth = options.minWidth ?? null;
-    this.#minWidth = _minWidth;
+    this._minWidth = _minWidth;
     let _minHeight = options.minHeight ?? null;
-    this.#minHeight = _minHeight;
+    this._minHeight = _minHeight;
     let _maxWidth = options.maxWidth ?? null;
-    this.#maxWidth = _maxWidth;
+    this._maxWidth = _maxWidth;
     let _maxHeight = options.maxHeight ?? null;
-    this.#maxHeight = _maxHeight;
+    this._maxHeight = _maxHeight;
     let _layout = options.layout ?? null;
-    this.#layout = _layout;
+    this._layout = _layout;
     let _direction = options.direction ?? null;
-    this.#direction = _direction;
+    this._direction = _direction;
     let _distribute = options.distribute ?? null;
-    this.#distribute = _distribute;
+    this._distribute = _distribute;
     let _align = options.align ?? null;
-    this.#align = _align;
+    this._align = _align;
     let _gap = options.gap ?? null;
-    this.#gap = _gap;
+    this._gap = _gap;
     let _padding = options.padding ?? null;
-    this.#padding = _padding;
+    this._padding = _padding;
     let _grid = options.grid ?? null;
-    this.#grid = _grid;
+    this._grid = _grid;
     let _gridSpan = options.gridSpan ?? null;
-    this.#gridSpan = _gridSpan;
+    this._gridSpan = _gridSpan;
     let _aspectRatio = options.aspectRatio ?? null;
-    this.#aspectRatio = _aspectRatio;
+    this._aspectRatio = _aspectRatio;
     let _isWrap = options.isWrap ?? null;
-    this.#isWrap = _isWrap;
+    this._isWrap = _isWrap;
     let _isVisible = options.isVisible ?? null;
-    this.#isVisible = _isVisible;
+    this._isVisible = _isVisible;
     let _opacity = options.opacity ?? null;
-    this.#opacity = _opacity;
+    this._opacity = _opacity;
     let _fill = options.fill ?? null;
-    this.#fill = _fill;
+    this._fill = _fill;
     let _rotation = options.rotation ?? null;
-    this.#rotation = _rotation;
+    this._rotation = _rotation;
     let _skew = options.skew ?? null;
-    this.#skew = _skew;
+    this._skew = _skew;
     let _scale = options.scale ?? null;
-    this.#scale = _scale;
+    this._scale = _scale;
     let _shadow = options.shadow ?? null;
-    this.#shadow = _shadow;
+    this._shadow = _shadow;
     let _border = options.border ?? null;
-    this.#border = _border;
+    this._border = _border;
     let _radius = options.radius ?? null;
-    this.#radius = _radius;
+    this._radius = _radius;
 
     // identity
     if (options.id == null) {
@@ -1171,162 +1171,162 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
-    if (!(this.#layout === other.#layout)) {
+    if (!(this._layout === other._layout)) {
       return false;
     }
-    if (!(this.#direction === other.#direction)) {
+    if (!(this._direction === other._direction)) {
       return false;
     }
-    if (!(this.#distribute === other.#distribute)) {
+    if (!(this._distribute === other._distribute)) {
       return false;
     }
-    if (!(this.#align === other.#align)) {
-      return false;
-    }
-    if (
-      (this.#gap == null) !== (other.#gap == null) ||
-      (this.#gap != null && !this.#gap.equals(other.#gap))
-    ) {
+    if (!(this._align === other._align)) {
       return false;
     }
     if (
-      (this.#padding == null) !== (other.#padding == null) ||
-      (this.#padding != null && !this.#padding.equals(other.#padding))
+      (this._gap == null) !== (other._gap == null) ||
+      (this._gap != null && !this._gap.equals(other._gap))
     ) {
       return false;
     }
     if (
-      (this.#grid == null) !== (other.#grid == null) ||
-      (this.#grid != null && !this.#grid.equals(other.#grid))
+      (this._padding == null) !== (other._padding == null) ||
+      (this._padding != null && !this._padding.equals(other._padding))
     ) {
       return false;
     }
     if (
-      (this.#gridSpan == null) !== (other.#gridSpan == null) ||
-      (this.#gridSpan != null && !this.#gridSpan.equals(other.#gridSpan))
+      (this._grid == null) !== (other._grid == null) ||
+      (this._grid != null && !this._grid.equals(other._grid))
     ) {
       return false;
     }
     if (
-      (this.#aspectRatio == null) !== (other.#aspectRatio == null) ||
-      (this.#aspectRatio != null &&
+      (this._gridSpan == null) !== (other._gridSpan == null) ||
+      (this._gridSpan != null && !this._gridSpan.equals(other._gridSpan))
+    ) {
+      return false;
+    }
+    if (
+      (this._aspectRatio == null) !== (other._aspectRatio == null) ||
+      (this._aspectRatio != null &&
         !(
-          this.#aspectRatio === other.#aspectRatio ||
-          Math.abs(this.#aspectRatio - other.#aspectRatio) < 1e-10
+          this._aspectRatio === other._aspectRatio ||
+          Math.abs(this._aspectRatio - other._aspectRatio) < 1e-10
         ))
     ) {
       return false;
     }
-    if (!(this.#isWrap === other.#isWrap)) {
+    if (!(this._isWrap === other._isWrap)) {
       return false;
     }
-    if (!(this.#isVisible === other.#isVisible)) {
+    if (!(this._isVisible === other._isVisible)) {
       return false;
     }
     if (
-      (this.#opacity == null) !== (other.#opacity == null) ||
-      (this.#opacity != null &&
-        !(this.#opacity === other.#opacity || Math.abs(this.#opacity - other.#opacity) < 1e-10))
+      (this._opacity == null) !== (other._opacity == null) ||
+      (this._opacity != null &&
+        !(this._opacity === other._opacity || Math.abs(this._opacity - other._opacity) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.#fill == null) !== (other.#fill == null) ||
-      (this.#fill != null && !this.#fill.equals(other.#fill))
+      (this._fill == null) !== (other._fill == null) ||
+      (this._fill != null && !this._fill.equals(other._fill))
     ) {
       return false;
     }
     if (
-      (this.#rotation == null) !== (other.#rotation == null) ||
-      (this.#rotation != null && !this.#rotation.equals(other.#rotation))
+      (this._rotation == null) !== (other._rotation == null) ||
+      (this._rotation != null && !this._rotation.equals(other._rotation))
     ) {
       return false;
     }
     if (
-      (this.#skew == null) !== (other.#skew == null) ||
-      (this.#skew != null && !this.#skew.equals(other.#skew))
+      (this._skew == null) !== (other._skew == null) ||
+      (this._skew != null && !this._skew.equals(other._skew))
     ) {
       return false;
     }
     if (
-      (this.#scale == null) !== (other.#scale == null) ||
-      (this.#scale != null &&
-        !(this.#scale === other.#scale || Math.abs(this.#scale - other.#scale) < 1e-10))
+      (this._scale == null) !== (other._scale == null) ||
+      (this._scale != null &&
+        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
     ) {
       return false;
     }
     if (
-      (this.#shadow == null) !== (other.#shadow == null) ||
-      (this.#shadow != null && !this.#shadow.equals(other.#shadow))
+      (this._shadow == null) !== (other._shadow == null) ||
+      (this._shadow != null && !this._shadow.equals(other._shadow))
     ) {
       return false;
     }
     if (
-      (this.#border == null) !== (other.#border == null) ||
-      (this.#border != null && !this.#border.equals(other.#border))
+      (this._border == null) !== (other._border == null) ||
+      (this._border != null && !this._border.equals(other._border))
     ) {
       return false;
     }
     if (
-      (this.#radius == null) !== (other.#radius == null) ||
-      (this.#radius != null && !this.#radius.equals(other.#radius))
+      (this._radius == null) !== (other._radius == null) ||
+      (this._radius != null && !this._radius.equals(other._radius))
     ) {
       return false;
     }
     if (
-      (this.#position == null) !== (other.#position == null) ||
-      (this.#position != null && !this.#position.equals(other.#position))
+      (this._position == null) !== (other._position == null) ||
+      (this._position != null && !this._position.equals(other._position))
     ) {
       return false;
     }
     if (
-      (this.#width == null) !== (other.#width == null) ||
-      (this.#width != null && !this.#width.equals(other.#width))
+      (this._width == null) !== (other._width == null) ||
+      (this._width != null && !this._width.equals(other._width))
     ) {
       return false;
     }
     if (
-      (this.#height == null) !== (other.#height == null) ||
-      (this.#height != null && !this.#height.equals(other.#height))
+      (this._height == null) !== (other._height == null) ||
+      (this._height != null && !this._height.equals(other._height))
     ) {
       return false;
     }
     if (
-      (this.#minWidth == null) !== (other.#minWidth == null) ||
-      (this.#minWidth != null && !this.#minWidth.equals(other.#minWidth))
+      (this._minWidth == null) !== (other._minWidth == null) ||
+      (this._minWidth != null && !this._minWidth.equals(other._minWidth))
     ) {
       return false;
     }
     if (
-      (this.#minHeight == null) !== (other.#minHeight == null) ||
-      (this.#minHeight != null && !this.#minHeight.equals(other.#minHeight))
+      (this._minHeight == null) !== (other._minHeight == null) ||
+      (this._minHeight != null && !this._minHeight.equals(other._minHeight))
     ) {
       return false;
     }
     if (
-      (this.#maxWidth == null) !== (other.#maxWidth == null) ||
-      (this.#maxWidth != null && !this.#maxWidth.equals(other.#maxWidth))
+      (this._maxWidth == null) !== (other._maxWidth == null) ||
+      (this._maxWidth != null && !this._maxWidth.equals(other._maxWidth))
     ) {
       return false;
     }
     if (
-      (this.#maxHeight == null) !== (other.#maxHeight == null) ||
-      (this.#maxHeight != null && !this.#maxHeight.equals(other.#maxHeight))
+      (this._maxHeight == null) !== (other._maxHeight == null) ||
+      (this._maxHeight != null && !this._maxHeight.equals(other._maxHeight))
     ) {
       return false;
     }
@@ -1345,7 +1345,7 @@ export class Layer extends ContainerView implements IsOwnable {
     if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
       return false;
     }
-    if (!(this.#scriptPtr?.id === other.#scriptPtr?.id)) {
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -1357,14 +1357,14 @@ export class Layer extends ContainerView implements IsOwnable {
     ) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -1377,92 +1377,92 @@ export class Layer extends ContainerView implements IsOwnable {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#type) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    if (this.#layout !== null) {
-      h = (h * 31 + this.#layout) & 0xffffffff;
+    if (this._layout !== null) {
+      h = (h * 31 + this._layout) & 0xffffffff;
     }
-    if (this.#direction !== null) {
-      h = (h * 31 + this.#direction) & 0xffffffff;
+    if (this._direction !== null) {
+      h = (h * 31 + this._direction) & 0xffffffff;
     }
-    if (this.#distribute !== null) {
-      h = (h * 31 + this.#distribute) & 0xffffffff;
+    if (this._distribute !== null) {
+      h = (h * 31 + this._distribute) & 0xffffffff;
     }
-    if (this.#align !== null) {
-      h = (h * 31 + this.#align) & 0xffffffff;
+    if (this._align !== null) {
+      h = (h * 31 + this._align) & 0xffffffff;
     }
-    if (this.#gap !== null) {
-      h = (h * 31 + this.#gap.hash()) & 0xffffffff;
+    if (this._gap !== null) {
+      h = (h * 31 + this._gap.hash()) & 0xffffffff;
     }
-    if (this.#padding !== null) {
-      h = (h * 31 + this.#padding.hash()) & 0xffffffff;
+    if (this._padding !== null) {
+      h = (h * 31 + this._padding.hash()) & 0xffffffff;
     }
-    if (this.#grid !== null) {
-      h = (h * 31 + this.#grid.hash()) & 0xffffffff;
+    if (this._grid !== null) {
+      h = (h * 31 + this._grid.hash()) & 0xffffffff;
     }
-    if (this.#gridSpan !== null) {
-      h = (h * 31 + this.#gridSpan.hash()) & 0xffffffff;
+    if (this._gridSpan !== null) {
+      h = (h * 31 + this._gridSpan.hash()) & 0xffffffff;
     }
-    if (this.#aspectRatio !== null) {
-      h = (h * 31 + hashFloat(this.#aspectRatio)) & 0xffffffff;
+    if (this._aspectRatio !== null) {
+      h = (h * 31 + hashFloat(this._aspectRatio)) & 0xffffffff;
     }
-    if (this.#isWrap !== null) {
-      h = (h * 31 + hashBool(this.#isWrap)) & 0xffffffff;
+    if (this._isWrap !== null) {
+      h = (h * 31 + hashBool(this._isWrap)) & 0xffffffff;
     }
-    if (this.#isVisible !== null) {
-      h = (h * 31 + hashBool(this.#isVisible)) & 0xffffffff;
+    if (this._isVisible !== null) {
+      h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
     }
-    if (this.#opacity !== null) {
-      h = (h * 31 + hashFloat(this.#opacity)) & 0xffffffff;
+    if (this._opacity !== null) {
+      h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
     }
-    if (this.#fill !== null) {
-      h = (h * 31 + this.#fill.hash()) & 0xffffffff;
+    if (this._fill !== null) {
+      h = (h * 31 + this._fill.hash()) & 0xffffffff;
     }
-    if (this.#rotation !== null) {
-      h = (h * 31 + this.#rotation.hash()) & 0xffffffff;
+    if (this._rotation !== null) {
+      h = (h * 31 + this._rotation.hash()) & 0xffffffff;
     }
-    if (this.#skew !== null) {
-      h = (h * 31 + this.#skew.hash()) & 0xffffffff;
+    if (this._skew !== null) {
+      h = (h * 31 + this._skew.hash()) & 0xffffffff;
     }
-    if (this.#scale !== null) {
-      h = (h * 31 + hashFloat(this.#scale)) & 0xffffffff;
+    if (this._scale !== null) {
+      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
     }
-    if (this.#shadow !== null) {
-      h = (h * 31 + this.#shadow.hash()) & 0xffffffff;
+    if (this._shadow !== null) {
+      h = (h * 31 + this._shadow.hash()) & 0xffffffff;
     }
-    if (this.#border !== null) {
-      h = (h * 31 + this.#border.hash()) & 0xffffffff;
+    if (this._border !== null) {
+      h = (h * 31 + this._border.hash()) & 0xffffffff;
     }
-    if (this.#radius !== null) {
-      h = (h * 31 + this.#radius.hash()) & 0xffffffff;
+    if (this._radius !== null) {
+      h = (h * 31 + this._radius.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.#position !== null) {
-      h = (h * 31 + this.#position.hash()) & 0xffffffff;
+    if (this._position !== null) {
+      h = (h * 31 + this._position.hash()) & 0xffffffff;
     }
-    if (this.#width !== null) {
-      h = (h * 31 + this.#width.hash()) & 0xffffffff;
+    if (this._width !== null) {
+      h = (h * 31 + this._width.hash()) & 0xffffffff;
     }
-    if (this.#height !== null) {
-      h = (h * 31 + this.#height.hash()) & 0xffffffff;
+    if (this._height !== null) {
+      h = (h * 31 + this._height.hash()) & 0xffffffff;
     }
-    if (this.#minWidth !== null) {
-      h = (h * 31 + this.#minWidth.hash()) & 0xffffffff;
+    if (this._minWidth !== null) {
+      h = (h * 31 + this._minWidth.hash()) & 0xffffffff;
     }
-    if (this.#minHeight !== null) {
-      h = (h * 31 + this.#minHeight.hash()) & 0xffffffff;
+    if (this._minHeight !== null) {
+      h = (h * 31 + this._minHeight.hash()) & 0xffffffff;
     }
-    if (this.#maxWidth !== null) {
-      h = (h * 31 + this.#maxWidth.hash()) & 0xffffffff;
+    if (this._maxWidth !== null) {
+      h = (h * 31 + this._maxWidth.hash()) & 0xffffffff;
     }
-    if (this.#maxHeight !== null) {
-      h = (h * 31 + this.#maxHeight.hash()) & 0xffffffff;
+    if (this._maxHeight !== null) {
+      h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1488,8 +1488,8 @@ export class Layer extends ContainerView implements IsOwnable {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.#scriptPtr !== null) {
-      h = (h * 31 + hashString(this.#scriptPtr.id)) & 0xffffffff;
+    if (this._scriptPtr !== null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     if (this.definitionPtr !== null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -1500,8 +1500,8 @@ export class Layer extends ContainerView implements IsOwnable {
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -1597,102 +1597,102 @@ export class Layer extends ContainerView implements IsOwnable {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    if (object.#scriptPtr != null) {
-      objectValue["70"] = object.#scriptPtr.toValue();
+    if (object._scriptPtr != null) {
+      objectValue["70"] = object._scriptPtr.toValue();
     }
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
-    if (object.#position != null) {
-      objectValue["110"] = object.#position.toValue();
+    if (object._position != null) {
+      objectValue["110"] = object._position.toValue();
     }
-    if (object.#width != null) {
-      objectValue["111"] = object.#width.toValue();
+    if (object._width != null) {
+      objectValue["111"] = object._width.toValue();
     }
-    if (object.#height != null) {
-      objectValue["112"] = object.#height.toValue();
+    if (object._height != null) {
+      objectValue["112"] = object._height.toValue();
     }
-    if (object.#minWidth != null) {
-      objectValue["113"] = object.#minWidth.toValue();
+    if (object._minWidth != null) {
+      objectValue["113"] = object._minWidth.toValue();
     }
-    if (object.#minHeight != null) {
-      objectValue["114"] = object.#minHeight.toValue();
+    if (object._minHeight != null) {
+      objectValue["114"] = object._minHeight.toValue();
     }
-    if (object.#maxWidth != null) {
-      objectValue["115"] = object.#maxWidth.toValue();
+    if (object._maxWidth != null) {
+      objectValue["115"] = object._maxWidth.toValue();
     }
-    if (object.#maxHeight != null) {
-      objectValue["116"] = object.#maxHeight.toValue();
+    if (object._maxHeight != null) {
+      objectValue["116"] = object._maxHeight.toValue();
     }
-    if (object.#layout != null) {
-      objectValue["120"] = object.#layout;
+    if (object._layout != null) {
+      objectValue["120"] = object._layout;
     }
-    if (object.#direction != null) {
-      objectValue["121"] = object.#direction;
+    if (object._direction != null) {
+      objectValue["121"] = object._direction;
     }
-    if (object.#distribute != null) {
-      objectValue["122"] = object.#distribute;
+    if (object._distribute != null) {
+      objectValue["122"] = object._distribute;
     }
-    if (object.#align != null) {
-      objectValue["123"] = object.#align;
+    if (object._align != null) {
+      objectValue["123"] = object._align;
     }
-    if (object.#gap != null) {
-      objectValue["124"] = object.#gap.toValue();
+    if (object._gap != null) {
+      objectValue["124"] = object._gap.toValue();
     }
-    if (object.#padding != null) {
-      objectValue["125"] = object.#padding.toValue();
+    if (object._padding != null) {
+      objectValue["125"] = object._padding.toValue();
     }
-    if (object.#grid != null) {
-      objectValue["126"] = object.#grid.toValue();
+    if (object._grid != null) {
+      objectValue["126"] = object._grid.toValue();
     }
-    if (object.#gridSpan != null) {
-      objectValue["127"] = object.#gridSpan.toValue();
+    if (object._gridSpan != null) {
+      objectValue["127"] = object._gridSpan.toValue();
     }
-    if (object.#aspectRatio != null) {
-      objectValue["128"] = object.#aspectRatio;
+    if (object._aspectRatio != null) {
+      objectValue["128"] = object._aspectRatio;
     }
-    if (object.#isWrap != null) {
-      objectValue["129"] = object.#isWrap;
+    if (object._isWrap != null) {
+      objectValue["129"] = object._isWrap;
     }
-    if (object.#isVisible != null) {
-      objectValue["140"] = object.#isVisible;
+    if (object._isVisible != null) {
+      objectValue["140"] = object._isVisible;
     }
-    if (object.#opacity != null) {
-      objectValue["141"] = object.#opacity;
+    if (object._opacity != null) {
+      objectValue["141"] = object._opacity;
     }
-    if (object.#fill != null) {
-      objectValue["142"] = object.#fill.toValue();
+    if (object._fill != null) {
+      objectValue["142"] = object._fill.toValue();
     }
-    if (object.#rotation != null) {
-      objectValue["143"] = object.#rotation.toValue();
+    if (object._rotation != null) {
+      objectValue["143"] = object._rotation.toValue();
     }
-    if (object.#skew != null) {
-      objectValue["144"] = object.#skew.toValue();
+    if (object._skew != null) {
+      objectValue["144"] = object._skew.toValue();
     }
-    if (object.#scale != null) {
-      objectValue["145"] = object.#scale;
+    if (object._scale != null) {
+      objectValue["145"] = object._scale;
     }
-    if (object.#shadow != null) {
-      objectValue["146"] = object.#shadow.toValue();
+    if (object._shadow != null) {
+      objectValue["146"] = object._shadow.toValue();
     }
-    if (object.#border != null) {
-      objectValue["147"] = object.#border.toValue();
+    if (object._border != null) {
+      objectValue["147"] = object._border.toValue();
     }
-    if (object.#radius != null) {
-      objectValue["148"] = object.#radius.toValue();
+    if (object._radius != null) {
+      objectValue["148"] = object._radius.toValue();
     }
     return objectValue;
   }
@@ -2018,101 +2018,101 @@ export class Layer extends ContainerView implements IsOwnable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    if (object.#scriptPtr != null) {
-      objectProto.scriptPtr = object.#scriptPtr.toProto();
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
     }
-    objectProto.type = Number(object.#type) as LayerTypeProto;
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.type = Number(object._type) as LayerTypeProto;
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
-    if (object.#position != null) {
-      objectProto.position = object.#position.toProto();
+    if (object._position != null) {
+      objectProto.position = object._position.toProto();
     }
-    if (object.#width != null) {
-      objectProto.width = object.#width.toProto();
+    if (object._width != null) {
+      objectProto.width = object._width.toProto();
     }
-    if (object.#height != null) {
-      objectProto.height = object.#height.toProto();
+    if (object._height != null) {
+      objectProto.height = object._height.toProto();
     }
-    if (object.#minWidth != null) {
-      objectProto.minWidth = object.#minWidth.toProto();
+    if (object._minWidth != null) {
+      objectProto.minWidth = object._minWidth.toProto();
     }
-    if (object.#minHeight != null) {
-      objectProto.minHeight = object.#minHeight.toProto();
+    if (object._minHeight != null) {
+      objectProto.minHeight = object._minHeight.toProto();
     }
-    if (object.#maxWidth != null) {
-      objectProto.maxWidth = object.#maxWidth.toProto();
+    if (object._maxWidth != null) {
+      objectProto.maxWidth = object._maxWidth.toProto();
     }
-    if (object.#maxHeight != null) {
-      objectProto.maxHeight = object.#maxHeight.toProto();
+    if (object._maxHeight != null) {
+      objectProto.maxHeight = object._maxHeight.toProto();
     }
-    if (object.#layout != null) {
-      objectProto.layout = Number(object.#layout) as LayoutProto;
+    if (object._layout != null) {
+      objectProto.layout = Number(object._layout) as LayoutProto;
     }
-    if (object.#direction != null) {
-      objectProto.direction = Number(object.#direction) as DirectionProto;
+    if (object._direction != null) {
+      objectProto.direction = Number(object._direction) as DirectionProto;
     }
-    if (object.#distribute != null) {
-      objectProto.distribute = Number(object.#distribute) as DistributeProto;
+    if (object._distribute != null) {
+      objectProto.distribute = Number(object._distribute) as DistributeProto;
     }
-    if (object.#align != null) {
-      objectProto.align = Number(object.#align) as AlignProto;
+    if (object._align != null) {
+      objectProto.align = Number(object._align) as AlignProto;
     }
-    if (object.#gap != null) {
-      objectProto.gap = object.#gap.toProto();
+    if (object._gap != null) {
+      objectProto.gap = object._gap.toProto();
     }
-    if (object.#padding != null) {
-      objectProto.padding = object.#padding.toProto();
+    if (object._padding != null) {
+      objectProto.padding = object._padding.toProto();
     }
-    if (object.#grid != null) {
-      objectProto.grid = object.#grid.toProto();
+    if (object._grid != null) {
+      objectProto.grid = object._grid.toProto();
     }
-    if (object.#gridSpan != null) {
-      objectProto.gridSpan = object.#gridSpan.toProto();
+    if (object._gridSpan != null) {
+      objectProto.gridSpan = object._gridSpan.toProto();
     }
-    if (object.#aspectRatio != null) {
-      objectProto.aspectRatio = object.#aspectRatio;
+    if (object._aspectRatio != null) {
+      objectProto.aspectRatio = object._aspectRatio;
     }
-    if (object.#isWrap != null) {
-      objectProto.isWrap = object.#isWrap;
+    if (object._isWrap != null) {
+      objectProto.isWrap = object._isWrap;
     }
-    if (object.#isVisible != null) {
-      objectProto.isVisible = object.#isVisible;
+    if (object._isVisible != null) {
+      objectProto.isVisible = object._isVisible;
     }
-    if (object.#opacity != null) {
-      objectProto.opacity = object.#opacity;
+    if (object._opacity != null) {
+      objectProto.opacity = object._opacity;
     }
-    if (object.#fill != null) {
-      objectProto.fill = object.#fill.toProto();
+    if (object._fill != null) {
+      objectProto.fill = object._fill.toProto();
     }
-    if (object.#rotation != null) {
-      objectProto.rotation = object.#rotation.toProto();
+    if (object._rotation != null) {
+      objectProto.rotation = object._rotation.toProto();
     }
-    if (object.#skew != null) {
-      objectProto.skew = object.#skew.toProto();
+    if (object._skew != null) {
+      objectProto.skew = object._skew.toProto();
     }
-    if (object.#scale != null) {
-      objectProto.scale = object.#scale;
+    if (object._scale != null) {
+      objectProto.scale = object._scale;
     }
-    if (object.#shadow != null) {
-      objectProto.shadow = object.#shadow.toProto();
+    if (object._shadow != null) {
+      objectProto.shadow = object._shadow.toProto();
     }
-    if (object.#border != null) {
-      objectProto.border = object.#border.toProto();
+    if (object._border != null) {
+      objectProto.border = object._border.toProto();
     }
-    if (object.#radius != null) {
-      objectProto.radius = object.#radius.toProto();
+    if (object._radius != null) {
+      objectProto.radius = object._radius.toProto();
     }
     return objectProto as LayerProto;
   }

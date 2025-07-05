@@ -22,6 +22,7 @@ from destack.language import (
     PropertyDefinition,
     RoleType,
     ScalarType,
+    Struct,
     StructDefinition,
     StructFrozen,
     StructType,
@@ -188,7 +189,7 @@ def _generate_property(
     doc_str = _generate_multiline_doc(
         prop.description or f"{prop.original_component.__name__}.{prop_ts_name}"
     )
-    internal_prop_ts_name = f"#{prop_ts_name}" if is_tracked else prop_ts_name
+    internal_prop_ts_name = f"_{prop_ts_name}" if is_tracked else prop_ts_name
 
     # add wrapper for node references
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
@@ -360,6 +361,10 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
             and not prop.is_managed
         )
 
+    parent_cls = cls.__base__ if cls.__base__ and issubclass(cls.__base__, BuiltinObject) else None
+    is_parent_concrete = (
+        not cls.__is_abstract__ and parent_cls is not None and not parent_cls.__is_abstract__
+    )
     properties = {p.name: p for p in _get_properties(cls)}
     header_properties = dict(properties)
     body_properties = dict(properties)
@@ -402,11 +407,14 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
                 "_value?: { [key: string]: any } | null",
             )
         )
-
     header_str = ",\n".join(header_parts)
 
     # super
-    if issubclass(cls, Node):
+    if is_parent_concrete:
+        super_str = """\
+super(options);
+"""
+    elif issubclass(cls, Node):
         is_root_node = cls.__root_type__ is None
         super_str = f"""\
 super(
@@ -445,12 +453,15 @@ super(
     for prop in body_properties_in_order:
         if prop.is_computed:
             continue  # computed, can't assign
+        if is_parent_concrete and parent_cls is not None and prop.name in parent_cls.__properties__:
+            continue  # parent has this property, don't assign
+
         ts_name_in = to_casing(prop.name, Casing.LOWER_CAMEL)
         ts_name_self = ts_name_in
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             ts_name_self = ts_name_in + "Ptr"
         if cls.__is_node__ and _is_property_tracked(prop):
-            ts_name_self = f"#{ts_name_self}"
+            ts_name_self = f"_{ts_name_self}"
 
         if _is_property_required(prop):
             body_parts.append(f"let _{ts_name_in} = options.{ts_name_in};")
@@ -517,7 +528,11 @@ if (_{ts_name_in} === null) {{
     body_str = "\n".join(body_parts)
 
     # node identity
-    if issubclass(cls, Node):
+    if is_parent_concrete:
+        identity_str = """\
+// ... (already set in parent)
+"""
+    elif issubclass(cls, Node):
         if issubclass(cls, Entity):
             identity_str = f"""\
 if (options.id == null) {{
@@ -798,7 +813,7 @@ def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}Ptr"
     if _is_property_tracked(prop):
-        prop_name = f"#{prop_name}"
+        prop_name = f"_{prop_name}"
 
     scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop)
     if prop.cardinality == TypeCardinality.SCALAR:
@@ -919,7 +934,7 @@ def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}Ptr"
     if _is_property_tracked(prop):
-        prop_name = f"#{prop_name}"
+        prop_name = f"_{prop_name}"
 
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
@@ -1104,6 +1119,14 @@ def _generate_struct(definition: StructDefinition) -> str:
     """Generate a Typescript Struct definition."""
     struct_cls = STRUCT_CLASS_BY_TYPE[definition.type]
     struct_parts: list[str] = []
+    parent_cls = (
+        struct_cls.__base__
+        if struct_cls.__base__ and issubclass(struct_cls.__base__, Struct)
+        else None
+    )
+    is_parent_concrete = (
+        not struct_cls.__is_abstract__ and parent_cls is not None and not parent_cls.__is_abstract__
+    )
 
     # meta
     struct_meta_parts: list[str] = [
@@ -1115,6 +1138,8 @@ def _generate_struct(definition: StructDefinition) -> str:
     # properties
     prop_parts: list[str] = []
     for prop in _get_properties(struct_cls):
+        if is_parent_concrete and parent_cls is not None and prop.name in parent_cls.__properties__:
+            continue  # parent has this property, don't declare again
         prop_str = _generate_property(
             prop,
             is_effective_readonly=definition.is_frozen,
@@ -1236,6 +1261,12 @@ def _generate_node(definition: NodeDefinition) -> str:
 
     node_cls = NODE_CLASS_BY_TYPE[definition.type]
     node_parts: list[str] = []
+    parent_cls = (
+        node_cls.__base__ if node_cls.__base__ and issubclass(node_cls.__base__, Node) else None
+    )
+    is_parent_concrete = (
+        not node_cls.__is_abstract__ and parent_cls is not None and not parent_cls.__is_abstract__
+    )
 
     # meta
     node_meta_parts: list[str] = [
@@ -1248,6 +1279,8 @@ def _generate_node(definition: NodeDefinition) -> str:
     for prop in _get_properties(node_cls):
         if prop.name == "id":
             continue  # ignore id for nodes (already defined in Node superclass)
+        if is_parent_concrete and parent_cls is not None and prop.name in parent_cls.__properties__:
+            continue  # parent has this property, don't declare again
         prop_str = _generate_property(
             prop,
             is_effective_readonly=definition.is_frozen or _is_property_effective_readonly(prop),

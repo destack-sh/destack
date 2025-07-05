@@ -127,10 +127,10 @@ export class Handle extends Entity implements IsGlobal {
    * Handle.slug
    */
   get slug(): string {
-    return this.#slug;
+    return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this.#slug;
+    const oldValue = this._slug;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -140,9 +140,9 @@ export class Handle extends Entity implements IsGlobal {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#slug = value;
+    this._slug = value;
   }
-  #slug: string;
+  _slug: string;
 
   constructor(options: {
     id?: string;
@@ -223,7 +223,7 @@ export class Handle extends Entity implements IsGlobal {
     if (_slug === null) {
       throw new Error(`Handle.slug is required`);
     }
-    this.#slug = _slug;
+    this._slug = _slug;
 
     // identity
     if (options.id == null) {
@@ -257,7 +257,7 @@ export class Handle extends Entity implements IsGlobal {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#slug === other.#slug)) {
+    if (!(this._slug === other._slug)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -281,7 +281,7 @@ export class Handle extends Entity implements IsGlobal {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
+    h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -377,7 +377,7 @@ export class Handle extends Entity implements IsGlobal {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["101"] = object.#slug;
+    objectValue["101"] = object._slug;
     return objectValue;
   }
 
@@ -484,7 +484,7 @@ export class Handle extends Entity implements IsGlobal {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.slug = object.#slug;
+    objectProto.slug = object._slug;
     return objectProto as HandleProto;
   }
 

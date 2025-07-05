@@ -37,7 +37,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:112503 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:105100 ==== */
 /**
  * TimerType
  */
@@ -50,9 +50,9 @@ export enum TimerType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TIMER_TYPE, TimerType);
-/* ==== DESTACK_GENERATED_END:ENUM:112503 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:105100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:112101 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105101 ==== */
 /**
  * A TimerEvent is an Event that corresponds to a Timer.
  */
@@ -84,9 +84,9 @@ export abstract class TimerEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_EVENT, TimerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:112101 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:112102 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105102 ==== */
 /**
  * A Timer was started.
  */
@@ -319,7 +319,7 @@ export class TimerStartedEvent extends TimerEvent {
 
   static __packValue__(object: TimerStartedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 112102;
+    objectValue["1"] = 105102;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -407,7 +407,7 @@ export class TimerStartedEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerStartedEvent): TimerStartedEventProto {
-    const objectProto: Partial<TimerStartedEventProto> = { metatype: 112102 };
+    const objectProto: Partial<TimerStartedEventProto> = { metatype: 105102 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -517,9 +517,9 @@ export class TimerStartedEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_STARTED_EVENT, TimerStartedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:112102 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:112103 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105103 ==== */
 /**
  * A Timer was completed.
  */
@@ -752,7 +752,7 @@ export class TimerCompletedEvent extends TimerEvent {
 
   static __packValue__(object: TimerCompletedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 112103;
+    objectValue["1"] = 105103;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -840,7 +840,7 @@ export class TimerCompletedEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerCompletedEvent): TimerCompletedEventProto {
-    const objectProto: Partial<TimerCompletedEventProto> = { metatype: 112103 };
+    const objectProto: Partial<TimerCompletedEventProto> = { metatype: 105103 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -950,9 +950,9 @@ export class TimerCompletedEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_COMPLETED_EVENT, TimerCompletedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:112103 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105103 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:112104 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105104 ==== */
 /**
  * A Timer was cancelled.
  */
@@ -1185,7 +1185,7 @@ export class TimerCancelledEvent extends TimerEvent {
 
   static __packValue__(object: TimerCancelledEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 112104;
+    objectValue["1"] = 105104;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1273,7 +1273,7 @@ export class TimerCancelledEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerCancelledEvent): TimerCancelledEventProto {
-    const objectProto: Partial<TimerCancelledEventProto> = { metatype: 112104 };
+    const objectProto: Partial<TimerCancelledEventProto> = { metatype: 105104 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1383,9 +1383,9 @@ export class TimerCancelledEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_CANCELLED_EVENT, TimerCancelledEvent);
-/* ==== DESTACK_GENERATED_END:NODE:112104 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105104 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:112100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105100 ==== */
 /**
  * A Timer.
  */
@@ -1507,10 +1507,10 @@ export class Timer extends Entity implements IsSpatial {
    * Timer.type
    */
   get type(): TimerType {
-    return this.#type;
+    return this._type;
   }
   set type(value: TimerType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1520,18 +1520,18 @@ export class Timer extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: TimerType;
+  _type: TimerType;
 
   /**
    * Timer.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1541,18 +1541,18 @@ export class Timer extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Timer.schedule
    */
   get schedule(): Schedule | null {
-    return this.#schedule;
+    return this._schedule;
   }
   set schedule(value: Schedule | null) {
-    const oldValue = this.#schedule;
+    const oldValue = this._schedule;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1562,9 +1562,9 @@ export class Timer extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#schedule = value;
+    this._schedule = value;
   }
-  #schedule: Schedule | null;
+  _schedule: Schedule | null;
 
   constructor(options: {
     id?: string;
@@ -1653,14 +1653,14 @@ export class Timer extends Entity implements IsSpatial {
     if (_type === null) {
       throw new Error(`Timer.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Timer.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _schedule = options.schedule ?? null;
-    this.#schedule = _schedule;
+    this._schedule = _schedule;
 
     // identity
     if (options.id == null) {
@@ -1694,15 +1694,15 @@ export class Timer extends Entity implements IsSpatial {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#schedule == null) !== (other.#schedule == null) ||
-      (this.#schedule != null && !this.#schedule.equals(other.#schedule))
+      (this._schedule == null) !== (other._schedule == null) ||
+      (this._schedule != null && !this._schedule.equals(other._schedule))
     ) {
       return false;
     }
@@ -1727,10 +1727,10 @@ export class Timer extends Entity implements IsSpatial {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#type) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#schedule !== null) {
-      h = (h * 31 + this.#schedule.hash()) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._schedule !== null) {
+      h = (h * 31 + this._schedule.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1809,7 +1809,7 @@ export class Timer extends Entity implements IsSpatial {
 
   static __packValue__(object: Timer): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 112100;
+    objectValue["1"] = 105100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1838,10 +1838,10 @@ export class Timer extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#schedule != null) {
-      objectValue["110"] = object.#schedule.toValue();
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._schedule != null) {
+      objectValue["110"] = object._schedule.toValue();
     }
     return objectValue;
   }
@@ -1937,7 +1937,7 @@ export class Timer extends Entity implements IsSpatial {
   }
 
   static __packProto__(object: Timer): TimerProto {
-    const objectProto: Partial<TimerProto> = { metatype: 112100 };
+    const objectProto: Partial<TimerProto> = { metatype: 105100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1966,10 +1966,10 @@ export class Timer extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.type = Number(object.#type) as TimerTypeProto;
-    objectProto.name = object.#name;
-    if (object.#schedule != null) {
-      objectProto.schedule = object.#schedule.toProto();
+    objectProto.type = Number(object._type) as TimerTypeProto;
+    objectProto.name = object._name;
+    if (object._schedule != null) {
+      objectProto.schedule = object._schedule.toProto();
     }
     return objectProto as TimerProto;
   }
@@ -2101,4 +2101,4 @@ export class Timer extends Entity implements IsSpatial {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER, Timer);
-/* ==== DESTACK_GENERATED_END:NODE:112100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105100 ==== */

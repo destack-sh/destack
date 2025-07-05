@@ -24,7 +24,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:105000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:100000 ==== */
 /**
  * A Script.
  */
@@ -154,10 +154,10 @@ export class Script
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -167,9 +167,9 @@ export class Script
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -180,10 +180,10 @@ export class Script
    * Script.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -193,18 +193,18 @@ export class Script
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Script.code
    */
   get code(): string | null {
-    return this.#code;
+    return this._code;
   }
   set code(value: string | null) {
-    const oldValue = this.#code;
+    const oldValue = this._code;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -214,9 +214,9 @@ export class Script
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#code = value;
+    this._code = value;
   }
-  #code: string | null;
+  _code: string | null;
 
   constructor(options: {
     id?: string;
@@ -309,7 +309,7 @@ export class Script
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -322,9 +322,9 @@ export class Script
     if (_name === null) {
       throw new Error(`Script.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _code = options.code ?? null;
-    this.#code = _code;
+    this._code = _code;
 
     // identity
     if (options.id == null) {
@@ -358,23 +358,23 @@ export class Script
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
-    if (!(this.#code === other.#code)) {
+    if (!(this._code === other._code)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -399,9 +399,9 @@ export class Script
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#code !== null) {
-      h = (h * 31 + hashString(this.#code)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._code !== null) {
+      h = (h * 31 + hashString(this._code)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -410,8 +410,8 @@ export class Script
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -486,7 +486,7 @@ export class Script
 
   static __packValue__(object: Script): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 105000;
+    objectValue["1"] = 100000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -518,17 +518,17 @@ export class Script
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    objectValue["101"] = object.#name;
-    if (object.#code != null) {
-      objectValue["110"] = object.#code;
+    objectValue["101"] = object._name;
+    if (object._code != null) {
+      objectValue["110"] = object._code;
     }
     return objectValue;
   }
@@ -637,7 +637,7 @@ export class Script
   }
 
   static __packProto__(object: Script): ScriptProto {
-    const objectProto: Partial<ScriptProto> = { metatype: 105000 };
+    const objectProto: Partial<ScriptProto> = { metatype: 100000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -669,16 +669,16 @@ export class Script
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.name = object.#name;
-    if (object.#code != null) {
-      objectProto.code = object.#code;
+    objectProto.name = object._name;
+    if (object._code != null) {
+      objectProto.code = object._code;
     }
     return objectProto as ScriptProto;
   }
@@ -819,4 +819,4 @@ export class Script
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCRIPT, Script);
-/* ==== DESTACK_GENERATED_END:NODE:105000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:100000 ==== */

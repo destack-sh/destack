@@ -152,10 +152,10 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
    * Theme.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -165,9 +165,9 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   constructor(options: {
     id?: string;
@@ -266,7 +266,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
     if (_name === null) {
       throw new Error(`Theme.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
 
     // identity
     if (options.id == null) {
@@ -300,7 +300,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -324,7 +324,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -438,7 +438,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["101"] = object.#name;
+    objectValue["101"] = object._name;
     return objectValue;
   }
 
@@ -565,7 +565,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.name = object.#name;
+    objectProto.name = object._name;
     return objectProto as ThemeProto;
   }
 

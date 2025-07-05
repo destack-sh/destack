@@ -7,70 +7,6 @@ import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:112501 ==== */
-/**
- * DayOfWeek
- */
-export enum DayOfWeek {
-  MONDAY = 1,
-  TUESDAY = 2,
-  WEDNESDAY = 3,
-  THURSDAY = 4,
-  FRIDAY = 5,
-  SATURDAY = 6,
-  SUNDAY = 7,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.DAY_OF_WEEK, DayOfWeek);
-/* ==== DESTACK_GENERATED_END:ENUM:112501 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:112502 ==== */
-/**
- * Month
- */
-export enum Month {
-  JANUARY = 1,
-  FEBRUARY = 2,
-  MARCH = 3,
-  APRIL = 4,
-  MAY = 5,
-  JUNE = 6,
-  JULY = 7,
-  AUGUST = 8,
-  SEPTEMBER = 9,
-  OCTOBER = 10,
-  NOVEMBER = 11,
-  DECEMBER = 12,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.MONTH, Month);
-/* ==== DESTACK_GENERATED_END:ENUM:112502 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:112500 ==== */
-/**
- * ScheduleFrequency
- */
-export enum ScheduleFrequency {
-  YEAR = 1,
-  MONTH = 2,
-  WEEK = 3,
-  DAY = 4,
-  HOUR = 5,
-  MINUTE = 6,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SCHEDULE_FREQUENCY, ScheduleFrequency);
-/* ==== DESTACK_GENERATED_END:ENUM:112500 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:100001 ==== */
 /**
  * The time-based schedule of something (compatible with rrule).
@@ -853,3 +789,67 @@ export class Schedule extends Struct {
 }
 registerStructClass(StructType.SCHEDULE, Schedule);
 /* ==== DESTACK_GENERATED_END:STRUCT:100001 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:105101 ==== */
+/**
+ * DayOfWeek
+ */
+export enum DayOfWeek {
+  MONDAY = 1,
+  TUESDAY = 2,
+  WEDNESDAY = 3,
+  THURSDAY = 4,
+  FRIDAY = 5,
+  SATURDAY = 6,
+  SUNDAY = 7,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.DAY_OF_WEEK, DayOfWeek);
+/* ==== DESTACK_GENERATED_END:ENUM:105101 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:105102 ==== */
+/**
+ * Month
+ */
+export enum Month {
+  JANUARY = 1,
+  FEBRUARY = 2,
+  MARCH = 3,
+  APRIL = 4,
+  MAY = 5,
+  JUNE = 6,
+  JULY = 7,
+  AUGUST = 8,
+  SEPTEMBER = 9,
+  OCTOBER = 10,
+  NOVEMBER = 11,
+  DECEMBER = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.MONTH, Month);
+/* ==== DESTACK_GENERATED_END:ENUM:105102 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:105103 ==== */
+/**
+ * ScheduleFrequency
+ */
+export enum ScheduleFrequency {
+  YEAR = 1,
+  MONTH = 2,
+  WEEK = 3,
+  DAY = 4,
+  HOUR = 5,
+  MINUTE = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SCHEDULE_FREQUENCY, ScheduleFrequency);
+/* ==== DESTACK_GENERATED_END:ENUM:105103 ==== */

@@ -104,9 +104,9 @@ export interface ActionProto {
      */
     text?: TextProto;
     /**
-     * @generated from protobuf field: symbol.destack.ActionCardinalityProto cardinality = 110
+     * @generated from protobuf field: symbol.destack.MethodCardinalityProto cardinality = 110
      */
-    cardinality: ActionCardinalityProto;
+    cardinality: MethodCardinalityProto;
 }
 /**
  * @generated from protobuf message symbol.destack.ActionDefinitionProto
@@ -8778,6 +8778,100 @@ export interface MessageProto {
     nodePtr?: NodeReferenceProto;
 }
 /**
+ * An implementation of a unit of work, usually expressed with Code or some tool.
+ * May defer to a builtin or some other service in a separate system.
+ *
+ * @generated from protobuf message symbol.destack.MethodProto
+ */
+export interface MethodProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
+     */
+    materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 22
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
+     */
+    updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 26
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
+     * @generated from protobuf field: string order_key = 27
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto source_ptr = 60
+     */
+    sourcePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.TextProto text = 104
+     */
+    text?: TextProto;
+    /**
+     * @generated from protobuf field: symbol.destack.MethodCardinalityProto cardinality = 110
+     */
+    cardinality: MethodCardinalityProto;
+}
+/**
  * @generated from protobuf message symbol.destack.MethodDefinitionProto
  */
 export interface MethodDefinitionProto {
@@ -9164,13 +9258,13 @@ export interface NodeDefinitionProto {
      */
     descendantTypes: NodeTypeProto[];
     /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto base_event_types = 140
-     */
-    baseEventTypes: NodeTypeProto[];
-    /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto event_types = 141
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto event_types = 140
      */
     eventTypes: NodeTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto base_event_types = 141
+     */
+    baseEventTypes: NodeTypeProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.NodeDefinitionReferenceProto
@@ -15459,6 +15553,14 @@ export interface TraitDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.TraitTypeProto base_traits = 121
      */
     baseTraits: TraitTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto event_types = 140
+     */
+    eventTypes: NodeTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto base_event_types = 141
+     */
+    baseEventTypes: NodeTypeProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.TransitionProto
@@ -17141,75 +17243,81 @@ export interface SomeNodeProto {
          */
         wheelEvent: WheelEventProto;
     } | {
+        oneofKind: "method";
+        /**
+         * @generated from protobuf field: symbol.destack.MethodProto method = 102000
+         */
+        method: MethodProto;
+    } | {
         oneofKind: "action";
         /**
-         * @generated from protobuf field: symbol.destack.ActionProto action = 110300
+         * @generated from protobuf field: symbol.destack.ActionProto action = 102100
          */
         action: ActionProto;
     } | {
         oneofKind: "eventCursor";
         /**
-         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 112600
+         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 105600
          */
         eventCursor: EventCursorProto;
     } | {
         oneofKind: "screenCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 112700
+         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 105700
          */
         screenCursor: ScreenCursorProto;
     } | {
         oneofKind: "threadCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 112800
+         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 105800
          */
         threadCursor: ThreadCursorProto;
     } | {
         oneofKind: "route";
         /**
-         * @generated from protobuf field: symbol.destack.RouteProto route = 111000
+         * @generated from protobuf field: symbol.destack.RouteProto route = 106000
          */
         route: RouteProto;
     } | {
         oneofKind: "script";
         /**
-         * @generated from protobuf field: symbol.destack.ScriptProto script = 105000
+         * @generated from protobuf field: symbol.destack.ScriptProto script = 100000
          */
         script: ScriptProto;
     } | {
         oneofKind: "service";
         /**
-         * @generated from protobuf field: symbol.destack.ServiceProto service = 100000
+         * @generated from protobuf field: symbol.destack.ServiceProto service = 101000
          */
         service: ServiceProto;
     } | {
         oneofKind: "timerStartedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 112102
+         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 105102
          */
         timerStartedEvent: TimerStartedEventProto;
     } | {
         oneofKind: "timerCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 112103
+         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 105103
          */
         timerCompletedEvent: TimerCompletedEventProto;
     } | {
         oneofKind: "timerCancelledEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 112104
+         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 105104
          */
         timerCancelledEvent: TimerCancelledEventProto;
     } | {
         oneofKind: "timer";
         /**
-         * @generated from protobuf field: symbol.destack.TimerProto timer = 112100
+         * @generated from protobuf field: symbol.destack.TimerProto timer = 105100
          */
         timer: TimerProto;
     } | {
         oneofKind: "trigger";
         /**
-         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 112000
+         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 105000
          */
         trigger: TriggerProto;
     } | {
@@ -17716,57 +17824,63 @@ export interface SomeEntityProto {
          */
         machine: MachineProto;
     } | {
+        oneofKind: "method";
+        /**
+         * @generated from protobuf field: symbol.destack.MethodProto method = 102000
+         */
+        method: MethodProto;
+    } | {
         oneofKind: "action";
         /**
-         * @generated from protobuf field: symbol.destack.ActionProto action = 110300
+         * @generated from protobuf field: symbol.destack.ActionProto action = 102100
          */
         action: ActionProto;
     } | {
         oneofKind: "eventCursor";
         /**
-         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 112600
+         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 105600
          */
         eventCursor: EventCursorProto;
     } | {
         oneofKind: "screenCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 112700
+         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 105700
          */
         screenCursor: ScreenCursorProto;
     } | {
         oneofKind: "threadCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 112800
+         * @generated from protobuf field: symbol.destack.ThreadCursorProto thread_cursor = 105800
          */
         threadCursor: ThreadCursorProto;
     } | {
         oneofKind: "route";
         /**
-         * @generated from protobuf field: symbol.destack.RouteProto route = 111000
+         * @generated from protobuf field: symbol.destack.RouteProto route = 106000
          */
         route: RouteProto;
     } | {
         oneofKind: "script";
         /**
-         * @generated from protobuf field: symbol.destack.ScriptProto script = 105000
+         * @generated from protobuf field: symbol.destack.ScriptProto script = 100000
          */
         script: ScriptProto;
     } | {
         oneofKind: "service";
         /**
-         * @generated from protobuf field: symbol.destack.ServiceProto service = 100000
+         * @generated from protobuf field: symbol.destack.ServiceProto service = 101000
          */
         service: ServiceProto;
     } | {
         oneofKind: "timer";
         /**
-         * @generated from protobuf field: symbol.destack.TimerProto timer = 112100
+         * @generated from protobuf field: symbol.destack.TimerProto timer = 105100
          */
         timer: TimerProto;
     } | {
         oneofKind: "trigger";
         /**
-         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 112000
+         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 105000
          */
         trigger: TriggerProto;
     } | {
@@ -18341,19 +18455,19 @@ export interface SomeEventProto {
     } | {
         oneofKind: "timerStartedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 112102
+         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 105102
          */
         timerStartedEvent: TimerStartedEventProto;
     } | {
         oneofKind: "timerCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 112103
+         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 105103
          */
         timerCompletedEvent: TimerCompletedEventProto;
     } | {
         oneofKind: "timerCancelledEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 112104
+         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 105104
          */
         timerCancelledEvent: TimerCancelledEventProto;
     } | {
@@ -18431,19 +18545,6 @@ export interface SomeEventProto {
     } | {
         oneofKind: undefined;
     };
-}
-/**
- * @generated from protobuf enum symbol.destack.ActionCardinalityProto
- */
-export enum ActionCardinalityProto {
-    /**
-     * @generated from protobuf enum value: ACTION_CARDINALITY_UNSPECIFIED = 0;
-     */
-    ACTION_CARDINALITY_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ACTION_CARDINALITY_UNARY = 1;
-     */
-    ACTION_CARDINALITY_UNARY = 1
 }
 /**
  * @generated from protobuf enum symbol.destack.AggregationTypeProto
@@ -19634,33 +19735,33 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_ICON_TYPE = 80005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 112400;
+     * @generated from protobuf enum value: ENUM_TYPE_METHOD_CARDINALITY = 102001;
      */
-    ENUM_TYPE_TRIGGER_TYPE = 112400,
+    ENUM_TYPE_METHOD_CARDINALITY = 102001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 112500;
+     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 105000;
      */
-    ENUM_TYPE_SCHEDULE_FREQUENCY = 112500,
+    ENUM_TYPE_TRIGGER_TYPE = 105000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DAY_OF_WEEK = 112501;
+     * @generated from protobuf enum value: ENUM_TYPE_TIMER_TYPE = 105100;
      */
-    ENUM_TYPE_DAY_OF_WEEK = 112501,
+    ENUM_TYPE_TIMER_TYPE = 105100,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 112502;
+     * @generated from protobuf enum value: ENUM_TYPE_DAY_OF_WEEK = 105101;
      */
-    ENUM_TYPE_MONTH = 112502,
+    ENUM_TYPE_DAY_OF_WEEK = 105101,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIMER_TYPE = 112503;
+     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 105102;
      */
-    ENUM_TYPE_TIMER_TYPE = 112503,
+    ENUM_TYPE_MONTH = 105102,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACTION_CARDINALITY = 110200;
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 105103;
      */
-    ENUM_TYPE_ACTION_CARDINALITY = 110200,
+    ENUM_TYPE_SCHEDULE_FREQUENCY = 105103,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 112600;
+     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 105501;
      */
-    ENUM_TYPE_CURSOR_STATUS = 112600,
+    ENUM_TYPE_CURSOR_STATUS = 105501,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 120000;
      */
@@ -20953,6 +21054,19 @@ export enum MaterializationProto {
     MATERIALIZATION_FULL = 32
 }
 /**
+ * @generated from protobuf enum symbol.destack.MethodCardinalityProto
+ */
+export enum MethodCardinalityProto {
+    /**
+     * @generated from protobuf enum value: METHOD_CARDINALITY_UNSPECIFIED = 0;
+     */
+    METHOD_CARDINALITY_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: METHOD_CARDINALITY_UNARY = 1;
+     */
+    METHOD_CARDINALITY_UNARY = 1
+}
+/**
  * @generated from protobuf enum symbol.destack.ModeTypeProto
  */
 export enum ModeTypeProto {
@@ -21413,65 +21527,69 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_FILE = 80000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SERVICE = 100000;
+     * @generated from protobuf enum value: NODE_TYPE_SCRIPT = 100000;
      */
-    NODE_TYPE_SERVICE = 100000,
+    NODE_TYPE_SCRIPT = 100000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCRIPT = 105000;
+     * @generated from protobuf enum value: NODE_TYPE_SERVICE = 101000;
      */
-    NODE_TYPE_SCRIPT = 105000,
+    NODE_TYPE_SERVICE = 101000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ACTION = 110300;
+     * @generated from protobuf enum value: NODE_TYPE_METHOD = 102000;
      */
-    NODE_TYPE_ACTION = 110300,
+    NODE_TYPE_METHOD = 102000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 111000;
+     * @generated from protobuf enum value: NODE_TYPE_ACTION = 102100;
      */
-    NODE_TYPE_ROUTE = 111000,
+    NODE_TYPE_ACTION = 102100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRIGGER = 112000;
+     * @generated from protobuf enum value: NODE_TYPE_TRIGGER = 105000;
      */
-    NODE_TYPE_TRIGGER = 112000,
+    NODE_TYPE_TRIGGER = 105000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRIGGER_EVENT = 112001;
+     * @generated from protobuf enum value: NODE_TYPE_TRIGGER_EVENT = 105001;
      */
-    NODE_TYPE_TRIGGER_EVENT = 112001,
+    NODE_TYPE_TRIGGER_EVENT = 105001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER = 112100;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER = 105100;
      */
-    NODE_TYPE_TIMER = 112100,
+    NODE_TYPE_TIMER = 105100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_EVENT = 112101;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_EVENT = 105101;
      */
-    NODE_TYPE_TIMER_EVENT = 112101,
+    NODE_TYPE_TIMER_EVENT = 105101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_STARTED_EVENT = 112102;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_STARTED_EVENT = 105102;
      */
-    NODE_TYPE_TIMER_STARTED_EVENT = 112102,
+    NODE_TYPE_TIMER_STARTED_EVENT = 105102,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_COMPLETED_EVENT = 112103;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_COMPLETED_EVENT = 105103;
      */
-    NODE_TYPE_TIMER_COMPLETED_EVENT = 112103,
+    NODE_TYPE_TIMER_COMPLETED_EVENT = 105103,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_CANCELLED_EVENT = 112104;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_CANCELLED_EVENT = 105104;
      */
-    NODE_TYPE_TIMER_CANCELLED_EVENT = 112104,
+    NODE_TYPE_TIMER_CANCELLED_EVENT = 105104,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CURSOR = 112500;
+     * @generated from protobuf enum value: NODE_TYPE_CURSOR = 105500;
      */
-    NODE_TYPE_CURSOR = 112500,
+    NODE_TYPE_CURSOR = 105500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EVENT_CURSOR = 112600;
+     * @generated from protobuf enum value: NODE_TYPE_EVENT_CURSOR = 105600;
      */
-    NODE_TYPE_EVENT_CURSOR = 112600,
+    NODE_TYPE_EVENT_CURSOR = 105600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCREEN_CURSOR = 112700;
+     * @generated from protobuf enum value: NODE_TYPE_SCREEN_CURSOR = 105700;
      */
-    NODE_TYPE_SCREEN_CURSOR = 112700,
+    NODE_TYPE_SCREEN_CURSOR = 105700,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_THREAD_CURSOR = 112800;
+     * @generated from protobuf enum value: NODE_TYPE_THREAD_CURSOR = 105800;
      */
-    NODE_TYPE_THREAD_CURSOR = 112800,
+    NODE_TYPE_THREAD_CURSOR = 105800,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 106000;
+     */
+    NODE_TYPE_ROUTE = 106000,
     /**
      * @generated from protobuf enum value: NODE_TYPE_DATABASE = 140000;
      */
@@ -23882,7 +24000,7 @@ class ActionProto$Type extends MessageType<ActionProto> {
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 104, name: "text", kind: "message", T: () => TextProto },
-            { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.ActionCardinalityProto", ActionCardinalityProto] }
+            { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] }
         ]);
     }
     create(value?: PartialMessage<ActionProto>): ActionProto {
@@ -23963,7 +24081,7 @@ class ActionProto$Type extends MessageType<ActionProto> {
                 case /* optional symbol.destack.TextProto text */ 104:
                     message.text = TextProto.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* symbol.destack.ActionCardinalityProto cardinality */ 110:
+                case /* symbol.destack.MethodCardinalityProto cardinality */ 110:
                     message.cardinality = reader.int32();
                     break;
                 default:
@@ -24058,7 +24176,7 @@ class ActionProto$Type extends MessageType<ActionProto> {
         /* optional symbol.destack.TextProto text = 104; */
         if (message.text)
             TextProto.internalBinaryWrite(message.text, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ActionCardinalityProto cardinality = 110; */
+        /* symbol.destack.MethodCardinalityProto cardinality = 110; */
         if (message.cardinality !== 0)
             writer.tag(110, WireType.Varint).int32(message.cardinality);
         let u = options.writeUnknownFields;
@@ -43762,6 +43880,219 @@ class MessageProto$Type extends MessageType<MessageProto> {
  */
 export const MessageProto = new MessageProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class MethodProto$Type extends MessageType<MethodProto> {
+    constructor() {
+        super("symbol.destack.MethodProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
+            { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 104, name: "text", kind: "message", T: () => TextProto },
+            { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] }
+        ]);
+    }
+    create(value?: PartialMessage<MethodProto>): MethodProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.materialization = 0;
+        message.customValues = {};
+        message.orderKey = "";
+        message.name = "";
+        message.cardinality = 0;
+        if (value !== undefined)
+            reflectionMergePartial<MethodProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MethodProto): MethodProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* symbol.destack.MaterializationProto materialization */ 10:
+                    message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 22:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
+                    message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
+                    this.binaryReadMap26(message.customValues, reader, options);
+                    break;
+                case /* string order_key */ 27:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto source_ptr */ 60:
+                    message.sourcePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.destack.TextProto text */ 104:
+                    message.text = TextProto.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* symbol.destack.MethodCardinalityProto cardinality */ 110:
+                    message.cardinality = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    private binaryReadMap26(map: MethodProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof MethodProto["customValues"] | undefined, val: MethodProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.MethodProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
+    internalBinaryWrite(message: MethodProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MaterializationProto materialization = 10; */
+        if (message.materialization !== 0)
+            writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 22; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
+        if (message.updatedByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 26; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
+        /* string order_key = 27; */
+        if (message.orderKey !== "")
+            writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.destack.NodeReferenceProto source_ptr = 60; */
+        if (message.sourcePtr)
+            NodeReferenceProto.internalBinaryWrite(message.sourcePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.TextProto text = 104; */
+        if (message.text)
+            TextProto.internalBinaryWrite(message.text, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MethodCardinalityProto cardinality = 110; */
+        if (message.cardinality !== 0)
+            writer.tag(110, WireType.Varint).int32(message.cardinality);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.MethodProto
+ */
+export const MethodProto = new MethodProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
     constructor() {
         super("symbol.destack.MethodDefinitionProto", [
@@ -44499,8 +44830,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 132, name: "child_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 133, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 134, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 140, name: "base_event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 141, name: "event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] }
+            { no: 140, name: "event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 141, name: "base_event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] }
         ]);
     }
     create(value?: PartialMessage<NodeDefinitionProto>): NodeDefinitionProto {
@@ -44526,8 +44857,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.childTypes = [];
         message.ancestorTypes = [];
         message.descendantTypes = [];
-        message.baseEventTypes = [];
         message.eventTypes = [];
+        message.baseEventTypes = [];
         if (value !== undefined)
             reflectionMergePartial<NodeDefinitionProto>(this, message, value);
         return message;
@@ -44652,19 +44983,19 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                     else
                         message.descendantTypes.push(reader.int32());
                     break;
-                case /* repeated symbol.destack.NodeTypeProto base_event_types */ 140:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.baseEventTypes.push(reader.int32());
-                    else
-                        message.baseEventTypes.push(reader.int32());
-                    break;
-                case /* repeated symbol.destack.NodeTypeProto event_types */ 141:
+                case /* repeated symbol.destack.NodeTypeProto event_types */ 140:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.eventTypes.push(reader.int32());
                     else
                         message.eventTypes.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.NodeTypeProto base_event_types */ 141:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.baseEventTypes.push(reader.int32());
+                    else
+                        message.baseEventTypes.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -44793,18 +45124,18 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 writer.int32(message.descendantTypes[i]);
             writer.join();
         }
-        /* repeated symbol.destack.NodeTypeProto base_event_types = 140; */
-        if (message.baseEventTypes.length) {
-            writer.tag(140, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.baseEventTypes.length; i++)
-                writer.int32(message.baseEventTypes[i]);
-            writer.join();
-        }
-        /* repeated symbol.destack.NodeTypeProto event_types = 141; */
+        /* repeated symbol.destack.NodeTypeProto event_types = 140; */
         if (message.eventTypes.length) {
-            writer.tag(141, WireType.LengthDelimited).fork();
+            writer.tag(140, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.eventTypes.length; i++)
                 writer.int32(message.eventTypes[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.NodeTypeProto base_event_types = 141; */
+        if (message.baseEventTypes.length) {
+            writer.tag(141, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.baseEventTypes.length; i++)
+                writer.int32(message.baseEventTypes[i]);
             writer.join();
         }
         let u = options.writeUnknownFields;
@@ -59412,7 +59743,9 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
             { no: 110, name: "alias", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
-            { no: 121, name: "base_traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] }
+            { no: 121, name: "base_traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
+            { no: 140, name: "event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 141, name: "base_event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] }
         ]);
     }
     create(value?: PartialMessage<TraitDefinitionProto>): TraitDefinitionProto {
@@ -59427,6 +59760,8 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         message.isExtensible = false;
         message.traits = [];
         message.baseTraits = [];
+        message.eventTypes = [];
+        message.baseEventTypes = [];
         if (value !== undefined)
             reflectionMergePartial<TraitDefinitionProto>(this, message, value);
         return message;
@@ -59479,6 +59814,20 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
                             message.baseTraits.push(reader.int32());
                     else
                         message.baseTraits.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.NodeTypeProto event_types */ 140:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.eventTypes.push(reader.int32());
+                    else
+                        message.eventTypes.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.NodeTypeProto base_event_types */ 141:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.baseEventTypes.push(reader.int32());
+                    else
+                        message.baseEventTypes.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -59534,6 +59883,20 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
             writer.tag(121, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.baseTraits.length; i++)
                 writer.int32(message.baseTraits[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.NodeTypeProto event_types = 140; */
+        if (message.eventTypes.length) {
+            writer.tag(140, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.eventTypes.length; i++)
+                writer.int32(message.eventTypes[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.NodeTypeProto base_event_types = 141; */
+        if (message.baseEventTypes.length) {
+            writer.tag(141, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.baseEventTypes.length; i++)
+                writer.int32(message.baseEventTypes[i]);
             writer.join();
         }
         let u = options.writeUnknownFields;
@@ -62451,18 +62814,19 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 560204, name: "middle_click_event", kind: "message", oneof: "node", T: () => MiddleClickEventProto },
             { no: 560205, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
             { no: 560206, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
-            { no: 110300, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
-            { no: 112600, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
-            { no: 112700, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
-            { no: 112800, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
-            { no: 111000, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
-            { no: 105000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
-            { no: 100000, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
-            { no: 112102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
-            { no: 112103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
-            { no: 112104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
-            { no: 112100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
-            { no: 112000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
+            { no: 102000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
+            { no: 102100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
+            { no: 105600, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
+            { no: 105700, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
+            { no: 105800, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
+            { no: 106000, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
+            { no: 100000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
+            { no: 101000, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
+            { no: 105102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
+            { no: 105103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
+            { no: 105104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
+            { no: 105100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
+            { no: 105000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
             { no: 180000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
             { no: 180001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
             { no: 180100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
@@ -63071,73 +63435,79 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         wheelEvent: WheelEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).wheelEvent)
                     };
                     break;
-                case /* symbol.destack.ActionProto action */ 110300:
+                case /* symbol.destack.MethodProto method */ 102000:
+                    message.node = {
+                        oneofKind: "method",
+                        method: MethodProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).method)
+                    };
+                    break;
+                case /* symbol.destack.ActionProto action */ 102100:
                     message.node = {
                         oneofKind: "action",
                         action: ActionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbol.destack.EventCursorProto event_cursor */ 112600:
+                case /* symbol.destack.EventCursorProto event_cursor */ 105600:
                     message.node = {
                         oneofKind: "eventCursor",
                         eventCursor: EventCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).eventCursor)
                     };
                     break;
-                case /* symbol.destack.ScreenCursorProto screen_cursor */ 112700:
+                case /* symbol.destack.ScreenCursorProto screen_cursor */ 105700:
                     message.node = {
                         oneofKind: "screenCursor",
                         screenCursor: ScreenCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
                     };
                     break;
-                case /* symbol.destack.ThreadCursorProto thread_cursor */ 112800:
+                case /* symbol.destack.ThreadCursorProto thread_cursor */ 105800:
                     message.node = {
                         oneofKind: "threadCursor",
                         threadCursor: ThreadCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadCursor)
                     };
                     break;
-                case /* symbol.destack.RouteProto route */ 111000:
+                case /* symbol.destack.RouteProto route */ 106000:
                     message.node = {
                         oneofKind: "route",
                         route: RouteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).route)
                     };
                     break;
-                case /* symbol.destack.ScriptProto script */ 105000:
+                case /* symbol.destack.ScriptProto script */ 100000:
                     message.node = {
                         oneofKind: "script",
                         script: ScriptProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).script)
                     };
                     break;
-                case /* symbol.destack.ServiceProto service */ 100000:
+                case /* symbol.destack.ServiceProto service */ 101000:
                     message.node = {
                         oneofKind: "service",
                         service: ServiceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
                     };
                     break;
-                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 112102:
+                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 105102:
                     message.node = {
                         oneofKind: "timerStartedEvent",
                         timerStartedEvent: TimerStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerStartedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 112103:
+                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 105103:
                     message.node = {
                         oneofKind: "timerCompletedEvent",
                         timerCompletedEvent: TimerCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 112104:
+                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 105104:
                     message.node = {
                         oneofKind: "timerCancelledEvent",
                         timerCancelledEvent: TimerCancelledEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCancelledEvent)
                     };
                     break;
-                case /* symbol.destack.TimerProto timer */ 112100:
+                case /* symbol.destack.TimerProto timer */ 105100:
                     message.node = {
                         oneofKind: "timer",
                         timer: TimerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timer)
                     };
                     break;
-                case /* symbol.destack.TriggerProto trigger */ 112000:
+                case /* symbol.destack.TriggerProto trigger */ 105000:
                     message.node = {
                         oneofKind: "trigger",
                         trigger: TriggerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
@@ -63602,42 +63972,45 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.FileProto file = 80000; */
         if (message.node.oneofKind === "file")
             FileProto.internalBinaryWrite(message.node.file, writer.tag(80000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ServiceProto service = 100000; */
-        if (message.node.oneofKind === "service")
-            ServiceProto.internalBinaryWrite(message.node.service, writer.tag(100000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScriptProto script = 105000; */
+        /* symbol.destack.ScriptProto script = 100000; */
         if (message.node.oneofKind === "script")
-            ScriptProto.internalBinaryWrite(message.node.script, writer.tag(105000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ActionProto action = 110300; */
+            ScriptProto.internalBinaryWrite(message.node.script, writer.tag(100000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ServiceProto service = 101000; */
+        if (message.node.oneofKind === "service")
+            ServiceProto.internalBinaryWrite(message.node.service, writer.tag(101000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MethodProto method = 102000; */
+        if (message.node.oneofKind === "method")
+            MethodProto.internalBinaryWrite(message.node.method, writer.tag(102000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ActionProto action = 102100; */
         if (message.node.oneofKind === "action")
-            ActionProto.internalBinaryWrite(message.node.action, writer.tag(110300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RouteProto route = 111000; */
-        if (message.node.oneofKind === "route")
-            RouteProto.internalBinaryWrite(message.node.route, writer.tag(111000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TriggerProto trigger = 112000; */
+            ActionProto.internalBinaryWrite(message.node.action, writer.tag(102100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TriggerProto trigger = 105000; */
         if (message.node.oneofKind === "trigger")
-            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(112000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerProto timer = 112100; */
+            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(105000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerProto timer = 105100; */
         if (message.node.oneofKind === "timer")
-            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(112100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerStartedEventProto timer_started_event = 112102; */
+            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(105100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerStartedEventProto timer_started_event = 105102; */
         if (message.node.oneofKind === "timerStartedEvent")
-            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(112102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 112103; */
+            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(105102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 105103; */
         if (message.node.oneofKind === "timerCompletedEvent")
-            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(112103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 112104; */
+            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(105103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 105104; */
         if (message.node.oneofKind === "timerCancelledEvent")
-            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(112104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EventCursorProto event_cursor = 112600; */
+            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(105104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EventCursorProto event_cursor = 105600; */
         if (message.node.oneofKind === "eventCursor")
-            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(112600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScreenCursorProto screen_cursor = 112700; */
+            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(105600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScreenCursorProto screen_cursor = 105700; */
         if (message.node.oneofKind === "screenCursor")
-            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(112700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThreadCursorProto thread_cursor = 112800; */
+            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(105700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThreadCursorProto thread_cursor = 105800; */
         if (message.node.oneofKind === "threadCursor")
-            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(112800, WireType.LengthDelimited).fork(), options).join();
+            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(105800, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RouteProto route = 106000; */
+        if (message.node.oneofKind === "route")
+            RouteProto.internalBinaryWrite(message.node.route, writer.tag(106000, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.DatabaseProto database = 140000; */
         if (message.node.oneofKind === "database")
             DatabaseProto.internalBinaryWrite(message.node.database, writer.tag(140000, WireType.LengthDelimited).fork(), options).join();
@@ -63944,15 +64317,16 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 170000, name: "run", kind: "message", oneof: "node", T: () => RunProto },
             { no: 140000, name: "database", kind: "message", oneof: "node", T: () => DatabaseProto },
             { no: 140100, name: "machine", kind: "message", oneof: "node", T: () => MachineProto },
-            { no: 110300, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
-            { no: 112600, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
-            { no: 112700, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
-            { no: 112800, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
-            { no: 111000, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
-            { no: 105000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
-            { no: 100000, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
-            { no: 112100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
-            { no: 112000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
+            { no: 102000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
+            { no: 102100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
+            { no: 105600, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
+            { no: 105700, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
+            { no: 105800, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorProto },
+            { no: 106000, name: "route", kind: "message", oneof: "node", T: () => RouteProto },
+            { no: 100000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
+            { no: 101000, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
+            { no: 105100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
+            { no: 105000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
             { no: 180000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
             { no: 180100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
             { no: 180200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
@@ -64207,55 +64581,61 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         machine: MachineProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).machine)
                     };
                     break;
-                case /* symbol.destack.ActionProto action */ 110300:
+                case /* symbol.destack.MethodProto method */ 102000:
+                    message.node = {
+                        oneofKind: "method",
+                        method: MethodProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).method)
+                    };
+                    break;
+                case /* symbol.destack.ActionProto action */ 102100:
                     message.node = {
                         oneofKind: "action",
                         action: ActionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbol.destack.EventCursorProto event_cursor */ 112600:
+                case /* symbol.destack.EventCursorProto event_cursor */ 105600:
                     message.node = {
                         oneofKind: "eventCursor",
                         eventCursor: EventCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).eventCursor)
                     };
                     break;
-                case /* symbol.destack.ScreenCursorProto screen_cursor */ 112700:
+                case /* symbol.destack.ScreenCursorProto screen_cursor */ 105700:
                     message.node = {
                         oneofKind: "screenCursor",
                         screenCursor: ScreenCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
                     };
                     break;
-                case /* symbol.destack.ThreadCursorProto thread_cursor */ 112800:
+                case /* symbol.destack.ThreadCursorProto thread_cursor */ 105800:
                     message.node = {
                         oneofKind: "threadCursor",
                         threadCursor: ThreadCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadCursor)
                     };
                     break;
-                case /* symbol.destack.RouteProto route */ 111000:
+                case /* symbol.destack.RouteProto route */ 106000:
                     message.node = {
                         oneofKind: "route",
                         route: RouteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).route)
                     };
                     break;
-                case /* symbol.destack.ScriptProto script */ 105000:
+                case /* symbol.destack.ScriptProto script */ 100000:
                     message.node = {
                         oneofKind: "script",
                         script: ScriptProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).script)
                     };
                     break;
-                case /* symbol.destack.ServiceProto service */ 100000:
+                case /* symbol.destack.ServiceProto service */ 101000:
                     message.node = {
                         oneofKind: "service",
                         service: ServiceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
                     };
                     break;
-                case /* symbol.destack.TimerProto timer */ 112100:
+                case /* symbol.destack.TimerProto timer */ 105100:
                     message.node = {
                         oneofKind: "timer",
                         timer: TimerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timer)
                     };
                     break;
-                case /* symbol.destack.TriggerProto trigger */ 112000:
+                case /* symbol.destack.TriggerProto trigger */ 105000:
                     message.node = {
                         oneofKind: "trigger",
                         trigger: TriggerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
@@ -64579,33 +64959,36 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.FileProto file = 80000; */
         if (message.node.oneofKind === "file")
             FileProto.internalBinaryWrite(message.node.file, writer.tag(80000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ServiceProto service = 100000; */
-        if (message.node.oneofKind === "service")
-            ServiceProto.internalBinaryWrite(message.node.service, writer.tag(100000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScriptProto script = 105000; */
+        /* symbol.destack.ScriptProto script = 100000; */
         if (message.node.oneofKind === "script")
-            ScriptProto.internalBinaryWrite(message.node.script, writer.tag(105000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ActionProto action = 110300; */
+            ScriptProto.internalBinaryWrite(message.node.script, writer.tag(100000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ServiceProto service = 101000; */
+        if (message.node.oneofKind === "service")
+            ServiceProto.internalBinaryWrite(message.node.service, writer.tag(101000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MethodProto method = 102000; */
+        if (message.node.oneofKind === "method")
+            MethodProto.internalBinaryWrite(message.node.method, writer.tag(102000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ActionProto action = 102100; */
         if (message.node.oneofKind === "action")
-            ActionProto.internalBinaryWrite(message.node.action, writer.tag(110300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RouteProto route = 111000; */
-        if (message.node.oneofKind === "route")
-            RouteProto.internalBinaryWrite(message.node.route, writer.tag(111000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TriggerProto trigger = 112000; */
+            ActionProto.internalBinaryWrite(message.node.action, writer.tag(102100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TriggerProto trigger = 105000; */
         if (message.node.oneofKind === "trigger")
-            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(112000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerProto timer = 112100; */
+            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(105000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerProto timer = 105100; */
         if (message.node.oneofKind === "timer")
-            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(112100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EventCursorProto event_cursor = 112600; */
+            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(105100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EventCursorProto event_cursor = 105600; */
         if (message.node.oneofKind === "eventCursor")
-            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(112600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScreenCursorProto screen_cursor = 112700; */
+            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(105600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScreenCursorProto screen_cursor = 105700; */
         if (message.node.oneofKind === "screenCursor")
-            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(112700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThreadCursorProto thread_cursor = 112800; */
+            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(105700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThreadCursorProto thread_cursor = 105800; */
         if (message.node.oneofKind === "threadCursor")
-            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(112800, WireType.LengthDelimited).fork(), options).join();
+            ThreadCursorProto.internalBinaryWrite(message.node.threadCursor, writer.tag(105800, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RouteProto route = 106000; */
+        if (message.node.oneofKind === "route")
+            RouteProto.internalBinaryWrite(message.node.route, writer.tag(106000, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.DatabaseProto database = 140000; */
         if (message.node.oneofKind === "database")
             DatabaseProto.internalBinaryWrite(message.node.database, writer.tag(140000, WireType.LengthDelimited).fork(), options).join();
@@ -64797,9 +65180,9 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 560204, name: "middle_click_event", kind: "message", oneof: "node", T: () => MiddleClickEventProto },
             { no: 560205, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
             { no: 560206, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
-            { no: 112102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
-            { no: 112103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
-            { no: 112104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
+            { no: 105102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
+            { no: 105103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
+            { no: 105104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
             { no: 180001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
             { no: 180101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
             { no: 180201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
@@ -65168,19 +65551,19 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         wheelEvent: WheelEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).wheelEvent)
                     };
                     break;
-                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 112102:
+                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 105102:
                     message.node = {
                         oneofKind: "timerStartedEvent",
                         timerStartedEvent: TimerStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerStartedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 112103:
+                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 105103:
                     message.node = {
                         oneofKind: "timerCompletedEvent",
                         timerCompletedEvent: TimerCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 112104:
+                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 105104:
                     message.node = {
                         oneofKind: "timerCancelledEvent",
                         timerCancelledEvent: TimerCancelledEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCancelledEvent)
@@ -65339,15 +65722,15 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 60505; */
         if (message.node.oneofKind === "entitlementExpiredEvent")
             EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(60505, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerStartedEventProto timer_started_event = 112102; */
+        /* symbol.destack.TimerStartedEventProto timer_started_event = 105102; */
         if (message.node.oneofKind === "timerStartedEvent")
-            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(112102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 112103; */
+            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(105102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 105103; */
         if (message.node.oneofKind === "timerCompletedEvent")
-            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(112103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 112104; */
+            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(105103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 105104; */
         if (message.node.oneofKind === "timerCancelledEvent")
-            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(112104, WireType.LengthDelimited).fork(), options).join();
+            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(105104, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.RunStartedEventProto run_started_event = 170002; */
         if (message.node.oneofKind === "runStartedEvent")
             RunStartedEventProto.internalBinaryWrite(message.node.runStartedEvent, writer.tag(170002, WireType.LengthDelimited).fork(), options).join();
@@ -65504,7 +65887,7 @@ export const SomeEventProto = new SomeEventProto$Type();
 //
 
 // Any...
-export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | MetricProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | ChangeEventProto | QueryEventProto | MeasurementEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | AgentProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewEnteredEventProto | ViewExitedEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
+export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | MetricProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | ChangeEventProto | QueryEventProto | MeasurementEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | AgentProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewEnteredEventProto | ViewExitedEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
 export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | PropertyGroupDefinitionProto | OptionDefinitionProto | OptionGroupDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | PermissionDefinitionProto | EditProto | OriginProto | ChangeProto | ChangeResultProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

@@ -5645,31 +5645,6 @@ export class ActionDefinition extends MethodDefinition {
   static metatype: StructType = StructType.ACTION_DEFINITION;
   static __isFrozen__: boolean = true;
 
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  /**
-   * MethodDefinition.properties
-   */
-  readonly properties: Array<PropertyDefinition>;
-
   constructor(options: {
     id: number;
     name: string;
@@ -5683,43 +5658,12 @@ export class ActionDefinition extends MethodDefinition {
     _proto?: any | null;
     _value?: { [key: string]: any } | null;
   }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
+    super(options);
 
     // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`ActionDefinition.id is required`);
-    }
-    this.id = _id;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`ActionDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
-    }
-    this.properties = _properties;
 
     // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    // ... (already set in parent)
   }
 
   equals(other: any): boolean {

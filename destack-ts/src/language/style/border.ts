@@ -499,10 +499,10 @@ export class BorderStyle extends Style {
    * BorderStyle.type
    */
   get type(): BorderType {
-    return this.#type;
+    return this._type;
   }
   set type(value: BorderType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -512,18 +512,18 @@ export class BorderStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: BorderType;
+  _type: BorderType;
 
   /**
    * Style.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -533,18 +533,18 @@ export class BorderStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * BorderStyle.color
    */
   get color(): Color | null {
-    return this.#color;
+    return this._color;
   }
   set color(value: Color | null) {
-    const oldValue = this.#color;
+    const oldValue = this._color;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -554,18 +554,18 @@ export class BorderStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#color = value;
+    this._color = value;
   }
-  #color: Color | null;
+  _color: Color | null;
 
   /**
    * BorderStyle.width
    */
   get width(): Insets | null {
-    return this.#width;
+    return this._width;
   }
   set width(value: Insets | null) {
-    const oldValue = this.#width;
+    const oldValue = this._width;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -575,9 +575,9 @@ export class BorderStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#width = value;
+    this._width = value;
   }
-  #width: Insets | null;
+  _width: Insets | null;
 
   /**
    * BorderStyle.style
@@ -597,10 +597,10 @@ export class BorderStyle extends Style {
     }
   }
   get stylePtr(): NodeReference | null {
-    return this.#stylePtr;
+    return this._stylePtr;
   }
   set stylePtr(value: NodeReference | null) {
-    const oldValue = this.#stylePtr;
+    const oldValue = this._stylePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -610,9 +610,9 @@ export class BorderStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#stylePtr = value;
+    this._stylePtr = value;
   }
-  #stylePtr: NodeReference | null;
+  _stylePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -718,21 +718,21 @@ export class BorderStyle extends Style {
     if (_type === null) {
       throw new Error(`BorderStyle.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`BorderStyle.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _color = options.color ?? null;
-    this.#color = _color;
+    this._color = _color;
     let _width = options.width ?? null;
-    this.#width = _width;
+    this._width = _width;
     let _style = options.style ?? null;
     if (_style != null && _style.metatype != StructType.NODE_REFERENCE) {
       _style = (_style as Node).toRef();
     }
-    this.#stylePtr = _style;
+    this._stylePtr = _style;
 
     // identity
     if (options.id == null) {
@@ -768,25 +768,25 @@ export class BorderStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
     if (
-      (this.#color == null) !== (other.#color == null) ||
-      (this.#color != null && !this.#color.equals(other.#color))
+      (this._color == null) !== (other._color == null) ||
+      (this._color != null && !this._color.equals(other._color))
     ) {
       return false;
     }
     if (
-      (this.#width == null) !== (other.#width == null) ||
-      (this.#width != null && !this.#width.equals(other.#width))
+      (this._width == null) !== (other._width == null) ||
+      (this._width != null && !this._width.equals(other._width))
     ) {
       return false;
     }
-    if (!(this.#stylePtr?.id === other.#stylePtr?.id)) {
+    if (!(this._stylePtr?.id === other._stylePtr?.id)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -810,20 +810,20 @@ export class BorderStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#type) & 0xffffffff;
-    if (this.#color !== null) {
-      h = (h * 31 + this.#color.hash()) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._color !== null) {
+      h = (h * 31 + this._color.hash()) & 0xffffffff;
     }
-    if (this.#width !== null) {
-      h = (h * 31 + this.#width.hash()) & 0xffffffff;
+    if (this._width !== null) {
+      h = (h * 31 + this._width.hash()) & 0xffffffff;
     }
-    if (this.#stylePtr !== null) {
-      h = (h * 31 + hashString(this.#stylePtr.id)) & 0xffffffff;
+    if (this._stylePtr !== null) {
+      h = (h * 31 + hashString(this._stylePtr.id)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -944,16 +944,16 @@ export class BorderStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#color != null) {
-      objectValue["200"] = object.#color.toValue();
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._color != null) {
+      objectValue["200"] = object._color.toValue();
     }
-    if (object.#width != null) {
-      objectValue["201"] = object.#width.toValue();
+    if (object._width != null) {
+      objectValue["201"] = object._width.toValue();
     }
-    if (object.#stylePtr != null) {
-      objectValue["202"] = object.#stylePtr.toValue();
+    if (object._stylePtr != null) {
+      objectValue["202"] = object._stylePtr.toValue();
     }
     return objectValue;
   }
@@ -1102,16 +1102,16 @@ export class BorderStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.#type) as BorderTypeProto;
-    objectProto.name = object.#name;
-    if (object.#color != null) {
-      objectProto.color = object.#color.toProto();
+    objectProto.type = Number(object._type) as BorderTypeProto;
+    objectProto.name = object._name;
+    if (object._color != null) {
+      objectProto.color = object._color.toProto();
     }
-    if (object.#width != null) {
-      objectProto.width = object.#width.toProto();
+    if (object._width != null) {
+      objectProto.width = object._width.toProto();
     }
-    if (object.#stylePtr != null) {
-      objectProto.stylePtr = object.#stylePtr.toProto();
+    if (object._stylePtr != null) {
+      objectProto.stylePtr = object._stylePtr.toProto();
     }
     return objectProto as BorderStyleProto;
   }

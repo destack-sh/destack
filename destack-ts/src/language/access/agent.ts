@@ -152,10 +152,10 @@ export class Agent
    * Agent.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -165,18 +165,18 @@ export class Agent
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Agent.slug
    */
   get slug(): string {
-    return this.#slug;
+    return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this.#slug;
+    const oldValue = this._slug;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -186,9 +186,9 @@ export class Agent
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#slug = value;
+    this._slug = value;
   }
-  #slug: string;
+  _slug: string;
 
   /**
    * Agent.cursor
@@ -208,10 +208,10 @@ export class Agent
     }
   }
   get cursorPtr(): NodeReference | null {
-    return this.#cursorPtr;
+    return this._cursorPtr;
   }
   set cursorPtr(value: NodeReference | null) {
-    const oldValue = this.#cursorPtr;
+    const oldValue = this._cursorPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -221,9 +221,9 @@ export class Agent
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#cursorPtr = value;
+    this._cursorPtr = value;
   }
-  #cursorPtr: NodeReference | null;
+  _cursorPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -315,17 +315,17 @@ export class Agent
     if (_name === null) {
       throw new Error(`Agent.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Agent.slug is required`);
     }
-    this.#slug = _slug;
+    this._slug = _slug;
     let _cursor = options.cursor ?? null;
     if (_cursor != null && _cursor.metatype != StructType.NODE_REFERENCE) {
       _cursor = (_cursor as Node).toRef();
     }
-    this.#cursorPtr = _cursor;
+    this._cursorPtr = _cursor;
 
     // identity
     if (options.id == null) {
@@ -359,13 +359,13 @@ export class Agent
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
-    if (!(this.#slug === other.#slug)) {
+    if (!(this._slug === other._slug)) {
       return false;
     }
-    if (!(this.#cursorPtr?.id === other.#cursorPtr?.id)) {
+    if (!(this._cursorPtr?.id === other._cursorPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -392,10 +392,10 @@ export class Agent
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
-    if (this.#cursorPtr !== null) {
-      h = (h * 31 + hashString(this.#cursorPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._slug)) & 0xffffffff;
+    if (this._cursorPtr !== null) {
+      h = (h * 31 + hashString(this._cursorPtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -506,10 +506,10 @@ export class Agent
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["101"] = object.#name;
-    objectValue["102"] = object.#slug;
-    if (object.#cursorPtr != null) {
-      objectValue["110"] = object.#cursorPtr.toValue();
+    objectValue["101"] = object._name;
+    objectValue["102"] = object._slug;
+    if (object._cursorPtr != null) {
+      objectValue["110"] = object._cursorPtr.toValue();
     }
     return objectValue;
   }
@@ -642,10 +642,10 @@ export class Agent
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.name = object.#name;
-    objectProto.slug = object.#slug;
-    if (object.#cursorPtr != null) {
-      objectProto.cursorPtr = object.#cursorPtr.toProto();
+    objectProto.name = object._name;
+    objectProto.slug = object._slug;
+    if (object._cursorPtr != null) {
+      objectProto.cursorPtr = object._cursorPtr.toProto();
     }
     return objectProto as AgentProto;
   }

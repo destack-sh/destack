@@ -2114,10 +2114,10 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
    * Sanction.type
    */
   get type(): SanctionType {
-    return this.#type;
+    return this._type;
   }
   set type(value: SanctionType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -2127,18 +2127,18 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: SanctionType;
+  _type: SanctionType;
 
   /**
    * Sanction.expiresAt
    */
   get expiresAt(): Temporal.ZonedDateTime | null {
-    return this.#expiresAt;
+    return this._expiresAt;
   }
   set expiresAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#expiresAt;
+    const oldValue = this._expiresAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -2148,9 +2148,9 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#expiresAt = value;
+    this._expiresAt = value;
   }
-  #expiresAt: Temporal.ZonedDateTime | null;
+  _expiresAt: Temporal.ZonedDateTime | null;
 
   /**
    * Sanction.target
@@ -2166,10 +2166,10 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     this.targetPtr = node.toRef();
   }
   get targetPtr(): NodeReference {
-    return this.#targetPtr;
+    return this._targetPtr;
   }
   set targetPtr(value: NodeReference) {
-    const oldValue = this.#targetPtr;
+    const oldValue = this._targetPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -2179,9 +2179,9 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#targetPtr = value;
+    this._targetPtr = value;
   }
-  #targetPtr: NodeReference;
+  _targetPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -2273,9 +2273,9 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (_type === null) {
       throw new Error(`Sanction.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _expiresAt = options.expiresAt ?? null;
-    this.#expiresAt = _expiresAt;
+    this._expiresAt = _expiresAt;
     let _target = options.target;
     if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
       _target = (_target as Node).toRef();
@@ -2283,7 +2283,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (_target === null) {
       throw new Error(`Sanction.target is required`);
     }
-    this.#targetPtr = _target;
+    this._targetPtr = _target;
 
     // identity
     if (options.id == null) {
@@ -2319,13 +2319,13 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#expiresAt === other.#expiresAt)) {
+    if (!(this._expiresAt === other._expiresAt)) {
       return false;
     }
-    if (!(this.#targetPtr.id === other.#targetPtr.id)) {
+    if (!(this._targetPtr.id === other._targetPtr.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -2352,11 +2352,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#type) & 0xffffffff;
-    if (this.#expiresAt !== null) {
-      h = (h * 31 + hashString(this.#expiresAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._expiresAt !== null) {
+      h = (h * 31 + hashString(this._expiresAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#targetPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._targetPtr.id)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -2463,11 +2463,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["100"] = object.#type;
-    if (object.#expiresAt != null) {
-      objectValue["110"] = object.#expiresAt.toString({ timeZoneName: "never" });
+    objectValue["100"] = object._type;
+    if (object._expiresAt != null) {
+      objectValue["110"] = object._expiresAt.toString({ timeZoneName: "never" });
     }
-    objectValue["111"] = object.#targetPtr.toValue();
+    objectValue["111"] = object._targetPtr.toValue();
     return objectValue;
   }
 
@@ -2605,11 +2605,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.type = Number(object.#type) as SanctionTypeProto;
-    if (object.#expiresAt != null) {
-      objectProto.expiresAt = packProtoTimestamp(object.#expiresAt);
+    objectProto.type = Number(object._type) as SanctionTypeProto;
+    if (object._expiresAt != null) {
+      objectProto.expiresAt = packProtoTimestamp(object._expiresAt);
     }
-    objectProto.targetPtr = object.#targetPtr.toProto();
+    objectProto.targetPtr = object._targetPtr.toProto();
     return objectProto as SanctionProto;
   }
 

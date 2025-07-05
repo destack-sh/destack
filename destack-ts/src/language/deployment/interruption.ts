@@ -212,10 +212,10 @@ export class Interruption extends Entity implements IsSpatial {
    * Interruption.type
    */
   get type(): InterruptionType {
-    return this.#type;
+    return this._type;
   }
   set type(value: InterruptionType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -225,9 +225,9 @@ export class Interruption extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: InterruptionType;
+  _type: InterruptionType;
 
   /**
    * Interruption.runnable
@@ -247,10 +247,10 @@ export class Interruption extends Entity implements IsSpatial {
     }
   }
   get runnablePtr(): NodeReference | null {
-    return this.#runnablePtr;
+    return this._runnablePtr;
   }
   set runnablePtr(value: NodeReference | null) {
-    const oldValue = this.#runnablePtr;
+    const oldValue = this._runnablePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -260,9 +260,9 @@ export class Interruption extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#runnablePtr = value;
+    this._runnablePtr = value;
   }
-  #runnablePtr: NodeReference | null;
+  _runnablePtr: NodeReference | null;
 
   /**
    * Interruption.span
@@ -282,10 +282,10 @@ export class Interruption extends Entity implements IsSpatial {
     }
   }
   get spanPtr(): NodeReference | null {
-    return this.#spanPtr;
+    return this._spanPtr;
   }
   set spanPtr(value: NodeReference | null) {
-    const oldValue = this.#spanPtr;
+    const oldValue = this._spanPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -295,18 +295,18 @@ export class Interruption extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#spanPtr = value;
+    this._spanPtr = value;
   }
-  #spanPtr: NodeReference | null;
+  _spanPtr: NodeReference | null;
 
   /**
    * Interruption.status
    */
   get status(): InterruptionStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: InterruptionStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -316,18 +316,18 @@ export class Interruption extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: InterruptionStatus;
+  _status: InterruptionStatus;
 
   /**
    * Interruption.duration
    */
   get duration(): Temporal.Duration | null {
-    return this.#duration;
+    return this._duration;
   }
   set duration(value: Temporal.Duration | null) {
-    const oldValue = this.#duration;
+    const oldValue = this._duration;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -337,18 +337,18 @@ export class Interruption extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#duration = value;
+    this._duration = value;
   }
-  #duration: Temporal.Duration | null;
+  _duration: Temporal.Duration | null;
 
   /**
    * Interruption.closedAt
    */
   get closedAt(): Temporal.ZonedDateTime | null {
-    return this.#closedAt;
+    return this._closedAt;
   }
   set closedAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#closedAt;
+    const oldValue = this._closedAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -358,18 +358,18 @@ export class Interruption extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#closedAt = value;
+    this._closedAt = value;
   }
-  #closedAt: Temporal.ZonedDateTime | null;
+  _closedAt: Temporal.ZonedDateTime | null;
 
   /**
    * Interruption.response
    */
   get response(): InterruptionResponse | null {
-    return this.#response;
+    return this._response;
   }
   set response(value: InterruptionResponse | null) {
-    const oldValue = this.#response;
+    const oldValue = this._response;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -379,9 +379,9 @@ export class Interruption extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#response = value;
+    this._response = value;
   }
-  #response: InterruptionResponse | null;
+  _response: InterruptionResponse | null;
 
   /**
    * The Message that was created for this Interruption.
@@ -401,10 +401,10 @@ export class Interruption extends Entity implements IsSpatial {
     }
   }
   get messagePtr(): NodeReference | null {
-    return this.#messagePtr;
+    return this._messagePtr;
   }
   set messagePtr(value: NodeReference | null) {
-    const oldValue = this.#messagePtr;
+    const oldValue = this._messagePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -414,9 +414,9 @@ export class Interruption extends Entity implements IsSpatial {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#messagePtr = value;
+    this._messagePtr = value;
   }
-  #messagePtr: NodeReference | null;
+  _messagePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -510,17 +510,17 @@ export class Interruption extends Entity implements IsSpatial {
     if (_type === null) {
       throw new Error(`Interruption.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _runnable = options.runnable ?? null;
     if (_runnable != null && _runnable.metatype != StructType.NODE_REFERENCE) {
       _runnable = (_runnable as Node).toRef();
     }
-    this.#runnablePtr = _runnable;
+    this._runnablePtr = _runnable;
     let _span = options.span ?? null;
     if (_span != null && _span.metatype != StructType.NODE_REFERENCE) {
       _span = (_span as Node).toRef();
     }
-    this.#spanPtr = _span;
+    this._spanPtr = _span;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 10 /* InterruptionStatus.OPEN */;
@@ -528,18 +528,18 @@ export class Interruption extends Entity implements IsSpatial {
     if (_status === null) {
       throw new Error(`Interruption.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _duration = options.duration ?? null;
-    this.#duration = _duration;
+    this._duration = _duration;
     let _closedAt = options.closedAt ?? null;
-    this.#closedAt = _closedAt;
+    this._closedAt = _closedAt;
     let _response = options.response ?? null;
-    this.#response = _response;
+    this._response = _response;
     let _message = options.message ?? null;
     if (_message != null && _message.metatype != StructType.NODE_REFERENCE) {
       _message = (_message as Node).toRef();
     }
-    this.#messagePtr = _message;
+    this._messagePtr = _message;
 
     // identity
     if (options.id == null) {
@@ -575,28 +575,28 @@ export class Interruption extends Entity implements IsSpatial {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.#runnablePtr?.id === other.#runnablePtr?.id)) {
+    if (!(this._runnablePtr?.id === other._runnablePtr?.id)) {
       return false;
     }
-    if (!(this.#spanPtr?.id === other.#spanPtr?.id)) {
+    if (!(this._spanPtr?.id === other._spanPtr?.id)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.#duration === other.#duration)) {
+    if (!(this._duration === other._duration)) {
       return false;
     }
-    if (!(this.#closedAt === other.#closedAt)) {
+    if (!(this._closedAt === other._closedAt)) {
       return false;
     }
-    if (!(this.#response === other.#response)) {
+    if (!(this._response === other._response)) {
       return false;
     }
-    if (!(this.#messagePtr?.id === other.#messagePtr?.id)) {
+    if (!(this._messagePtr?.id === other._messagePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -623,25 +623,25 @@ export class Interruption extends Entity implements IsSpatial {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#type) & 0xffffffff;
-    if (this.#runnablePtr !== null) {
-      h = (h * 31 + hashString(this.#runnablePtr.id)) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._runnablePtr !== null) {
+      h = (h * 31 + hashString(this._runnablePtr.id)) & 0xffffffff;
     }
-    if (this.#spanPtr !== null) {
-      h = (h * 31 + hashString(this.#spanPtr.id)) & 0xffffffff;
+    if (this._spanPtr !== null) {
+      h = (h * 31 + hashString(this._spanPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.#status) & 0xffffffff;
-    if (this.#duration !== null) {
-      h = (h * 31 + hashFloat(this.#duration.total("seconds"))) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
+    if (this._duration !== null) {
+      h = (h * 31 + hashFloat(this._duration.total("seconds"))) & 0xffffffff;
     }
-    if (this.#closedAt !== null) {
-      h = (h * 31 + hashString(this.#closedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this._closedAt !== null) {
+      h = (h * 31 + hashString(this._closedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.#response !== null) {
-      h = (h * 31 + this.#response) & 0xffffffff;
+    if (this._response !== null) {
+      h = (h * 31 + this._response) & 0xffffffff;
     }
-    if (this.#messagePtr !== null) {
-      h = (h * 31 + hashString(this.#messagePtr.id)) & 0xffffffff;
+    if (this._messagePtr !== null) {
+      h = (h * 31 + hashString(this._messagePtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -743,25 +743,25 @@ export class Interruption extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["100"] = object.#type;
-    if (object.#runnablePtr != null) {
-      objectValue["110"] = object.#runnablePtr.toValue();
+    objectValue["100"] = object._type;
+    if (object._runnablePtr != null) {
+      objectValue["110"] = object._runnablePtr.toValue();
     }
-    if (object.#spanPtr != null) {
-      objectValue["111"] = object.#spanPtr.toValue();
+    if (object._spanPtr != null) {
+      objectValue["111"] = object._spanPtr.toValue();
     }
-    objectValue["120"] = object.#status;
-    if (object.#duration != null) {
-      objectValue["121"] = timedeltaToISOFormat(object.#duration);
+    objectValue["120"] = object._status;
+    if (object._duration != null) {
+      objectValue["121"] = timedeltaToISOFormat(object._duration);
     }
-    if (object.#closedAt != null) {
-      objectValue["122"] = object.#closedAt.toString({ timeZoneName: "never" });
+    if (object._closedAt != null) {
+      objectValue["122"] = object._closedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#response != null) {
-      objectValue["130"] = object.#response;
+    if (object._response != null) {
+      objectValue["130"] = object._response;
     }
-    if (object.#messagePtr != null) {
-      objectValue["131"] = object.#messagePtr.toValue();
+    if (object._messagePtr != null) {
+      objectValue["131"] = object._messagePtr.toValue();
     }
     return objectValue;
   }
@@ -910,25 +910,25 @@ export class Interruption extends Entity implements IsSpatial {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    objectProto.type = Number(object.#type) as InterruptionTypeProto;
-    if (object.#runnablePtr != null) {
-      objectProto.runnablePtr = object.#runnablePtr.toProto();
+    objectProto.type = Number(object._type) as InterruptionTypeProto;
+    if (object._runnablePtr != null) {
+      objectProto.runnablePtr = object._runnablePtr.toProto();
     }
-    if (object.#spanPtr != null) {
-      objectProto.spanPtr = object.#spanPtr.toProto();
+    if (object._spanPtr != null) {
+      objectProto.spanPtr = object._spanPtr.toProto();
     }
-    objectProto.status = Number(object.#status) as InterruptionStatusProto;
-    if (object.#duration != null) {
-      objectProto.duration = packProtoDuration(object.#duration);
+    objectProto.status = Number(object._status) as InterruptionStatusProto;
+    if (object._duration != null) {
+      objectProto.duration = packProtoDuration(object._duration);
     }
-    if (object.#closedAt != null) {
-      objectProto.closedAt = packProtoTimestamp(object.#closedAt);
+    if (object._closedAt != null) {
+      objectProto.closedAt = packProtoTimestamp(object._closedAt);
     }
-    if (object.#response != null) {
-      objectProto.response = Number(object.#response) as InterruptionResponseProto;
+    if (object._response != null) {
+      objectProto.response = Number(object._response) as InterruptionResponseProto;
     }
-    if (object.#messagePtr != null) {
-      objectProto.messagePtr = object.#messagePtr.toProto();
+    if (object._messagePtr != null) {
+      objectProto.messagePtr = object._messagePtr.toProto();
     }
     return objectProto as InterruptionProto;
   }

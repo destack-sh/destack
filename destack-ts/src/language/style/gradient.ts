@@ -765,10 +765,10 @@ export class GradientStyle extends Style {
    * GradientStyle.type
    */
   get type(): GradientType {
-    return this.#type;
+    return this._type;
   }
   set type(value: GradientType) {
-    const oldValue = this.#type;
+    const oldValue = this._type;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -778,18 +778,18 @@ export class GradientStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#type = value;
+    this._type = value;
   }
-  #type: GradientType;
+  _type: GradientType;
 
   /**
    * Style.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -799,18 +799,18 @@ export class GradientStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * GradientStyle.angle
    */
   get angle(): number | null {
-    return this.#angle;
+    return this._angle;
   }
   set angle(value: number | null) {
-    const oldValue = this.#angle;
+    const oldValue = this._angle;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -820,18 +820,18 @@ export class GradientStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#angle = value;
+    this._angle = value;
   }
-  #angle: number | null;
+  _angle: number | null;
 
   /**
    * GradientStyle.stops
    */
   get stops(): Array<GradientStop> {
-    return this.#stops;
+    return this._stops;
   }
   set stops(value: Array<GradientStop>) {
-    const oldValue = this.#stops;
+    const oldValue = this._stops;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -841,18 +841,18 @@ export class GradientStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#stops = value;
+    this._stops = value;
   }
-  #stops: Array<GradientStop>;
+  _stops: Array<GradientStop>;
 
   /**
    * GradientStyle.centerAnchor
    */
   get centerAnchor(): Axis2 | null {
-    return this.#centerAnchor;
+    return this._centerAnchor;
   }
   set centerAnchor(value: Axis2 | null) {
-    const oldValue = this.#centerAnchor;
+    const oldValue = this._centerAnchor;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -862,18 +862,18 @@ export class GradientStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#centerAnchor = value;
+    this._centerAnchor = value;
   }
-  #centerAnchor: Axis2 | null;
+  _centerAnchor: Axis2 | null;
 
   /**
    * GradientStyle.dark
    */
   get dark(): Gradient | null {
-    return this.#dark;
+    return this._dark;
   }
   set dark(value: Gradient | null) {
-    const oldValue = this.#dark;
+    const oldValue = this._dark;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -883,9 +883,9 @@ export class GradientStyle extends Style {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#dark = value;
+    this._dark = value;
   }
-  #dark: Gradient | null;
+  _dark: Gradient | null;
 
   constructor(options: {
     id?: string;
@@ -992,23 +992,23 @@ export class GradientStyle extends Style {
     if (_type === null) {
       throw new Error(`GradientStyle.type is required`);
     }
-    this.#type = _type;
+    this._type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`GradientStyle.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _angle = options.angle ?? null;
-    this.#angle = _angle;
+    this._angle = _angle;
     let _stops = options.stops ?? null;
     if (_stops === null) {
       _stops = [];
     }
-    this.#stops = _stops;
+    this._stops = _stops;
     let _centerAnchor = options.centerAnchor ?? null;
-    this.#centerAnchor = _centerAnchor;
+    this._centerAnchor = _centerAnchor;
     let _dark = options.dark ?? null;
-    this.#dark = _dark;
+    this._dark = _dark;
 
     // identity
     if (options.id == null) {
@@ -1044,37 +1044,37 @@ export class GradientStyle extends Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#type === other.#type)) {
+    if (!(this._type === other._type)) {
       return false;
     }
     if (
-      (this.#angle == null) !== (other.#angle == null) ||
-      (this.#angle != null &&
-        !(this.#angle === other.#angle || Math.abs(this.#angle - other.#angle) < 1e-10))
+      (this._angle == null) !== (other._angle == null) ||
+      (this._angle != null &&
+        !(this._angle === other._angle || Math.abs(this._angle - other._angle) < 1e-10))
     ) {
       return false;
     }
-    if (this.#stops.length !== other.#stops.length) {
+    if (this._stops.length !== other._stops.length) {
       return false;
     }
-    for (let i = 0; i < this.#stops.length; i++) {
-      if (!this.#stops[i].equals(other.#stops[i])) {
+    for (let i = 0; i < this._stops.length; i++) {
+      if (!this._stops[i].equals(other._stops[i])) {
         return false;
       }
     }
     if (
-      (this.#centerAnchor == null) !== (other.#centerAnchor == null) ||
-      (this.#centerAnchor != null && !this.#centerAnchor.equals(other.#centerAnchor))
+      (this._centerAnchor == null) !== (other._centerAnchor == null) ||
+      (this._centerAnchor != null && !this._centerAnchor.equals(other._centerAnchor))
     ) {
       return false;
     }
     if (
-      (this.#dark == null) !== (other.#dark == null) ||
-      (this.#dark != null && !this.#dark.equals(other.#dark))
+      (this._dark == null) !== (other._dark == null) ||
+      (this._dark != null && !this._dark.equals(other._dark))
     ) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1098,25 +1098,25 @@ export class GradientStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#type) & 0xffffffff;
-    if (this.#angle !== null) {
-      h = (h * 31 + hashFloat(this.#angle)) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._angle !== null) {
+      h = (h * 31 + hashFloat(this._angle)) & 0xffffffff;
     }
-    if (this.#stops && this.#stops.length > 0) {
-      for (const _item of this.#stops) {
+    if (this._stops && this._stops.length > 0) {
+      for (const _item of this._stops) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.#centerAnchor !== null) {
-      h = (h * 31 + this.#centerAnchor.hash()) & 0xffffffff;
+    if (this._centerAnchor !== null) {
+      h = (h * 31 + this._centerAnchor.hash()) & 0xffffffff;
     }
-    if (this.#dark !== null) {
-      h = (h * 31 + this.#dark.hash()) & 0xffffffff;
+    if (this._dark !== null) {
+      h = (h * 31 + this._dark.hash()) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1237,23 +1237,23 @@ export class GradientStyle extends Style {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["100"] = object.#type;
-    objectValue["101"] = object.#name;
-    if (object.#angle != null) {
-      objectValue["102"] = object.#angle;
+    objectValue["100"] = object._type;
+    objectValue["101"] = object._name;
+    if (object._angle != null) {
+      objectValue["102"] = object._angle;
     }
-    if (object.#stops.length > 0) {
+    if (object._stops.length > 0) {
       const packedStops: any[] = [];
-      for (const item of object.#stops) {
+      for (const item of object._stops) {
         packedStops.push(item.toValue());
       }
       objectValue["103"] = packedStops;
     }
-    if (object.#centerAnchor != null) {
-      objectValue["104"] = object.#centerAnchor.toValue();
+    if (object._centerAnchor != null) {
+      objectValue["104"] = object._centerAnchor.toValue();
     }
-    if (object.#dark != null) {
-      objectValue["105"] = object.#dark.toValue();
+    if (object._dark != null) {
+      objectValue["105"] = object._dark.toValue();
     }
     return objectValue;
   }
@@ -1409,23 +1409,23 @@ export class GradientStyle extends Style {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.#type) as GradientTypeProto;
-    objectProto.name = object.#name;
-    if (object.#angle != null) {
-      objectProto.angle = object.#angle;
+    objectProto.type = Number(object._type) as GradientTypeProto;
+    objectProto.name = object._name;
+    if (object._angle != null) {
+      objectProto.angle = object._angle;
     }
-    if (object.#stops) {
+    if (object._stops) {
       const packedStops: any[] = [];
-      for (const item of object.#stops) {
+      for (const item of object._stops) {
         packedStops.push(item.toProto());
       }
       objectProto.stops = packedStops;
     }
-    if (object.#centerAnchor != null) {
-      objectProto.centerAnchor = object.#centerAnchor.toProto();
+    if (object._centerAnchor != null) {
+      objectProto.centerAnchor = object._centerAnchor.toProto();
     }
-    if (object.#dark != null) {
-      objectProto.dark = object.#dark.toProto();
+    if (object._dark != null) {
+      objectProto.dark = object._dark.toProto();
     }
     return objectProto as GradientStyleProto;
   }

@@ -1308,10 +1308,10 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1321,9 +1321,9 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Membership.member
@@ -1339,10 +1339,10 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     this.memberPtr = node.toRef();
   }
   get memberPtr(): NodeReference {
-    return this.#memberPtr;
+    return this._memberPtr;
   }
   set memberPtr(value: NodeReference) {
-    const oldValue = this.#memberPtr;
+    const oldValue = this._memberPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1352,9 +1352,9 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#memberPtr = value;
+    this._memberPtr = value;
   }
-  #memberPtr: NodeReference;
+  _memberPtr: NodeReference;
 
   /**
    * Membership.role
@@ -1374,10 +1374,10 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     }
   }
   get rolePtr(): NodeReference | null {
-    return this.#rolePtr;
+    return this._rolePtr;
   }
   set rolePtr(value: NodeReference | null) {
-    const oldValue = this.#rolePtr;
+    const oldValue = this._rolePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1387,18 +1387,18 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#rolePtr = value;
+    this._rolePtr = value;
   }
-  #rolePtr: NodeReference | null;
+  _rolePtr: NodeReference | null;
 
   /**
    * Membership.roleType
    */
   get roleType(): RoleType | null {
-    return this.#roleType;
+    return this._roleType;
   }
   set roleType(value: RoleType | null) {
-    const oldValue = this.#roleType;
+    const oldValue = this._roleType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1408,9 +1408,9 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#roleType = value;
+    this._roleType = value;
   }
-  #roleType: RoleType | null;
+  _roleType: RoleType | null;
 
   constructor(options: {
     id?: string;
@@ -1503,7 +1503,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _member = options.member;
     if (_member != null && _member.metatype != StructType.NODE_REFERENCE) {
       _member = (_member as Node).toRef();
@@ -1511,14 +1511,14 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (_member === null) {
       throw new Error(`Membership.member is required`);
     }
-    this.#memberPtr = _member;
+    this._memberPtr = _member;
     let _role = options.role ?? null;
     if (_role != null && _role.metatype != StructType.NODE_REFERENCE) {
       _role = (_role as Node).toRef();
     }
-    this.#rolePtr = _role;
+    this._rolePtr = _role;
     let _roleType = options.roleType ?? null;
-    this.#roleType = _roleType;
+    this._roleType = _roleType;
 
     // identity
     if (options.id == null) {
@@ -1554,19 +1554,19 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#memberPtr.id === other.#memberPtr.id)) {
+    if (!(this._memberPtr.id === other._memberPtr.id)) {
       return false;
     }
-    if (!(this.#rolePtr?.id === other.#rolePtr?.id)) {
+    if (!(this._rolePtr?.id === other._rolePtr?.id)) {
       return false;
     }
-    if (!(this.#roleType === other.#roleType)) {
+    if (!(this._roleType === other._roleType)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -1590,18 +1590,18 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#memberPtr.id)) & 0xffffffff;
-    if (this.#rolePtr !== null) {
-      h = (h * 31 + hashString(this.#rolePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._memberPtr.id)) & 0xffffffff;
+    if (this._rolePtr !== null) {
+      h = (h * 31 + hashString(this._rolePtr.id)) & 0xffffffff;
     }
-    if (this.#roleType !== null) {
-      h = (h * 31 + this.#roleType) & 0xffffffff;
+    if (this._roleType !== null) {
+      h = (h * 31 + this._roleType) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -1714,15 +1714,15 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["110"] = object.#memberPtr.toValue();
-    if (object.#rolePtr != null) {
-      objectValue["111"] = object.#rolePtr.toValue();
+    objectValue["110"] = object._memberPtr.toValue();
+    if (object._rolePtr != null) {
+      objectValue["111"] = object._rolePtr.toValue();
     }
-    if (object.#roleType != null) {
-      objectValue["112"] = object.#roleType;
+    if (object._roleType != null) {
+      objectValue["112"] = object._roleType;
     }
     return objectValue;
   }
@@ -1869,15 +1869,15 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.memberPtr = object.#memberPtr.toProto();
-    if (object.#rolePtr != null) {
-      objectProto.rolePtr = object.#rolePtr.toProto();
+    objectProto.memberPtr = object._memberPtr.toProto();
+    if (object._rolePtr != null) {
+      objectProto.rolePtr = object._rolePtr.toProto();
     }
-    if (object.#roleType != null) {
-      objectProto.roleType = Number(object.#roleType) as RoleTypeProto;
+    if (object._roleType != null) {
+      objectProto.roleType = Number(object._roleType) as RoleTypeProto;
     }
     return objectProto as MembershipProto;
   }

@@ -154,10 +154,10 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
    * Tag.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -167,18 +167,18 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * Tag.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -188,9 +188,9 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -290,9 +290,9 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
     if (_name === null) {
       throw new Error(`Tag.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -326,12 +326,12 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
@@ -359,9 +359,9 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -473,9 +473,9 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
     return objectValue;
   }
@@ -610,9 +610,9 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
     return objectProto as TagProto;
   }
@@ -894,10 +894,10 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     }
   }
   get tagPtr(): NodeReference | null {
-    return this.#tagPtr;
+    return this._tagPtr;
   }
   set tagPtr(value: NodeReference | null) {
-    const oldValue = this.#tagPtr;
+    const oldValue = this._tagPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -907,9 +907,9 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#tagPtr = value;
+    this._tagPtr = value;
   }
-  #tagPtr: NodeReference | null;
+  _tagPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -1008,7 +1008,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     if (_tag != null && _tag.metatype != StructType.NODE_REFERENCE) {
       _tag = (_tag as Node).toRef();
     }
-    this.#tagPtr = _tag;
+    this._tagPtr = _tag;
 
     // identity
     if (options.id == null) {
@@ -1042,7 +1042,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#tagPtr?.id === other.#tagPtr?.id)) {
+    if (!(this._tagPtr?.id === other._tagPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1069,8 +1069,8 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.#tagPtr !== null) {
-      h = (h * 31 + hashString(this.#tagPtr.id)) & 0xffffffff;
+    if (this._tagPtr !== null) {
+      h = (h * 31 + hashString(this._tagPtr.id)) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1180,8 +1180,8 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    if (object.#tagPtr != null) {
-      objectValue["110"] = object.#tagPtr.toValue();
+    if (object._tagPtr != null) {
+      objectValue["110"] = object._tagPtr.toValue();
     }
     return objectValue;
   }
@@ -1314,8 +1314,8 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    if (object.#tagPtr != null) {
-      objectProto.tagPtr = object.#tagPtr.toProto();
+    if (object._tagPtr != null) {
+      objectProto.tagPtr = object._tagPtr.toProto();
     }
     return objectProto as TaggingProto;
   }

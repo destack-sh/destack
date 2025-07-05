@@ -37,7 +37,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:112600 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:105501 ==== */
 /**
  * CursorStatus
  */
@@ -57,9 +57,9 @@ export enum CursorStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CURSOR_STATUS, CursorStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:112600 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:105501 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:112500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105500 ==== */
 /**
  * A Node that is a Cursor.
  */
@@ -136,9 +136,9 @@ export abstract class Cursor extends Entity implements IsSpatial, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CURSOR, Cursor);
-/* ==== DESTACK_GENERATED_END:NODE:112500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:112600 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105600 ==== */
 /**
  * A EventCursor is a cursor for iterating over Events.
  */
@@ -274,10 +274,10 @@ export class EventCursor extends Cursor {
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -287,18 +287,18 @@ export class EventCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Cursor.status
    */
   get status(): CursorStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: CursorStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -308,18 +308,18 @@ export class EventCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: CursorStatus;
+  _status: CursorStatus;
 
   /**
    * Cursor.activeAt
    */
   get activeAt(): Temporal.ZonedDateTime | null {
-    return this.#activeAt;
+    return this._activeAt;
   }
   set activeAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#activeAt;
+    const oldValue = this._activeAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -329,9 +329,9 @@ export class EventCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#activeAt = value;
+    this._activeAt = value;
   }
-  #activeAt: Temporal.ZonedDateTime | null;
+  _activeAt: Temporal.ZonedDateTime | null;
 
   constructor(options: {
     id?: string;
@@ -420,7 +420,7 @@ export class EventCursor extends Cursor {
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* CursorStatus.CREATED */;
@@ -428,9 +428,9 @@ export class EventCursor extends Cursor {
     if (_status === null) {
       throw new Error(`EventCursor.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _activeAt = options.activeAt ?? null;
-    this.#activeAt = _activeAt;
+    this._activeAt = _activeAt;
 
     // identity
     if (options.id == null) {
@@ -466,16 +466,16 @@ export class EventCursor extends Cursor {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.#activeAt === other.#activeAt)) {
+    if (!(this._activeAt === other._activeAt)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -496,15 +496,15 @@ export class EventCursor extends Cursor {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#status) & 0xffffffff;
-    if (this.#activeAt !== null) {
-      h = (h * 31 + hashString(this.#activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
+    if (this._activeAt !== null) {
+      h = (h * 31 + hashString(this._activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -582,7 +582,7 @@ export class EventCursor extends Cursor {
 
   static __packValue__(object: EventCursor): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 112600;
+    objectValue["1"] = 105600;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -611,12 +611,12 @@ export class EventCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["101"] = object.#status;
-    if (object.#activeAt != null) {
-      objectValue["110"] = object.#activeAt.toString({ timeZoneName: "never" });
+    objectValue["101"] = object._status;
+    if (object._activeAt != null) {
+      objectValue["110"] = object._activeAt.toString({ timeZoneName: "never" });
     }
     return objectValue;
   }
@@ -716,7 +716,7 @@ export class EventCursor extends Cursor {
   }
 
   static __packProto__(object: EventCursor): EventCursorProto {
-    const objectProto: Partial<EventCursorProto> = { metatype: 112600 };
+    const objectProto: Partial<EventCursorProto> = { metatype: 105600 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -745,12 +745,12 @@ export class EventCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.status = Number(object.#status) as CursorStatusProto;
-    if (object.#activeAt != null) {
-      objectProto.activeAt = packProtoTimestamp(object.#activeAt);
+    objectProto.status = Number(object._status) as CursorStatusProto;
+    if (object._activeAt != null) {
+      objectProto.activeAt = packProtoTimestamp(object._activeAt);
     }
     return objectProto as EventCursorProto;
   }
@@ -888,9 +888,9 @@ export class EventCursor extends Cursor {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EVENT_CURSOR, EventCursor);
-/* ==== DESTACK_GENERATED_END:NODE:112600 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105600 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:112700 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105700 ==== */
 /**
  * A ScreenCursor is a visual cursor corresponding to a pointing device on some screen.
  */
@@ -1026,10 +1026,10 @@ export class ScreenCursor extends Cursor {
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1039,18 +1039,18 @@ export class ScreenCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Cursor.status
    */
   get status(): CursorStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: CursorStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1060,18 +1060,18 @@ export class ScreenCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: CursorStatus;
+  _status: CursorStatus;
 
   /**
    * Cursor.activeAt
    */
   get activeAt(): Temporal.ZonedDateTime | null {
-    return this.#activeAt;
+    return this._activeAt;
   }
   set activeAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#activeAt;
+    const oldValue = this._activeAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1081,18 +1081,18 @@ export class ScreenCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#activeAt = value;
+    this._activeAt = value;
   }
-  #activeAt: Temporal.ZonedDateTime | null;
+  _activeAt: Temporal.ZonedDateTime | null;
 
   /**
    * ScreenCursor.position
    */
   get position(): Vector2i | null {
-    return this.#position;
+    return this._position;
   }
   set position(value: Vector2i | null) {
-    const oldValue = this.#position;
+    const oldValue = this._position;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1102,9 +1102,9 @@ export class ScreenCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#position = value;
+    this._position = value;
   }
-  #position: Vector2i | null;
+  _position: Vector2i | null;
 
   constructor(options: {
     id?: string;
@@ -1194,7 +1194,7 @@ export class ScreenCursor extends Cursor {
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* CursorStatus.CREATED */;
@@ -1202,11 +1202,11 @@ export class ScreenCursor extends Cursor {
     if (_status === null) {
       throw new Error(`ScreenCursor.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _activeAt = options.activeAt ?? null;
-    this.#activeAt = _activeAt;
+    this._activeAt = _activeAt;
     let _position = options.position ?? null;
-    this.#position = _position;
+    this._position = _position;
 
     // identity
     if (options.id == null) {
@@ -1243,21 +1243,21 @@ export class ScreenCursor extends Cursor {
       return false;
     }
     if (
-      (this.#position == null) !== (other.#position == null) ||
-      (this.#position != null && !this.#position.equals(other.#position))
+      (this._position == null) !== (other._position == null) ||
+      (this._position != null && !this._position.equals(other._position))
     ) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.#activeAt === other.#activeAt)) {
+    if (!(this._activeAt === other._activeAt)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -1278,18 +1278,18 @@ export class ScreenCursor extends Cursor {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.#position !== null) {
-      h = (h * 31 + this.#position.hash()) & 0xffffffff;
+    if (this._position !== null) {
+      h = (h * 31 + this._position.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this.#status) & 0xffffffff;
-    if (this.#activeAt !== null) {
-      h = (h * 31 + hashString(this.#activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
+    if (this._activeAt !== null) {
+      h = (h * 31 + hashString(this._activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -1367,7 +1367,7 @@ export class ScreenCursor extends Cursor {
 
   static __packValue__(object: ScreenCursor): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 112700;
+    objectValue["1"] = 105700;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1396,15 +1396,15 @@ export class ScreenCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["101"] = object.#status;
-    if (object.#activeAt != null) {
-      objectValue["110"] = object.#activeAt.toString({ timeZoneName: "never" });
+    objectValue["101"] = object._status;
+    if (object._activeAt != null) {
+      objectValue["110"] = object._activeAt.toString({ timeZoneName: "never" });
     }
-    if (object.#position != null) {
-      objectValue["120"] = object.#position.toValue();
+    if (object._position != null) {
+      objectValue["120"] = object._position.toValue();
     }
     return objectValue;
   }
@@ -1511,7 +1511,7 @@ export class ScreenCursor extends Cursor {
   }
 
   static __packProto__(object: ScreenCursor): ScreenCursorProto {
-    const objectProto: Partial<ScreenCursorProto> = { metatype: 112700 };
+    const objectProto: Partial<ScreenCursorProto> = { metatype: 105700 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1540,15 +1540,15 @@ export class ScreenCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.status = Number(object.#status) as CursorStatusProto;
-    if (object.#activeAt != null) {
-      objectProto.activeAt = packProtoTimestamp(object.#activeAt);
+    objectProto.status = Number(object._status) as CursorStatusProto;
+    if (object._activeAt != null) {
+      objectProto.activeAt = packProtoTimestamp(object._activeAt);
     }
-    if (object.#position != null) {
-      objectProto.position = object.#position.toProto();
+    if (object._position != null) {
+      objectProto.position = object._position.toProto();
     }
     return objectProto as ScreenCursorProto;
   }
@@ -1691,9 +1691,9 @@ export class ScreenCursor extends Cursor {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCREEN_CURSOR, ScreenCursor);
-/* ==== DESTACK_GENERATED_END:NODE:112700 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105700 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:112800 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105800 ==== */
 /**
  * A ThreadCursor is a cursor corresponding to a Thread.
  */
@@ -1829,10 +1829,10 @@ export class ThreadCursor extends Cursor {
     }
   }
   get ownedByPtr(): NodeReference | null {
-    return this.#ownedByPtr;
+    return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this.#ownedByPtr;
+    const oldValue = this._ownedByPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1842,18 +1842,18 @@ export class ThreadCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#ownedByPtr = value;
+    this._ownedByPtr = value;
   }
-  #ownedByPtr: NodeReference | null;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Cursor.status
    */
   get status(): CursorStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: CursorStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1863,18 +1863,18 @@ export class ThreadCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: CursorStatus;
+  _status: CursorStatus;
 
   /**
    * Cursor.activeAt
    */
   get activeAt(): Temporal.ZonedDateTime | null {
-    return this.#activeAt;
+    return this._activeAt;
   }
   set activeAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#activeAt;
+    const oldValue = this._activeAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -1884,9 +1884,9 @@ export class ThreadCursor extends Cursor {
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#activeAt = value;
+    this._activeAt = value;
   }
-  #activeAt: Temporal.ZonedDateTime | null;
+  _activeAt: Temporal.ZonedDateTime | null;
 
   constructor(options: {
     id?: string;
@@ -1975,7 +1975,7 @@ export class ThreadCursor extends Cursor {
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this.#ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* CursorStatus.CREATED */;
@@ -1983,9 +1983,9 @@ export class ThreadCursor extends Cursor {
     if (_status === null) {
       throw new Error(`ThreadCursor.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _activeAt = options.activeAt ?? null;
-    this.#activeAt = _activeAt;
+    this._activeAt = _activeAt;
 
     // identity
     if (options.id == null) {
@@ -2021,16 +2021,16 @@ export class ThreadCursor extends Cursor {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.#activeAt === other.#activeAt)) {
+    if (!(this._activeAt === other._activeAt)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.#ownedByPtr?.id === other.#ownedByPtr?.id)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -2051,15 +2051,15 @@ export class ThreadCursor extends Cursor {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.#status) & 0xffffffff;
-    if (this.#activeAt !== null) {
-      h = (h * 31 + hashString(this.#activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
+    if (this._activeAt !== null) {
+      h = (h * 31 + hashString(this._activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
-    if (this.#ownedByPtr !== null) {
-      h = (h * 31 + hashString(this.#ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr !== null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -2137,7 +2137,7 @@ export class ThreadCursor extends Cursor {
 
   static __packValue__(object: ThreadCursor): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 112800;
+    objectValue["1"] = 105800;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2166,12 +2166,12 @@ export class ThreadCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.#ownedByPtr != null) {
-      objectValue["28"] = object.#ownedByPtr.toValue();
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["101"] = object.#status;
-    if (object.#activeAt != null) {
-      objectValue["110"] = object.#activeAt.toString({ timeZoneName: "never" });
+    objectValue["101"] = object._status;
+    if (object._activeAt != null) {
+      objectValue["110"] = object._activeAt.toString({ timeZoneName: "never" });
     }
     return objectValue;
   }
@@ -2271,7 +2271,7 @@ export class ThreadCursor extends Cursor {
   }
 
   static __packProto__(object: ThreadCursor): ThreadCursorProto {
-    const objectProto: Partial<ThreadCursorProto> = { metatype: 112800 };
+    const objectProto: Partial<ThreadCursorProto> = { metatype: 105800 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2300,12 +2300,12 @@ export class ThreadCursor extends Cursor {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.#ownedByPtr != null) {
-      objectProto.ownedByPtr = object.#ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.status = Number(object.#status) as CursorStatusProto;
-    if (object.#activeAt != null) {
-      objectProto.activeAt = packProtoTimestamp(object.#activeAt);
+    objectProto.status = Number(object._status) as CursorStatusProto;
+    if (object._activeAt != null) {
+      objectProto.activeAt = packProtoTimestamp(object._activeAt);
     }
     return objectProto as ThreadCursorProto;
   }
@@ -2443,4 +2443,4 @@ export class ThreadCursor extends Cursor {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THREAD_CURSOR, ThreadCursor);
-/* ==== DESTACK_GENERATED_END:NODE:112800 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105800 ==== */

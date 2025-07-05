@@ -306,7 +306,7 @@ import type {
   PointerOverEvent,
   PointerUpEvent,
 } from "@destack/language/interaction/pointer";
-import type { Action, ActionCardinality } from "@destack/language/logic/action";
+import type { Action } from "@destack/language/logic/action";
 import type {
   Cursor,
   CursorStatus,
@@ -314,6 +314,7 @@ import type {
   ScreenCursor,
   ThreadCursor,
 } from "@destack/language/logic/cursor";
+import type { Method, MethodCardinality } from "@destack/language/logic/method";
 import type { Route } from "@destack/language/logic/route";
 import type {
   DayOfWeek,
@@ -579,6 +580,7 @@ export type NodeTypeMapping = {
   [NodeType.MIDDLE_CLICK_EVENT]: MiddleClickEvent;
   [NodeType.DOUBLE_CLICK_EVENT]: DoubleClickEvent;
   [NodeType.WHEEL_EVENT]: WheelEvent;
+  [NodeType.METHOD]: Method;
   [NodeType.ACTION]: Action;
   [NodeType.CURSOR]: Cursor;
   [NodeType.EVENT_CURSOR]: EventCursor;
@@ -837,7 +839,7 @@ export type EnumTypeMapping = {
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper;
   [EnumType.MODEL_PROVIDER]: ModelProvider;
   [EnumType.MOUSE_BUTTON]: MouseButton;
-  [EnumType.ACTION_CARDINALITY]: ActionCardinality;
+  [EnumType.METHOD_CARDINALITY]: MethodCardinality;
   [EnumType.CURSOR_STATUS]: CursorStatus;
   [EnumType.DAY_OF_WEEK]: DayOfWeek;
   [EnumType.MONTH]: Month;

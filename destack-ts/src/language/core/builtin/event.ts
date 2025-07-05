@@ -214,10 +214,10 @@ export class CustomEventDefinition
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -227,9 +227,9 @@ export class CustomEventDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -240,10 +240,10 @@ export class CustomEventDefinition
    * CustomEventDefinition.baseType
    */
   get baseType(): NodeDefinitionReference | null {
-    return this.#baseType;
+    return this._baseType;
   }
   set baseType(value: NodeDefinitionReference | null) {
-    const oldValue = this.#baseType;
+    const oldValue = this._baseType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -253,18 +253,18 @@ export class CustomEventDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#baseType = value;
+    this._baseType = value;
   }
-  #baseType: NodeDefinitionReference | null;
+  _baseType: NodeDefinitionReference | null;
 
   /**
    * CustomEventDefinition.baseTraits
    */
   get baseTraits(): Array<NodeDefinitionReference> {
-    return this.#baseTraits;
+    return this._baseTraits;
   }
   set baseTraits(value: Array<NodeDefinitionReference>) {
-    const oldValue = this.#baseTraits;
+    const oldValue = this._baseTraits;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -274,18 +274,18 @@ export class CustomEventDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#baseTraits = value;
+    this._baseTraits = value;
   }
-  #baseTraits: Array<NodeDefinitionReference>;
+  _baseTraits: Array<NodeDefinitionReference>;
 
   /**
    * CustomEventDefinition.isAbstract
    */
   get isAbstract(): boolean {
-    return this.#isAbstract;
+    return this._isAbstract;
   }
   set isAbstract(value: boolean) {
-    const oldValue = this.#isAbstract;
+    const oldValue = this._isAbstract;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -295,9 +295,9 @@ export class CustomEventDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isAbstract = value;
+    this._isAbstract = value;
   }
-  #isAbstract: boolean;
+  _isAbstract: boolean;
 
   /**
    * IsSourceable.source
@@ -315,10 +315,10 @@ export class CustomEventDefinition
    * CustomEventDefinition.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -328,18 +328,18 @@ export class CustomEventDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * CustomEventDefinition.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -349,9 +349,9 @@ export class CustomEventDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -445,7 +445,7 @@ export class CustomEventDefinition
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -455,12 +455,12 @@ export class CustomEventDefinition
     }
     this.orderKey = _orderKey;
     let _baseType = options.baseType ?? null;
-    this.#baseType = _baseType;
+    this._baseType = _baseType;
     let _baseTraits = options.baseTraits ?? null;
     if (_baseTraits === null) {
       _baseTraits = [];
     }
-    this.#baseTraits = _baseTraits;
+    this._baseTraits = _baseTraits;
     let _isAbstract = options.isAbstract ?? null;
     if (_isAbstract === null) {
       _isAbstract = false;
@@ -468,7 +468,7 @@ export class CustomEventDefinition
     if (_isAbstract === null) {
       throw new Error(`CustomEventDefinition.isAbstract is required`);
     }
-    this.#isAbstract = _isAbstract;
+    this._isAbstract = _isAbstract;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -478,9 +478,9 @@ export class CustomEventDefinition
     if (_name === null) {
       throw new Error(`CustomEventDefinition.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -517,28 +517,28 @@ export class CustomEventDefinition
       return false;
     }
     if (
-      (this.#baseType == null) !== (other.#baseType == null) ||
-      (this.#baseType != null && !this.#baseType.equals(other.#baseType))
+      (this._baseType == null) !== (other._baseType == null) ||
+      (this._baseType != null && !this._baseType.equals(other._baseType))
     ) {
       return false;
     }
-    if (this.#baseTraits.length !== other.#baseTraits.length) {
+    if (this._baseTraits.length !== other._baseTraits.length) {
       return false;
     }
-    for (let i = 0; i < this.#baseTraits.length; i++) {
-      if (!this.#baseTraits[i].equals(other.#baseTraits[i])) {
+    for (let i = 0; i < this._baseTraits.length; i++) {
+      if (!this._baseTraits[i].equals(other._baseTraits[i])) {
         return false;
       }
     }
-    if (!(this.#isAbstract === other.#isAbstract)) {
+    if (!(this._isAbstract === other._isAbstract)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
@@ -548,14 +548,14 @@ export class CustomEventDefinition
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -577,18 +577,18 @@ export class CustomEventDefinition
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.#baseType !== null) {
-      h = (h * 31 + this.#baseType.hash()) & 0xffffffff;
+    if (this._baseType !== null) {
+      h = (h * 31 + this._baseType.hash()) & 0xffffffff;
     }
-    if (this.#baseTraits && this.#baseTraits.length > 0) {
-      for (const _item of this.#baseTraits) {
+    if (this._baseTraits && this._baseTraits.length > 0) {
+      for (const _item of this._baseTraits) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashBool(this.#isAbstract)) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashBool(this._isAbstract)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -596,8 +596,8 @@ export class CustomEventDefinition
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -705,31 +705,31 @@ export class CustomEventDefinition
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    if (object.#baseType != null) {
-      objectValue["40"] = object.#baseType.toValue();
+    if (object._baseType != null) {
+      objectValue["40"] = object._baseType.toValue();
     }
-    if (object.#baseTraits.length > 0) {
+    if (object._baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
-      for (const item of object.#baseTraits) {
+      for (const item of object._baseTraits) {
         packedBaseTraits.push(item.toValue());
       }
       objectValue["41"] = packedBaseTraits;
     }
-    objectValue["45"] = object.#isAbstract;
+    objectValue["45"] = object._isAbstract;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
     return objectValue;
   }
@@ -902,30 +902,30 @@ export class CustomEventDefinition
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    if (object.#baseType != null) {
-      objectProto.baseType = object.#baseType.toProto();
+    if (object._baseType != null) {
+      objectProto.baseType = object._baseType.toProto();
     }
-    if (object.#baseTraits) {
+    if (object._baseTraits) {
       const packedBaseTraits: any[] = [];
-      for (const item of object.#baseTraits) {
+      for (const item of object._baseTraits) {
         packedBaseTraits.push(item.toProto());
       }
       objectProto.baseTraits = packedBaseTraits;
     }
-    objectProto.isAbstract = object.#isAbstract;
+    objectProto.isAbstract = object._isAbstract;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
     return objectProto as CustomEventDefinitionProto;
   }

@@ -162,10 +162,10 @@ export class User
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -175,18 +175,18 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * User.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -196,18 +196,18 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * User.slug
    */
   get slug(): string {
-    return this.#slug;
+    return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this.#slug;
+    const oldValue = this._slug;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -217,18 +217,18 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#slug = value;
+    this._slug = value;
   }
-  #slug: string;
+  _slug: string;
 
   /**
    * User.status
    */
   get status(): UserStatus {
-    return this.#status;
+    return this._status;
   }
   set status(value: UserStatus) {
-    const oldValue = this.#status;
+    const oldValue = this._status;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -238,18 +238,18 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#status = value;
+    this._status = value;
   }
-  #status: UserStatus;
+  _status: UserStatus;
 
   /**
    * User.lastLoggedInAt
    */
   get lastLoggedInAt(): Temporal.ZonedDateTime | null {
-    return this.#lastLoggedInAt;
+    return this._lastLoggedInAt;
   }
   set lastLoggedInAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this.#lastLoggedInAt;
+    const oldValue = this._lastLoggedInAt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -259,18 +259,18 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#lastLoggedInAt = value;
+    this._lastLoggedInAt = value;
   }
-  #lastLoggedInAt: Temporal.ZonedDateTime | null;
+  _lastLoggedInAt: Temporal.ZonedDateTime | null;
 
   /**
    * User.isStaff
    */
   get isStaff(): boolean {
-    return this.#isStaff;
+    return this._isStaff;
   }
   set isStaff(value: boolean) {
-    const oldValue = this.#isStaff;
+    const oldValue = this._isStaff;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -280,9 +280,9 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isStaff = value;
+    this._isStaff = value;
   }
-  #isStaff: boolean;
+  _isStaff: boolean;
 
   /**
    * User.space
@@ -295,10 +295,10 @@ export class User
     return null;
   }
   get spacePtr(): NodeReference {
-    return this.#spacePtr;
+    return this._spacePtr;
   }
   set spacePtr(value: NodeReference) {
-    const oldValue = this.#spacePtr;
+    const oldValue = this._spacePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -308,9 +308,9 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#spacePtr = value;
+    this._spacePtr = value;
   }
-  #spacePtr: NodeReference;
+  _spacePtr: NodeReference;
 
   /**
    * User.handle
@@ -323,10 +323,10 @@ export class User
     return null;
   }
   get handlePtr(): NodeReference | null {
-    return this.#handlePtr;
+    return this._handlePtr;
   }
   set handlePtr(value: NodeReference | null) {
-    const oldValue = this.#handlePtr;
+    const oldValue = this._handlePtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -336,9 +336,9 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#handlePtr = value;
+    this._handlePtr = value;
   }
-  #handlePtr: NodeReference | null;
+  _handlePtr: NodeReference | null;
 
   /**
    * User.cursor
@@ -351,10 +351,10 @@ export class User
     return null;
   }
   get cursorPtr(): NodeReference | null {
-    return this.#cursorPtr;
+    return this._cursorPtr;
   }
   set cursorPtr(value: NodeReference | null) {
-    const oldValue = this.#cursorPtr;
+    const oldValue = this._cursorPtr;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -364,18 +364,18 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#cursorPtr = value;
+    this._cursorPtr = value;
   }
-  #cursorPtr: NodeReference | null;
+  _cursorPtr: NodeReference | null;
 
   /**
    * User.email
    */
   get email(): string | null {
-    return this.#email;
+    return this._email;
   }
   set email(value: string | null) {
-    const oldValue = this.#email;
+    const oldValue = this._email;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -385,18 +385,18 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#email = value;
+    this._email = value;
   }
-  #email: string | null;
+  _email: string | null;
 
   /**
    * User.passwordSalt
    */
   get passwordSalt(): Uint8Array | null {
-    return this.#passwordSalt;
+    return this._passwordSalt;
   }
   set passwordSalt(value: Uint8Array | null) {
-    const oldValue = this.#passwordSalt;
+    const oldValue = this._passwordSalt;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -406,18 +406,18 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#passwordSalt = value;
+    this._passwordSalt = value;
   }
-  #passwordSalt: Uint8Array | null;
+  _passwordSalt: Uint8Array | null;
 
   /**
    * User.passwordHash
    */
   get passwordHash(): Uint8Array | null {
-    return this.#passwordHash;
+    return this._passwordHash;
   }
   set passwordHash(value: Uint8Array | null) {
-    const oldValue = this.#passwordHash;
+    const oldValue = this._passwordHash;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -427,9 +427,9 @@ export class User
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#passwordHash = value;
+    this._passwordHash = value;
   }
-  #passwordHash: Uint8Array | null;
+  _passwordHash: Uint8Array | null;
 
   constructor(options: {
     id?: string;
@@ -521,17 +521,17 @@ export class User
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`User.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`User.slug is required`);
     }
-    this.#slug = _slug;
+    this._slug = _slug;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 2 /* UserStatus.CREATING */;
@@ -539,9 +539,9 @@ export class User
     if (_status === null) {
       throw new Error(`User.status is required`);
     }
-    this.#status = _status;
+    this._status = _status;
     let _lastLoggedInAt = options.lastLoggedInAt ?? null;
-    this.#lastLoggedInAt = _lastLoggedInAt;
+    this._lastLoggedInAt = _lastLoggedInAt;
     let _isStaff = options.isStaff ?? null;
     if (_isStaff === null) {
       _isStaff = false;
@@ -549,7 +549,7 @@ export class User
     if (_isStaff === null) {
       throw new Error(`User.isStaff is required`);
     }
-    this.#isStaff = _isStaff;
+    this._isStaff = _isStaff;
     let _space = options.space;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -557,23 +557,23 @@ export class User
     if (_space === null) {
       throw new Error(`User.space is required`);
     }
-    this.#spacePtr = _space;
+    this._spacePtr = _space;
     let _handle = options.handle ?? null;
     if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
       _handle = (_handle as Node).toRef();
     }
-    this.#handlePtr = _handle;
+    this._handlePtr = _handle;
     let _cursor = options.cursor ?? null;
     if (_cursor != null && _cursor.metatype != StructType.NODE_REFERENCE) {
       _cursor = (_cursor as Node).toRef();
     }
-    this.#cursorPtr = _cursor;
+    this._cursorPtr = _cursor;
     let _email = options.email ?? null;
-    this.#email = _email;
+    this._email = _email;
     let _passwordSalt = options.passwordSalt ?? null;
-    this.#passwordSalt = _passwordSalt;
+    this._passwordSalt = _passwordSalt;
     let _passwordHash = options.passwordHash ?? null;
-    this.#passwordHash = _passwordHash;
+    this._passwordHash = _passwordHash;
 
     // identity
     if (options.id == null) {
@@ -607,41 +607,41 @@ export class User
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
-    if (!(this.#slug === other.#slug)) {
+    if (!(this._slug === other._slug)) {
       return false;
     }
-    if (!(this.#status === other.#status)) {
+    if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.#lastLoggedInAt === other.#lastLoggedInAt)) {
+    if (!(this._lastLoggedInAt === other._lastLoggedInAt)) {
       return false;
     }
-    if (!(this.#isStaff === other.#isStaff)) {
+    if (!(this._isStaff === other._isStaff)) {
       return false;
     }
-    if (!(this.#spacePtr.id === other.#spacePtr.id)) {
+    if (!(this._spacePtr.id === other._spacePtr.id)) {
       return false;
     }
-    if (!(this.#handlePtr?.id === other.#handlePtr?.id)) {
+    if (!(this._handlePtr?.id === other._handlePtr?.id)) {
       return false;
     }
-    if (!(this.#cursorPtr?.id === other.#cursorPtr?.id)) {
+    if (!(this._cursorPtr?.id === other._cursorPtr?.id)) {
       return false;
     }
-    if (!(this.#email === other.#email)) {
+    if (!(this._email === other._email)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -663,33 +663,33 @@ export class User
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.#slug)) & 0xffffffff;
-    h = (h * 31 + this.#status) & 0xffffffff;
-    if (this.#lastLoggedInAt !== null) {
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    h = (h * 31 + hashString(this._slug)) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
+    if (this._lastLoggedInAt !== null) {
       h =
-        (h * 31 + hashString(this.#lastLoggedInAt.toString({ timeZoneName: "never" }))) &
+        (h * 31 + hashString(this._lastLoggedInAt.toString({ timeZoneName: "never" }))) &
         0xffffffff;
     }
-    h = (h * 31 + hashBool(this.#isStaff)) & 0xffffffff;
-    h = (h * 31 + hashString(this.#spacePtr.id)) & 0xffffffff;
-    if (this.#handlePtr !== null) {
-      h = (h * 31 + hashString(this.#handlePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashBool(this._isStaff)) & 0xffffffff;
+    h = (h * 31 + hashString(this._spacePtr.id)) & 0xffffffff;
+    if (this._handlePtr !== null) {
+      h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
     }
-    if (this.#cursorPtr !== null) {
-      h = (h * 31 + hashString(this.#cursorPtr.id)) & 0xffffffff;
+    if (this._cursorPtr !== null) {
+      h = (h * 31 + hashString(this._cursorPtr.id)) & 0xffffffff;
     }
-    if (this.#email !== null) {
-      h = (h * 31 + hashString(this.#email)) & 0xffffffff;
+    if (this._email !== null) {
+      h = (h * 31 + hashString(this._email)) & 0xffffffff;
     }
-    if (this.#passwordSalt !== null) {
-      h = (h * 31 + hashBytes(this.#passwordSalt)) & 0xffffffff;
+    if (this._passwordSalt !== null) {
+      h = (h * 31 + hashBytes(this._passwordSalt)) & 0xffffffff;
     }
-    if (this.#passwordHash !== null) {
-      h = (h * 31 + hashBytes(this.#passwordHash)) & 0xffffffff;
+    if (this._passwordHash !== null) {
+      h = (h * 31 + hashBytes(this._passwordHash)) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -785,35 +785,35 @@ export class User
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
-    objectValue["101"] = object.#name;
-    objectValue["102"] = object.#slug;
-    objectValue["110"] = object.#status;
-    if (object.#lastLoggedInAt != null) {
-      objectValue["111"] = object.#lastLoggedInAt.toString({ timeZoneName: "never" });
+    objectValue["101"] = object._name;
+    objectValue["102"] = object._slug;
+    objectValue["110"] = object._status;
+    if (object._lastLoggedInAt != null) {
+      objectValue["111"] = object._lastLoggedInAt.toString({ timeZoneName: "never" });
     }
-    objectValue["112"] = object.#isStaff;
-    objectValue["120"] = object.#spacePtr.toValue();
-    if (object.#handlePtr != null) {
-      objectValue["121"] = object.#handlePtr.toValue();
+    objectValue["112"] = object._isStaff;
+    objectValue["120"] = object._spacePtr.toValue();
+    if (object._handlePtr != null) {
+      objectValue["121"] = object._handlePtr.toValue();
     }
-    if (object.#cursorPtr != null) {
-      objectValue["122"] = object.#cursorPtr.toValue();
+    if (object._cursorPtr != null) {
+      objectValue["122"] = object._cursorPtr.toValue();
     }
-    if (object.#email != null) {
-      objectValue["130"] = object.#email;
+    if (object._email != null) {
+      objectValue["130"] = object._email;
     }
-    if (object.#passwordSalt != null) {
-      objectValue["131"] = base64Encode(object.#passwordSalt);
+    if (object._passwordSalt != null) {
+      objectValue["131"] = base64Encode(object._passwordSalt);
     }
-    if (object.#passwordHash != null) {
-      objectValue["132"] = base64Encode(object.#passwordHash);
+    if (object._passwordHash != null) {
+      objectValue["132"] = base64Encode(object._passwordHash);
     }
     return objectValue;
   }
@@ -971,34 +971,34 @@ export class User
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.name = object.#name;
-    objectProto.slug = object.#slug;
-    objectProto.status = Number(object.#status) as UserStatusProto;
-    if (object.#lastLoggedInAt != null) {
-      objectProto.lastLoggedInAt = packProtoTimestamp(object.#lastLoggedInAt);
+    objectProto.name = object._name;
+    objectProto.slug = object._slug;
+    objectProto.status = Number(object._status) as UserStatusProto;
+    if (object._lastLoggedInAt != null) {
+      objectProto.lastLoggedInAt = packProtoTimestamp(object._lastLoggedInAt);
     }
-    objectProto.isStaff = object.#isStaff;
-    objectProto.spacePtr = object.#spacePtr.toProto();
-    if (object.#handlePtr != null) {
-      objectProto.handlePtr = object.#handlePtr.toProto();
+    objectProto.isStaff = object._isStaff;
+    objectProto.spacePtr = object._spacePtr.toProto();
+    if (object._handlePtr != null) {
+      objectProto.handlePtr = object._handlePtr.toProto();
     }
-    if (object.#cursorPtr != null) {
-      objectProto.cursorPtr = object.#cursorPtr.toProto();
+    if (object._cursorPtr != null) {
+      objectProto.cursorPtr = object._cursorPtr.toProto();
     }
-    if (object.#email != null) {
-      objectProto.email = object.#email;
+    if (object._email != null) {
+      objectProto.email = object._email;
     }
-    if (object.#passwordSalt != null) {
-      objectProto.passwordSalt = object.#passwordSalt;
+    if (object._passwordSalt != null) {
+      objectProto.passwordSalt = object._passwordSalt;
     }
-    if (object.#passwordHash != null) {
-      objectProto.passwordHash = object.#passwordHash;
+    if (object._passwordHash != null) {
+      objectProto.passwordHash = object._passwordHash;
     }
     return objectProto as UserProto;
   }

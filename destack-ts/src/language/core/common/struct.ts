@@ -167,10 +167,10 @@ export class CustomStructDefinition
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   get customValues(): Map<string, Value> {
-    return this.#customValues;
+    return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this.#customValues;
+    const oldValue = this._customValues;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -180,9 +180,9 @@ export class CustomStructDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#customValues = value;
+    this._customValues = value;
   }
-  #customValues: Map<string, Value>;
+  _customValues: Map<string, Value>;
 
   /**
    * The absolute order key of this Node in its parent.
@@ -193,10 +193,10 @@ export class CustomStructDefinition
    * A custom Struct's prototype is the default template new CustomStruct instances are based on.
    */
   get prototype(): CustomStruct | null {
-    return this.#prototype;
+    return this._prototype;
   }
   set prototype(value: CustomStruct | null) {
-    const oldValue = this.#prototype;
+    const oldValue = this._prototype;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -206,18 +206,18 @@ export class CustomStructDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#prototype = value;
+    this._prototype = value;
   }
-  #prototype: CustomStruct | null;
+  _prototype: CustomStruct | null;
 
   /**
    * CustomStructDefinition.baseType
    */
   get baseType(): StructDefinitionReference | null {
-    return this.#baseType;
+    return this._baseType;
   }
   set baseType(value: StructDefinitionReference | null) {
-    const oldValue = this.#baseType;
+    const oldValue = this._baseType;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -227,18 +227,18 @@ export class CustomStructDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#baseType = value;
+    this._baseType = value;
   }
-  #baseType: StructDefinitionReference | null;
+  _baseType: StructDefinitionReference | null;
 
   /**
    * CustomStructDefinition.isFrozen
    */
   get isFrozen(): boolean {
-    return this.#isFrozen;
+    return this._isFrozen;
   }
   set isFrozen(value: boolean) {
-    const oldValue = this.#isFrozen;
+    const oldValue = this._isFrozen;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -248,9 +248,9 @@ export class CustomStructDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#isFrozen = value;
+    this._isFrozen = value;
   }
-  #isFrozen: boolean;
+  _isFrozen: boolean;
 
   /**
    * IsSourceable.source
@@ -268,10 +268,10 @@ export class CustomStructDefinition
    * CustomStructDefinition.name
    */
   get name(): string {
-    return this.#name;
+    return this._name;
   }
   set name(value: string) {
-    const oldValue = this.#name;
+    const oldValue = this._name;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -281,18 +281,18 @@ export class CustomStructDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#name = value;
+    this._name = value;
   }
-  #name: string;
+  _name: string;
 
   /**
    * CustomStructDefinition.icon
    */
   get icon(): Icon | null {
-    return this.#icon;
+    return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this.#icon;
+    const oldValue = this._icon;
     if (this._dirty == null) {
       this._dirty = {};
     }
@@ -302,9 +302,9 @@ export class CustomStructDefinition
     if (!this._session.dirty[this.id]) {
       this._session.dirty[this.id] = this;
     }
-    this.#icon = value;
+    this._icon = value;
   }
-  #icon: Icon | null;
+  _icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -401,7 +401,7 @@ export class CustomStructDefinition
     if (_customValues === null) {
       _customValues = new Map();
     }
-    this.#customValues = _customValues;
+    this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -411,9 +411,9 @@ export class CustomStructDefinition
     }
     this.orderKey = _orderKey;
     let _prototype = options.prototype ?? null;
-    this.#prototype = _prototype;
+    this._prototype = _prototype;
     let _baseType = options.baseType ?? null;
-    this.#baseType = _baseType;
+    this._baseType = _baseType;
     let _isFrozen = options.isFrozen ?? null;
     if (_isFrozen === null) {
       _isFrozen = false;
@@ -421,7 +421,7 @@ export class CustomStructDefinition
     if (_isFrozen === null) {
       throw new Error(`CustomStructDefinition.isFrozen is required`);
     }
-    this.#isFrozen = _isFrozen;
+    this._isFrozen = _isFrozen;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -431,9 +431,9 @@ export class CustomStructDefinition
     if (_name === null) {
       throw new Error(`CustomStructDefinition.name is required`);
     }
-    this.#name = _name;
+    this._name = _name;
     let _icon = options.icon ?? null;
-    this.#icon = _icon;
+    this._icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -470,26 +470,26 @@ export class CustomStructDefinition
       return false;
     }
     if (
-      (this.#prototype == null) !== (other.#prototype == null) ||
-      (this.#prototype != null && !this.#prototype.equals(other.#prototype))
+      (this._prototype == null) !== (other._prototype == null) ||
+      (this._prototype != null && !this._prototype.equals(other._prototype))
     ) {
       return false;
     }
     if (
-      (this.#baseType == null) !== (other.#baseType == null) ||
-      (this.#baseType != null && !this.#baseType.equals(other.#baseType))
+      (this._baseType == null) !== (other._baseType == null) ||
+      (this._baseType != null && !this._baseType.equals(other._baseType))
     ) {
       return false;
     }
-    if (!(this.#isFrozen === other.#isFrozen)) {
+    if (!(this._isFrozen === other._isFrozen)) {
       return false;
     }
-    if (!(this.#name === other.#name)) {
+    if (!(this._name === other._name)) {
       return false;
     }
     if (
-      (this.#icon == null) !== (other.#icon == null) ||
-      (this.#icon != null && !this.#icon.equals(other.#icon))
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
     ) {
       return false;
     }
@@ -499,14 +499,14 @@ export class CustomStructDefinition
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
-    if (Object.keys(this.#customValues).length !== Object.keys(other.#customValues).length) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
-    for (const key in this.#customValues) {
-      if (!(key in other.#customValues)) {
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
         return false;
       }
-      if (!this.#customValues.get(key)!.equals(other.#customValues.get(key)!)) {
+      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
         return false;
       }
     }
@@ -528,16 +528,16 @@ export class CustomStructDefinition
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.#prototype !== null) {
-      h = (h * 31 + this.#prototype.hash()) & 0xffffffff;
+    if (this._prototype !== null) {
+      h = (h * 31 + this._prototype.hash()) & 0xffffffff;
     }
-    if (this.#baseType !== null) {
-      h = (h * 31 + this.#baseType.hash()) & 0xffffffff;
+    if (this._baseType !== null) {
+      h = (h * 31 + this._baseType.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.#isFrozen)) & 0xffffffff;
-    h = (h * 31 + hashString(this.#name)) & 0xffffffff;
-    if (this.#icon !== null) {
-      h = (h * 31 + this.#icon.hash()) & 0xffffffff;
+    h = (h * 31 + hashBool(this._isFrozen)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._icon !== null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -548,8 +548,8 @@ export class CustomStructDefinition
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this.#customValues && Object.keys(this.#customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.#customValues)) {
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
@@ -660,27 +660,27 @@ export class CustomStructDefinition
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object.#customValues.size > 0) {
+    if (object._customValues.size > 0) {
       const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    if (object.#prototype != null) {
-      objectValue["40"] = object.#prototype.toValue();
+    if (object._prototype != null) {
+      objectValue["40"] = object._prototype.toValue();
     }
-    if (object.#baseType != null) {
-      objectValue["41"] = object.#baseType.toValue();
+    if (object._baseType != null) {
+      objectValue["41"] = object._baseType.toValue();
     }
-    objectValue["42"] = object.#isFrozen;
+    objectValue["42"] = object._isFrozen;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
-    objectValue["101"] = object.#name;
-    if (object.#icon != null) {
-      objectValue["102"] = object.#icon.toValue();
+    objectValue["101"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
     }
     return objectValue;
   }
@@ -860,26 +860,26 @@ export class CustomStructDefinition
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object.#customValues) {
+    if (object._customValues) {
       objectProto.customValues = {};
-      for (const [key, value] of object.#customValues) {
+      for (const [key, value] of object._customValues) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
     objectProto.orderKey = object.orderKey;
-    if (object.#prototype != null) {
-      objectProto.prototype = object.#prototype.toProto();
+    if (object._prototype != null) {
+      objectProto.prototype = object._prototype.toProto();
     }
-    if (object.#baseType != null) {
-      objectProto.baseType = object.#baseType.toProto();
+    if (object._baseType != null) {
+      objectProto.baseType = object._baseType.toProto();
     }
-    objectProto.isFrozen = object.#isFrozen;
+    objectProto.isFrozen = object._isFrozen;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    objectProto.name = object.#name;
-    if (object.#icon != null) {
-      objectProto.icon = object.#icon.toProto();
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
     }
     return objectProto as CustomStructDefinitionProto;
   }
