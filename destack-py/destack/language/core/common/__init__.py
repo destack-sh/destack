@@ -30,7 +30,7 @@ from .metric import (
     HistogramMeasurementEvent,
     HistogramMetric,
 )
-from .property import CustomProperty, CustomPropertyType
+from .property import CustomProperty, CustomPropertyGroup
 from .query import (
     Aggregation,
     AggregationType,
@@ -141,7 +141,7 @@ __all__ = [
     "CustomEnumDefinition",
     "CustomOption",
     "CustomProperty",
-    "CustomPropertyType",
+    "CustomPropertyGroup",
     "CustomStruct",
     "CustomStructDefinition",
     "Dimension",

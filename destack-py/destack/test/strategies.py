@@ -18,13 +18,13 @@ from destack.language import (
     NODE_TYPES,
     BuiltinObject,
     CustomProperty,
-    CustomPropertyType,
     EnumType,
     IconType,
     IsSpatial,
     NodeReference,
     NodeType,
     PrimitiveType,
+    PropertyType,
     ScalarType,
     StructType,
     Type,
@@ -343,7 +343,7 @@ def types(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
 def fields(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
     type_base_dict = draw_type_base_dict(draw, cardinalities)
     naive_base_dict = get_naive_object_strategy(CustomProperty)
-    naive_base_dict["type"] = st.just(CustomPropertyType.INPUT)
+    naive_base_dict["type"] = st.just(PropertyType.INPUT)
     combined_dict = {}
     for key in naive_base_dict:
         # prefer type info where set

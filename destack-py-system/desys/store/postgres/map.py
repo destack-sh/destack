@@ -25,16 +25,10 @@ from .core import (
 from .core import PostgresTable as PostgresTable
 
 DESTACK_BUILTIN_TABLE_PREFIX = "destack_"
-DESTACK_CUSTOM_RECORD_PREFIX = "destack_record_"
-DESTACK_CUSTOM_PROPERTY_PREFIX = "custom_"
 
 
 def get_table_name(node_ptr: NodeReference) -> str:
-    if node_ptr.type == NodeType.RECORD:
-        assert node_ptr.definition_id is not None, f"no definition_id for {node_ptr!r}"
-        return f"{DESTACK_CUSTOM_RECORD_PREFIX}{node_ptr.definition_id}"
-    else:
-        return f"{DESTACK_BUILTIN_TABLE_PREFIX}{node_ptr.type.name.lower()}"
+    return f"{DESTACK_BUILTIN_TABLE_PREFIX}{node_ptr.type.name.lower()}"
 
 
 def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:

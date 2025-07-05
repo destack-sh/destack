@@ -9,6 +9,7 @@ from destack.utils.uuid import UUID
 
 from .core.builtin.common import (
     ENUM_TYPES,
+    EnumType,
     NodeType,
     StoreType,
     StructType,
@@ -268,6 +269,24 @@ def finalize():
         from destack.language.core import PropertyDeclaration
         from destack.language.core.builtin.trait import AT_LEAST_ONE_TRAITS, INFECTIOUS_TRAITS
 
+        # check we have all the declared builtin objects
+        if len(StructType) != len(STRUCT_CLASS_BY_TYPE):
+            missing_struct_types = set(StructType) - set(STRUCT_CLASS_BY_TYPE.keys())
+            raise ValueError(
+                f"missing {len(missing_struct_types)} Structs: {list(missing_struct_types)}"
+            )
+        if len(TraitType) != len(TRAIT_CLASS_BY_TYPE):
+            missing_trait_types = set(TraitType) - set(TRAIT_CLASS_BY_TYPE.keys())
+            raise ValueError(
+                f"missing {len(missing_trait_types)} Traits: {list(missing_trait_types)}"
+            )
+        if len(NodeType) != len(NODE_CLASS_BY_TYPE):
+            missing_node_types = set(NodeType) - set(NODE_CLASS_BY_TYPE.keys())
+            raise ValueError(f"missing {len(missing_node_types)} Nodes: {list(missing_node_types)}")
+        if len(EnumType) != len(ENUM_CLASS_BY_TYPE):
+            missing_enum_types = set(EnumType) - set(ENUM_CLASS_BY_TYPE.keys())
+            raise ValueError(f"missing {len(missing_enum_types)} Enums: {list(missing_enum_types)}")
+
         # check traits
         for cls in NODE_CLASS_BY_TYPE.values():
             for traits in AT_LEAST_ONE_TRAITS:
@@ -300,7 +319,7 @@ def finalize():
                     base_parent_node_types = base_parent_property.node_types or ()
                     if NodeType.NODE in base_parent_node_types:
                         continue
-                    missing_node_types: list[NodeType | TraitType] = []
+                    missing_base_node_types: list[NodeType | TraitType] = []
                     for parent_node_type in parent_node_types:
                         if not any(
                             issubclass(
@@ -309,10 +328,10 @@ def finalize():
                             )
                             for base_parent_node_type in base_parent_node_types
                         ):
-                            missing_node_types.append(parent_node_type)
-                    if missing_node_types:
+                            missing_base_node_types.append(parent_node_type)
+                    if missing_base_node_types:
                         raise ValueError(
-                            f"{node_cls.__name__}.parent is not compatible with {base_cls.__name__}.parent (missing {[t.name for t in missing_node_types]})"
+                            f"{node_cls.__name__}.parent is not compatible with {base_cls.__name__}.parent (missing {[t.name for t in missing_base_node_types]})"
                         )
 
     _set_finalized()

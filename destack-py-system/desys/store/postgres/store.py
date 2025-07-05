@@ -33,7 +33,7 @@ from destack.utils.uuid import UUID
 from .client import pg_connection
 from .core import PostgresContext, PostgresTable
 from .edit import execute_change
-from .map import DESTACK_BUILTIN_TABLE_PREFIX, DESTACK_CUSTOM_RECORD_PREFIX, get_builtin_schema
+from .map import DESTACK_BUILTIN_TABLE_PREFIX, get_builtin_schema
 from .query import execute_query
 
 tracer = trace.get_tracer(__name__)
@@ -188,20 +188,10 @@ class PostgresStoreContext(PostgresContext):
     def get(self, definition: NodeDefinitionReference | NodeReference) -> PostgresTable:
         # map definitions to table names
         if isinstance(definition, NodeReference):
-            if definition.type == NodeType.RECORD:
-                assert definition.definition_id is not None, f"no definition_id for {definition!r}"
-                table_name = f"{DESTACK_CUSTOM_RECORD_PREFIX}{definition.definition_id}"
-            else:
-                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.type.name.lower()}"
+            table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.type.name.lower()}"
         elif isinstance(definition, NodeDefinitionReference):
-            if definition.node_type == NodeType.RECORD:
-                assert definition.definition_ptr is not None, (
-                    f"no definition_ptr for {definition!r}"
-                )
-                table_name = f"{DESTACK_CUSTOM_RECORD_PREFIX}{definition.definition_ptr.id}"
-            else:
-                assert definition.node_type is not None, f"no node_type for {definition!r}"
-                table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.node_type.name.lower()}"
+            assert definition.node_type is not None, f"no node_type for {definition!r}"
+            table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{definition.node_type.name.lower()}"
         else:
             assert_never(definition)
 

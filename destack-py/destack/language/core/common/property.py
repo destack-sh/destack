@@ -4,7 +4,6 @@ from ..builtin import (
     CascadeAction,
     EdgeType,
     Entity,
-    Enum,
     EnumType,
     IsArchivable,
     IsDeletable,
@@ -12,7 +11,7 @@ from ..builtin import (
     IsSpatial,
     IsTaggable,
     NodeType,
-    builtin_enum,
+    PropertyType,
     builtin_node,
     builtin_property,
     builtin_property_parent,
@@ -39,20 +38,12 @@ if TYPE_CHECKING:
         CustomTraitDefinition,
         Icon,
         IsCustomizable,
-        IsExtensible,
         Type,
         Value,
     )
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
-
-
-@builtin_enum(EnumType.CUSTOM_PROPERTY_TYPE)
-class CustomPropertyType(Enum):
-    MEMBER = 1, "Member", "Member", "fas fa-arrow-down"
-    INPUT = 2, "Input", "Input", "fas fa-arrow-down"
-    OUTPUT = 3, "Output", "Output", "fas fa-arrow-up"
 
 
 @builtin_node(NodeType.CUSTOM_PROPERTY)
@@ -68,12 +59,11 @@ class CustomProperty(
     A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
     """
 
-    parent: Union["IsCustomizable", "IsExtensible", "CustomProperty", None] = (
-        builtin_property_parent()
-    )
-    type: CustomPropertyType = builtin_property(100, default=CustomPropertyType.MEMBER)
+    parent: Union["IsCustomizable", None] = builtin_property_parent()
+    type: PropertyType = builtin_property(100, default=PropertyType.MEMBER)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
+    group: "CustomPropertyGroup | None" = builtin_property(105)
 
     # scalar
     cardinality: TypeCardinality = builtin_property(
@@ -94,7 +84,7 @@ class CustomProperty(
     ] = builtin_property(116, is_repr=True)
     key_type: Optional["Type"] = builtin_property(117, is_repr=True)  # for maps
 
-    # meta
+    # value
     value: Optional["Value"] = builtin_property(120)
     value_factory: Optional[ValueFactory] = builtin_property(121)
 
@@ -113,7 +103,6 @@ class CustomProperty(
     is_unique: bool | None = builtin_property(151)
     is_computed: bool | None = builtin_property(152)
     is_readonly: bool | None = builtin_property(153)
-    is_static: bool | None = builtin_property(84)
 
     def eq(self, value: Any) -> Condition:
         if value is None:
@@ -166,3 +155,20 @@ class CustomProperty(
 
     def desc(self) -> "Sort":
         return Sort.of(self, SortType.DESCENDING)
+
+
+@builtin_node(NodeType.CUSTOM_PROPERTY_GROUP)
+class CustomPropertyGroup(
+    IsSpatial,
+    IsArchivable,
+    IsDeletable,
+    IsSourceable,
+    Entity,
+):
+    """
+    A CustomPropertyGroup is a group of CustomProperties.
+    """
+
+    parent: Union["IsCustomizable", None] = builtin_property_parent()
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)

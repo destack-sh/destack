@@ -109,6 +109,35 @@ export interface ActionProto {
     cardinality: ActionCardinalityProto;
 }
 /**
+ * @generated from protobuf message symbol.destack.ActionDefinitionProto
+ */
+export interface ActionDefinitionProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional string description = 103
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 104
+     */
+    properties: PropertyDefinitionProto[];
+}
+/**
  * An Agent is an identity for a bot.
  *
  * @generated from protobuf message symbol.destack.AgentProto
@@ -929,6 +958,10 @@ export interface BuiltinObjectDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
      */
     properties: PropertyDefinitionProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PropertyGroupDefinitionProto groups = 106
+     */
+    groups: PropertyGroupDefinitionProto[];
 }
 /**
  * A Canvas is a container for only Shapes (other than that it's just a ContainerView).
@@ -2618,6 +2651,97 @@ export interface CustomOptionProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 24
+     */
+    archivedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: string order_key = 27
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto source_ptr = 60
+     */
+    sourcePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto group_ptr = 105
+     */
+    groupPtr?: NodeReferenceProto;
+}
+/**
+ * A CustomOptionGroup is a group of CustomOptions.
+ *
+ * @generated from protobuf message symbol.destack.CustomOptionGroupProto
+ */
+export interface CustomOptionGroupProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
+     */
+    materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 22
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
+     */
+    updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 24
+     */
+    archivedAt?: Timestamp;
+    /**
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
      */
     deletedAt?: Timestamp;
@@ -2713,13 +2837,9 @@ export interface CustomPropertyProto {
      */
     sourcePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional bool is_static = 84
+     * @generated from protobuf field: symbol.destack.PropertyTypeProto type = 100
      */
-    isStatic?: boolean;
-    /**
-     * @generated from protobuf field: symbol.destack.CustomPropertyTypeProto type = 100
-     */
-    type: CustomPropertyTypeProto;
+    type: PropertyTypeProto;
     /**
      * @generated from protobuf field: string name = 101
      */
@@ -2728,6 +2848,10 @@ export interface CustomPropertyProto {
      * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
      */
     icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto group_ptr = 105
+     */
+    groupPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: symbol.destack.TypeCardinalityProto cardinality = 110
      */
@@ -2808,6 +2932,89 @@ export interface CustomPropertyProto {
      * @generated from protobuf field: optional bool is_readonly = 153
      */
     isReadonly?: boolean;
+}
+/**
+ * A CustomPropertyGroup is a group of CustomProperties.
+ *
+ * @generated from protobuf message symbol.destack.CustomPropertyGroupProto
+ */
+export interface CustomPropertyGroupProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
+     */
+    materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
+     */
+    predecessorPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
+     */
+    templatePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
+     */
+    instanceRootPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 22
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
+     */
+    updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 24
+     */
+    archivedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: string order_key = 27
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto source_ptr = 60
+     */
+    sourcePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
 }
 /**
  * @generated from protobuf message symbol.destack.CustomStructProto
@@ -8671,6 +8878,35 @@ export interface MessageProto {
     nodePtr?: NodeReferenceProto;
 }
 /**
+ * @generated from protobuf message symbol.destack.MethodDefinitionProto
+ */
+export interface MethodDefinitionProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional string description = 103
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 104
+     */
+    properties: PropertyDefinitionProto[];
+}
+/**
  * An Entity that represents a Metric.
  *
  * @generated from protobuf message symbol.destack.MetricProto
@@ -8959,6 +9195,10 @@ export interface NodeDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
      */
     properties: PropertyDefinitionProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PropertyGroupDefinitionProto groups = 106
+     */
+    groups: PropertyGroupDefinitionProto[];
     /**
      * @generated from protobuf field: bool is_global = 110
      */
@@ -9598,6 +9838,35 @@ export interface OptionDefinitionProto {
      * @generated from protobuf field: symbol.destack.EnumTypeProto type = 100
      */
     type: EnumTypeProto;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional string description = 103
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: optional int64 group_id = 105 [jstype = JS_NUMBER]
+     */
+    groupId?: number;
+}
+/**
+ * @generated from protobuf message symbol.destack.OptionGroupDefinitionProto
+ */
+export interface OptionGroupDefinitionProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
+     */
+    id: number;
     /**
      * @generated from protobuf field: string name = 101
      */
@@ -10440,6 +10709,10 @@ export interface PropertyDefinitionProto {
      */
     id: number;
     /**
+     * @generated from protobuf field: symbol.destack.PropertyTypeProto type = 100
+     */
+    type: PropertyTypeProto;
+    /**
      * @generated from protobuf field: string name = 101
      */
     name: string;
@@ -10459,6 +10732,10 @@ export interface PropertyDefinitionProto {
      * @generated from protobuf field: symbol.destack.ObjectDefinitionReferenceProto original_object = 105
      */
     originalObject?: ObjectDefinitionReferenceProto;
+    /**
+     * @generated from protobuf field: optional int64 group_id = 106 [jstype = JS_NUMBER]
+     */
+    groupId?: number;
     /**
      * @generated from protobuf field: symbol.destack.TypeCardinalityProto cardinality = 110
      */
@@ -10540,17 +10817,9 @@ export interface PropertyDefinitionProto {
      */
     isUnique: boolean;
     /**
-     * @generated from protobuf field: bool is_computed = 152
-     */
-    isComputed: boolean;
-    /**
      * @generated from protobuf field: bool is_readonly = 153
      */
     isReadonly: boolean;
-    /**
-     * @generated from protobuf field: bool is_static = 154
-     */
-    isStatic: boolean;
     /**
      * @generated from protobuf field: bool is_wired = 155
      */
@@ -10575,6 +10844,31 @@ export interface PropertyDefinitionProto {
      * @generated from protobuf field: bool is_managed = 160
      */
     isManaged: boolean;
+}
+/**
+ * @generated from protobuf message symbol.destack.PropertyGroupDefinitionProto
+ */
+export interface PropertyGroupDefinitionProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional string description = 103
+     */
+    description?: string;
 }
 /**
  * @generated from protobuf message symbol.destack.PropertyReferenceProto
@@ -14222,6 +14516,10 @@ export interface StructDefinitionProto {
      */
     properties: PropertyDefinitionProto[];
     /**
+     * @generated from protobuf field: repeated symbol.destack.PropertyGroupDefinitionProto groups = 106
+     */
+    groups: PropertyGroupDefinitionProto[];
+    /**
      * @generated from protobuf field: bool is_frozen = 110
      */
     isFrozen: boolean;
@@ -15245,6 +15543,10 @@ export interface TraitDefinitionProto {
      */
     properties: PropertyDefinitionProto[];
     /**
+     * @generated from protobuf field: repeated symbol.destack.PropertyGroupDefinitionProto groups = 106
+     */
+    groups: PropertyGroupDefinitionProto[];
+    /**
      * @generated from protobuf field: string alias = 110
      */
     alias: string;
@@ -15609,6 +15911,26 @@ export interface TypeProto {
      * @generated from protobuf field: optional symbol.destack.NodeConstraintProto node_constraint = 143
      */
     nodeConstraint?: NodeConstraintProto;
+}
+/**
+ * The Universe of Destack.
+ * An abstract container for useful constants.
+ *
+ * @generated from protobuf message symbol.destack.UniverseProto
+ */
+export interface UniverseProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
 }
 /**
  * A User is a human using Destack.
@@ -16309,9 +16631,15 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "customOption";
         /**
-         * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 106
+         * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 120
          */
         customOption: CustomOptionProto;
+    } | {
+        oneofKind: "customOptionGroup";
+        /**
+         * @generated from protobuf field: symbol.destack.CustomOptionGroupProto custom_option_group = 121
+         */
+        customOptionGroup: CustomOptionGroupProto;
     } | {
         oneofKind: "gaugeMetric";
         /**
@@ -16351,9 +16679,15 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "customProperty";
         /**
-         * @generated from protobuf field: symbol.destack.CustomPropertyProto custom_property = 105
+         * @generated from protobuf field: symbol.destack.CustomPropertyProto custom_property = 110
          */
         customProperty: CustomPropertyProto;
+    } | {
+        oneofKind: "customPropertyGroup";
+        /**
+         * @generated from protobuf field: symbol.destack.CustomPropertyGroupProto custom_property_group = 111
+         */
+        customPropertyGroup: CustomPropertyGroupProto;
     } | {
         oneofKind: "customStructDefinition";
         /**
@@ -17011,73 +17345,73 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "client";
         /**
-         * @generated from protobuf field: symbol.destack.ClientProto client = 10700
+         * @generated from protobuf field: symbol.destack.ClientProto client = 11300
          */
         client: ClientProto;
     } | {
         oneofKind: "friendship";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipProto friendship = 10300
+         * @generated from protobuf field: symbol.destack.FriendshipProto friendship = 11100
          */
         friendship: FriendshipProto;
     } | {
         oneofKind: "friendshipInviteSentEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event = 10402
+         * @generated from protobuf field: symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event = 11202
          */
         friendshipInviteSentEvent: FriendshipInviteSentEventProto;
     } | {
         oneofKind: "friendshipInviteRescindedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 10403
+         * @generated from protobuf field: symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 11203
          */
         friendshipInviteRescindedEvent: FriendshipInviteRescindedEventProto;
     } | {
         oneofKind: "friendshipInviteAcceptedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 10404
+         * @generated from protobuf field: symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 11204
          */
         friendshipInviteAcceptedEvent: FriendshipInviteAcceptedEventProto;
     } | {
         oneofKind: "friendshipInviteRejectedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 10405
+         * @generated from protobuf field: symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 11205
          */
         friendshipInviteRejectedEvent: FriendshipInviteRejectedEventProto;
     } | {
         oneofKind: "friendshipInvite";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteProto friendship_invite = 10400
+         * @generated from protobuf field: symbol.destack.FriendshipInviteProto friendship_invite = 11200
          */
         friendshipInvite: FriendshipInviteProto;
     } | {
         oneofKind: "handle";
         /**
-         * @generated from protobuf field: symbol.destack.HandleProto handle = 10100
+         * @generated from protobuf field: symbol.destack.HandleProto handle = 10200
          */
         handle: HandleProto;
     } | {
         oneofKind: "organization";
         /**
-         * @generated from protobuf field: symbol.destack.OrganizationProto organization = 10500
+         * @generated from protobuf field: symbol.destack.OrganizationProto organization = 12000
          */
         organization: OrganizationProto;
     } | {
         oneofKind: "space";
         /**
-         * @generated from protobuf field: symbol.destack.SpaceProto space = 10000
+         * @generated from protobuf field: symbol.destack.SpaceProto space = 10100
          */
         space: SpaceProto;
     } | {
         oneofKind: "team";
         /**
-         * @generated from protobuf field: symbol.destack.TeamProto team = 10600
+         * @generated from protobuf field: symbol.destack.TeamProto team = 12100
          */
         team: TeamProto;
     } | {
         oneofKind: "user";
         /**
-         * @generated from protobuf field: symbol.destack.UserProto user = 10200
+         * @generated from protobuf field: symbol.destack.UserProto user = 11000
          */
         user: UserProto;
     } | {
@@ -17196,9 +17530,15 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "customOption";
         /**
-         * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 106
+         * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 120
          */
         customOption: CustomOptionProto;
+    } | {
+        oneofKind: "customOptionGroup";
+        /**
+         * @generated from protobuf field: symbol.destack.CustomOptionGroupProto custom_option_group = 121
+         */
+        customOptionGroup: CustomOptionGroupProto;
     } | {
         oneofKind: "gaugeMetric";
         /**
@@ -17220,9 +17560,15 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "customProperty";
         /**
-         * @generated from protobuf field: symbol.destack.CustomPropertyProto custom_property = 105
+         * @generated from protobuf field: symbol.destack.CustomPropertyProto custom_property = 110
          */
         customProperty: CustomPropertyProto;
+    } | {
+        oneofKind: "customPropertyGroup";
+        /**
+         * @generated from protobuf field: symbol.destack.CustomPropertyGroupProto custom_property_group = 111
+         */
+        customPropertyGroup: CustomPropertyGroupProto;
     } | {
         oneofKind: "customStructDefinition";
         /**
@@ -17508,49 +17854,49 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "client";
         /**
-         * @generated from protobuf field: symbol.destack.ClientProto client = 10700
+         * @generated from protobuf field: symbol.destack.ClientProto client = 11300
          */
         client: ClientProto;
     } | {
         oneofKind: "friendship";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipProto friendship = 10300
+         * @generated from protobuf field: symbol.destack.FriendshipProto friendship = 11100
          */
         friendship: FriendshipProto;
     } | {
         oneofKind: "friendshipInvite";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteProto friendship_invite = 10400
+         * @generated from protobuf field: symbol.destack.FriendshipInviteProto friendship_invite = 11200
          */
         friendshipInvite: FriendshipInviteProto;
     } | {
         oneofKind: "handle";
         /**
-         * @generated from protobuf field: symbol.destack.HandleProto handle = 10100
+         * @generated from protobuf field: symbol.destack.HandleProto handle = 10200
          */
         handle: HandleProto;
     } | {
         oneofKind: "organization";
         /**
-         * @generated from protobuf field: symbol.destack.OrganizationProto organization = 10500
+         * @generated from protobuf field: symbol.destack.OrganizationProto organization = 12000
          */
         organization: OrganizationProto;
     } | {
         oneofKind: "space";
         /**
-         * @generated from protobuf field: symbol.destack.SpaceProto space = 10000
+         * @generated from protobuf field: symbol.destack.SpaceProto space = 10100
          */
         space: SpaceProto;
     } | {
         oneofKind: "team";
         /**
-         * @generated from protobuf field: symbol.destack.TeamProto team = 10600
+         * @generated from protobuf field: symbol.destack.TeamProto team = 12100
          */
         team: TeamProto;
     } | {
         oneofKind: "user";
         /**
-         * @generated from protobuf field: symbol.destack.UserProto user = 10200
+         * @generated from protobuf field: symbol.destack.UserProto user = 11000
          */
         user: UserProto;
     } | {
@@ -18047,25 +18393,25 @@ export interface SomeEventProto {
     } | {
         oneofKind: "friendshipInviteSentEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event = 10402
+         * @generated from protobuf field: symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event = 11202
          */
         friendshipInviteSentEvent: FriendshipInviteSentEventProto;
     } | {
         oneofKind: "friendshipInviteRescindedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 10403
+         * @generated from protobuf field: symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 11203
          */
         friendshipInviteRescindedEvent: FriendshipInviteRescindedEventProto;
     } | {
         oneofKind: "friendshipInviteAcceptedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 10404
+         * @generated from protobuf field: symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 11204
          */
         friendshipInviteAcceptedEvent: FriendshipInviteAcceptedEventProto;
     } | {
         oneofKind: "friendshipInviteRejectedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 10405
+         * @generated from protobuf field: symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 11205
          */
         friendshipInviteRejectedEvent: FriendshipInviteRejectedEventProto;
     } | {
@@ -18660,27 +19006,6 @@ export enum CursorStatusProto {
     CURSOR_STATUS_COMPLETED = 53
 }
 /**
- * @generated from protobuf enum symbol.destack.CustomPropertyTypeProto
- */
-export enum CustomPropertyTypeProto {
-    /**
-     * @generated from protobuf enum value: CUSTOM_PROPERTY_TYPE_UNSPECIFIED = 0;
-     */
-    CUSTOM_PROPERTY_TYPE_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CUSTOM_PROPERTY_TYPE_MEMBER = 1;
-     */
-    CUSTOM_PROPERTY_TYPE_MEMBER = 1,
-    /**
-     * @generated from protobuf enum value: CUSTOM_PROPERTY_TYPE_INPUT = 2;
-     */
-    CUSTOM_PROPERTY_TYPE_INPUT = 2,
-    /**
-     * @generated from protobuf enum value: CUSTOM_PROPERTY_TYPE_OUTPUT = 3;
-     */
-    CUSTOM_PROPERTY_TYPE_OUTPUT = 3
-}
-/**
  * @generated from protobuf enum symbol.destack.DatabaseTypeProto
  */
 export enum DatabaseTypeProto {
@@ -19167,9 +19492,9 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_NUMBER_FORMAT = 65,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CUSTOM_PROPERTY_TYPE = 66;
+     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_TYPE = 66;
      */
-    ENUM_TYPE_CUSTOM_PROPERTY_TYPE = 66,
+    ENUM_TYPE_PROPERTY_TYPE = 66,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_EDGE_TYPE = 67;
      */
@@ -20830,13 +21155,21 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_CUSTOM_ENUM_DEFINITION = 104,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_PROPERTY = 105;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_PROPERTY = 110;
      */
-    NODE_TYPE_CUSTOM_PROPERTY = 105,
+    NODE_TYPE_CUSTOM_PROPERTY = 110,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_OPTION = 106;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_PROPERTY_GROUP = 111;
      */
-    NODE_TYPE_CUSTOM_OPTION = 106,
+    NODE_TYPE_CUSTOM_PROPERTY_GROUP = 111,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_OPTION = 120;
+     */
+    NODE_TYPE_CUSTOM_OPTION = 120,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_OPTION_GROUP = 121;
+     */
+    NODE_TYPE_CUSTOM_OPTION_GROUP = 121,
     /**
      * @generated from protobuf enum value: NODE_TYPE_RECORD = 1000;
      */
@@ -20874,57 +21207,61 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_MEASUREMENT_EVENT = 2004,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPACE = 10000;
+     * @generated from protobuf enum value: NODE_TYPE_UNIVERSE = 10000;
      */
-    NODE_TYPE_SPACE = 10000,
+    NODE_TYPE_UNIVERSE = 10000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_HANDLE = 10100;
+     * @generated from protobuf enum value: NODE_TYPE_SPACE = 10100;
      */
-    NODE_TYPE_HANDLE = 10100,
+    NODE_TYPE_SPACE = 10100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_USER = 10200;
+     * @generated from protobuf enum value: NODE_TYPE_HANDLE = 10200;
      */
-    NODE_TYPE_USER = 10200,
+    NODE_TYPE_HANDLE = 10200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP = 10300;
+     * @generated from protobuf enum value: NODE_TYPE_USER = 11000;
      */
-    NODE_TYPE_FRIENDSHIP = 10300,
+    NODE_TYPE_USER = 11000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE = 10400;
+     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP = 11100;
      */
-    NODE_TYPE_FRIENDSHIP_INVITE = 10400,
+    NODE_TYPE_FRIENDSHIP = 11100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_EVENT = 10401;
+     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE = 11200;
      */
-    NODE_TYPE_FRIENDSHIP_INVITE_EVENT = 10401,
+    NODE_TYPE_FRIENDSHIP_INVITE = 11200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_SENT_EVENT = 10402;
+     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_EVENT = 11201;
      */
-    NODE_TYPE_FRIENDSHIP_INVITE_SENT_EVENT = 10402,
+    NODE_TYPE_FRIENDSHIP_INVITE_EVENT = 11201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_RESCINDED_EVENT = 10403;
+     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_SENT_EVENT = 11202;
      */
-    NODE_TYPE_FRIENDSHIP_INVITE_RESCINDED_EVENT = 10403,
+    NODE_TYPE_FRIENDSHIP_INVITE_SENT_EVENT = 11202,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_ACCEPTED_EVENT = 10404;
+     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_RESCINDED_EVENT = 11203;
      */
-    NODE_TYPE_FRIENDSHIP_INVITE_ACCEPTED_EVENT = 10404,
+    NODE_TYPE_FRIENDSHIP_INVITE_RESCINDED_EVENT = 11203,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_REJECTED_EVENT = 10405;
+     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_ACCEPTED_EVENT = 11204;
      */
-    NODE_TYPE_FRIENDSHIP_INVITE_REJECTED_EVENT = 10405,
+    NODE_TYPE_FRIENDSHIP_INVITE_ACCEPTED_EVENT = 11204,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ORGANIZATION = 10500;
+     * @generated from protobuf enum value: NODE_TYPE_FRIENDSHIP_INVITE_REJECTED_EVENT = 11205;
      */
-    NODE_TYPE_ORGANIZATION = 10500,
+    NODE_TYPE_FRIENDSHIP_INVITE_REJECTED_EVENT = 11205,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TEAM = 10600;
+     * @generated from protobuf enum value: NODE_TYPE_CLIENT = 11300;
      */
-    NODE_TYPE_TEAM = 10600,
+    NODE_TYPE_CLIENT = 11300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CLIENT = 10700;
+     * @generated from protobuf enum value: NODE_TYPE_ORGANIZATION = 12000;
      */
-    NODE_TYPE_CLIENT = 10700,
+    NODE_TYPE_ORGANIZATION = 12000,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_TEAM = 12100;
+     */
+    NODE_TYPE_TEAM = 12100,
     /**
      * @generated from protobuf enum value: NODE_TYPE_BRANCH = 20000;
      */
@@ -21859,6 +22196,31 @@ export enum PropertyReferenceTypeProto {
     PROPERTY_REFERENCE_TYPE_CUSTOM = 2
 }
 /**
+ * @generated from protobuf enum symbol.destack.PropertyTypeProto
+ */
+export enum PropertyTypeProto {
+    /**
+     * @generated from protobuf enum value: PROPERTY_TYPE_UNSPECIFIED = 0;
+     */
+    PROPERTY_TYPE_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PROPERTY_TYPE_MEMBER = 1;
+     */
+    PROPERTY_TYPE_MEMBER = 1,
+    /**
+     * @generated from protobuf enum value: PROPERTY_TYPE_CONSTANT = 2;
+     */
+    PROPERTY_TYPE_CONSTANT = 2,
+    /**
+     * @generated from protobuf enum value: PROPERTY_TYPE_INPUT = 10;
+     */
+    PROPERTY_TYPE_INPUT = 10,
+    /**
+     * @generated from protobuf enum value: PROPERTY_TYPE_OUTPUT = 11;
+     */
+    PROPERTY_TYPE_OUTPUT = 11
+}
+/**
  * @generated from protobuf enum symbol.destack.QueryTypeProto
  */
 export enum QueryTypeProto {
@@ -22643,25 +23005,41 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_STRUCT_DEFINITION = 104,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_DEFINITION = 105;
+     * @generated from protobuf enum value: STRUCT_TYPE_ENUM_DEFINITION = 105;
      */
-    STRUCT_TYPE_PROPERTY_DEFINITION = 105,
+    STRUCT_TYPE_ENUM_DEFINITION = 105,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ENUM_DEFINITION = 106;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_DEFINITION = 110;
      */
-    STRUCT_TYPE_ENUM_DEFINITION = 106,
+    STRUCT_TYPE_PROPERTY_DEFINITION = 110,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_OPTION_DEFINITION = 107;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_GROUP_DEFINITION = 111;
      */
-    STRUCT_TYPE_OPTION_DEFINITION = 107,
+    STRUCT_TYPE_PROPERTY_GROUP_DEFINITION = 111,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PERMISSION_DEFINITION = 108;
+     * @generated from protobuf enum value: STRUCT_TYPE_OPTION_DEFINITION = 112;
      */
-    STRUCT_TYPE_PERMISSION_DEFINITION = 108,
+    STRUCT_TYPE_OPTION_DEFINITION = 112,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CONSTANT_DEFINITION = 109;
+     * @generated from protobuf enum value: STRUCT_TYPE_OPTION_GROUP_DEFINITION = 113;
      */
-    STRUCT_TYPE_CONSTANT_DEFINITION = 109,
+    STRUCT_TYPE_OPTION_GROUP_DEFINITION = 113,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_CONSTANT_DEFINITION = 120;
+     */
+    STRUCT_TYPE_CONSTANT_DEFINITION = 120,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_METHOD_DEFINITION = 130;
+     */
+    STRUCT_TYPE_METHOD_DEFINITION = 130,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_ACTION_DEFINITION = 131;
+     */
+    STRUCT_TYPE_ACTION_DEFINITION = 131,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_PERMISSION_DEFINITION = 140;
+     */
+    STRUCT_TYPE_PERMISSION_DEFINITION = 140,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 200;
      */
@@ -23588,6 +23966,91 @@ class ActionProto$Type extends MessageType<ActionProto> {
  * @generated MessageType for protobuf message symbol.destack.ActionProto
  */
 export const ActionProto = new ActionProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
+    constructor() {
+        super("symbol.destack.ActionDefinitionProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+        ]);
+    }
+    create(value?: PartialMessage<ActionDefinitionProto>): ActionDefinitionProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.name = "";
+        message.properties = [];
+        if (value !== undefined)
+            reflectionMergePartial<ActionDefinitionProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ActionDefinitionProto): ActionDefinitionProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 103:
+                    message.description = reader.string();
+                    break;
+                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 104:
+                    message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ActionDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 103; */
+        if (message.description !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated symbol.destack.PropertyDefinitionProto properties = 104; */
+        for (let i = 0; i < message.properties.length; i++)
+            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.ActionDefinitionProto
+ */
+export const ActionDefinitionProto = new ActionDefinitionProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AgentProto$Type extends MessageType<AgentProto> {
     constructor() {
@@ -25374,7 +25837,8 @@ class BuiltinObjectDefinitionProto$Type extends MessageType<BuiltinObjectDefinit
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 106, name: "groups", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyGroupDefinitionProto }
         ]);
     }
     create(value?: PartialMessage<BuiltinObjectDefinitionProto>): BuiltinObjectDefinitionProto {
@@ -25383,6 +25847,7 @@ class BuiltinObjectDefinitionProto$Type extends MessageType<BuiltinObjectDefinit
         message.id = 0;
         message.name = "";
         message.properties = [];
+        message.groups = [];
         if (value !== undefined)
             reflectionMergePartial<BuiltinObjectDefinitionProto>(this, message, value);
         return message;
@@ -25409,6 +25874,9 @@ class BuiltinObjectDefinitionProto$Type extends MessageType<BuiltinObjectDefinit
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.destack.PropertyGroupDefinitionProto groups */ 106:
+                    message.groups.push(PropertyGroupDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25440,6 +25908,9 @@ class BuiltinObjectDefinitionProto$Type extends MessageType<BuiltinObjectDefinit
         /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.PropertyGroupDefinitionProto groups = 106; */
+        for (let i = 0; i < message.groups.length; i++)
+            PropertyGroupDefinitionProto.internalBinaryWrite(message.groups[i], writer.tag(106, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29125,11 +29596,13 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "icon", kind: "message", T: () => IconProto }
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 105, name: "group_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
     create(value?: PartialMessage<CustomOptionProto>): CustomOptionProto {
@@ -29187,6 +29660,9 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
+                case /* optional google.protobuf.Timestamp archived_at */ 24:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 25:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
@@ -29201,6 +29677,9 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
                     break;
                 case /* optional symbol.destack.IconProto icon */ 102:
                     message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto group_ptr */ 105:
+                    message.groupPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.groupPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -29253,6 +29732,189 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 24; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* string order_key = 27; */
+        if (message.orderKey !== "")
+            writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.destack.NodeReferenceProto source_ptr = 60; */
+        if (message.sourcePtr)
+            NodeReferenceProto.internalBinaryWrite(message.sourcePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto group_ptr = 105; */
+        if (message.groupPtr)
+            NodeReferenceProto.internalBinaryWrite(message.groupPtr, writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.CustomOptionProto
+ */
+export const CustomOptionProto = new CustomOptionProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CustomOptionGroupProto$Type extends MessageType<CustomOptionGroupProto> {
+    constructor() {
+        super("symbol.destack.CustomOptionGroupProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto }
+        ]);
+    }
+    create(value?: PartialMessage<CustomOptionGroupProto>): CustomOptionGroupProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.materialization = 0;
+        message.orderKey = "";
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<CustomOptionGroupProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomOptionGroupProto): CustomOptionGroupProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* symbol.destack.MaterializationProto materialization */ 10:
+                    message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 22:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
+                    message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 24:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* string order_key */ 27:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto source_ptr */ 60:
+                    message.sourcePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CustomOptionGroupProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MaterializationProto materialization = 10; */
+        if (message.materialization !== 0)
+            writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 22; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
+        if (message.updatedByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 24; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp deleted_at = 25; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
@@ -29275,9 +29937,9 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.CustomOptionProto
+ * @generated MessageType for protobuf message symbol.destack.CustomOptionGroupProto
  */
-export const CustomOptionProto = new CustomOptionProto$Type();
+export const CustomOptionGroupProto = new CustomOptionGroupProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
     constructor() {
@@ -29299,10 +29961,10 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
             { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 84, name: "is_static", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.CustomPropertyTypeProto", CustomPropertyTypeProto] },
+            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.PropertyTypeProto", PropertyTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 105, name: "group_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.TypeCardinalityProto", TypeCardinalityProto] },
             { no: 111, name: "scalar_type", kind: "enum", T: () => ["symbol.destack.ScalarTypeProto", ScalarTypeProto] },
             { no: 112, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.destack.PrimitiveTypeProto", PrimitiveTypeProto] },
@@ -29395,10 +30057,7 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
                 case /* optional symbol.destack.NodeReferenceProto source_ptr */ 60:
                     message.sourcePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
                     break;
-                case /* optional bool is_static */ 84:
-                    message.isStatic = reader.bool();
-                    break;
-                case /* symbol.destack.CustomPropertyTypeProto type */ 100:
+                case /* symbol.destack.PropertyTypeProto type */ 100:
                     message.type = reader.int32();
                     break;
                 case /* string name */ 101:
@@ -29406,6 +30065,9 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
                     break;
                 case /* optional symbol.destack.IconProto icon */ 102:
                     message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto group_ptr */ 105:
+                    message.groupPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.groupPtr);
                     break;
                 case /* symbol.destack.TypeCardinalityProto cardinality */ 110:
                     message.cardinality = reader.int32();
@@ -29530,10 +30192,7 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
         /* optional symbol.destack.NodeReferenceProto source_ptr = 60; */
         if (message.sourcePtr)
             NodeReferenceProto.internalBinaryWrite(message.sourcePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_static = 84; */
-        if (message.isStatic !== undefined)
-            writer.tag(84, WireType.Varint).bool(message.isStatic);
-        /* symbol.destack.CustomPropertyTypeProto type = 100; */
+        /* symbol.destack.PropertyTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
         /* string name = 101; */
@@ -29542,6 +30201,9 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
         /* optional symbol.destack.IconProto icon = 102; */
         if (message.icon)
             IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto group_ptr = 105; */
+        if (message.groupPtr)
+            NodeReferenceProto.internalBinaryWrite(message.groupPtr, writer.tag(105, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.TypeCardinalityProto cardinality = 110; */
         if (message.cardinality !== 0)
             writer.tag(110, WireType.Varint).int32(message.cardinality);
@@ -29612,6 +30274,183 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
  * @generated MessageType for protobuf message symbol.destack.CustomPropertyProto
  */
 export const CustomPropertyProto = new CustomPropertyProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CustomPropertyGroupProto$Type extends MessageType<CustomPropertyGroupProto> {
+    constructor() {
+        super("symbol.destack.CustomPropertyGroupProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto }
+        ]);
+    }
+    create(value?: PartialMessage<CustomPropertyGroupProto>): CustomPropertyGroupProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.materialization = 0;
+        message.orderKey = "";
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<CustomPropertyGroupProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomPropertyGroupProto): CustomPropertyGroupProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* symbol.destack.MaterializationProto materialization */ 10:
+                    message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
+                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
+                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
+                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 22:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
+                    message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 24:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* string order_key */ 27:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto source_ptr */ 60:
+                    message.sourcePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CustomPropertyGroupProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MaterializationProto materialization = 10; */
+        if (message.materialization !== 0)
+            writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
+        if (message.predecessorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
+        if (message.templatePtr)
+            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
+        if (message.instanceRootPtr)
+            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 22; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
+        if (message.updatedByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 24; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* string order_key = 27; */
+        if (message.orderKey !== "")
+            writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.destack.NodeReferenceProto source_ptr = 60; */
+        if (message.sourcePtr)
+            NodeReferenceProto.internalBinaryWrite(message.sourcePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.CustomPropertyGroupProto
+ */
+export const CustomPropertyGroupProto = new CustomPropertyGroupProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CustomStructProto$Type extends MessageType<CustomStructProto> {
     constructor() {
@@ -43063,6 +43902,91 @@ class MessageProto$Type extends MessageType<MessageProto> {
  */
 export const MessageProto = new MessageProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
+    constructor() {
+        super("symbol.destack.MethodDefinitionProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+        ]);
+    }
+    create(value?: PartialMessage<MethodDefinitionProto>): MethodDefinitionProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.name = "";
+        message.properties = [];
+        if (value !== undefined)
+            reflectionMergePartial<MethodDefinitionProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MethodDefinitionProto): MethodDefinitionProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 103:
+                    message.description = reader.string();
+                    break;
+                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 104:
+                    message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: MethodDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 103; */
+        if (message.description !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated symbol.destack.PropertyDefinitionProto properties = 104; */
+        for (let i = 0; i < message.properties.length; i++)
+            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.MethodDefinitionProto
+ */
+export const MethodDefinitionProto = new MethodDefinitionProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class MetricProto$Type extends MessageType<MetricProto> {
     constructor() {
         super("symbol.destack.MetricProto", [
@@ -43698,6 +44622,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 104, name: "primary_store_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StoreTypeProto", StoreTypeProto] },
             { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 106, name: "groups", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyGroupDefinitionProto },
             { no: 110, name: "is_global", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 111, name: "is_spatial", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 112, name: "is_abstract", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -43724,6 +44649,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.name = "";
         message.primaryStoreTypes = [];
         message.properties = [];
+        message.groups = [];
         message.isGlobal = false;
         message.isSpatial = false;
         message.isAbstract = false;
@@ -43774,6 +44700,9 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.destack.PropertyGroupDefinitionProto groups */ 106:
+                    message.groups.push(PropertyGroupDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* bool is_global */ 110:
                     message.isGlobal = reader.bool();
@@ -43899,6 +44828,9 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.PropertyGroupDefinitionProto groups = 106; */
+        for (let i = 0; i < message.groups.length; i++)
+            PropertyGroupDefinitionProto.internalBinaryWrite(message.groups[i], writer.tag(106, WireType.LengthDelimited).fork(), options).join();
         /* bool is_global = 110; */
         if (message.isGlobal !== false)
             writer.tag(110, WireType.Varint).bool(message.isGlobal);
@@ -45362,7 +46294,8 @@ class OptionDefinitionProto$Type extends MessageType<OptionDefinitionProto> {
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EnumTypeProto", EnumTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
-            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 105, name: "group_id", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<OptionDefinitionProto>): OptionDefinitionProto {
@@ -45398,6 +46331,9 @@ class OptionDefinitionProto$Type extends MessageType<OptionDefinitionProto> {
                 case /* optional string description */ 103:
                     message.description = reader.string();
                     break;
+                case /* optional int64 group_id = 105 [jstype = JS_NUMBER] */ 105:
+                    message.groupId = reader.int64().toNumber();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -45428,6 +46364,9 @@ class OptionDefinitionProto$Type extends MessageType<OptionDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* optional int64 group_id = 105 [jstype = JS_NUMBER]; */
+        if (message.groupId !== undefined)
+            writer.tag(105, WireType.Varint).int64(message.groupId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -45438,6 +46377,83 @@ class OptionDefinitionProto$Type extends MessageType<OptionDefinitionProto> {
  * @generated MessageType for protobuf message symbol.destack.OptionDefinitionProto
  */
 export const OptionDefinitionProto = new OptionDefinitionProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class OptionGroupDefinitionProto$Type extends MessageType<OptionGroupDefinitionProto> {
+    constructor() {
+        super("symbol.destack.OptionGroupDefinitionProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<OptionGroupDefinitionProto>): OptionGroupDefinitionProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<OptionGroupDefinitionProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: OptionGroupDefinitionProto): OptionGroupDefinitionProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 103:
+                    message.description = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: OptionGroupDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 103; */
+        if (message.description !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.description);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.OptionGroupDefinitionProto
+ */
+export const OptionGroupDefinitionProto = new OptionGroupDefinitionProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class OrganizationProto$Type extends MessageType<OrganizationProto> {
     constructor() {
@@ -47339,11 +48355,13 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         super("symbol.destack.PropertyDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.PropertyTypeProto", PropertyTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 104, name: "object", kind: "message", T: () => ObjectDefinitionReferenceProto },
             { no: 105, name: "original_object", kind: "message", T: () => ObjectDefinitionReferenceProto },
+            { no: 106, name: "group_id", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.TypeCardinalityProto", TypeCardinalityProto] },
             { no: 111, name: "scalar_type", kind: "enum", T: () => ["symbol.destack.ScalarTypeProto", ScalarTypeProto] },
             { no: 112, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.destack.PrimitiveTypeProto", PrimitiveTypeProto] },
@@ -47364,9 +48382,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
             { no: 145, name: "cascade", kind: "enum", opt: true, T: () => ["symbol.destack.CascadeActionProto", CascadeActionProto] },
             { no: 150, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 151, name: "is_unique", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 152, name: "is_computed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 153, name: "is_readonly", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 154, name: "is_static", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 155, name: "is_wired", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 156, name: "is_stored", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 157, name: "is_repr", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -47379,6 +48395,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
+        message.type = 0;
         message.name = "";
         message.cardinality = 0;
         message.scalarType = 0;
@@ -47387,9 +48404,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         message.nodeIsSpatial = false;
         message.isRequired = false;
         message.isUnique = false;
-        message.isComputed = false;
         message.isReadonly = false;
-        message.isStatic = false;
         message.isWired = false;
         message.isStored = false;
         message.isRepr = false;
@@ -47411,6 +48426,9 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
                     message.id = reader.int64().toNumber();
                     break;
+                case /* symbol.destack.PropertyTypeProto type */ 100:
+                    message.type = reader.int32();
+                    break;
                 case /* string name */ 101:
                     message.name = reader.string();
                     break;
@@ -47425,6 +48443,9 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                     break;
                 case /* symbol.destack.ObjectDefinitionReferenceProto original_object */ 105:
                     message.originalObject = ObjectDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.originalObject);
+                    break;
+                case /* optional int64 group_id = 106 [jstype = JS_NUMBER] */ 106:
+                    message.groupId = reader.int64().toNumber();
                     break;
                 case /* symbol.destack.TypeCardinalityProto cardinality */ 110:
                     message.cardinality = reader.int32();
@@ -47486,14 +48507,8 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* bool is_unique */ 151:
                     message.isUnique = reader.bool();
                     break;
-                case /* bool is_computed */ 152:
-                    message.isComputed = reader.bool();
-                    break;
                 case /* bool is_readonly */ 153:
                     message.isReadonly = reader.bool();
-                    break;
-                case /* bool is_static */ 154:
-                    message.isStatic = reader.bool();
                     break;
                 case /* bool is_wired */ 155:
                     message.isWired = reader.bool();
@@ -47531,6 +48546,9 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* int64 id = 2 [jstype = JS_NUMBER]; */
         if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
+        /* symbol.destack.PropertyTypeProto type = 100; */
+        if (message.type !== 0)
+            writer.tag(100, WireType.Varint).int32(message.type);
         /* string name = 101; */
         if (message.name !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.name);
@@ -47546,6 +48564,9 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* symbol.destack.ObjectDefinitionReferenceProto original_object = 105; */
         if (message.originalObject)
             ObjectDefinitionReferenceProto.internalBinaryWrite(message.originalObject, writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 group_id = 106 [jstype = JS_NUMBER]; */
+        if (message.groupId !== undefined)
+            writer.tag(106, WireType.Varint).int64(message.groupId);
         /* symbol.destack.TypeCardinalityProto cardinality = 110; */
         if (message.cardinality !== 0)
             writer.tag(110, WireType.Varint).int32(message.cardinality);
@@ -47606,15 +48627,9 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* bool is_unique = 151; */
         if (message.isUnique !== false)
             writer.tag(151, WireType.Varint).bool(message.isUnique);
-        /* bool is_computed = 152; */
-        if (message.isComputed !== false)
-            writer.tag(152, WireType.Varint).bool(message.isComputed);
         /* bool is_readonly = 153; */
         if (message.isReadonly !== false)
             writer.tag(153, WireType.Varint).bool(message.isReadonly);
-        /* bool is_static = 154; */
-        if (message.isStatic !== false)
-            writer.tag(154, WireType.Varint).bool(message.isStatic);
         /* bool is_wired = 155; */
         if (message.isWired !== false)
             writer.tag(155, WireType.Varint).bool(message.isWired);
@@ -47643,6 +48658,83 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
  * @generated MessageType for protobuf message symbol.destack.PropertyDefinitionProto
  */
 export const PropertyDefinitionProto = new PropertyDefinitionProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PropertyGroupDefinitionProto$Type extends MessageType<PropertyGroupDefinitionProto> {
+    constructor() {
+        super("symbol.destack.PropertyGroupDefinitionProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<PropertyGroupDefinitionProto>): PropertyGroupDefinitionProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<PropertyGroupDefinitionProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PropertyGroupDefinitionProto): PropertyGroupDefinitionProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 103:
+                    message.description = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PropertyGroupDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 103; */
+        if (message.description !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.description);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.PropertyGroupDefinitionProto
+ */
+export const PropertyGroupDefinitionProto = new PropertyGroupDefinitionProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PropertyReferenceProto$Type extends MessageType<PropertyReferenceProto> {
     constructor() {
@@ -56094,6 +57186,7 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 106, name: "groups", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyGroupDefinitionProto },
             { no: 110, name: "is_frozen", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 111, name: "is_abstract", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 112, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -56110,6 +57203,7 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
         message.type = 0;
         message.name = "";
         message.properties = [];
+        message.groups = [];
         message.isFrozen = false;
         message.isAbstract = false;
         message.isExtensible = false;
@@ -56145,6 +57239,9 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.destack.PropertyGroupDefinitionProto groups */ 106:
+                    message.groups.push(PropertyGroupDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* bool is_frozen */ 110:
                     message.isFrozen = reader.bool();
@@ -56212,6 +57309,9 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
         /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.PropertyGroupDefinitionProto groups = 106; */
+        for (let i = 0; i < message.groups.length; i++)
+            PropertyGroupDefinitionProto.internalBinaryWrite(message.groups[i], writer.tag(106, WireType.LengthDelimited).fork(), options).join();
         /* bool is_frozen = 110; */
         if (message.isFrozen !== false)
             writer.tag(110, WireType.Varint).bool(message.isFrozen);
@@ -58458,6 +59558,7 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 106, name: "groups", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyGroupDefinitionProto },
             { no: 110, name: "alias", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
@@ -58471,6 +59572,7 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         message.type = 0;
         message.name = "";
         message.properties = [];
+        message.groups = [];
         message.alias = "";
         message.isExtensible = false;
         message.traits = [];
@@ -58504,6 +59606,9 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.destack.PropertyGroupDefinitionProto groups */ 106:
+                    message.groups.push(PropertyGroupDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* string alias */ 110:
                     message.alias = reader.string();
@@ -58558,6 +59663,9 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.PropertyGroupDefinitionProto groups = 106; */
+        for (let i = 0; i < message.groups.length; i++)
+            PropertyGroupDefinitionProto.internalBinaryWrite(message.groups[i], writer.tag(106, WireType.LengthDelimited).fork(), options).join();
         /* string alias = 110; */
         if (message.alias !== "")
             writer.tag(110, WireType.LengthDelimited).string(message.alias);
@@ -59392,6 +60500,68 @@ class TypeProto$Type extends MessageType<TypeProto> {
  * @generated MessageType for protobuf message symbol.destack.TypeProto
  */
 export const TypeProto = new TypeProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class UniverseProto$Type extends MessageType<UniverseProto> {
+    constructor() {
+        super("symbol.destack.UniverseProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<UniverseProto>): UniverseProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        if (value !== undefined)
+            reflectionMergePartial<UniverseProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UniverseProto): UniverseProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: UniverseProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.UniverseProto
+ */
+export const UniverseProto = new UniverseProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UserProto$Type extends MessageType<UserProto> {
     constructor() {
@@ -61057,14 +62227,16 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 2002, name: "change_event", kind: "message", oneof: "node", T: () => ChangeEventProto },
             { no: 2003, name: "query_event", kind: "message", oneof: "node", T: () => QueryEventProto },
             { no: 104, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
-            { no: 106, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
+            { no: 120, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
+            { no: 121, name: "custom_option_group", kind: "message", oneof: "node", T: () => CustomOptionGroupProto },
             { no: 92000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
             { no: 92001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
             { no: 92100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
             { no: 92101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
             { no: 92200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
             { no: 92201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
-            { no: 105, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
+            { no: 110, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
+            { no: 111, name: "custom_property_group", kind: "message", oneof: "node", T: () => CustomPropertyGroupProto },
             { no: 103, name: "custom_struct_definition", kind: "message", oneof: "node", T: () => CustomStructDefinitionProto },
             { no: 30502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
             { no: 30503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
@@ -61174,18 +62346,18 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 120300, name: "star", kind: "message", oneof: "node", T: () => StarProto },
             { no: 120000, name: "thread", kind: "message", oneof: "node", T: () => ThreadProto },
             { no: 30600, name: "agent", kind: "message", oneof: "node", T: () => AgentProto },
-            { no: 10700, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
-            { no: 10300, name: "friendship", kind: "message", oneof: "node", T: () => FriendshipProto },
-            { no: 10402, name: "friendship_invite_sent_event", kind: "message", oneof: "node", T: () => FriendshipInviteSentEventProto },
-            { no: 10403, name: "friendship_invite_rescinded_event", kind: "message", oneof: "node", T: () => FriendshipInviteRescindedEventProto },
-            { no: 10404, name: "friendship_invite_accepted_event", kind: "message", oneof: "node", T: () => FriendshipInviteAcceptedEventProto },
-            { no: 10405, name: "friendship_invite_rejected_event", kind: "message", oneof: "node", T: () => FriendshipInviteRejectedEventProto },
-            { no: 10400, name: "friendship_invite", kind: "message", oneof: "node", T: () => FriendshipInviteProto },
-            { no: 10100, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
-            { no: 10500, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
-            { no: 10000, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
-            { no: 10600, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
-            { no: 10200, name: "user", kind: "message", oneof: "node", T: () => UserProto },
+            { no: 11300, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
+            { no: 11100, name: "friendship", kind: "message", oneof: "node", T: () => FriendshipProto },
+            { no: 11202, name: "friendship_invite_sent_event", kind: "message", oneof: "node", T: () => FriendshipInviteSentEventProto },
+            { no: 11203, name: "friendship_invite_rescinded_event", kind: "message", oneof: "node", T: () => FriendshipInviteRescindedEventProto },
+            { no: 11204, name: "friendship_invite_accepted_event", kind: "message", oneof: "node", T: () => FriendshipInviteAcceptedEventProto },
+            { no: 11205, name: "friendship_invite_rejected_event", kind: "message", oneof: "node", T: () => FriendshipInviteRejectedEventProto },
+            { no: 11200, name: "friendship_invite", kind: "message", oneof: "node", T: () => FriendshipInviteProto },
+            { no: 10200, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
+            { no: 12000, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
+            { no: 10100, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
+            { no: 12100, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
+            { no: 11000, name: "user", kind: "message", oneof: "node", T: () => UserProto },
             { no: 20000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
             { no: 270300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
             { no: 270600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
@@ -61260,10 +62432,16 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         customEnumDefinition: CustomEnumDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEnumDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomOptionProto custom_option */ 106:
+                case /* symbol.destack.CustomOptionProto custom_option */ 120:
                     message.node = {
                         oneofKind: "customOption",
                         customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
+                    };
+                    break;
+                case /* symbol.destack.CustomOptionGroupProto custom_option_group */ 121:
+                    message.node = {
+                        oneofKind: "customOptionGroup",
+                        customOptionGroup: CustomOptionGroupProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOptionGroup)
                     };
                     break;
                 case /* symbol.destack.GaugeMetricProto gauge_metric */ 92000:
@@ -61302,10 +62480,16 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         histogramMeasurementEvent: HistogramMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.CustomPropertyProto custom_property */ 105:
+                case /* symbol.destack.CustomPropertyProto custom_property */ 110:
                     message.node = {
                         oneofKind: "customProperty",
                         customProperty: CustomPropertyProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customProperty)
+                    };
+                    break;
+                case /* symbol.destack.CustomPropertyGroupProto custom_property_group */ 111:
+                    message.node = {
+                        oneofKind: "customPropertyGroup",
+                        customPropertyGroup: CustomPropertyGroupProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customPropertyGroup)
                     };
                     break;
                 case /* symbol.destack.CustomStructDefinitionProto custom_struct_definition */ 103:
@@ -61962,73 +63146,73 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         agent: AgentProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).agent)
                     };
                     break;
-                case /* symbol.destack.ClientProto client */ 10700:
+                case /* symbol.destack.ClientProto client */ 11300:
                     message.node = {
                         oneofKind: "client",
                         client: ClientProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).client)
                     };
                     break;
-                case /* symbol.destack.FriendshipProto friendship */ 10300:
+                case /* symbol.destack.FriendshipProto friendship */ 11100:
                     message.node = {
                         oneofKind: "friendship",
                         friendship: FriendshipProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendship)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event */ 10402:
+                case /* symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event */ 11202:
                     message.node = {
                         oneofKind: "friendshipInviteSentEvent",
                         friendshipInviteSentEvent: FriendshipInviteSentEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInviteSentEvent)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event */ 10403:
+                case /* symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event */ 11203:
                     message.node = {
                         oneofKind: "friendshipInviteRescindedEvent",
                         friendshipInviteRescindedEvent: FriendshipInviteRescindedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInviteRescindedEvent)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event */ 10404:
+                case /* symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event */ 11204:
                     message.node = {
                         oneofKind: "friendshipInviteAcceptedEvent",
                         friendshipInviteAcceptedEvent: FriendshipInviteAcceptedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInviteAcceptedEvent)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event */ 10405:
+                case /* symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event */ 11205:
                     message.node = {
                         oneofKind: "friendshipInviteRejectedEvent",
                         friendshipInviteRejectedEvent: FriendshipInviteRejectedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInviteRejectedEvent)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteProto friendship_invite */ 10400:
+                case /* symbol.destack.FriendshipInviteProto friendship_invite */ 11200:
                     message.node = {
                         oneofKind: "friendshipInvite",
                         friendshipInvite: FriendshipInviteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInvite)
                     };
                     break;
-                case /* symbol.destack.HandleProto handle */ 10100:
+                case /* symbol.destack.HandleProto handle */ 10200:
                     message.node = {
                         oneofKind: "handle",
                         handle: HandleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).handle)
                     };
                     break;
-                case /* symbol.destack.OrganizationProto organization */ 10500:
+                case /* symbol.destack.OrganizationProto organization */ 12000:
                     message.node = {
                         oneofKind: "organization",
                         organization: OrganizationProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).organization)
                     };
                     break;
-                case /* symbol.destack.SpaceProto space */ 10000:
+                case /* symbol.destack.SpaceProto space */ 10100:
                     message.node = {
                         oneofKind: "space",
                         space: SpaceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
                     };
                     break;
-                case /* symbol.destack.TeamProto team */ 10600:
+                case /* symbol.destack.TeamProto team */ 12100:
                     message.node = {
                         oneofKind: "team",
                         team: TeamProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).team)
                     };
                     break;
-                case /* symbol.destack.UserProto user */ 10200:
+                case /* symbol.destack.UserProto user */ 11000:
                     message.node = {
                         oneofKind: "user",
                         user: UserProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
@@ -62133,12 +63317,18 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.CustomEnumDefinitionProto custom_enum_definition = 104; */
         if (message.node.oneofKind === "customEnumDefinition")
             CustomEnumDefinitionProto.internalBinaryWrite(message.node.customEnumDefinition, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomPropertyProto custom_property = 105; */
+        /* symbol.destack.CustomPropertyProto custom_property = 110; */
         if (message.node.oneofKind === "customProperty")
-            CustomPropertyProto.internalBinaryWrite(message.node.customProperty, writer.tag(105, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomOptionProto custom_option = 106; */
+            CustomPropertyProto.internalBinaryWrite(message.node.customProperty, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomPropertyGroupProto custom_property_group = 111; */
+        if (message.node.oneofKind === "customPropertyGroup")
+            CustomPropertyGroupProto.internalBinaryWrite(message.node.customPropertyGroup, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomOptionProto custom_option = 120; */
         if (message.node.oneofKind === "customOption")
-            CustomOptionProto.internalBinaryWrite(message.node.customOption, writer.tag(106, WireType.LengthDelimited).fork(), options).join();
+            CustomOptionProto.internalBinaryWrite(message.node.customOption, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomOptionGroupProto custom_option_group = 121; */
+        if (message.node.oneofKind === "customOptionGroup")
+            CustomOptionGroupProto.internalBinaryWrite(message.node.customOptionGroup, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.SnapshotProto snapshot = 1300; */
         if (message.node.oneofKind === "snapshot")
             SnapshotProto.internalBinaryWrite(message.node.snapshot, writer.tag(1300, WireType.LengthDelimited).fork(), options).join();
@@ -62151,42 +63341,42 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.QueryEventProto query_event = 2003; */
         if (message.node.oneofKind === "queryEvent")
             QueryEventProto.internalBinaryWrite(message.node.queryEvent, writer.tag(2003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SpaceProto space = 10000; */
+        /* symbol.destack.SpaceProto space = 10100; */
         if (message.node.oneofKind === "space")
-            SpaceProto.internalBinaryWrite(message.node.space, writer.tag(10000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HandleProto handle = 10100; */
+            SpaceProto.internalBinaryWrite(message.node.space, writer.tag(10100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HandleProto handle = 10200; */
         if (message.node.oneofKind === "handle")
-            HandleProto.internalBinaryWrite(message.node.handle, writer.tag(10100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.UserProto user = 10200; */
+            HandleProto.internalBinaryWrite(message.node.handle, writer.tag(10200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.UserProto user = 11000; */
         if (message.node.oneofKind === "user")
-            UserProto.internalBinaryWrite(message.node.user, writer.tag(10200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipProto friendship = 10300; */
+            UserProto.internalBinaryWrite(message.node.user, writer.tag(11000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipProto friendship = 11100; */
         if (message.node.oneofKind === "friendship")
-            FriendshipProto.internalBinaryWrite(message.node.friendship, writer.tag(10300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteProto friendship_invite = 10400; */
+            FriendshipProto.internalBinaryWrite(message.node.friendship, writer.tag(11100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipInviteProto friendship_invite = 11200; */
         if (message.node.oneofKind === "friendshipInvite")
-            FriendshipInviteProto.internalBinaryWrite(message.node.friendshipInvite, writer.tag(10400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event = 10402; */
+            FriendshipInviteProto.internalBinaryWrite(message.node.friendshipInvite, writer.tag(11200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event = 11202; */
         if (message.node.oneofKind === "friendshipInviteSentEvent")
-            FriendshipInviteSentEventProto.internalBinaryWrite(message.node.friendshipInviteSentEvent, writer.tag(10402, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 10403; */
+            FriendshipInviteSentEventProto.internalBinaryWrite(message.node.friendshipInviteSentEvent, writer.tag(11202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 11203; */
         if (message.node.oneofKind === "friendshipInviteRescindedEvent")
-            FriendshipInviteRescindedEventProto.internalBinaryWrite(message.node.friendshipInviteRescindedEvent, writer.tag(10403, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 10404; */
+            FriendshipInviteRescindedEventProto.internalBinaryWrite(message.node.friendshipInviteRescindedEvent, writer.tag(11203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 11204; */
         if (message.node.oneofKind === "friendshipInviteAcceptedEvent")
-            FriendshipInviteAcceptedEventProto.internalBinaryWrite(message.node.friendshipInviteAcceptedEvent, writer.tag(10404, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 10405; */
+            FriendshipInviteAcceptedEventProto.internalBinaryWrite(message.node.friendshipInviteAcceptedEvent, writer.tag(11204, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 11205; */
         if (message.node.oneofKind === "friendshipInviteRejectedEvent")
-            FriendshipInviteRejectedEventProto.internalBinaryWrite(message.node.friendshipInviteRejectedEvent, writer.tag(10405, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.OrganizationProto organization = 10500; */
-        if (message.node.oneofKind === "organization")
-            OrganizationProto.internalBinaryWrite(message.node.organization, writer.tag(10500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TeamProto team = 10600; */
-        if (message.node.oneofKind === "team")
-            TeamProto.internalBinaryWrite(message.node.team, writer.tag(10600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ClientProto client = 10700; */
+            FriendshipInviteRejectedEventProto.internalBinaryWrite(message.node.friendshipInviteRejectedEvent, writer.tag(11205, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ClientProto client = 11300; */
         if (message.node.oneofKind === "client")
-            ClientProto.internalBinaryWrite(message.node.client, writer.tag(10700, WireType.LengthDelimited).fork(), options).join();
+            ClientProto.internalBinaryWrite(message.node.client, writer.tag(11300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.OrganizationProto organization = 12000; */
+        if (message.node.oneofKind === "organization")
+            OrganizationProto.internalBinaryWrite(message.node.organization, writer.tag(12000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TeamProto team = 12100; */
+        if (message.node.oneofKind === "team")
+            TeamProto.internalBinaryWrite(message.node.team, writer.tag(12100, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.BranchProto branch = 20000; */
         if (message.node.oneofKind === "branch")
             BranchProto.internalBinaryWrite(message.node.branch, writer.tag(20000, WireType.LengthDelimited).fork(), options).join();
@@ -62584,11 +63774,13 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 1300, name: "snapshot", kind: "message", oneof: "node", T: () => SnapshotProto },
             { no: 102, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionProto },
             { no: 104, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionProto },
-            { no: 106, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
+            { no: 120, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
+            { no: 121, name: "custom_option_group", kind: "message", oneof: "node", T: () => CustomOptionGroupProto },
             { no: 92000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
             { no: 92100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
             { no: 92200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
-            { no: 105, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
+            { no: 110, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
+            { no: 111, name: "custom_property_group", kind: "message", oneof: "node", T: () => CustomPropertyGroupProto },
             { no: 103, name: "custom_struct_definition", kind: "message", oneof: "node", T: () => CustomStructDefinitionProto },
             { no: 30500, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementProto },
             { no: 30100, name: "invite", kind: "message", oneof: "node", T: () => InviteProto },
@@ -62636,14 +63828,14 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 120300, name: "star", kind: "message", oneof: "node", T: () => StarProto },
             { no: 120000, name: "thread", kind: "message", oneof: "node", T: () => ThreadProto },
             { no: 30600, name: "agent", kind: "message", oneof: "node", T: () => AgentProto },
-            { no: 10700, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
-            { no: 10300, name: "friendship", kind: "message", oneof: "node", T: () => FriendshipProto },
-            { no: 10400, name: "friendship_invite", kind: "message", oneof: "node", T: () => FriendshipInviteProto },
-            { no: 10100, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
-            { no: 10500, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
-            { no: 10000, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
-            { no: 10600, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
-            { no: 10200, name: "user", kind: "message", oneof: "node", T: () => UserProto },
+            { no: 11300, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
+            { no: 11100, name: "friendship", kind: "message", oneof: "node", T: () => FriendshipProto },
+            { no: 11200, name: "friendship_invite", kind: "message", oneof: "node", T: () => FriendshipInviteProto },
+            { no: 10200, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
+            { no: 12000, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
+            { no: 10100, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
+            { no: 12100, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
+            { no: 11000, name: "user", kind: "message", oneof: "node", T: () => UserProto },
             { no: 20000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
             { no: 270300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
             { no: 270600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
@@ -62700,10 +63892,16 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         customEnumDefinition: CustomEnumDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEnumDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomOptionProto custom_option */ 106:
+                case /* symbol.destack.CustomOptionProto custom_option */ 120:
                     message.node = {
                         oneofKind: "customOption",
                         customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
+                    };
+                    break;
+                case /* symbol.destack.CustomOptionGroupProto custom_option_group */ 121:
+                    message.node = {
+                        oneofKind: "customOptionGroup",
+                        customOptionGroup: CustomOptionGroupProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOptionGroup)
                     };
                     break;
                 case /* symbol.destack.GaugeMetricProto gauge_metric */ 92000:
@@ -62724,10 +63922,16 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         histogramMetric: HistogramMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMetric)
                     };
                     break;
-                case /* symbol.destack.CustomPropertyProto custom_property */ 105:
+                case /* symbol.destack.CustomPropertyProto custom_property */ 110:
                     message.node = {
                         oneofKind: "customProperty",
                         customProperty: CustomPropertyProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customProperty)
+                    };
+                    break;
+                case /* symbol.destack.CustomPropertyGroupProto custom_property_group */ 111:
+                    message.node = {
+                        oneofKind: "customPropertyGroup",
+                        customPropertyGroup: CustomPropertyGroupProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customPropertyGroup)
                     };
                     break;
                 case /* symbol.destack.CustomStructDefinitionProto custom_struct_definition */ 103:
@@ -63012,49 +64216,49 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         agent: AgentProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).agent)
                     };
                     break;
-                case /* symbol.destack.ClientProto client */ 10700:
+                case /* symbol.destack.ClientProto client */ 11300:
                     message.node = {
                         oneofKind: "client",
                         client: ClientProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).client)
                     };
                     break;
-                case /* symbol.destack.FriendshipProto friendship */ 10300:
+                case /* symbol.destack.FriendshipProto friendship */ 11100:
                     message.node = {
                         oneofKind: "friendship",
                         friendship: FriendshipProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendship)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteProto friendship_invite */ 10400:
+                case /* symbol.destack.FriendshipInviteProto friendship_invite */ 11200:
                     message.node = {
                         oneofKind: "friendshipInvite",
                         friendshipInvite: FriendshipInviteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInvite)
                     };
                     break;
-                case /* symbol.destack.HandleProto handle */ 10100:
+                case /* symbol.destack.HandleProto handle */ 10200:
                     message.node = {
                         oneofKind: "handle",
                         handle: HandleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).handle)
                     };
                     break;
-                case /* symbol.destack.OrganizationProto organization */ 10500:
+                case /* symbol.destack.OrganizationProto organization */ 12000:
                     message.node = {
                         oneofKind: "organization",
                         organization: OrganizationProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).organization)
                     };
                     break;
-                case /* symbol.destack.SpaceProto space */ 10000:
+                case /* symbol.destack.SpaceProto space */ 10100:
                     message.node = {
                         oneofKind: "space",
                         space: SpaceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
                     };
                     break;
-                case /* symbol.destack.TeamProto team */ 10600:
+                case /* symbol.destack.TeamProto team */ 12100:
                     message.node = {
                         oneofKind: "team",
                         team: TeamProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).team)
                     };
                     break;
-                case /* symbol.destack.UserProto user */ 10200:
+                case /* symbol.destack.UserProto user */ 11000:
                     message.node = {
                         oneofKind: "user",
                         user: UserProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
@@ -63159,39 +64363,45 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.CustomEnumDefinitionProto custom_enum_definition = 104; */
         if (message.node.oneofKind === "customEnumDefinition")
             CustomEnumDefinitionProto.internalBinaryWrite(message.node.customEnumDefinition, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomPropertyProto custom_property = 105; */
+        /* symbol.destack.CustomPropertyProto custom_property = 110; */
         if (message.node.oneofKind === "customProperty")
-            CustomPropertyProto.internalBinaryWrite(message.node.customProperty, writer.tag(105, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomOptionProto custom_option = 106; */
+            CustomPropertyProto.internalBinaryWrite(message.node.customProperty, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomPropertyGroupProto custom_property_group = 111; */
+        if (message.node.oneofKind === "customPropertyGroup")
+            CustomPropertyGroupProto.internalBinaryWrite(message.node.customPropertyGroup, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomOptionProto custom_option = 120; */
         if (message.node.oneofKind === "customOption")
-            CustomOptionProto.internalBinaryWrite(message.node.customOption, writer.tag(106, WireType.LengthDelimited).fork(), options).join();
+            CustomOptionProto.internalBinaryWrite(message.node.customOption, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomOptionGroupProto custom_option_group = 121; */
+        if (message.node.oneofKind === "customOptionGroup")
+            CustomOptionGroupProto.internalBinaryWrite(message.node.customOptionGroup, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.SnapshotProto snapshot = 1300; */
         if (message.node.oneofKind === "snapshot")
             SnapshotProto.internalBinaryWrite(message.node.snapshot, writer.tag(1300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SpaceProto space = 10000; */
+        /* symbol.destack.SpaceProto space = 10100; */
         if (message.node.oneofKind === "space")
-            SpaceProto.internalBinaryWrite(message.node.space, writer.tag(10000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HandleProto handle = 10100; */
+            SpaceProto.internalBinaryWrite(message.node.space, writer.tag(10100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HandleProto handle = 10200; */
         if (message.node.oneofKind === "handle")
-            HandleProto.internalBinaryWrite(message.node.handle, writer.tag(10100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.UserProto user = 10200; */
+            HandleProto.internalBinaryWrite(message.node.handle, writer.tag(10200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.UserProto user = 11000; */
         if (message.node.oneofKind === "user")
-            UserProto.internalBinaryWrite(message.node.user, writer.tag(10200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipProto friendship = 10300; */
+            UserProto.internalBinaryWrite(message.node.user, writer.tag(11000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipProto friendship = 11100; */
         if (message.node.oneofKind === "friendship")
-            FriendshipProto.internalBinaryWrite(message.node.friendship, writer.tag(10300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteProto friendship_invite = 10400; */
+            FriendshipProto.internalBinaryWrite(message.node.friendship, writer.tag(11100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipInviteProto friendship_invite = 11200; */
         if (message.node.oneofKind === "friendshipInvite")
-            FriendshipInviteProto.internalBinaryWrite(message.node.friendshipInvite, writer.tag(10400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.OrganizationProto organization = 10500; */
-        if (message.node.oneofKind === "organization")
-            OrganizationProto.internalBinaryWrite(message.node.organization, writer.tag(10500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TeamProto team = 10600; */
-        if (message.node.oneofKind === "team")
-            TeamProto.internalBinaryWrite(message.node.team, writer.tag(10600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ClientProto client = 10700; */
+            FriendshipInviteProto.internalBinaryWrite(message.node.friendshipInvite, writer.tag(11200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ClientProto client = 11300; */
         if (message.node.oneofKind === "client")
-            ClientProto.internalBinaryWrite(message.node.client, writer.tag(10700, WireType.LengthDelimited).fork(), options).join();
+            ClientProto.internalBinaryWrite(message.node.client, writer.tag(11300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.OrganizationProto organization = 12000; */
+        if (message.node.oneofKind === "organization")
+            OrganizationProto.internalBinaryWrite(message.node.organization, writer.tag(12000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TeamProto team = 12100; */
+        if (message.node.oneofKind === "team")
+            TeamProto.internalBinaryWrite(message.node.team, writer.tag(12100, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.BranchProto branch = 20000; */
         if (message.node.oneofKind === "branch")
             BranchProto.internalBinaryWrite(message.node.branch, writer.tag(20000, WireType.LengthDelimited).fork(), options).join();
@@ -63457,10 +64667,10 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 120504, name: "notification_read_event", kind: "message", oneof: "node", T: () => NotificationReadEventProto },
             { no: 120505, name: "notification_dismissed_event", kind: "message", oneof: "node", T: () => NotificationDismissedEventProto },
             { no: 120506, name: "notification_expired_event", kind: "message", oneof: "node", T: () => NotificationExpiredEventProto },
-            { no: 10402, name: "friendship_invite_sent_event", kind: "message", oneof: "node", T: () => FriendshipInviteSentEventProto },
-            { no: 10403, name: "friendship_invite_rescinded_event", kind: "message", oneof: "node", T: () => FriendshipInviteRescindedEventProto },
-            { no: 10404, name: "friendship_invite_accepted_event", kind: "message", oneof: "node", T: () => FriendshipInviteAcceptedEventProto },
-            { no: 10405, name: "friendship_invite_rejected_event", kind: "message", oneof: "node", T: () => FriendshipInviteRejectedEventProto }
+            { no: 11202, name: "friendship_invite_sent_event", kind: "message", oneof: "node", T: () => FriendshipInviteSentEventProto },
+            { no: 11203, name: "friendship_invite_rescinded_event", kind: "message", oneof: "node", T: () => FriendshipInviteRescindedEventProto },
+            { no: 11204, name: "friendship_invite_accepted_event", kind: "message", oneof: "node", T: () => FriendshipInviteAcceptedEventProto },
+            { no: 11205, name: "friendship_invite_rejected_event", kind: "message", oneof: "node", T: () => FriendshipInviteRejectedEventProto }
         ]);
     }
     create(value?: PartialMessage<SomeEventProto>): SomeEventProto {
@@ -63883,25 +65093,25 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         notificationExpiredEvent: NotificationExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event */ 10402:
+                case /* symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event */ 11202:
                     message.node = {
                         oneofKind: "friendshipInviteSentEvent",
                         friendshipInviteSentEvent: FriendshipInviteSentEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInviteSentEvent)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event */ 10403:
+                case /* symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event */ 11203:
                     message.node = {
                         oneofKind: "friendshipInviteRescindedEvent",
                         friendshipInviteRescindedEvent: FriendshipInviteRescindedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInviteRescindedEvent)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event */ 10404:
+                case /* symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event */ 11204:
                     message.node = {
                         oneofKind: "friendshipInviteAcceptedEvent",
                         friendshipInviteAcceptedEvent: FriendshipInviteAcceptedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInviteAcceptedEvent)
                     };
                     break;
-                case /* symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event */ 10405:
+                case /* symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event */ 11205:
                     message.node = {
                         oneofKind: "friendshipInviteRejectedEvent",
                         friendshipInviteRejectedEvent: FriendshipInviteRejectedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).friendshipInviteRejectedEvent)
@@ -63928,18 +65138,18 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.QueryEventProto query_event = 2003; */
         if (message.node.oneofKind === "queryEvent")
             QueryEventProto.internalBinaryWrite(message.node.queryEvent, writer.tag(2003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event = 10402; */
+        /* symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event = 11202; */
         if (message.node.oneofKind === "friendshipInviteSentEvent")
-            FriendshipInviteSentEventProto.internalBinaryWrite(message.node.friendshipInviteSentEvent, writer.tag(10402, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 10403; */
+            FriendshipInviteSentEventProto.internalBinaryWrite(message.node.friendshipInviteSentEvent, writer.tag(11202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 11203; */
         if (message.node.oneofKind === "friendshipInviteRescindedEvent")
-            FriendshipInviteRescindedEventProto.internalBinaryWrite(message.node.friendshipInviteRescindedEvent, writer.tag(10403, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 10404; */
+            FriendshipInviteRescindedEventProto.internalBinaryWrite(message.node.friendshipInviteRescindedEvent, writer.tag(11203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 11204; */
         if (message.node.oneofKind === "friendshipInviteAcceptedEvent")
-            FriendshipInviteAcceptedEventProto.internalBinaryWrite(message.node.friendshipInviteAcceptedEvent, writer.tag(10404, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 10405; */
+            FriendshipInviteAcceptedEventProto.internalBinaryWrite(message.node.friendshipInviteAcceptedEvent, writer.tag(11204, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 11205; */
         if (message.node.oneofKind === "friendshipInviteRejectedEvent")
-            FriendshipInviteRejectedEventProto.internalBinaryWrite(message.node.friendshipInviteRejectedEvent, writer.tag(10405, WireType.LengthDelimited).fork(), options).join();
+            FriendshipInviteRejectedEventProto.internalBinaryWrite(message.node.friendshipInviteRejectedEvent, writer.tag(11205, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MembershipJoinedEventProto membership_joined_event = 30002; */
         if (message.node.oneofKind === "membershipJoinedEvent")
             MembershipJoinedEventProto.internalBinaryWrite(message.node.membershipJoinedEvent, writer.tag(30002, WireType.LengthDelimited).fork(), options).join();
@@ -64153,7 +65363,7 @@ export const SomeEventProto = new SomeEventProto$Type();
 //
 
 // Any...
-export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | MetricProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | ChangeEventProto | QueryEventProto | MeasurementEventProto | CustomEnumDefinitionProto | CustomOptionProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomPropertyProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | BranchProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
-export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | PropertyDefinitionProto | BuiltinObjectDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | EditProto | OriginProto | ChangeProto | ChangeResultProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
+export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | MetricProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | ChangeEventProto | QueryEventProto | MeasurementEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewProto | ContainerViewProto | FrameViewProto | LabelViewProto | SplitViewProto | ContentViewProto | TextViewProto | InputViewProto | NumberInputViewProto | SliderInputViewProto | InternalViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | InputEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | LongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | LayerProto | SceneEventProto | SceneEnteredEventProto | SceneExitedEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto | BranchProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto
+export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | BuiltinObjectDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | PropertyGroupDefinitionProto | OptionDefinitionProto | OptionGroupDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | PermissionDefinitionProto | EditProto | OriginProto | ChangeProto | ChangeResultProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     
