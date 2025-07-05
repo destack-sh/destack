@@ -22,7 +22,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:30100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:40100 ==== */
 /**
  * A Tag to tag something.
  */
@@ -440,7 +440,7 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
 
   static __packValue__(object: Tag): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30100;
+    objectValue["1"] = 40100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -577,7 +577,7 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
   }
 
   static __packProto__(object: Tag): TagProto {
-    const objectProto: Partial<TagProto> = { metatype: 30100 };
+    const objectProto: Partial<TagProto> = { metatype: 40100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -746,9 +746,9 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TAG, Tag);
-/* ==== DESTACK_GENERATED_END:NODE:30100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:40100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:30101 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:40101 ==== */
 /**
  * A Tagging of a Node by a Tag.
  */
@@ -1147,7 +1147,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
 
   static __packValue__(object: Tagging): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30101;
+    objectValue["1"] = 40101;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1281,7 +1281,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   }
 
   static __packProto__(object: Tagging): TaggingProto {
-    const objectProto: Partial<TaggingProto> = { metatype: 30101 };
+    const objectProto: Partial<TaggingProto> = { metatype: 40101 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1453,4 +1453,4 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TAGGING, Tagging);
-/* ==== DESTACK_GENERATED_END:NODE:30101 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:40101 ==== */

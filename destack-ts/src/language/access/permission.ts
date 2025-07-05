@@ -46,7 +46,7 @@ export enum PermissionType {
 registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
 /* ==== DESTACK_GENERATED_END:ENUM:20300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:20300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:30300 ==== */
 /**
  * A Permission for something.
  */
@@ -483,7 +483,7 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
 
   static __packValue__(object: Permission): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20300;
+    objectValue["1"] = 30300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -620,7 +620,7 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   }
 
   static __packProto__(object: Permission): PermissionProto {
-    const objectProto: Partial<PermissionProto> = { metatype: 20300 };
+    const objectProto: Partial<PermissionProto> = { metatype: 30300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -789,4 +789,4 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PERMISSION, Permission);
-/* ==== DESTACK_GENERATED_END:NODE:20300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:30300 ==== */

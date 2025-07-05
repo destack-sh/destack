@@ -16363,133 +16363,133 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "entitlementRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 20502
+         * @generated from protobuf field: symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 30502
          */
         entitlementRequestedEvent: EntitlementRequestedEventProto;
     } | {
         oneofKind: "entitlementGrantedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 20503
+         * @generated from protobuf field: symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 30503
          */
         entitlementGrantedEvent: EntitlementGrantedEventProto;
     } | {
         oneofKind: "entitlementRevokedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 20504
+         * @generated from protobuf field: symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 30504
          */
         entitlementRevokedEvent: EntitlementRevokedEventProto;
     } | {
         oneofKind: "entitlementExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 20505
+         * @generated from protobuf field: symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 30505
          */
         entitlementExpiredEvent: EntitlementExpiredEventProto;
     } | {
         oneofKind: "entitlement";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementProto entitlement = 20500
+         * @generated from protobuf field: symbol.destack.EntitlementProto entitlement = 30500
          */
         entitlement: EntitlementProto;
     } | {
         oneofKind: "inviteSentEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteSentEventProto invite_sent_event = 20102
+         * @generated from protobuf field: symbol.destack.InviteSentEventProto invite_sent_event = 30102
          */
         inviteSentEvent: InviteSentEventProto;
     } | {
         oneofKind: "inviteRescindedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteRescindedEventProto invite_rescinded_event = 20103
+         * @generated from protobuf field: symbol.destack.InviteRescindedEventProto invite_rescinded_event = 30103
          */
         inviteRescindedEvent: InviteRescindedEventProto;
     } | {
         oneofKind: "inviteAcceptedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteAcceptedEventProto invite_accepted_event = 20104
+         * @generated from protobuf field: symbol.destack.InviteAcceptedEventProto invite_accepted_event = 30104
          */
         inviteAcceptedEvent: InviteAcceptedEventProto;
     } | {
         oneofKind: "inviteRejectedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteRejectedEventProto invite_rejected_event = 20105
+         * @generated from protobuf field: symbol.destack.InviteRejectedEventProto invite_rejected_event = 30105
          */
         inviteRejectedEvent: InviteRejectedEventProto;
     } | {
         oneofKind: "invite";
         /**
-         * @generated from protobuf field: symbol.destack.InviteProto invite = 20100
+         * @generated from protobuf field: symbol.destack.InviteProto invite = 30100
          */
         invite: InviteProto;
     } | {
         oneofKind: "membershipJoinedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipJoinedEventProto membership_joined_event = 20002
+         * @generated from protobuf field: symbol.destack.MembershipJoinedEventProto membership_joined_event = 30002
          */
         membershipJoinedEvent: MembershipJoinedEventProto;
     } | {
         oneofKind: "membershipLeftEvent";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipLeftEventProto membership_left_event = 20003
+         * @generated from protobuf field: symbol.destack.MembershipLeftEventProto membership_left_event = 30003
          */
         membershipLeftEvent: MembershipLeftEventProto;
     } | {
         oneofKind: "membership";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipProto membership = 20000
+         * @generated from protobuf field: symbol.destack.MembershipProto membership = 30000
          */
         membership: MembershipProto;
     } | {
         oneofKind: "permission";
         /**
-         * @generated from protobuf field: symbol.destack.PermissionProto permission = 20300
+         * @generated from protobuf field: symbol.destack.PermissionProto permission = 30300
          */
         permission: PermissionProto;
     } | {
         oneofKind: "roleAssignedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RoleAssignedEventProto role_assigned_event = 20202
+         * @generated from protobuf field: symbol.destack.RoleAssignedEventProto role_assigned_event = 30202
          */
         roleAssignedEvent: RoleAssignedEventProto;
     } | {
         oneofKind: "roleUnassignedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RoleUnassignedEventProto role_unassigned_event = 20203
+         * @generated from protobuf field: symbol.destack.RoleUnassignedEventProto role_unassigned_event = 30203
          */
         roleUnassignedEvent: RoleUnassignedEventProto;
     } | {
         oneofKind: "role";
         /**
-         * @generated from protobuf field: symbol.destack.RoleProto role = 20200
+         * @generated from protobuf field: symbol.destack.RoleProto role = 30200
          */
         role: RoleProto;
     } | {
         oneofKind: "sanctionRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionRequestedEventProto sanction_requested_event = 20402
+         * @generated from protobuf field: symbol.destack.SanctionRequestedEventProto sanction_requested_event = 30402
          */
         sanctionRequestedEvent: SanctionRequestedEventProto;
     } | {
         oneofKind: "sanctionGrantedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionGrantedEventProto sanction_granted_event = 20403
+         * @generated from protobuf field: symbol.destack.SanctionGrantedEventProto sanction_granted_event = 30403
          */
         sanctionGrantedEvent: SanctionGrantedEventProto;
     } | {
         oneofKind: "sanctionRevokedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 20404
+         * @generated from protobuf field: symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 30404
          */
         sanctionRevokedEvent: SanctionRevokedEventProto;
     } | {
         oneofKind: "sanctionExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionExpiredEventProto sanction_expired_event = 20405
+         * @generated from protobuf field: symbol.destack.SanctionExpiredEventProto sanction_expired_event = 30405
          */
         sanctionExpiredEvent: SanctionExpiredEventProto;
     } | {
         oneofKind: "sanction";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionProto sanction = 20400
+         * @generated from protobuf field: symbol.destack.SanctionProto sanction = 30400
          */
         sanction: SanctionProto;
     } | {
@@ -16573,19 +16573,19 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "folder";
         /**
-         * @generated from protobuf field: symbol.destack.FolderProto folder = 30000
+         * @generated from protobuf field: symbol.destack.FolderProto folder = 40000
          */
         folder: FolderProto;
     } | {
         oneofKind: "tag";
         /**
-         * @generated from protobuf field: symbol.destack.TagProto tag = 30100
+         * @generated from protobuf field: symbol.destack.TagProto tag = 40100
          */
         tag: TagProto;
     } | {
         oneofKind: "tagging";
         /**
-         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 30101
+         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 40101
          */
         tagging: TaggingProto;
     } | {
@@ -17005,7 +17005,7 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "agent";
         /**
-         * @generated from protobuf field: symbol.destack.AgentProto agent = 20600
+         * @generated from protobuf field: symbol.destack.AgentProto agent = 30600
          */
         agent: AgentProto;
     } | {
@@ -17083,7 +17083,7 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "branch";
         /**
-         * @generated from protobuf field: symbol.destack.BranchProto branch = 40000
+         * @generated from protobuf field: symbol.destack.BranchProto branch = 20000
          */
         branch: BranchProto;
     } | {
@@ -17232,37 +17232,37 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "entitlement";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementProto entitlement = 20500
+         * @generated from protobuf field: symbol.destack.EntitlementProto entitlement = 30500
          */
         entitlement: EntitlementProto;
     } | {
         oneofKind: "invite";
         /**
-         * @generated from protobuf field: symbol.destack.InviteProto invite = 20100
+         * @generated from protobuf field: symbol.destack.InviteProto invite = 30100
          */
         invite: InviteProto;
     } | {
         oneofKind: "membership";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipProto membership = 20000
+         * @generated from protobuf field: symbol.destack.MembershipProto membership = 30000
          */
         membership: MembershipProto;
     } | {
         oneofKind: "permission";
         /**
-         * @generated from protobuf field: symbol.destack.PermissionProto permission = 20300
+         * @generated from protobuf field: symbol.destack.PermissionProto permission = 30300
          */
         permission: PermissionProto;
     } | {
         oneofKind: "role";
         /**
-         * @generated from protobuf field: symbol.destack.RoleProto role = 20200
+         * @generated from protobuf field: symbol.destack.RoleProto role = 30200
          */
         role: RoleProto;
     } | {
         oneofKind: "sanction";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionProto sanction = 20400
+         * @generated from protobuf field: symbol.destack.SanctionProto sanction = 30400
          */
         sanction: SanctionProto;
     } | {
@@ -17346,19 +17346,19 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "folder";
         /**
-         * @generated from protobuf field: symbol.destack.FolderProto folder = 30000
+         * @generated from protobuf field: symbol.destack.FolderProto folder = 40000
          */
         folder: FolderProto;
     } | {
         oneofKind: "tag";
         /**
-         * @generated from protobuf field: symbol.destack.TagProto tag = 30100
+         * @generated from protobuf field: symbol.destack.TagProto tag = 40100
          */
         tag: TagProto;
     } | {
         oneofKind: "tagging";
         /**
-         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 30101
+         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 40101
          */
         tagging: TaggingProto;
     } | {
@@ -17502,7 +17502,7 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "agent";
         /**
-         * @generated from protobuf field: symbol.destack.AgentProto agent = 20600
+         * @generated from protobuf field: symbol.destack.AgentProto agent = 30600
          */
         agent: AgentProto;
     } | {
@@ -17556,7 +17556,7 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "branch";
         /**
-         * @generated from protobuf field: symbol.destack.BranchProto branch = 40000
+         * @generated from protobuf field: symbol.destack.BranchProto branch = 20000
          */
         branch: BranchProto;
     } | {
@@ -17675,97 +17675,97 @@ export interface SomeEventProto {
     } | {
         oneofKind: "entitlementRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 20502
+         * @generated from protobuf field: symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 30502
          */
         entitlementRequestedEvent: EntitlementRequestedEventProto;
     } | {
         oneofKind: "entitlementGrantedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 20503
+         * @generated from protobuf field: symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 30503
          */
         entitlementGrantedEvent: EntitlementGrantedEventProto;
     } | {
         oneofKind: "entitlementRevokedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 20504
+         * @generated from protobuf field: symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 30504
          */
         entitlementRevokedEvent: EntitlementRevokedEventProto;
     } | {
         oneofKind: "entitlementExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 20505
+         * @generated from protobuf field: symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 30505
          */
         entitlementExpiredEvent: EntitlementExpiredEventProto;
     } | {
         oneofKind: "inviteSentEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteSentEventProto invite_sent_event = 20102
+         * @generated from protobuf field: symbol.destack.InviteSentEventProto invite_sent_event = 30102
          */
         inviteSentEvent: InviteSentEventProto;
     } | {
         oneofKind: "inviteRescindedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteRescindedEventProto invite_rescinded_event = 20103
+         * @generated from protobuf field: symbol.destack.InviteRescindedEventProto invite_rescinded_event = 30103
          */
         inviteRescindedEvent: InviteRescindedEventProto;
     } | {
         oneofKind: "inviteAcceptedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteAcceptedEventProto invite_accepted_event = 20104
+         * @generated from protobuf field: symbol.destack.InviteAcceptedEventProto invite_accepted_event = 30104
          */
         inviteAcceptedEvent: InviteAcceptedEventProto;
     } | {
         oneofKind: "inviteRejectedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteRejectedEventProto invite_rejected_event = 20105
+         * @generated from protobuf field: symbol.destack.InviteRejectedEventProto invite_rejected_event = 30105
          */
         inviteRejectedEvent: InviteRejectedEventProto;
     } | {
         oneofKind: "membershipJoinedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipJoinedEventProto membership_joined_event = 20002
+         * @generated from protobuf field: symbol.destack.MembershipJoinedEventProto membership_joined_event = 30002
          */
         membershipJoinedEvent: MembershipJoinedEventProto;
     } | {
         oneofKind: "membershipLeftEvent";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipLeftEventProto membership_left_event = 20003
+         * @generated from protobuf field: symbol.destack.MembershipLeftEventProto membership_left_event = 30003
          */
         membershipLeftEvent: MembershipLeftEventProto;
     } | {
         oneofKind: "roleAssignedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RoleAssignedEventProto role_assigned_event = 20202
+         * @generated from protobuf field: symbol.destack.RoleAssignedEventProto role_assigned_event = 30202
          */
         roleAssignedEvent: RoleAssignedEventProto;
     } | {
         oneofKind: "roleUnassignedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RoleUnassignedEventProto role_unassigned_event = 20203
+         * @generated from protobuf field: symbol.destack.RoleUnassignedEventProto role_unassigned_event = 30203
          */
         roleUnassignedEvent: RoleUnassignedEventProto;
     } | {
         oneofKind: "sanctionRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionRequestedEventProto sanction_requested_event = 20402
+         * @generated from protobuf field: symbol.destack.SanctionRequestedEventProto sanction_requested_event = 30402
          */
         sanctionRequestedEvent: SanctionRequestedEventProto;
     } | {
         oneofKind: "sanctionGrantedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionGrantedEventProto sanction_granted_event = 20403
+         * @generated from protobuf field: symbol.destack.SanctionGrantedEventProto sanction_granted_event = 30403
          */
         sanctionGrantedEvent: SanctionGrantedEventProto;
     } | {
         oneofKind: "sanctionRevokedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 20404
+         * @generated from protobuf field: symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 30404
          */
         sanctionRevokedEvent: SanctionRevokedEventProto;
     } | {
         oneofKind: "sanctionExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionExpiredEventProto sanction_expired_event = 20405
+         * @generated from protobuf field: symbol.destack.SanctionExpiredEventProto sanction_expired_event = 30405
          */
         sanctionExpiredEvent: SanctionExpiredEventProto;
     } | {
@@ -19247,14 +19247,6 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_CLIENT_TYPE = 10700,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_JOINABLE_PERMISSION = 20000;
-     */
-    ENUM_TYPE_JOINABLE_PERMISSION = 20000,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_MEMBERSHIP_PERMISSION = 20001;
-     */
-    ENUM_TYPE_MEMBERSHIP_PERMISSION = 20001,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_ROLE_TYPE = 20200;
      */
     ENUM_TYPE_ROLE_TYPE = 20200,
@@ -20472,33 +20464,6 @@ export enum JoinTypeProto {
     JOIN_TYPE_CHILD = 11
 }
 /**
- * A Permission for a Joinable.
- *
- * @generated from protobuf enum symbol.destack.JoinablePermissionProto
- */
-export enum JoinablePermissionProto {
-    /**
-     * @generated from protobuf enum value: JOINABLE_PERMISSION_UNSPECIFIED = 0;
-     */
-    JOINABLE_PERMISSION_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: JOINABLE_PERMISSION_INVITE = 1;
-     */
-    JOINABLE_PERMISSION_INVITE = 1,
-    /**
-     * @generated from protobuf enum value: JOINABLE_PERMISSION_REMOVE = 2;
-     */
-    JOINABLE_PERMISSION_REMOVE = 2,
-    /**
-     * @generated from protobuf enum value: JOINABLE_PERMISSION_KICK = 3;
-     */
-    JOINABLE_PERMISSION_KICK = 3,
-    /**
-     * @generated from protobuf enum value: JOINABLE_PERMISSION_BAN = 4;
-     */
-    JOINABLE_PERMISSION_BAN = 4
-}
-/**
  * Built-in layer types.
  *
  * @generated from protobuf enum symbol.destack.LayerTypeProto
@@ -20643,25 +20608,6 @@ export enum MaterializationProto {
      * @generated from protobuf enum value: MATERIALIZATION_FULL = 32;
      */
     MATERIALIZATION_FULL = 32
-}
-/**
- * A Permission for a Membership.
- *
- * @generated from protobuf enum symbol.destack.MembershipPermissionProto
- */
-export enum MembershipPermissionProto {
-    /**
-     * @generated from protobuf enum value: MEMBERSHIP_PERMISSION_UNSPECIFIED = 0;
-     */
-    MEMBERSHIP_PERMISSION_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: MEMBERSHIP_PERMISSION_KICK = 10;
-     */
-    MEMBERSHIP_PERMISSION_KICK = 10,
-    /**
-     * @generated from protobuf enum value: MEMBERSHIP_PERMISSION_BAN = 11;
-     */
-    MEMBERSHIP_PERMISSION_BAN = 11
 }
 /**
  * @generated from protobuf enum symbol.destack.ModeTypeProto
@@ -20980,133 +20926,133 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_CLIENT = 10700,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP = 20000;
+     * @generated from protobuf enum value: NODE_TYPE_BRANCH = 20000;
      */
-    NODE_TYPE_MEMBERSHIP = 20000,
+    NODE_TYPE_BRANCH = 20000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_EVENT = 20001;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP = 30000;
      */
-    NODE_TYPE_MEMBERSHIP_EVENT = 20001,
+    NODE_TYPE_MEMBERSHIP = 30000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 20002;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_EVENT = 30001;
      */
-    NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 20002,
+    NODE_TYPE_MEMBERSHIP_EVENT = 30001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 20003;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 30002;
      */
-    NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 20003,
+    NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 30002,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE = 20100;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 30003;
      */
-    NODE_TYPE_INVITE = 20100,
+    NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 30003,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_EVENT = 20101;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE = 30100;
      */
-    NODE_TYPE_INVITE_EVENT = 20101,
+    NODE_TYPE_INVITE = 30100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_SENT_EVENT = 20102;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_EVENT = 30101;
      */
-    NODE_TYPE_INVITE_SENT_EVENT = 20102,
+    NODE_TYPE_INVITE_EVENT = 30101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_RESCINDED_EVENT = 20103;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_SENT_EVENT = 30102;
      */
-    NODE_TYPE_INVITE_RESCINDED_EVENT = 20103,
+    NODE_TYPE_INVITE_SENT_EVENT = 30102,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_ACCEPTED_EVENT = 20104;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_RESCINDED_EVENT = 30103;
      */
-    NODE_TYPE_INVITE_ACCEPTED_EVENT = 20104,
+    NODE_TYPE_INVITE_RESCINDED_EVENT = 30103,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_REJECTED_EVENT = 20105;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_ACCEPTED_EVENT = 30104;
      */
-    NODE_TYPE_INVITE_REJECTED_EVENT = 20105,
+    NODE_TYPE_INVITE_ACCEPTED_EVENT = 30104,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE = 20200;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_REJECTED_EVENT = 30105;
      */
-    NODE_TYPE_ROLE = 20200,
+    NODE_TYPE_INVITE_REJECTED_EVENT = 30105,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE_EVENT = 20201;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE = 30200;
      */
-    NODE_TYPE_ROLE_EVENT = 20201,
+    NODE_TYPE_ROLE = 30200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE_ASSIGNED_EVENT = 20202;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE_EVENT = 30201;
      */
-    NODE_TYPE_ROLE_ASSIGNED_EVENT = 20202,
+    NODE_TYPE_ROLE_EVENT = 30201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE_UNASSIGNED_EVENT = 20203;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE_ASSIGNED_EVENT = 30202;
      */
-    NODE_TYPE_ROLE_UNASSIGNED_EVENT = 20203,
+    NODE_TYPE_ROLE_ASSIGNED_EVENT = 30202,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PERMISSION = 20300;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE_UNASSIGNED_EVENT = 30203;
      */
-    NODE_TYPE_PERMISSION = 20300,
+    NODE_TYPE_ROLE_UNASSIGNED_EVENT = 30203,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION = 20400;
+     * @generated from protobuf enum value: NODE_TYPE_PERMISSION = 30300;
      */
-    NODE_TYPE_SANCTION = 20400,
+    NODE_TYPE_PERMISSION = 30300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EVENT = 20401;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION = 30400;
      */
-    NODE_TYPE_SANCTION_EVENT = 20401,
+    NODE_TYPE_SANCTION = 30400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_REQUESTED_EVENT = 20402;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EVENT = 30401;
      */
-    NODE_TYPE_SANCTION_REQUESTED_EVENT = 20402,
+    NODE_TYPE_SANCTION_EVENT = 30401,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_GRANTED_EVENT = 20403;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_REQUESTED_EVENT = 30402;
      */
-    NODE_TYPE_SANCTION_GRANTED_EVENT = 20403,
+    NODE_TYPE_SANCTION_REQUESTED_EVENT = 30402,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_REVOKED_EVENT = 20404;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_GRANTED_EVENT = 30403;
      */
-    NODE_TYPE_SANCTION_REVOKED_EVENT = 20404,
+    NODE_TYPE_SANCTION_GRANTED_EVENT = 30403,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EXPIRED_EVENT = 20405;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_REVOKED_EVENT = 30404;
      */
-    NODE_TYPE_SANCTION_EXPIRED_EVENT = 20405,
+    NODE_TYPE_SANCTION_REVOKED_EVENT = 30404,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT = 20500;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EXPIRED_EVENT = 30405;
      */
-    NODE_TYPE_ENTITLEMENT = 20500,
+    NODE_TYPE_SANCTION_EXPIRED_EVENT = 30405,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EVENT = 20501;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT = 30500;
      */
-    NODE_TYPE_ENTITLEMENT_EVENT = 20501,
+    NODE_TYPE_ENTITLEMENT = 30500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 20502;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EVENT = 30501;
      */
-    NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 20502,
+    NODE_TYPE_ENTITLEMENT_EVENT = 30501,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 20503;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 30502;
      */
-    NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 20503,
+    NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 30502,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 20504;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 30503;
      */
-    NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 20504,
+    NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 30503,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 20505;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 30504;
      */
-    NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 20505,
+    NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 30504,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_AGENT = 20600;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 30505;
      */
-    NODE_TYPE_AGENT = 20600,
+    NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 30505,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOLDER = 30000;
+     * @generated from protobuf enum value: NODE_TYPE_AGENT = 30600;
      */
-    NODE_TYPE_FOLDER = 30000,
+    NODE_TYPE_AGENT = 30600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TAG = 30100;
+     * @generated from protobuf enum value: NODE_TYPE_FOLDER = 40000;
      */
-    NODE_TYPE_TAG = 30100,
+    NODE_TYPE_FOLDER = 40000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TAGGING = 30101;
+     * @generated from protobuf enum value: NODE_TYPE_TAG = 40100;
      */
-    NODE_TYPE_TAGGING = 30101,
+    NODE_TYPE_TAG = 40100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BRANCH = 40000;
+     * @generated from protobuf enum value: NODE_TYPE_TAGGING = 40101;
      */
-    NODE_TYPE_BRANCH = 40000,
+    NODE_TYPE_TAGGING = 40101,
     /**
      * @generated from protobuf enum value: NODE_TYPE_FILE = 60000;
      */
@@ -23222,6 +23168,10 @@ export enum TraitTypeProto {
      * @generated from protobuf enum value: TRAIT_TYPE_EXTENSIBLE = 111;
      */
     TRAIT_TYPE_EXTENSIBLE = 111,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_IRREVERSIBLE = 120;
+     */
+    TRAIT_TYPE_IRREVERSIBLE = 120,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_OWNABLE = 20000;
      */
@@ -61116,28 +61066,28 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 92201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
             { no: 105, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 103, name: "custom_struct_definition", kind: "message", oneof: "node", T: () => CustomStructDefinitionProto },
-            { no: 20502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
-            { no: 20503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
-            { no: 20504, name: "entitlement_revoked_event", kind: "message", oneof: "node", T: () => EntitlementRevokedEventProto },
-            { no: 20505, name: "entitlement_expired_event", kind: "message", oneof: "node", T: () => EntitlementExpiredEventProto },
-            { no: 20500, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementProto },
-            { no: 20102, name: "invite_sent_event", kind: "message", oneof: "node", T: () => InviteSentEventProto },
-            { no: 20103, name: "invite_rescinded_event", kind: "message", oneof: "node", T: () => InviteRescindedEventProto },
-            { no: 20104, name: "invite_accepted_event", kind: "message", oneof: "node", T: () => InviteAcceptedEventProto },
-            { no: 20105, name: "invite_rejected_event", kind: "message", oneof: "node", T: () => InviteRejectedEventProto },
-            { no: 20100, name: "invite", kind: "message", oneof: "node", T: () => InviteProto },
-            { no: 20002, name: "membership_joined_event", kind: "message", oneof: "node", T: () => MembershipJoinedEventProto },
-            { no: 20003, name: "membership_left_event", kind: "message", oneof: "node", T: () => MembershipLeftEventProto },
-            { no: 20000, name: "membership", kind: "message", oneof: "node", T: () => MembershipProto },
-            { no: 20300, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
-            { no: 20202, name: "role_assigned_event", kind: "message", oneof: "node", T: () => RoleAssignedEventProto },
-            { no: 20203, name: "role_unassigned_event", kind: "message", oneof: "node", T: () => RoleUnassignedEventProto },
-            { no: 20200, name: "role", kind: "message", oneof: "node", T: () => RoleProto },
-            { no: 20402, name: "sanction_requested_event", kind: "message", oneof: "node", T: () => SanctionRequestedEventProto },
-            { no: 20403, name: "sanction_granted_event", kind: "message", oneof: "node", T: () => SanctionGrantedEventProto },
-            { no: 20404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
-            { no: 20405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
-            { no: 20400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
+            { no: 30502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
+            { no: 30503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
+            { no: 30504, name: "entitlement_revoked_event", kind: "message", oneof: "node", T: () => EntitlementRevokedEventProto },
+            { no: 30505, name: "entitlement_expired_event", kind: "message", oneof: "node", T: () => EntitlementExpiredEventProto },
+            { no: 30500, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementProto },
+            { no: 30102, name: "invite_sent_event", kind: "message", oneof: "node", T: () => InviteSentEventProto },
+            { no: 30103, name: "invite_rescinded_event", kind: "message", oneof: "node", T: () => InviteRescindedEventProto },
+            { no: 30104, name: "invite_accepted_event", kind: "message", oneof: "node", T: () => InviteAcceptedEventProto },
+            { no: 30105, name: "invite_rejected_event", kind: "message", oneof: "node", T: () => InviteRejectedEventProto },
+            { no: 30100, name: "invite", kind: "message", oneof: "node", T: () => InviteProto },
+            { no: 30002, name: "membership_joined_event", kind: "message", oneof: "node", T: () => MembershipJoinedEventProto },
+            { no: 30003, name: "membership_left_event", kind: "message", oneof: "node", T: () => MembershipLeftEventProto },
+            { no: 30000, name: "membership", kind: "message", oneof: "node", T: () => MembershipProto },
+            { no: 30300, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
+            { no: 30202, name: "role_assigned_event", kind: "message", oneof: "node", T: () => RoleAssignedEventProto },
+            { no: 30203, name: "role_unassigned_event", kind: "message", oneof: "node", T: () => RoleUnassignedEventProto },
+            { no: 30200, name: "role", kind: "message", oneof: "node", T: () => RoleProto },
+            { no: 30402, name: "sanction_requested_event", kind: "message", oneof: "node", T: () => SanctionRequestedEventProto },
+            { no: 30403, name: "sanction_granted_event", kind: "message", oneof: "node", T: () => SanctionGrantedEventProto },
+            { no: 30404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
+            { no: 30405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
+            { no: 30400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
             { no: 210100, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewProto },
             { no: 210200, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewProto },
             { no: 210300, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewProto },
@@ -61151,9 +61101,9 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 250200, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
             { no: 60000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
             { no: 100000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
-            { no: 30000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
-            { no: 30100, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
-            { no: 30101, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
+            { no: 40000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
+            { no: 40100, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
+            { no: 40101, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
             { no: 160000, name: "database", kind: "message", oneof: "node", T: () => DatabaseProto },
             { no: 160100, name: "machine", kind: "message", oneof: "node", T: () => MachineProto },
             { no: 200101, name: "pointer_down_event", kind: "message", oneof: "node", T: () => PointerDownEventProto },
@@ -61223,7 +61173,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 120200, name: "reaction", kind: "message", oneof: "node", T: () => ReactionProto },
             { no: 120300, name: "star", kind: "message", oneof: "node", T: () => StarProto },
             { no: 120000, name: "thread", kind: "message", oneof: "node", T: () => ThreadProto },
-            { no: 20600, name: "agent", kind: "message", oneof: "node", T: () => AgentProto },
+            { no: 30600, name: "agent", kind: "message", oneof: "node", T: () => AgentProto },
             { no: 10700, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
             { no: 10300, name: "friendship", kind: "message", oneof: "node", T: () => FriendshipProto },
             { no: 10402, name: "friendship_invite_sent_event", kind: "message", oneof: "node", T: () => FriendshipInviteSentEventProto },
@@ -61236,7 +61186,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 10000, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
             { no: 10600, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
             { no: 10200, name: "user", kind: "message", oneof: "node", T: () => UserProto },
-            { no: 40000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
+            { no: 20000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
             { no: 270300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
             { no: 270600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
             { no: 270900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
@@ -61364,133 +61314,133 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         customStructDefinition: CustomStructDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customStructDefinition)
                     };
                     break;
-                case /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event */ 20502:
+                case /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event */ 30502:
                     message.node = {
                         oneofKind: "entitlementRequestedEvent",
                         entitlementRequestedEvent: EntitlementRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event */ 20503:
+                case /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event */ 30503:
                     message.node = {
                         oneofKind: "entitlementGrantedEvent",
                         entitlementGrantedEvent: EntitlementGrantedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementGrantedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event */ 20504:
+                case /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event */ 30504:
                     message.node = {
                         oneofKind: "entitlementRevokedEvent",
                         entitlementRevokedEvent: EntitlementRevokedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementRevokedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event */ 20505:
+                case /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event */ 30505:
                     message.node = {
                         oneofKind: "entitlementExpiredEvent",
                         entitlementExpiredEvent: EntitlementExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementProto entitlement */ 20500:
+                case /* symbol.destack.EntitlementProto entitlement */ 30500:
                     message.node = {
                         oneofKind: "entitlement",
                         entitlement: EntitlementProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlement)
                     };
                     break;
-                case /* symbol.destack.InviteSentEventProto invite_sent_event */ 20102:
+                case /* symbol.destack.InviteSentEventProto invite_sent_event */ 30102:
                     message.node = {
                         oneofKind: "inviteSentEvent",
                         inviteSentEvent: InviteSentEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteSentEvent)
                     };
                     break;
-                case /* symbol.destack.InviteRescindedEventProto invite_rescinded_event */ 20103:
+                case /* symbol.destack.InviteRescindedEventProto invite_rescinded_event */ 30103:
                     message.node = {
                         oneofKind: "inviteRescindedEvent",
                         inviteRescindedEvent: InviteRescindedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteRescindedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteAcceptedEventProto invite_accepted_event */ 20104:
+                case /* symbol.destack.InviteAcceptedEventProto invite_accepted_event */ 30104:
                     message.node = {
                         oneofKind: "inviteAcceptedEvent",
                         inviteAcceptedEvent: InviteAcceptedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteAcceptedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteRejectedEventProto invite_rejected_event */ 20105:
+                case /* symbol.destack.InviteRejectedEventProto invite_rejected_event */ 30105:
                     message.node = {
                         oneofKind: "inviteRejectedEvent",
                         inviteRejectedEvent: InviteRejectedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteRejectedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteProto invite */ 20100:
+                case /* symbol.destack.InviteProto invite */ 30100:
                     message.node = {
                         oneofKind: "invite",
                         invite: InviteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).invite)
                     };
                     break;
-                case /* symbol.destack.MembershipJoinedEventProto membership_joined_event */ 20002:
+                case /* symbol.destack.MembershipJoinedEventProto membership_joined_event */ 30002:
                     message.node = {
                         oneofKind: "membershipJoinedEvent",
                         membershipJoinedEvent: MembershipJoinedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membershipJoinedEvent)
                     };
                     break;
-                case /* symbol.destack.MembershipLeftEventProto membership_left_event */ 20003:
+                case /* symbol.destack.MembershipLeftEventProto membership_left_event */ 30003:
                     message.node = {
                         oneofKind: "membershipLeftEvent",
                         membershipLeftEvent: MembershipLeftEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membershipLeftEvent)
                     };
                     break;
-                case /* symbol.destack.MembershipProto membership */ 20000:
+                case /* symbol.destack.MembershipProto membership */ 30000:
                     message.node = {
                         oneofKind: "membership",
                         membership: MembershipProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membership)
                     };
                     break;
-                case /* symbol.destack.PermissionProto permission */ 20300:
+                case /* symbol.destack.PermissionProto permission */ 30300:
                     message.node = {
                         oneofKind: "permission",
                         permission: PermissionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).permission)
                     };
                     break;
-                case /* symbol.destack.RoleAssignedEventProto role_assigned_event */ 20202:
+                case /* symbol.destack.RoleAssignedEventProto role_assigned_event */ 30202:
                     message.node = {
                         oneofKind: "roleAssignedEvent",
                         roleAssignedEvent: RoleAssignedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).roleAssignedEvent)
                     };
                     break;
-                case /* symbol.destack.RoleUnassignedEventProto role_unassigned_event */ 20203:
+                case /* symbol.destack.RoleUnassignedEventProto role_unassigned_event */ 30203:
                     message.node = {
                         oneofKind: "roleUnassignedEvent",
                         roleUnassignedEvent: RoleUnassignedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).roleUnassignedEvent)
                     };
                     break;
-                case /* symbol.destack.RoleProto role */ 20200:
+                case /* symbol.destack.RoleProto role */ 30200:
                     message.node = {
                         oneofKind: "role",
                         role: RoleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).role)
                     };
                     break;
-                case /* symbol.destack.SanctionRequestedEventProto sanction_requested_event */ 20402:
+                case /* symbol.destack.SanctionRequestedEventProto sanction_requested_event */ 30402:
                     message.node = {
                         oneofKind: "sanctionRequestedEvent",
                         sanctionRequestedEvent: SanctionRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionGrantedEventProto sanction_granted_event */ 20403:
+                case /* symbol.destack.SanctionGrantedEventProto sanction_granted_event */ 30403:
                     message.node = {
                         oneofKind: "sanctionGrantedEvent",
                         sanctionGrantedEvent: SanctionGrantedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionGrantedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event */ 20404:
+                case /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event */ 30404:
                     message.node = {
                         oneofKind: "sanctionRevokedEvent",
                         sanctionRevokedEvent: SanctionRevokedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionRevokedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionExpiredEventProto sanction_expired_event */ 20405:
+                case /* symbol.destack.SanctionExpiredEventProto sanction_expired_event */ 30405:
                     message.node = {
                         oneofKind: "sanctionExpiredEvent",
                         sanctionExpiredEvent: SanctionExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionProto sanction */ 20400:
+                case /* symbol.destack.SanctionProto sanction */ 30400:
                     message.node = {
                         oneofKind: "sanction",
                         sanction: SanctionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanction)
@@ -61574,19 +61524,19 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         environment: EnvironmentProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).environment)
                     };
                     break;
-                case /* symbol.destack.FolderProto folder */ 30000:
+                case /* symbol.destack.FolderProto folder */ 40000:
                     message.node = {
                         oneofKind: "folder",
                         folder: FolderProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).folder)
                     };
                     break;
-                case /* symbol.destack.TagProto tag */ 30100:
+                case /* symbol.destack.TagProto tag */ 40100:
                     message.node = {
                         oneofKind: "tag",
                         tag: TagProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tag)
                     };
                     break;
-                case /* symbol.destack.TaggingProto tagging */ 30101:
+                case /* symbol.destack.TaggingProto tagging */ 40101:
                     message.node = {
                         oneofKind: "tagging",
                         tagging: TaggingProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tagging)
@@ -62006,7 +61956,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         thread: ThreadProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).thread)
                     };
                     break;
-                case /* symbol.destack.AgentProto agent */ 20600:
+                case /* symbol.destack.AgentProto agent */ 30600:
                     message.node = {
                         oneofKind: "agent",
                         agent: AgentProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).agent)
@@ -62084,7 +62034,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         user: UserProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
                     };
                     break;
-                case /* symbol.destack.BranchProto branch */ 40000:
+                case /* symbol.destack.BranchProto branch */ 20000:
                     message.node = {
                         oneofKind: "branch",
                         branch: BranchProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).branch)
@@ -62237,87 +62187,87 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.ClientProto client = 10700; */
         if (message.node.oneofKind === "client")
             ClientProto.internalBinaryWrite(message.node.client, writer.tag(10700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipProto membership = 20000; */
-        if (message.node.oneofKind === "membership")
-            MembershipProto.internalBinaryWrite(message.node.membership, writer.tag(20000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipJoinedEventProto membership_joined_event = 20002; */
-        if (message.node.oneofKind === "membershipJoinedEvent")
-            MembershipJoinedEventProto.internalBinaryWrite(message.node.membershipJoinedEvent, writer.tag(20002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipLeftEventProto membership_left_event = 20003; */
-        if (message.node.oneofKind === "membershipLeftEvent")
-            MembershipLeftEventProto.internalBinaryWrite(message.node.membershipLeftEvent, writer.tag(20003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteProto invite = 20100; */
-        if (message.node.oneofKind === "invite")
-            InviteProto.internalBinaryWrite(message.node.invite, writer.tag(20100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteSentEventProto invite_sent_event = 20102; */
-        if (message.node.oneofKind === "inviteSentEvent")
-            InviteSentEventProto.internalBinaryWrite(message.node.inviteSentEvent, writer.tag(20102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteRescindedEventProto invite_rescinded_event = 20103; */
-        if (message.node.oneofKind === "inviteRescindedEvent")
-            InviteRescindedEventProto.internalBinaryWrite(message.node.inviteRescindedEvent, writer.tag(20103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteAcceptedEventProto invite_accepted_event = 20104; */
-        if (message.node.oneofKind === "inviteAcceptedEvent")
-            InviteAcceptedEventProto.internalBinaryWrite(message.node.inviteAcceptedEvent, writer.tag(20104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteRejectedEventProto invite_rejected_event = 20105; */
-        if (message.node.oneofKind === "inviteRejectedEvent")
-            InviteRejectedEventProto.internalBinaryWrite(message.node.inviteRejectedEvent, writer.tag(20105, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleProto role = 20200; */
-        if (message.node.oneofKind === "role")
-            RoleProto.internalBinaryWrite(message.node.role, writer.tag(20200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleAssignedEventProto role_assigned_event = 20202; */
-        if (message.node.oneofKind === "roleAssignedEvent")
-            RoleAssignedEventProto.internalBinaryWrite(message.node.roleAssignedEvent, writer.tag(20202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleUnassignedEventProto role_unassigned_event = 20203; */
-        if (message.node.oneofKind === "roleUnassignedEvent")
-            RoleUnassignedEventProto.internalBinaryWrite(message.node.roleUnassignedEvent, writer.tag(20203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PermissionProto permission = 20300; */
-        if (message.node.oneofKind === "permission")
-            PermissionProto.internalBinaryWrite(message.node.permission, writer.tag(20300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionProto sanction = 20400; */
-        if (message.node.oneofKind === "sanction")
-            SanctionProto.internalBinaryWrite(message.node.sanction, writer.tag(20400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionRequestedEventProto sanction_requested_event = 20402; */
-        if (message.node.oneofKind === "sanctionRequestedEvent")
-            SanctionRequestedEventProto.internalBinaryWrite(message.node.sanctionRequestedEvent, writer.tag(20402, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionGrantedEventProto sanction_granted_event = 20403; */
-        if (message.node.oneofKind === "sanctionGrantedEvent")
-            SanctionGrantedEventProto.internalBinaryWrite(message.node.sanctionGrantedEvent, writer.tag(20403, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 20404; */
-        if (message.node.oneofKind === "sanctionRevokedEvent")
-            SanctionRevokedEventProto.internalBinaryWrite(message.node.sanctionRevokedEvent, writer.tag(20404, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionExpiredEventProto sanction_expired_event = 20405; */
-        if (message.node.oneofKind === "sanctionExpiredEvent")
-            SanctionExpiredEventProto.internalBinaryWrite(message.node.sanctionExpiredEvent, writer.tag(20405, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementProto entitlement = 20500; */
-        if (message.node.oneofKind === "entitlement")
-            EntitlementProto.internalBinaryWrite(message.node.entitlement, writer.tag(20500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 20502; */
-        if (message.node.oneofKind === "entitlementRequestedEvent")
-            EntitlementRequestedEventProto.internalBinaryWrite(message.node.entitlementRequestedEvent, writer.tag(20502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 20503; */
-        if (message.node.oneofKind === "entitlementGrantedEvent")
-            EntitlementGrantedEventProto.internalBinaryWrite(message.node.entitlementGrantedEvent, writer.tag(20503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 20504; */
-        if (message.node.oneofKind === "entitlementRevokedEvent")
-            EntitlementRevokedEventProto.internalBinaryWrite(message.node.entitlementRevokedEvent, writer.tag(20504, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 20505; */
-        if (message.node.oneofKind === "entitlementExpiredEvent")
-            EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(20505, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.AgentProto agent = 20600; */
-        if (message.node.oneofKind === "agent")
-            AgentProto.internalBinaryWrite(message.node.agent, writer.tag(20600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FolderProto folder = 30000; */
-        if (message.node.oneofKind === "folder")
-            FolderProto.internalBinaryWrite(message.node.folder, writer.tag(30000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TagProto tag = 30100; */
-        if (message.node.oneofKind === "tag")
-            TagProto.internalBinaryWrite(message.node.tag, writer.tag(30100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TaggingProto tagging = 30101; */
-        if (message.node.oneofKind === "tagging")
-            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(30101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BranchProto branch = 40000; */
+        /* symbol.destack.BranchProto branch = 20000; */
         if (message.node.oneofKind === "branch")
-            BranchProto.internalBinaryWrite(message.node.branch, writer.tag(40000, WireType.LengthDelimited).fork(), options).join();
+            BranchProto.internalBinaryWrite(message.node.branch, writer.tag(20000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipProto membership = 30000; */
+        if (message.node.oneofKind === "membership")
+            MembershipProto.internalBinaryWrite(message.node.membership, writer.tag(30000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipJoinedEventProto membership_joined_event = 30002; */
+        if (message.node.oneofKind === "membershipJoinedEvent")
+            MembershipJoinedEventProto.internalBinaryWrite(message.node.membershipJoinedEvent, writer.tag(30002, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipLeftEventProto membership_left_event = 30003; */
+        if (message.node.oneofKind === "membershipLeftEvent")
+            MembershipLeftEventProto.internalBinaryWrite(message.node.membershipLeftEvent, writer.tag(30003, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteProto invite = 30100; */
+        if (message.node.oneofKind === "invite")
+            InviteProto.internalBinaryWrite(message.node.invite, writer.tag(30100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteSentEventProto invite_sent_event = 30102; */
+        if (message.node.oneofKind === "inviteSentEvent")
+            InviteSentEventProto.internalBinaryWrite(message.node.inviteSentEvent, writer.tag(30102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteRescindedEventProto invite_rescinded_event = 30103; */
+        if (message.node.oneofKind === "inviteRescindedEvent")
+            InviteRescindedEventProto.internalBinaryWrite(message.node.inviteRescindedEvent, writer.tag(30103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteAcceptedEventProto invite_accepted_event = 30104; */
+        if (message.node.oneofKind === "inviteAcceptedEvent")
+            InviteAcceptedEventProto.internalBinaryWrite(message.node.inviteAcceptedEvent, writer.tag(30104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteRejectedEventProto invite_rejected_event = 30105; */
+        if (message.node.oneofKind === "inviteRejectedEvent")
+            InviteRejectedEventProto.internalBinaryWrite(message.node.inviteRejectedEvent, writer.tag(30105, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleProto role = 30200; */
+        if (message.node.oneofKind === "role")
+            RoleProto.internalBinaryWrite(message.node.role, writer.tag(30200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleAssignedEventProto role_assigned_event = 30202; */
+        if (message.node.oneofKind === "roleAssignedEvent")
+            RoleAssignedEventProto.internalBinaryWrite(message.node.roleAssignedEvent, writer.tag(30202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleUnassignedEventProto role_unassigned_event = 30203; */
+        if (message.node.oneofKind === "roleUnassignedEvent")
+            RoleUnassignedEventProto.internalBinaryWrite(message.node.roleUnassignedEvent, writer.tag(30203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PermissionProto permission = 30300; */
+        if (message.node.oneofKind === "permission")
+            PermissionProto.internalBinaryWrite(message.node.permission, writer.tag(30300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionProto sanction = 30400; */
+        if (message.node.oneofKind === "sanction")
+            SanctionProto.internalBinaryWrite(message.node.sanction, writer.tag(30400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionRequestedEventProto sanction_requested_event = 30402; */
+        if (message.node.oneofKind === "sanctionRequestedEvent")
+            SanctionRequestedEventProto.internalBinaryWrite(message.node.sanctionRequestedEvent, writer.tag(30402, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionGrantedEventProto sanction_granted_event = 30403; */
+        if (message.node.oneofKind === "sanctionGrantedEvent")
+            SanctionGrantedEventProto.internalBinaryWrite(message.node.sanctionGrantedEvent, writer.tag(30403, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 30404; */
+        if (message.node.oneofKind === "sanctionRevokedEvent")
+            SanctionRevokedEventProto.internalBinaryWrite(message.node.sanctionRevokedEvent, writer.tag(30404, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionExpiredEventProto sanction_expired_event = 30405; */
+        if (message.node.oneofKind === "sanctionExpiredEvent")
+            SanctionExpiredEventProto.internalBinaryWrite(message.node.sanctionExpiredEvent, writer.tag(30405, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementProto entitlement = 30500; */
+        if (message.node.oneofKind === "entitlement")
+            EntitlementProto.internalBinaryWrite(message.node.entitlement, writer.tag(30500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 30502; */
+        if (message.node.oneofKind === "entitlementRequestedEvent")
+            EntitlementRequestedEventProto.internalBinaryWrite(message.node.entitlementRequestedEvent, writer.tag(30502, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 30503; */
+        if (message.node.oneofKind === "entitlementGrantedEvent")
+            EntitlementGrantedEventProto.internalBinaryWrite(message.node.entitlementGrantedEvent, writer.tag(30503, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 30504; */
+        if (message.node.oneofKind === "entitlementRevokedEvent")
+            EntitlementRevokedEventProto.internalBinaryWrite(message.node.entitlementRevokedEvent, writer.tag(30504, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 30505; */
+        if (message.node.oneofKind === "entitlementExpiredEvent")
+            EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(30505, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.AgentProto agent = 30600; */
+        if (message.node.oneofKind === "agent")
+            AgentProto.internalBinaryWrite(message.node.agent, writer.tag(30600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FolderProto folder = 40000; */
+        if (message.node.oneofKind === "folder")
+            FolderProto.internalBinaryWrite(message.node.folder, writer.tag(40000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TagProto tag = 40100; */
+        if (message.node.oneofKind === "tag")
+            TagProto.internalBinaryWrite(message.node.tag, writer.tag(40100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TaggingProto tagging = 40101; */
+        if (message.node.oneofKind === "tagging")
+            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(40101, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.FileProto file = 60000; */
         if (message.node.oneofKind === "file")
             FileProto.internalBinaryWrite(message.node.file, writer.tag(60000, WireType.LengthDelimited).fork(), options).join();
@@ -62640,12 +62590,12 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 92200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
             { no: 105, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 103, name: "custom_struct_definition", kind: "message", oneof: "node", T: () => CustomStructDefinitionProto },
-            { no: 20500, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementProto },
-            { no: 20100, name: "invite", kind: "message", oneof: "node", T: () => InviteProto },
-            { no: 20000, name: "membership", kind: "message", oneof: "node", T: () => MembershipProto },
-            { no: 20300, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
-            { no: 20200, name: "role", kind: "message", oneof: "node", T: () => RoleProto },
-            { no: 20400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
+            { no: 30500, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementProto },
+            { no: 30100, name: "invite", kind: "message", oneof: "node", T: () => InviteProto },
+            { no: 30000, name: "membership", kind: "message", oneof: "node", T: () => MembershipProto },
+            { no: 30300, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
+            { no: 30200, name: "role", kind: "message", oneof: "node", T: () => RoleProto },
+            { no: 30400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
             { no: 210100, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewProto },
             { no: 210200, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewProto },
             { no: 210300, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewProto },
@@ -62659,9 +62609,9 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 250200, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
             { no: 60000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
             { no: 100000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
-            { no: 30000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
-            { no: 30100, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
-            { no: 30101, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
+            { no: 40000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
+            { no: 40100, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
+            { no: 40101, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
             { no: 160000, name: "database", kind: "message", oneof: "node", T: () => DatabaseProto },
             { no: 160100, name: "machine", kind: "message", oneof: "node", T: () => MachineProto },
             { no: 70300, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
@@ -62685,7 +62635,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 120200, name: "reaction", kind: "message", oneof: "node", T: () => ReactionProto },
             { no: 120300, name: "star", kind: "message", oneof: "node", T: () => StarProto },
             { no: 120000, name: "thread", kind: "message", oneof: "node", T: () => ThreadProto },
-            { no: 20600, name: "agent", kind: "message", oneof: "node", T: () => AgentProto },
+            { no: 30600, name: "agent", kind: "message", oneof: "node", T: () => AgentProto },
             { no: 10700, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
             { no: 10300, name: "friendship", kind: "message", oneof: "node", T: () => FriendshipProto },
             { no: 10400, name: "friendship_invite", kind: "message", oneof: "node", T: () => FriendshipInviteProto },
@@ -62694,7 +62644,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 10000, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
             { no: 10600, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
             { no: 10200, name: "user", kind: "message", oneof: "node", T: () => UserProto },
-            { no: 40000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
+            { no: 20000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
             { no: 270300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
             { no: 270600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
             { no: 270900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
@@ -62786,37 +62736,37 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         customStructDefinition: CustomStructDefinitionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customStructDefinition)
                     };
                     break;
-                case /* symbol.destack.EntitlementProto entitlement */ 20500:
+                case /* symbol.destack.EntitlementProto entitlement */ 30500:
                     message.node = {
                         oneofKind: "entitlement",
                         entitlement: EntitlementProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlement)
                     };
                     break;
-                case /* symbol.destack.InviteProto invite */ 20100:
+                case /* symbol.destack.InviteProto invite */ 30100:
                     message.node = {
                         oneofKind: "invite",
                         invite: InviteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).invite)
                     };
                     break;
-                case /* symbol.destack.MembershipProto membership */ 20000:
+                case /* symbol.destack.MembershipProto membership */ 30000:
                     message.node = {
                         oneofKind: "membership",
                         membership: MembershipProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membership)
                     };
                     break;
-                case /* symbol.destack.PermissionProto permission */ 20300:
+                case /* symbol.destack.PermissionProto permission */ 30300:
                     message.node = {
                         oneofKind: "permission",
                         permission: PermissionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).permission)
                     };
                     break;
-                case /* symbol.destack.RoleProto role */ 20200:
+                case /* symbol.destack.RoleProto role */ 30200:
                     message.node = {
                         oneofKind: "role",
                         role: RoleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).role)
                     };
                     break;
-                case /* symbol.destack.SanctionProto sanction */ 20400:
+                case /* symbol.destack.SanctionProto sanction */ 30400:
                     message.node = {
                         oneofKind: "sanction",
                         sanction: SanctionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanction)
@@ -62900,19 +62850,19 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         environment: EnvironmentProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).environment)
                     };
                     break;
-                case /* symbol.destack.FolderProto folder */ 30000:
+                case /* symbol.destack.FolderProto folder */ 40000:
                     message.node = {
                         oneofKind: "folder",
                         folder: FolderProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).folder)
                     };
                     break;
-                case /* symbol.destack.TagProto tag */ 30100:
+                case /* symbol.destack.TagProto tag */ 40100:
                     message.node = {
                         oneofKind: "tag",
                         tag: TagProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tag)
                     };
                     break;
-                case /* symbol.destack.TaggingProto tagging */ 30101:
+                case /* symbol.destack.TaggingProto tagging */ 40101:
                     message.node = {
                         oneofKind: "tagging",
                         tagging: TaggingProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tagging)
@@ -63056,7 +63006,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         thread: ThreadProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).thread)
                     };
                     break;
-                case /* symbol.destack.AgentProto agent */ 20600:
+                case /* symbol.destack.AgentProto agent */ 30600:
                     message.node = {
                         oneofKind: "agent",
                         agent: AgentProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).agent)
@@ -63110,7 +63060,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         user: UserProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
                     };
                     break;
-                case /* symbol.destack.BranchProto branch */ 40000:
+                case /* symbol.destack.BranchProto branch */ 20000:
                     message.node = {
                         oneofKind: "branch",
                         branch: BranchProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).branch)
@@ -63242,39 +63192,39 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.ClientProto client = 10700; */
         if (message.node.oneofKind === "client")
             ClientProto.internalBinaryWrite(message.node.client, writer.tag(10700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipProto membership = 20000; */
-        if (message.node.oneofKind === "membership")
-            MembershipProto.internalBinaryWrite(message.node.membership, writer.tag(20000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteProto invite = 20100; */
-        if (message.node.oneofKind === "invite")
-            InviteProto.internalBinaryWrite(message.node.invite, writer.tag(20100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleProto role = 20200; */
-        if (message.node.oneofKind === "role")
-            RoleProto.internalBinaryWrite(message.node.role, writer.tag(20200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PermissionProto permission = 20300; */
-        if (message.node.oneofKind === "permission")
-            PermissionProto.internalBinaryWrite(message.node.permission, writer.tag(20300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionProto sanction = 20400; */
-        if (message.node.oneofKind === "sanction")
-            SanctionProto.internalBinaryWrite(message.node.sanction, writer.tag(20400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementProto entitlement = 20500; */
-        if (message.node.oneofKind === "entitlement")
-            EntitlementProto.internalBinaryWrite(message.node.entitlement, writer.tag(20500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.AgentProto agent = 20600; */
-        if (message.node.oneofKind === "agent")
-            AgentProto.internalBinaryWrite(message.node.agent, writer.tag(20600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FolderProto folder = 30000; */
-        if (message.node.oneofKind === "folder")
-            FolderProto.internalBinaryWrite(message.node.folder, writer.tag(30000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TagProto tag = 30100; */
-        if (message.node.oneofKind === "tag")
-            TagProto.internalBinaryWrite(message.node.tag, writer.tag(30100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TaggingProto tagging = 30101; */
-        if (message.node.oneofKind === "tagging")
-            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(30101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BranchProto branch = 40000; */
+        /* symbol.destack.BranchProto branch = 20000; */
         if (message.node.oneofKind === "branch")
-            BranchProto.internalBinaryWrite(message.node.branch, writer.tag(40000, WireType.LengthDelimited).fork(), options).join();
+            BranchProto.internalBinaryWrite(message.node.branch, writer.tag(20000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipProto membership = 30000; */
+        if (message.node.oneofKind === "membership")
+            MembershipProto.internalBinaryWrite(message.node.membership, writer.tag(30000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteProto invite = 30100; */
+        if (message.node.oneofKind === "invite")
+            InviteProto.internalBinaryWrite(message.node.invite, writer.tag(30100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleProto role = 30200; */
+        if (message.node.oneofKind === "role")
+            RoleProto.internalBinaryWrite(message.node.role, writer.tag(30200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PermissionProto permission = 30300; */
+        if (message.node.oneofKind === "permission")
+            PermissionProto.internalBinaryWrite(message.node.permission, writer.tag(30300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionProto sanction = 30400; */
+        if (message.node.oneofKind === "sanction")
+            SanctionProto.internalBinaryWrite(message.node.sanction, writer.tag(30400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementProto entitlement = 30500; */
+        if (message.node.oneofKind === "entitlement")
+            EntitlementProto.internalBinaryWrite(message.node.entitlement, writer.tag(30500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.AgentProto agent = 30600; */
+        if (message.node.oneofKind === "agent")
+            AgentProto.internalBinaryWrite(message.node.agent, writer.tag(30600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FolderProto folder = 40000; */
+        if (message.node.oneofKind === "folder")
+            FolderProto.internalBinaryWrite(message.node.folder, writer.tag(40000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TagProto tag = 40100; */
+        if (message.node.oneofKind === "tag")
+            TagProto.internalBinaryWrite(message.node.tag, writer.tag(40100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TaggingProto tagging = 40101; */
+        if (message.node.oneofKind === "tagging")
+            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(40101, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.FileProto file = 60000; */
         if (message.node.oneofKind === "file")
             FileProto.internalBinaryWrite(message.node.file, writer.tag(60000, WireType.LengthDelimited).fork(), options).join();
@@ -63445,22 +63395,22 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 92001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
             { no: 92101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
             { no: 92201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
-            { no: 20502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
-            { no: 20503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
-            { no: 20504, name: "entitlement_revoked_event", kind: "message", oneof: "node", T: () => EntitlementRevokedEventProto },
-            { no: 20505, name: "entitlement_expired_event", kind: "message", oneof: "node", T: () => EntitlementExpiredEventProto },
-            { no: 20102, name: "invite_sent_event", kind: "message", oneof: "node", T: () => InviteSentEventProto },
-            { no: 20103, name: "invite_rescinded_event", kind: "message", oneof: "node", T: () => InviteRescindedEventProto },
-            { no: 20104, name: "invite_accepted_event", kind: "message", oneof: "node", T: () => InviteAcceptedEventProto },
-            { no: 20105, name: "invite_rejected_event", kind: "message", oneof: "node", T: () => InviteRejectedEventProto },
-            { no: 20002, name: "membership_joined_event", kind: "message", oneof: "node", T: () => MembershipJoinedEventProto },
-            { no: 20003, name: "membership_left_event", kind: "message", oneof: "node", T: () => MembershipLeftEventProto },
-            { no: 20202, name: "role_assigned_event", kind: "message", oneof: "node", T: () => RoleAssignedEventProto },
-            { no: 20203, name: "role_unassigned_event", kind: "message", oneof: "node", T: () => RoleUnassignedEventProto },
-            { no: 20402, name: "sanction_requested_event", kind: "message", oneof: "node", T: () => SanctionRequestedEventProto },
-            { no: 20403, name: "sanction_granted_event", kind: "message", oneof: "node", T: () => SanctionGrantedEventProto },
-            { no: 20404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
-            { no: 20405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
+            { no: 30502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
+            { no: 30503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
+            { no: 30504, name: "entitlement_revoked_event", kind: "message", oneof: "node", T: () => EntitlementRevokedEventProto },
+            { no: 30505, name: "entitlement_expired_event", kind: "message", oneof: "node", T: () => EntitlementExpiredEventProto },
+            { no: 30102, name: "invite_sent_event", kind: "message", oneof: "node", T: () => InviteSentEventProto },
+            { no: 30103, name: "invite_rescinded_event", kind: "message", oneof: "node", T: () => InviteRescindedEventProto },
+            { no: 30104, name: "invite_accepted_event", kind: "message", oneof: "node", T: () => InviteAcceptedEventProto },
+            { no: 30105, name: "invite_rejected_event", kind: "message", oneof: "node", T: () => InviteRejectedEventProto },
+            { no: 30002, name: "membership_joined_event", kind: "message", oneof: "node", T: () => MembershipJoinedEventProto },
+            { no: 30003, name: "membership_left_event", kind: "message", oneof: "node", T: () => MembershipLeftEventProto },
+            { no: 30202, name: "role_assigned_event", kind: "message", oneof: "node", T: () => RoleAssignedEventProto },
+            { no: 30203, name: "role_unassigned_event", kind: "message", oneof: "node", T: () => RoleUnassignedEventProto },
+            { no: 30402, name: "sanction_requested_event", kind: "message", oneof: "node", T: () => SanctionRequestedEventProto },
+            { no: 30403, name: "sanction_granted_event", kind: "message", oneof: "node", T: () => SanctionGrantedEventProto },
+            { no: 30404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
+            { no: 30405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
             { no: 200101, name: "pointer_down_event", kind: "message", oneof: "node", T: () => PointerDownEventProto },
             { no: 200102, name: "pointer_up_event", kind: "message", oneof: "node", T: () => PointerUpEventProto },
             { no: 200103, name: "pointer_move_event", kind: "message", oneof: "node", T: () => PointerMoveEventProto },
@@ -63561,97 +63511,97 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         histogramMeasurementEvent: HistogramMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event */ 20502:
+                case /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event */ 30502:
                     message.node = {
                         oneofKind: "entitlementRequestedEvent",
                         entitlementRequestedEvent: EntitlementRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event */ 20503:
+                case /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event */ 30503:
                     message.node = {
                         oneofKind: "entitlementGrantedEvent",
                         entitlementGrantedEvent: EntitlementGrantedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementGrantedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event */ 20504:
+                case /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event */ 30504:
                     message.node = {
                         oneofKind: "entitlementRevokedEvent",
                         entitlementRevokedEvent: EntitlementRevokedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementRevokedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event */ 20505:
+                case /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event */ 30505:
                     message.node = {
                         oneofKind: "entitlementExpiredEvent",
                         entitlementExpiredEvent: EntitlementExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.InviteSentEventProto invite_sent_event */ 20102:
+                case /* symbol.destack.InviteSentEventProto invite_sent_event */ 30102:
                     message.node = {
                         oneofKind: "inviteSentEvent",
                         inviteSentEvent: InviteSentEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteSentEvent)
                     };
                     break;
-                case /* symbol.destack.InviteRescindedEventProto invite_rescinded_event */ 20103:
+                case /* symbol.destack.InviteRescindedEventProto invite_rescinded_event */ 30103:
                     message.node = {
                         oneofKind: "inviteRescindedEvent",
                         inviteRescindedEvent: InviteRescindedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteRescindedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteAcceptedEventProto invite_accepted_event */ 20104:
+                case /* symbol.destack.InviteAcceptedEventProto invite_accepted_event */ 30104:
                     message.node = {
                         oneofKind: "inviteAcceptedEvent",
                         inviteAcceptedEvent: InviteAcceptedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteAcceptedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteRejectedEventProto invite_rejected_event */ 20105:
+                case /* symbol.destack.InviteRejectedEventProto invite_rejected_event */ 30105:
                     message.node = {
                         oneofKind: "inviteRejectedEvent",
                         inviteRejectedEvent: InviteRejectedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteRejectedEvent)
                     };
                     break;
-                case /* symbol.destack.MembershipJoinedEventProto membership_joined_event */ 20002:
+                case /* symbol.destack.MembershipJoinedEventProto membership_joined_event */ 30002:
                     message.node = {
                         oneofKind: "membershipJoinedEvent",
                         membershipJoinedEvent: MembershipJoinedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membershipJoinedEvent)
                     };
                     break;
-                case /* symbol.destack.MembershipLeftEventProto membership_left_event */ 20003:
+                case /* symbol.destack.MembershipLeftEventProto membership_left_event */ 30003:
                     message.node = {
                         oneofKind: "membershipLeftEvent",
                         membershipLeftEvent: MembershipLeftEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membershipLeftEvent)
                     };
                     break;
-                case /* symbol.destack.RoleAssignedEventProto role_assigned_event */ 20202:
+                case /* symbol.destack.RoleAssignedEventProto role_assigned_event */ 30202:
                     message.node = {
                         oneofKind: "roleAssignedEvent",
                         roleAssignedEvent: RoleAssignedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).roleAssignedEvent)
                     };
                     break;
-                case /* symbol.destack.RoleUnassignedEventProto role_unassigned_event */ 20203:
+                case /* symbol.destack.RoleUnassignedEventProto role_unassigned_event */ 30203:
                     message.node = {
                         oneofKind: "roleUnassignedEvent",
                         roleUnassignedEvent: RoleUnassignedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).roleUnassignedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionRequestedEventProto sanction_requested_event */ 20402:
+                case /* symbol.destack.SanctionRequestedEventProto sanction_requested_event */ 30402:
                     message.node = {
                         oneofKind: "sanctionRequestedEvent",
                         sanctionRequestedEvent: SanctionRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionGrantedEventProto sanction_granted_event */ 20403:
+                case /* symbol.destack.SanctionGrantedEventProto sanction_granted_event */ 30403:
                     message.node = {
                         oneofKind: "sanctionGrantedEvent",
                         sanctionGrantedEvent: SanctionGrantedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionGrantedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event */ 20404:
+                case /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event */ 30404:
                     message.node = {
                         oneofKind: "sanctionRevokedEvent",
                         sanctionRevokedEvent: SanctionRevokedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionRevokedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionExpiredEventProto sanction_expired_event */ 20405:
+                case /* symbol.destack.SanctionExpiredEventProto sanction_expired_event */ 30405:
                     message.node = {
                         oneofKind: "sanctionExpiredEvent",
                         sanctionExpiredEvent: SanctionExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionExpiredEvent)
@@ -63990,54 +63940,54 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 10405; */
         if (message.node.oneofKind === "friendshipInviteRejectedEvent")
             FriendshipInviteRejectedEventProto.internalBinaryWrite(message.node.friendshipInviteRejectedEvent, writer.tag(10405, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipJoinedEventProto membership_joined_event = 20002; */
+        /* symbol.destack.MembershipJoinedEventProto membership_joined_event = 30002; */
         if (message.node.oneofKind === "membershipJoinedEvent")
-            MembershipJoinedEventProto.internalBinaryWrite(message.node.membershipJoinedEvent, writer.tag(20002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipLeftEventProto membership_left_event = 20003; */
+            MembershipJoinedEventProto.internalBinaryWrite(message.node.membershipJoinedEvent, writer.tag(30002, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipLeftEventProto membership_left_event = 30003; */
         if (message.node.oneofKind === "membershipLeftEvent")
-            MembershipLeftEventProto.internalBinaryWrite(message.node.membershipLeftEvent, writer.tag(20003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteSentEventProto invite_sent_event = 20102; */
+            MembershipLeftEventProto.internalBinaryWrite(message.node.membershipLeftEvent, writer.tag(30003, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteSentEventProto invite_sent_event = 30102; */
         if (message.node.oneofKind === "inviteSentEvent")
-            InviteSentEventProto.internalBinaryWrite(message.node.inviteSentEvent, writer.tag(20102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteRescindedEventProto invite_rescinded_event = 20103; */
+            InviteSentEventProto.internalBinaryWrite(message.node.inviteSentEvent, writer.tag(30102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteRescindedEventProto invite_rescinded_event = 30103; */
         if (message.node.oneofKind === "inviteRescindedEvent")
-            InviteRescindedEventProto.internalBinaryWrite(message.node.inviteRescindedEvent, writer.tag(20103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteAcceptedEventProto invite_accepted_event = 20104; */
+            InviteRescindedEventProto.internalBinaryWrite(message.node.inviteRescindedEvent, writer.tag(30103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteAcceptedEventProto invite_accepted_event = 30104; */
         if (message.node.oneofKind === "inviteAcceptedEvent")
-            InviteAcceptedEventProto.internalBinaryWrite(message.node.inviteAcceptedEvent, writer.tag(20104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteRejectedEventProto invite_rejected_event = 20105; */
+            InviteAcceptedEventProto.internalBinaryWrite(message.node.inviteAcceptedEvent, writer.tag(30104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteRejectedEventProto invite_rejected_event = 30105; */
         if (message.node.oneofKind === "inviteRejectedEvent")
-            InviteRejectedEventProto.internalBinaryWrite(message.node.inviteRejectedEvent, writer.tag(20105, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleAssignedEventProto role_assigned_event = 20202; */
+            InviteRejectedEventProto.internalBinaryWrite(message.node.inviteRejectedEvent, writer.tag(30105, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleAssignedEventProto role_assigned_event = 30202; */
         if (message.node.oneofKind === "roleAssignedEvent")
-            RoleAssignedEventProto.internalBinaryWrite(message.node.roleAssignedEvent, writer.tag(20202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleUnassignedEventProto role_unassigned_event = 20203; */
+            RoleAssignedEventProto.internalBinaryWrite(message.node.roleAssignedEvent, writer.tag(30202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleUnassignedEventProto role_unassigned_event = 30203; */
         if (message.node.oneofKind === "roleUnassignedEvent")
-            RoleUnassignedEventProto.internalBinaryWrite(message.node.roleUnassignedEvent, writer.tag(20203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionRequestedEventProto sanction_requested_event = 20402; */
+            RoleUnassignedEventProto.internalBinaryWrite(message.node.roleUnassignedEvent, writer.tag(30203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionRequestedEventProto sanction_requested_event = 30402; */
         if (message.node.oneofKind === "sanctionRequestedEvent")
-            SanctionRequestedEventProto.internalBinaryWrite(message.node.sanctionRequestedEvent, writer.tag(20402, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionGrantedEventProto sanction_granted_event = 20403; */
+            SanctionRequestedEventProto.internalBinaryWrite(message.node.sanctionRequestedEvent, writer.tag(30402, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionGrantedEventProto sanction_granted_event = 30403; */
         if (message.node.oneofKind === "sanctionGrantedEvent")
-            SanctionGrantedEventProto.internalBinaryWrite(message.node.sanctionGrantedEvent, writer.tag(20403, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 20404; */
+            SanctionGrantedEventProto.internalBinaryWrite(message.node.sanctionGrantedEvent, writer.tag(30403, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 30404; */
         if (message.node.oneofKind === "sanctionRevokedEvent")
-            SanctionRevokedEventProto.internalBinaryWrite(message.node.sanctionRevokedEvent, writer.tag(20404, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionExpiredEventProto sanction_expired_event = 20405; */
+            SanctionRevokedEventProto.internalBinaryWrite(message.node.sanctionRevokedEvent, writer.tag(30404, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionExpiredEventProto sanction_expired_event = 30405; */
         if (message.node.oneofKind === "sanctionExpiredEvent")
-            SanctionExpiredEventProto.internalBinaryWrite(message.node.sanctionExpiredEvent, writer.tag(20405, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 20502; */
+            SanctionExpiredEventProto.internalBinaryWrite(message.node.sanctionExpiredEvent, writer.tag(30405, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 30502; */
         if (message.node.oneofKind === "entitlementRequestedEvent")
-            EntitlementRequestedEventProto.internalBinaryWrite(message.node.entitlementRequestedEvent, writer.tag(20502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 20503; */
+            EntitlementRequestedEventProto.internalBinaryWrite(message.node.entitlementRequestedEvent, writer.tag(30502, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 30503; */
         if (message.node.oneofKind === "entitlementGrantedEvent")
-            EntitlementGrantedEventProto.internalBinaryWrite(message.node.entitlementGrantedEvent, writer.tag(20503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 20504; */
+            EntitlementGrantedEventProto.internalBinaryWrite(message.node.entitlementGrantedEvent, writer.tag(30503, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 30504; */
         if (message.node.oneofKind === "entitlementRevokedEvent")
-            EntitlementRevokedEventProto.internalBinaryWrite(message.node.entitlementRevokedEvent, writer.tag(20504, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 20505; */
+            EntitlementRevokedEventProto.internalBinaryWrite(message.node.entitlementRevokedEvent, writer.tag(30504, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 30505; */
         if (message.node.oneofKind === "entitlementExpiredEvent")
-            EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(20505, WireType.LengthDelimited).fork(), options).join();
+            EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(30505, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.TimerStartedEventProto timer_started_event = 72102; */
         if (message.node.oneofKind === "timerStartedEvent")
             TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(72102, WireType.LengthDelimited).fork(), options).join();

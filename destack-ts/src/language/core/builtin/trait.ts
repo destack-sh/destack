@@ -1,4 +1,4 @@
-import { EnumType, TraitType } from "@destack/language/core/builtin/common";
+import { TraitType } from "@destack/language/core/builtin/common";
 import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
@@ -9,7 +9,7 @@ import type {
 import type { PropertyDefinition, TraitDefinition } from "@destack/language/core/common/definition";
 import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
-import { registerEnumClass, registerTraitClass } from "@destack/language/registry";
+import { registerTraitClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
@@ -445,19 +445,21 @@ export const IsOwner = new IsOwner$Type(TraitType.OWNER);
 registerTraitClass(TraitType.OWNER, IsOwner);
 /* ==== DESTACK_GENERATED_END:TRAIT:20001 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:20000 ==== */
+/* ==== DESTACK_GENERATED_START:TRAIT:120 ==== */
 /**
- * JoinablePermission
+ * A Node that cannot be rewound in spacetime.
  */
-export enum JoinablePermission {
-  INVITE = 1,
-  REMOVE = 2,
-  KICK = 3,
-  BAN = 4,
-
+export interface IsIrreversible {
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.JOINABLE_PERMISSION, JoinablePermission);
-/* ==== DESTACK_GENERATED_END:ENUM:20000 ==== */
+
+/**
+ * A Node that cannot be rewound in spacetime.
+ */
+class IsIrreversible$Type extends TraitClass<IsIrreversible, TraitType.IRREVERSIBLE> {}
+
+export const IsIrreversible = new IsIrreversible$Type(TraitType.IRREVERSIBLE);
+registerTraitClass(TraitType.IRREVERSIBLE, IsIrreversible);
+/* ==== DESTACK_GENERATED_END:TRAIT:120 ==== */

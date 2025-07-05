@@ -364,8 +364,6 @@ enum EnumTypeProto {
   ENUM_TYPE_USER_STATUS = 10200;
   ENUM_TYPE_ORGANIZATION_STATUS = 10500;
   ENUM_TYPE_CLIENT_TYPE = 10700;
-  ENUM_TYPE_JOINABLE_PERMISSION = 20000;
-  ENUM_TYPE_MEMBERSHIP_PERMISSION = 20001;
   ENUM_TYPE_ROLE_TYPE = 20200;
   ENUM_TYPE_PERMISSION_TYPE = 20300;
   ENUM_TYPE_SANCTION_TYPE = 20400;
@@ -708,15 +706,6 @@ enum JoinTypeProto {
   JOIN_TYPE_CHILD = 11;
 }
 
-// A Permission for a Joinable.
-enum JoinablePermissionProto {
-  JOINABLE_PERMISSION_UNSPECIFIED = 0;
-  JOINABLE_PERMISSION_INVITE = 1;
-  JOINABLE_PERMISSION_REMOVE = 2;
-  JOINABLE_PERMISSION_KICK = 3;
-  JOINABLE_PERMISSION_BAN = 4;
-}
-
 // Built-in layer types.
 enum LayerTypeProto {
   LAYER_TYPE_UNSPECIFIED = 0;
@@ -764,13 +753,6 @@ enum MaterializationProto {
   MATERIALIZATION_UNSPECIFIED = 0;
   MATERIALIZATION_PARTIAL = 1;
   MATERIALIZATION_FULL = 32;
-}
-
-// A Permission for a Membership.
-enum MembershipPermissionProto {
-  MEMBERSHIP_PERMISSION_UNSPECIFIED = 0;
-  MEMBERSHIP_PERMISSION_KICK = 10;
-  MEMBERSHIP_PERMISSION_BAN = 11;
 }
 
 enum ModeTypeProto {
@@ -863,38 +845,38 @@ enum NodeTypeProto {
   NODE_TYPE_ORGANIZATION = 10500;
   NODE_TYPE_TEAM = 10600;
   NODE_TYPE_CLIENT = 10700;
-  NODE_TYPE_MEMBERSHIP = 20000;
-  NODE_TYPE_MEMBERSHIP_EVENT = 20001;
-  NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 20002;
-  NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 20003;
-  NODE_TYPE_INVITE = 20100;
-  NODE_TYPE_INVITE_EVENT = 20101;
-  NODE_TYPE_INVITE_SENT_EVENT = 20102;
-  NODE_TYPE_INVITE_RESCINDED_EVENT = 20103;
-  NODE_TYPE_INVITE_ACCEPTED_EVENT = 20104;
-  NODE_TYPE_INVITE_REJECTED_EVENT = 20105;
-  NODE_TYPE_ROLE = 20200;
-  NODE_TYPE_ROLE_EVENT = 20201;
-  NODE_TYPE_ROLE_ASSIGNED_EVENT = 20202;
-  NODE_TYPE_ROLE_UNASSIGNED_EVENT = 20203;
-  NODE_TYPE_PERMISSION = 20300;
-  NODE_TYPE_SANCTION = 20400;
-  NODE_TYPE_SANCTION_EVENT = 20401;
-  NODE_TYPE_SANCTION_REQUESTED_EVENT = 20402;
-  NODE_TYPE_SANCTION_GRANTED_EVENT = 20403;
-  NODE_TYPE_SANCTION_REVOKED_EVENT = 20404;
-  NODE_TYPE_SANCTION_EXPIRED_EVENT = 20405;
-  NODE_TYPE_ENTITLEMENT = 20500;
-  NODE_TYPE_ENTITLEMENT_EVENT = 20501;
-  NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 20502;
-  NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 20503;
-  NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 20504;
-  NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 20505;
-  NODE_TYPE_AGENT = 20600;
-  NODE_TYPE_FOLDER = 30000;
-  NODE_TYPE_TAG = 30100;
-  NODE_TYPE_TAGGING = 30101;
-  NODE_TYPE_BRANCH = 40000;
+  NODE_TYPE_BRANCH = 20000;
+  NODE_TYPE_MEMBERSHIP = 30000;
+  NODE_TYPE_MEMBERSHIP_EVENT = 30001;
+  NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 30002;
+  NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 30003;
+  NODE_TYPE_INVITE = 30100;
+  NODE_TYPE_INVITE_EVENT = 30101;
+  NODE_TYPE_INVITE_SENT_EVENT = 30102;
+  NODE_TYPE_INVITE_RESCINDED_EVENT = 30103;
+  NODE_TYPE_INVITE_ACCEPTED_EVENT = 30104;
+  NODE_TYPE_INVITE_REJECTED_EVENT = 30105;
+  NODE_TYPE_ROLE = 30200;
+  NODE_TYPE_ROLE_EVENT = 30201;
+  NODE_TYPE_ROLE_ASSIGNED_EVENT = 30202;
+  NODE_TYPE_ROLE_UNASSIGNED_EVENT = 30203;
+  NODE_TYPE_PERMISSION = 30300;
+  NODE_TYPE_SANCTION = 30400;
+  NODE_TYPE_SANCTION_EVENT = 30401;
+  NODE_TYPE_SANCTION_REQUESTED_EVENT = 30402;
+  NODE_TYPE_SANCTION_GRANTED_EVENT = 30403;
+  NODE_TYPE_SANCTION_REVOKED_EVENT = 30404;
+  NODE_TYPE_SANCTION_EXPIRED_EVENT = 30405;
+  NODE_TYPE_ENTITLEMENT = 30500;
+  NODE_TYPE_ENTITLEMENT_EVENT = 30501;
+  NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 30502;
+  NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 30503;
+  NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 30504;
+  NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 30505;
+  NODE_TYPE_AGENT = 30600;
+  NODE_TYPE_FOLDER = 40000;
+  NODE_TYPE_TAG = 40100;
+  NODE_TYPE_TAGGING = 40101;
   NODE_TYPE_FILE = 60000;
   NODE_TYPE_SCRIPT = 70000;
   NODE_TYPE_SERVICE = 70100;
@@ -1520,6 +1502,7 @@ enum TraitTypeProto {
   TRAIT_TYPE_DELETABLE = 102;
   TRAIT_TYPE_CUSTOMIZABLE = 110;
   TRAIT_TYPE_EXTENSIBLE = 111;
+  TRAIT_TYPE_IRREVERSIBLE = 120;
   TRAIT_TYPE_OWNABLE = 20000;
   TRAIT_TYPE_OWNER = 20001;
   TRAIT_TYPE_JOINABLE = 20002;
@@ -6202,28 +6185,28 @@ message SomeNodeProto {
     HistogramMeasurementEventProto histogram_measurement_event = 92201;
     CustomPropertyProto custom_property = 105;
     CustomStructDefinitionProto custom_struct_definition = 103;
-    EntitlementRequestedEventProto entitlement_requested_event = 20502;
-    EntitlementGrantedEventProto entitlement_granted_event = 20503;
-    EntitlementRevokedEventProto entitlement_revoked_event = 20504;
-    EntitlementExpiredEventProto entitlement_expired_event = 20505;
-    EntitlementProto entitlement = 20500;
-    InviteSentEventProto invite_sent_event = 20102;
-    InviteRescindedEventProto invite_rescinded_event = 20103;
-    InviteAcceptedEventProto invite_accepted_event = 20104;
-    InviteRejectedEventProto invite_rejected_event = 20105;
-    InviteProto invite = 20100;
-    MembershipJoinedEventProto membership_joined_event = 20002;
-    MembershipLeftEventProto membership_left_event = 20003;
-    MembershipProto membership = 20000;
-    PermissionProto permission = 20300;
-    RoleAssignedEventProto role_assigned_event = 20202;
-    RoleUnassignedEventProto role_unassigned_event = 20203;
-    RoleProto role = 20200;
-    SanctionRequestedEventProto sanction_requested_event = 20402;
-    SanctionGrantedEventProto sanction_granted_event = 20403;
-    SanctionRevokedEventProto sanction_revoked_event = 20404;
-    SanctionExpiredEventProto sanction_expired_event = 20405;
-    SanctionProto sanction = 20400;
+    EntitlementRequestedEventProto entitlement_requested_event = 30502;
+    EntitlementGrantedEventProto entitlement_granted_event = 30503;
+    EntitlementRevokedEventProto entitlement_revoked_event = 30504;
+    EntitlementExpiredEventProto entitlement_expired_event = 30505;
+    EntitlementProto entitlement = 30500;
+    InviteSentEventProto invite_sent_event = 30102;
+    InviteRescindedEventProto invite_rescinded_event = 30103;
+    InviteAcceptedEventProto invite_accepted_event = 30104;
+    InviteRejectedEventProto invite_rejected_event = 30105;
+    InviteProto invite = 30100;
+    MembershipJoinedEventProto membership_joined_event = 30002;
+    MembershipLeftEventProto membership_left_event = 30003;
+    MembershipProto membership = 30000;
+    PermissionProto permission = 30300;
+    RoleAssignedEventProto role_assigned_event = 30202;
+    RoleUnassignedEventProto role_unassigned_event = 30203;
+    RoleProto role = 30200;
+    SanctionRequestedEventProto sanction_requested_event = 30402;
+    SanctionGrantedEventProto sanction_granted_event = 30403;
+    SanctionRevokedEventProto sanction_revoked_event = 30404;
+    SanctionExpiredEventProto sanction_expired_event = 30405;
+    SanctionProto sanction = 30400;
     FrameViewProto frame_view = 210100;
     LabelViewProto label_view = 210200;
     SplitViewProto split_view = 210300;
@@ -6237,9 +6220,9 @@ message SomeNodeProto {
     LineShapeProto line_shape = 250200;
     FileProto file = 60000;
     EnvironmentProto environment = 100000;
-    FolderProto folder = 30000;
-    TagProto tag = 30100;
-    TaggingProto tagging = 30101;
+    FolderProto folder = 40000;
+    TagProto tag = 40100;
+    TaggingProto tagging = 40101;
     DatabaseProto database = 160000;
     MachineProto machine = 160100;
     PointerDownEventProto pointer_down_event = 200101;
@@ -6309,7 +6292,7 @@ message SomeNodeProto {
     ReactionProto reaction = 120200;
     StarProto star = 120300;
     ThreadProto thread = 120000;
-    AgentProto agent = 20600;
+    AgentProto agent = 30600;
     ClientProto client = 10700;
     FriendshipProto friendship = 10300;
     FriendshipInviteSentEventProto friendship_invite_sent_event = 10402;
@@ -6322,7 +6305,7 @@ message SomeNodeProto {
     SpaceProto space = 10000;
     TeamProto team = 10600;
     UserProto user = 10200;
-    BranchProto branch = 40000;
+    BranchProto branch = 20000;
     ColorStyleProto color_style = 270300;
     BorderStyleProto border_style = 270600;
     TransitionStyleProto transition_style = 270900;
@@ -6350,12 +6333,12 @@ message SomeEntityProto {
     HistogramMetricProto histogram_metric = 92200;
     CustomPropertyProto custom_property = 105;
     CustomStructDefinitionProto custom_struct_definition = 103;
-    EntitlementProto entitlement = 20500;
-    InviteProto invite = 20100;
-    MembershipProto membership = 20000;
-    PermissionProto permission = 20300;
-    RoleProto role = 20200;
-    SanctionProto sanction = 20400;
+    EntitlementProto entitlement = 30500;
+    InviteProto invite = 30100;
+    MembershipProto membership = 30000;
+    PermissionProto permission = 30300;
+    RoleProto role = 30200;
+    SanctionProto sanction = 30400;
     FrameViewProto frame_view = 210100;
     LabelViewProto label_view = 210200;
     SplitViewProto split_view = 210300;
@@ -6369,9 +6352,9 @@ message SomeEntityProto {
     LineShapeProto line_shape = 250200;
     FileProto file = 60000;
     EnvironmentProto environment = 100000;
-    FolderProto folder = 30000;
-    TagProto tag = 30100;
-    TaggingProto tagging = 30101;
+    FolderProto folder = 40000;
+    TagProto tag = 40100;
+    TaggingProto tagging = 40101;
     DatabaseProto database = 160000;
     MachineProto machine = 160100;
     ActionProto action = 70300;
@@ -6395,7 +6378,7 @@ message SomeEntityProto {
     ReactionProto reaction = 120200;
     StarProto star = 120300;
     ThreadProto thread = 120000;
-    AgentProto agent = 20600;
+    AgentProto agent = 30600;
     ClientProto client = 10700;
     FriendshipProto friendship = 10300;
     FriendshipInviteProto friendship_invite = 10400;
@@ -6404,7 +6387,7 @@ message SomeEntityProto {
     SpaceProto space = 10000;
     TeamProto team = 10600;
     UserProto user = 10200;
-    BranchProto branch = 40000;
+    BranchProto branch = 20000;
     ColorStyleProto color_style = 270300;
     BorderStyleProto border_style = 270600;
     TransitionStyleProto transition_style = 270900;
@@ -6427,22 +6410,22 @@ message SomeEventProto {
     GaugeMeasurementEventProto gauge_measurement_event = 92001;
     CounterMeasurementEventProto counter_measurement_event = 92101;
     HistogramMeasurementEventProto histogram_measurement_event = 92201;
-    EntitlementRequestedEventProto entitlement_requested_event = 20502;
-    EntitlementGrantedEventProto entitlement_granted_event = 20503;
-    EntitlementRevokedEventProto entitlement_revoked_event = 20504;
-    EntitlementExpiredEventProto entitlement_expired_event = 20505;
-    InviteSentEventProto invite_sent_event = 20102;
-    InviteRescindedEventProto invite_rescinded_event = 20103;
-    InviteAcceptedEventProto invite_accepted_event = 20104;
-    InviteRejectedEventProto invite_rejected_event = 20105;
-    MembershipJoinedEventProto membership_joined_event = 20002;
-    MembershipLeftEventProto membership_left_event = 20003;
-    RoleAssignedEventProto role_assigned_event = 20202;
-    RoleUnassignedEventProto role_unassigned_event = 20203;
-    SanctionRequestedEventProto sanction_requested_event = 20402;
-    SanctionGrantedEventProto sanction_granted_event = 20403;
-    SanctionRevokedEventProto sanction_revoked_event = 20404;
-    SanctionExpiredEventProto sanction_expired_event = 20405;
+    EntitlementRequestedEventProto entitlement_requested_event = 30502;
+    EntitlementGrantedEventProto entitlement_granted_event = 30503;
+    EntitlementRevokedEventProto entitlement_revoked_event = 30504;
+    EntitlementExpiredEventProto entitlement_expired_event = 30505;
+    InviteSentEventProto invite_sent_event = 30102;
+    InviteRescindedEventProto invite_rescinded_event = 30103;
+    InviteAcceptedEventProto invite_accepted_event = 30104;
+    InviteRejectedEventProto invite_rejected_event = 30105;
+    MembershipJoinedEventProto membership_joined_event = 30002;
+    MembershipLeftEventProto membership_left_event = 30003;
+    RoleAssignedEventProto role_assigned_event = 30202;
+    RoleUnassignedEventProto role_unassigned_event = 30203;
+    SanctionRequestedEventProto sanction_requested_event = 30402;
+    SanctionGrantedEventProto sanction_granted_event = 30403;
+    SanctionRevokedEventProto sanction_revoked_event = 30404;
+    SanctionExpiredEventProto sanction_expired_event = 30405;
     PointerDownEventProto pointer_down_event = 200101;
     PointerUpEventProto pointer_up_event = 200102;
     PointerMoveEventProto pointer_move_event = 200103;

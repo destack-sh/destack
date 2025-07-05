@@ -361,8 +361,6 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_JOINABLE_PERMISSION: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_MEMBERSHIP_PERMISSION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_ROLE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_PERMISSION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SANCTION_TYPE: _ClassVar[EnumTypeProto]
@@ -702,14 +700,6 @@ class JoinTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     JOIN_TYPE_PARENT: _ClassVar[JoinTypeProto]
     JOIN_TYPE_CHILD: _ClassVar[JoinTypeProto]
 
-class JoinablePermissionProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    JOINABLE_PERMISSION_UNSPECIFIED: _ClassVar[JoinablePermissionProto]
-    JOINABLE_PERMISSION_INVITE: _ClassVar[JoinablePermissionProto]
-    JOINABLE_PERMISSION_REMOVE: _ClassVar[JoinablePermissionProto]
-    JOINABLE_PERMISSION_KICK: _ClassVar[JoinablePermissionProto]
-    JOINABLE_PERMISSION_BAN: _ClassVar[JoinablePermissionProto]
-
 class LayerTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     LAYER_TYPE_UNSPECIFIED: _ClassVar[LayerTypeProto]
@@ -754,12 +744,6 @@ class MaterializationProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MATERIALIZATION_UNSPECIFIED: _ClassVar[MaterializationProto]
     MATERIALIZATION_PARTIAL: _ClassVar[MaterializationProto]
     MATERIALIZATION_FULL: _ClassVar[MaterializationProto]
-
-class MembershipPermissionProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    MEMBERSHIP_PERMISSION_UNSPECIFIED: _ClassVar[MembershipPermissionProto]
-    MEMBERSHIP_PERMISSION_KICK: _ClassVar[MembershipPermissionProto]
-    MEMBERSHIP_PERMISSION_BAN: _ClassVar[MembershipPermissionProto]
 
 class ModeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -851,6 +835,7 @@ class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_ORGANIZATION: _ClassVar[NodeTypeProto]
     NODE_TYPE_TEAM: _ClassVar[NodeTypeProto]
     NODE_TYPE_CLIENT: _ClassVar[NodeTypeProto]
+    NODE_TYPE_BRANCH: _ClassVar[NodeTypeProto]
     NODE_TYPE_MEMBERSHIP: _ClassVar[NodeTypeProto]
     NODE_TYPE_MEMBERSHIP_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_MEMBERSHIP_JOINED_EVENT: _ClassVar[NodeTypeProto]
@@ -882,7 +867,6 @@ class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_FOLDER: _ClassVar[NodeTypeProto]
     NODE_TYPE_TAG: _ClassVar[NodeTypeProto]
     NODE_TYPE_TAGGING: _ClassVar[NodeTypeProto]
-    NODE_TYPE_BRANCH: _ClassVar[NodeTypeProto]
     NODE_TYPE_FILE: _ClassVar[NodeTypeProto]
     NODE_TYPE_SCRIPT: _ClassVar[NodeTypeProto]
     NODE_TYPE_SERVICE: _ClassVar[NodeTypeProto]
@@ -1487,6 +1471,7 @@ class TraitTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_DELETABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_CUSTOMIZABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_EXTENSIBLE: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_IRREVERSIBLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_OWNABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_OWNER: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_JOINABLE: _ClassVar[TraitTypeProto]
@@ -1796,8 +1781,6 @@ ENUM_TYPE_SPACE_STATUS: EnumTypeProto
 ENUM_TYPE_USER_STATUS: EnumTypeProto
 ENUM_TYPE_ORGANIZATION_STATUS: EnumTypeProto
 ENUM_TYPE_CLIENT_TYPE: EnumTypeProto
-ENUM_TYPE_JOINABLE_PERMISSION: EnumTypeProto
-ENUM_TYPE_MEMBERSHIP_PERMISSION: EnumTypeProto
 ENUM_TYPE_ROLE_TYPE: EnumTypeProto
 ENUM_TYPE_PERMISSION_TYPE: EnumTypeProto
 ENUM_TYPE_SANCTION_TYPE: EnumTypeProto
@@ -2076,11 +2059,6 @@ JOIN_TYPE_UNSPECIFIED: JoinTypeProto
 JOIN_TYPE_LEFT: JoinTypeProto
 JOIN_TYPE_PARENT: JoinTypeProto
 JOIN_TYPE_CHILD: JoinTypeProto
-JOINABLE_PERMISSION_UNSPECIFIED: JoinablePermissionProto
-JOINABLE_PERMISSION_INVITE: JoinablePermissionProto
-JOINABLE_PERMISSION_REMOVE: JoinablePermissionProto
-JOINABLE_PERMISSION_KICK: JoinablePermissionProto
-JOINABLE_PERMISSION_BAN: JoinablePermissionProto
 LAYER_TYPE_UNSPECIFIED: LayerTypeProto
 LAYER_TYPE_GENERAL: LayerTypeProto
 LAYER_TYPE_SHAPE: LayerTypeProto
@@ -2108,9 +2086,6 @@ MACHINE_TYPE_CUSTOM: MachineTypeProto
 MATERIALIZATION_UNSPECIFIED: MaterializationProto
 MATERIALIZATION_PARTIAL: MaterializationProto
 MATERIALIZATION_FULL: MaterializationProto
-MEMBERSHIP_PERMISSION_UNSPECIFIED: MembershipPermissionProto
-MEMBERSHIP_PERMISSION_KICK: MembershipPermissionProto
-MEMBERSHIP_PERMISSION_BAN: MembershipPermissionProto
 MODE_TYPE_UNSPECIFIED: ModeTypeProto
 MODE_TYPE_EDIT: ModeTypeProto
 MODE_TYPE_DEBUG: ModeTypeProto
@@ -2181,6 +2156,7 @@ NODE_TYPE_FRIENDSHIP_INVITE_REJECTED_EVENT: NodeTypeProto
 NODE_TYPE_ORGANIZATION: NodeTypeProto
 NODE_TYPE_TEAM: NodeTypeProto
 NODE_TYPE_CLIENT: NodeTypeProto
+NODE_TYPE_BRANCH: NodeTypeProto
 NODE_TYPE_MEMBERSHIP: NodeTypeProto
 NODE_TYPE_MEMBERSHIP_EVENT: NodeTypeProto
 NODE_TYPE_MEMBERSHIP_JOINED_EVENT: NodeTypeProto
@@ -2212,7 +2188,6 @@ NODE_TYPE_AGENT: NodeTypeProto
 NODE_TYPE_FOLDER: NodeTypeProto
 NODE_TYPE_TAG: NodeTypeProto
 NODE_TYPE_TAGGING: NodeTypeProto
-NODE_TYPE_BRANCH: NodeTypeProto
 NODE_TYPE_FILE: NodeTypeProto
 NODE_TYPE_SCRIPT: NodeTypeProto
 NODE_TYPE_SERVICE: NodeTypeProto
@@ -2670,6 +2645,7 @@ TRAIT_TYPE_ARCHIVABLE: TraitTypeProto
 TRAIT_TYPE_DELETABLE: TraitTypeProto
 TRAIT_TYPE_CUSTOMIZABLE: TraitTypeProto
 TRAIT_TYPE_EXTENSIBLE: TraitTypeProto
+TRAIT_TYPE_IRREVERSIBLE: TraitTypeProto
 TRAIT_TYPE_OWNABLE: TraitTypeProto
 TRAIT_TYPE_OWNER: TraitTypeProto
 TRAIT_TYPE_JOINABLE: TraitTypeProto

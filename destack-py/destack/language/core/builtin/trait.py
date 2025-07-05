@@ -18,11 +18,8 @@ from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
 from .common import (
-    Enum,
-    EnumType,
     NodeType,
     TraitType,
-    builtin_enum,
 )
 from .constant import register_constant
 from .object import BuiltinObject, _process_object_cls
@@ -135,6 +132,39 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     __is_extensible__: ClassVar[bool] = False
 
 
+@builtin_trait(TraitType.GLOBAL)
+class IsGlobal(Trait):
+    """A Node that is global."""
+
+    pass
+
+
+@builtin_trait(TraitType.SPATIAL)
+class IsSpatial(Trait):
+    """A Node in a Space."""
+
+    space: "Space | None" = builtin_property(
+        5,
+        is_managed=True,
+        description="The Space this Node is in.",
+    )
+    if TYPE_CHECKING:
+        space_ptr: Optional[NodeReference] = None
+
+
+@builtin_trait(TraitType.ORDERED, is_extensible=True)
+class IsOrdered(Trait):
+    """A Node that can be ordered."""
+
+    order_key: str = builtin_property(
+        27,
+        is_eq=False,
+        is_managed=True,
+        default=INTEGER_ZERO,
+        description="The absolute order key of this Node in its parent.",
+    )
+
+
 @builtin_trait(TraitType.ARCHIVABLE, is_extensible=True)
 class IsArchivable(Trait):
     """A Node that can be archived."""
@@ -223,17 +253,48 @@ class IsExtensible(IsCustomizable):
         return self.definition is not None
 
 
-@builtin_trait(TraitType.ORDERED, is_extensible=True)
-class IsOrdered(Trait):
-    """A Node that can be ordered."""
+@builtin_trait(TraitType.IRREVERSIBLE, is_extensible=True)
+class IsIrreversible(Trait):
+    """A Node that cannot be rewound in spacetime."""
 
-    order_key: str = builtin_property(
-        27,
-        is_eq=False,
-        is_managed=True,
-        default=INTEGER_ZERO,
-        description="The absolute order key of this Node in its parent.",
-    )
+    pass
+
+
+@builtin_trait(TraitType.OWNABLE, is_extensible=True)
+class IsOwnable(Trait):
+    """A Node that can be owned by another Node."""
+
+    owned_by: Optional["IsOwner"] = builtin_property(28, is_repr=True)
+    if TYPE_CHECKING:
+        owned_by_ptr: Optional[NodeReference] = None
+
+
+@builtin_trait(TraitType.JOINABLE, is_extensible=True)
+class IsJoinable(Trait):
+    """A Node that can be joined by Subjects."""
+
+    pass
+
+
+@builtin_trait(TraitType.SUBJECT)
+class IsSubject(Trait):
+    """A Node that can be a Subject."""
+
+    pass
+
+
+@builtin_trait(TraitType.OWNER)
+class IsOwner(Trait):
+    """A Node that can be an Owner."""
+
+    pass
+
+
+@builtin_trait(TraitType.TAGGABLE, is_extensible=True)
+class IsTaggable(Trait):
+    """A Node that can be tagged (with a Tag)."""
+
+    pass
 
 
 @builtin_trait(TraitType.REACTABLE, is_extensible=True)
@@ -279,75 +340,3 @@ class IsRunnable(Trait):
     """A Node that can be run (with Runs)."""
 
     pass
-
-
-@builtin_trait(TraitType.OWNABLE, is_extensible=True)
-class IsOwnable(Trait):
-    """A Node that can be owned by another Node."""
-
-    owned_by: Optional["IsOwner"] = builtin_property(28, is_repr=True)
-    if TYPE_CHECKING:
-        owned_by_ptr: Optional[NodeReference] = None
-
-
-@builtin_enum(EnumType.JOINABLE_PERMISSION)
-class JoinablePermission(Enum):
-    """A Permission for a Joinable."""
-
-    INVITE = 1
-    REMOVE = 2
-    KICK = 3
-    BAN = 4
-
-
-@builtin_trait(TraitType.JOINABLE, is_extensible=True)
-class IsJoinable(Trait):
-    """A Node that can be joined by Subjects."""
-
-    pass
-
-
-@builtin_trait(TraitType.SUBJECT)
-class IsSubject(Trait):
-    """A Node that can be a Subject."""
-
-    pass
-
-
-@builtin_trait(TraitType.OWNER)
-class IsOwner(Trait):
-    """A Node that can be an Owner."""
-
-    pass
-
-
-@builtin_trait(TraitType.TAGGABLE, is_extensible=True)
-class IsTaggable(Trait):
-    """A Node that can be tagged (with a Tag)."""
-
-    pass
-
-
-#
-# Bare Traits (main type/location)
-#
-
-
-@builtin_trait(TraitType.GLOBAL)
-class IsGlobal(Trait):
-    """A Node that is global."""
-
-    pass
-
-
-@builtin_trait(TraitType.SPATIAL)
-class IsSpatial(Trait):
-    """A Node in a Space."""
-
-    space: "Space | None" = builtin_property(
-        5,
-        is_managed=True,
-        description="The Space this Node is in.",
-    )
-    if TYPE_CHECKING:
-        space_ptr: Optional[NodeReference] = None
