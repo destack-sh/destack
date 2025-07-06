@@ -3,7 +3,6 @@ import type {
   Condition,
   Graph,
   Icon,
-  IsRunnable,
   IsSpatial,
   IsSubject,
   NodeDefinitionReference,
@@ -23,6 +22,8 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Action } from "@destack/language/logic/action";
+import type { Service } from "@destack/language/logic/service";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -48,7 +49,7 @@ export enum TriggerType {
 registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
 /* ==== DESTACK_GENERATED_END:ENUM:105000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:107001 ==== */
 /**
  * A TriggerEvent is an Event that corresponds to a Trigger.
  */
@@ -80,9 +81,9 @@ export abstract class TriggerEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:105001 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:107001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:107000 ==== */
 /**
  * A Trigger is a dynamic event to run something.
  */
@@ -287,20 +288,24 @@ export class Trigger extends Entity implements IsSpatial {
   /**
    * Trigger.target
    */
-  get target(): (Node & IsRunnable) | null {
+  get target(): Action | Service | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+      return this._supergraph.get(nodePtr.id) as Action | Service | null;
     }
     return null;
   }
-  set target(node: Node & IsRunnable) {
-    this.targetPtr = node.toRef();
+  set target(node: Action | Service | null) {
+    if (node === null) {
+      this.targetPtr = null;
+    } else {
+      this.targetPtr = node.toRef();
+    }
   }
-  get targetPtr(): NodeReference {
+  get targetPtr(): NodeReference | null {
     return this._targetPtr;
   }
-  set targetPtr(value: NodeReference) {
+  set targetPtr(value: NodeReference | null) {
     const oldValue = this._targetPtr;
     if (this._dirty == null) {
       this._dirty = {};
@@ -313,7 +318,7 @@ export class Trigger extends Entity implements IsSpatial {
     }
     this._targetPtr = value;
   }
-  _targetPtr: NodeReference;
+  _targetPtr: NodeReference | null;
 
   /**
    * Trigger.arguments
@@ -353,7 +358,7 @@ export class Trigger extends Entity implements IsSpatial {
     icon?: Icon | null;
     event?: NodeDefinitionReference | null;
     where?: Condition | null;
-    target: (Node & IsRunnable) | NodeReference;
+    target?: Action | Service | NodeReference | null;
     arguments?: Map<string, Value>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -433,12 +438,9 @@ export class Trigger extends Entity implements IsSpatial {
     this._event = _event;
     let _where = options.where ?? null;
     this._where = _where;
-    let _target = options.target;
+    let _target = options.target ?? null;
     if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
       _target = (_target as Node).toRef();
-    }
-    if (_target === null) {
-      throw new Error(`Trigger.target is required`);
     }
     this._targetPtr = _target;
     let _arguments = options.arguments ?? null;
@@ -500,7 +502,7 @@ export class Trigger extends Entity implements IsSpatial {
     ) {
       return false;
     }
-    if (!(this._targetPtr.id === other._targetPtr.id)) {
+    if (!(this._targetPtr?.id === other._targetPtr?.id)) {
       return false;
     }
     if (Object.keys(this._arguments).length !== Object.keys(other._arguments).length) {
@@ -545,7 +547,9 @@ export class Trigger extends Entity implements IsSpatial {
     if (this._where !== null) {
       h = (h * 31 + this._where.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._targetPtr.id)) & 0xffffffff;
+    if (this._targetPtr !== null) {
+      h = (h * 31 + hashString(this._targetPtr.id)) & 0xffffffff;
+    }
     if (this._arguments && Object.keys(this._arguments).length > 0) {
       for (const [_key, _value] of Object.entries(this._arguments)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -628,7 +632,7 @@ export class Trigger extends Entity implements IsSpatial {
 
   static __packValue__(object: Trigger): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 105000;
+    objectValue["1"] = 107000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -667,7 +671,9 @@ export class Trigger extends Entity implements IsSpatial {
     if (object._where != null) {
       objectValue["111"] = object._where.toValue();
     }
-    objectValue["120"] = object._targetPtr.toValue();
+    if (object._targetPtr != null) {
+      objectValue["120"] = object._targetPtr.toValue();
+    }
     if (object._arguments.size > 0) {
       const packedArguments: { [key: string]: any } = {};
       for (const [key, value] of object._arguments) {
@@ -706,6 +712,11 @@ export class Trigger extends Entity implements IsSpatial {
     const unpackedWhere =
       whereValue != undefined
         ? _Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const targetPtrValue = objectValue["120"];
+    const unpackedTargetPtr =
+      targetPtrValue != undefined
+        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedArguments = new Map();
     if (objectValue["121"] != undefined) {
@@ -761,13 +772,7 @@ export class Trigger extends Entity implements IsSpatial {
       icon: unpackedIcon,
       event: unpackedEvent,
       where: unpackedWhere,
-      target: _NodeReference.fromValue(
-        objectValue["120"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      target: unpackedTargetPtr,
       arguments: unpackedArguments,
       space: unpackedSpacePtr,
       materialization: Number(objectValue["10"]),
@@ -802,7 +807,7 @@ export class Trigger extends Entity implements IsSpatial {
   }
 
   static __packProto__(object: Trigger): TriggerProto {
-    const objectProto: Partial<TriggerProto> = { metatype: 105000 };
+    const objectProto: Partial<TriggerProto> = { metatype: 107000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -841,7 +846,9 @@ export class Trigger extends Entity implements IsSpatial {
     if (object._where != null) {
       objectProto.where = object._where.toProto();
     }
-    objectProto.targetPtr = object._targetPtr.toProto();
+    if (object._targetPtr != null) {
+      objectProto.targetPtr = object._targetPtr.toProto();
+    }
     if (object._arguments) {
       objectProto.arguments = {};
       for (const [key, value] of object._arguments) {
@@ -894,13 +901,16 @@ export class Trigger extends Entity implements IsSpatial {
         objectProto.where != undefined
           ? _Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
           : null,
-      target: _NodeReference.fromProto(
-        objectProto.targetPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      target:
+        objectProto.targetPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.targetPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       arguments: unpackedArguments,
       space:
         objectProto.spacePtr != undefined
@@ -1013,4 +1023,4 @@ export class Trigger extends Entity implements IsSpatial {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER, Trigger);
-/* ==== DESTACK_GENERATED_END:NODE:105000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:107000 ==== */

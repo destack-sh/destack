@@ -28,14 +28,15 @@ class Service(
     IsDeletable,
     IsOwnable,
     IsTaggable,
-    IsRunnable,
     IsExtensible,
     IsSourceable,
     IsSubject,
+    IsRunnable,
     Entity,
 ):
     """
-    A Service provides functionality.
+    A Service provides related functionality via Actions (and Methods).
+    Services may be stateful (with custom Properties and runtime only state).
     """
 
     name: str = builtin_property(101, is_repr=True)

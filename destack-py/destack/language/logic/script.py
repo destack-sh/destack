@@ -5,7 +5,6 @@ from destack.language.core import (
     IsCustomizable,
     IsDeletable,
     IsOrdered,
-    IsRunnable,
     IsScriptable,
     IsSpatial,
     NodeType,
@@ -25,7 +24,6 @@ class Script(
     IsSpatial,
     IsOrdered,
     IsDeletable,
-    IsRunnable,
     IsCustomizable,
     Entity,
 ):
@@ -34,5 +32,5 @@ class Script(
     parent: Union[IsScriptable, "Script", None] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)
 
-    code: str | None = builtin_property(110)
+    code: str = builtin_property(110)
     # type, language, code, ...

@@ -52,7 +52,7 @@ export enum TimerType {
 registerEnumClass(EnumType.TIMER_TYPE, TimerType);
 /* ==== DESTACK_GENERATED_END:ENUM:105100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105101 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:107101 ==== */
 /**
  * A TimerEvent is an Event that corresponds to a Timer.
  */
@@ -84,9 +84,9 @@ export abstract class TimerEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_EVENT, TimerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:105101 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:107101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105102 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:107102 ==== */
 /**
  * A Timer was started.
  */
@@ -319,7 +319,7 @@ export class TimerStartedEvent extends TimerEvent {
 
   static __packValue__(object: TimerStartedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 105102;
+    objectValue["1"] = 107102;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -407,7 +407,7 @@ export class TimerStartedEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerStartedEvent): TimerStartedEventProto {
-    const objectProto: Partial<TimerStartedEventProto> = { metatype: 105102 };
+    const objectProto: Partial<TimerStartedEventProto> = { metatype: 107102 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -517,9 +517,9 @@ export class TimerStartedEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_STARTED_EVENT, TimerStartedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:105102 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:107102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105103 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:107103 ==== */
 /**
  * A Timer was completed.
  */
@@ -752,7 +752,7 @@ export class TimerCompletedEvent extends TimerEvent {
 
   static __packValue__(object: TimerCompletedEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 105103;
+    objectValue["1"] = 107103;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -840,7 +840,7 @@ export class TimerCompletedEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerCompletedEvent): TimerCompletedEventProto {
-    const objectProto: Partial<TimerCompletedEventProto> = { metatype: 105103 };
+    const objectProto: Partial<TimerCompletedEventProto> = { metatype: 107103 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -950,9 +950,9 @@ export class TimerCompletedEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_COMPLETED_EVENT, TimerCompletedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:105103 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:107103 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105104 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:107104 ==== */
 /**
  * A Timer was cancelled.
  */
@@ -1185,7 +1185,7 @@ export class TimerCancelledEvent extends TimerEvent {
 
   static __packValue__(object: TimerCancelledEvent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 105104;
+    objectValue["1"] = 107104;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1273,7 +1273,7 @@ export class TimerCancelledEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerCancelledEvent): TimerCancelledEventProto {
-    const objectProto: Partial<TimerCancelledEventProto> = { metatype: 105104 };
+    const objectProto: Partial<TimerCancelledEventProto> = { metatype: 107104 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1383,9 +1383,9 @@ export class TimerCancelledEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_CANCELLED_EVENT, TimerCancelledEvent);
-/* ==== DESTACK_GENERATED_END:NODE:105104 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:107104 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:107100 ==== */
 /**
  * A Timer.
  */
@@ -1809,7 +1809,7 @@ export class Timer extends Entity implements IsSpatial {
 
   static __packValue__(object: Timer): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 105100;
+    objectValue["1"] = 107100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1937,7 +1937,7 @@ export class Timer extends Entity implements IsSpatial {
   }
 
   static __packProto__(object: Timer): TimerProto {
-    const objectProto: Partial<TimerProto> = { metatype: 105100 };
+    const objectProto: Partial<TimerProto> = { metatype: 107100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2101,4 +2101,4 @@ export class Timer extends Entity implements IsSpatial {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER, Timer);
-/* ==== DESTACK_GENERATED_END:NODE:105100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:107100 ==== */

@@ -282,7 +282,7 @@ class IsScriptable(Trait):
 
 @builtin_trait(TraitType.RUNNABLE)
 class IsRunnable(Trait):
-    """A Node that can be run (with Runs)."""
+    """A Node that can be run directly (with Runs)."""
 
     pass
 

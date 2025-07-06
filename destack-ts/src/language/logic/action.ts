@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   Icon,
+  IsRunnable,
   IsScriptable,
   IsSubject,
   NodeReference,
@@ -22,12 +23,12 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:102100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:106100 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
  */
-export class Action extends Method {
+export class Action extends Method implements IsRunnable {
   static metatype: NodeType = NodeType.ACTION;
 
   constructor(options: {
@@ -132,6 +133,7 @@ export class Action extends Method {
       h = (h * 31 + this._text.hash()) & 0xffffffff;
     }
     h = (h * 31 + this._cardinality) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -167,7 +169,6 @@ export class Action extends Method {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
 
     return h;
@@ -218,7 +219,7 @@ export class Action extends Method {
 
   static __packValue__(object: Action): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 102100;
+    objectValue["1"] = 106100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -358,6 +359,7 @@ export class Action extends Method {
       icon: unpackedIcon,
       text: unpackedText,
       cardinality: Number(objectValue["110"]),
+      id: String(objectValue["2"]),
       space: unpackedSpacePtr,
       source: unpackedSourcePtr,
       customValues: unpackedCustomValues,
@@ -371,7 +373,6 @@ export class Action extends Method {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      id: String(objectValue["2"]),
       orderKey: objectValue["27"],
       _session,
       _graph,
@@ -394,7 +395,7 @@ export class Action extends Method {
   }
 
   static __packProto__(object: Action): ActionProto {
-    const objectProto: Partial<ActionProto> = { metatype: 102100 };
+    const objectProto: Partial<ActionProto> = { metatype: 106100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -488,6 +489,7 @@ export class Action extends Method {
           ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
           : null,
       cardinality: Number(objectProto.cardinality) as MethodCardinality,
+      id: String(objectProto.id),
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -574,7 +576,6 @@ export class Action extends Method {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       orderKey: objectProto.orderKey,
       _session,
       _graph,
@@ -603,4 +604,4 @@ export class Action extends Method {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);
-/* ==== DESTACK_GENERATED_END:NODE:102100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:106100 ==== */

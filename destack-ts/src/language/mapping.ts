@@ -234,12 +234,6 @@ import type {
   FileType,
 } from "@destack/language/data/file";
 import type { Environment } from "@destack/language/deployment/environment";
-import type {
-  Interruption,
-  InterruptionResponse,
-  InterruptionStatus,
-  InterruptionType,
-} from "@destack/language/deployment/interruption";
 import type { LogEvent, LogLevel } from "@destack/language/deployment/log";
 import type {
   Run,
@@ -531,7 +525,6 @@ export type NodeTypeMapping = {
   [NodeType.LINE_SHAPE]: LineShape;
   [NodeType.FILE]: File;
   [NodeType.ENVIRONMENT]: Environment;
-  [NodeType.INTERRUPTION]: Interruption;
   [NodeType.LOG_EVENT]: LogEvent;
   [NodeType.RUN_EVENT]: RunEvent;
   [NodeType.RUN_STARTED_EVENT]: RunStartedEvent;
@@ -829,9 +822,6 @@ export type EnumTypeMapping = {
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
   [EnumType.FILE_TYPE]: FileType;
   [EnumType.FILE_FORMAT]: FileFormat;
-  [EnumType.INTERRUPTION_TYPE]: InterruptionType;
-  [EnumType.INTERRUPTION_STATUS]: InterruptionStatus;
-  [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse;
   [EnumType.LOG_LEVEL]: LogLevel;
   [EnumType.RUN_STATUS]: RunStatus;
   [EnumType.DATABASE_TYPE]: DatabaseType;

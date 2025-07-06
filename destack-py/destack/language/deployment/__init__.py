@@ -1,5 +1,4 @@
 from .environment import Environment
-from .interruption import Interruption
 from .log import LogEvent, LogLevel
 from .run import (
     Run,
@@ -18,7 +17,6 @@ from .span import SpanEvent
 
 __all__ = [
     "Environment",
-    "Interruption",
     "LogEvent",
     "LogLevel",
     "Run",

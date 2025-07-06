@@ -1,11 +1,10 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     Entity,
     Enum,
     EnumType,
     Event,
-    IsRunnable,
     IsSpatial,
     NodeDefinitionReference,
     NodeType,
@@ -17,7 +16,7 @@ from destack.language.core import (
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
-    from destack.language import Condition, Icon
+    from destack.language import Action, Condition, Icon, Service
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -49,5 +48,5 @@ class Trigger(IsSpatial, Entity):
     # sampling?
 
     # what
-    target: IsRunnable = builtin_property(120)
+    target: Union["Action", "Service", None] = builtin_property(120)
     arguments: dict[UUID, Value] = builtin_property(121)
