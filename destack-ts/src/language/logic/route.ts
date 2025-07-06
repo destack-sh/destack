@@ -24,7 +24,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:106000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:110000 ==== */
 /**
  * A Route is a path to a Scene.
  */
@@ -512,7 +512,7 @@ export class Route
 
   static __packValue__(object: Route): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 106000;
+    objectValue["1"] = 110000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -657,7 +657,7 @@ export class Route
   }
 
   static __packProto__(object: Route): RouteProto {
-    const objectProto: Partial<RouteProto> = { metatype: 106000 };
+    const objectProto: Partial<RouteProto> = { metatype: 110000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -844,4 +844,4 @@ export class Route
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROUTE, Route);
-/* ==== DESTACK_GENERATED_END:NODE:106000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:110000 ==== */

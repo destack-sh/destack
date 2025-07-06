@@ -4,7 +4,6 @@ import type {
   IsCustomizable,
   IsDeletable,
   IsOrdered,
-  IsRunnable,
   IsScriptable,
   IsSpatial,
   IsSubject,
@@ -23,14 +22,11 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:100000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105000 ==== */
 /**
  * A Script.
  */
-export class Script
-  extends Entity
-  implements IsSpatial, IsOrdered, IsDeletable, IsRunnable, IsCustomizable
-{
+export class Script extends Entity implements IsSpatial, IsOrdered, IsDeletable, IsCustomizable {
   static metatype: NodeType = NodeType.SCRIPT;
 
   /**
@@ -199,10 +195,10 @@ export class Script
   /**
    * Script.code
    */
-  get code(): string | null {
+  get code(): string {
     return this._code;
   }
-  set code(value: string | null) {
+  set code(value: string) {
     const oldValue = this._code;
     if (this._dirty == null) {
       this._dirty = {};
@@ -215,7 +211,7 @@ export class Script
     }
     this._code = value;
   }
-  _code: string | null;
+  _code: string;
 
   constructor(options: {
     id?: string;
@@ -234,7 +230,7 @@ export class Script
     customValues?: Map<string, Value>;
     orderKey?: string;
     name: string;
-    code?: string | null;
+    code: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -322,7 +318,10 @@ export class Script
       throw new Error(`Script.name is required`);
     }
     this._name = _name;
-    let _code = options.code ?? null;
+    let _code = options.code;
+    if (_code === null) {
+      throw new Error(`Script.code is required`);
+    }
     this._code = _code;
 
     // identity
@@ -399,9 +398,7 @@ export class Script
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._code !== null) {
-      h = (h * 31 + hashString(this._code)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this._code)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -485,7 +482,7 @@ export class Script
 
   static __packValue__(object: Script): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 100000;
+    objectValue["1"] = 105000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -526,9 +523,7 @@ export class Script
     }
     objectValue["27"] = object.orderKey;
     objectValue["101"] = object._name;
-    if (object._code != null) {
-      objectValue["110"] = object._code;
-    }
+    objectValue["110"] = object._code;
     return objectValue;
   }
 
@@ -546,8 +541,6 @@ export class Script
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const codeValue = objectValue["110"];
-    const unpackedCode = codeValue != undefined ? codeValue : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -600,7 +593,7 @@ export class Script
     return new Script({
       parent: unpackedParentPtr,
       name: objectValue["101"],
-      code: unpackedCode,
+      code: objectValue["110"],
       space: unpackedSpacePtr,
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
@@ -636,7 +629,7 @@ export class Script
   }
 
   static __packProto__(object: Script): ScriptProto {
-    const objectProto: Partial<ScriptProto> = { metatype: 100000 };
+    const objectProto: Partial<ScriptProto> = { metatype: 105000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -676,9 +669,7 @@ export class Script
     }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
-    if (object._code != null) {
-      objectProto.code = object._code;
-    }
+    objectProto.code = object._code;
     return objectProto as ScriptProto;
   }
 
@@ -712,7 +703,7 @@ export class Script
             )
           : null,
       name: objectProto.name,
-      code: objectProto.code != undefined ? objectProto.code : null,
+      code: objectProto.code,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -818,4 +809,4 @@ export class Script
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCRIPT, Script);
-/* ==== DESTACK_GENERATED_END:NODE:100000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105000 ==== */

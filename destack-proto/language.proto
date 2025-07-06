@@ -382,9 +382,6 @@ enum EnumTypeProto {
   ENUM_TYPE_MACHINE_TYPE = 140100;
   ENUM_TYPE_ENVIRONMENT_TYPE = 160000;
   ENUM_TYPE_RUN_STATUS = 170000;
-  ENUM_TYPE_INTERRUPTION_TYPE = 170200;
-  ENUM_TYPE_INTERRUPTION_STATUS = 170201;
-  ENUM_TYPE_INTERRUPTION_RESPONSE = 170202;
   ENUM_TYPE_LOG_LEVEL = 170300;
   ENUM_TYPE_THREAD_STATUS = 220000;
   ENUM_TYPE_NOTIFICATION_STATUS = 220500;
@@ -668,26 +665,6 @@ enum IconTypeProto {
   ICON_TYPE_FILE_URL = 11;
 }
 
-enum InterruptionResponseProto {
-  INTERRUPTION_RESPONSE_UNSPECIFIED = 0;
-  INTERRUPTION_RESPONSE_ACCEPT = 10;
-  INTERRUPTION_RESPONSE_REJECT = 20;
-}
-
-enum InterruptionStatusProto {
-  INTERRUPTION_STATUS_UNSPECIFIED = 0;
-  INTERRUPTION_STATUS_OPEN = 10;
-  INTERRUPTION_STATUS_CANCELLED = 30;
-  INTERRUPTION_STATUS_COMPLETED = 33;
-}
-
-enum InterruptionTypeProto {
-  INTERRUPTION_TYPE_UNSPECIFIED = 0;
-  INTERRUPTION_TYPE_PAUSE = 10;
-  INTERRUPTION_TYPE_YIELD = 20;
-  INTERRUPTION_TYPE_WAIT = 30;
-}
-
 enum JoinTypeProto {
   JOIN_TYPE_UNSPECIFIED = 0;
   JOIN_TYPE_LEFT = 1;
@@ -875,22 +852,22 @@ enum NodeTypeProto {
   NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 60505;
   NODE_TYPE_AGENT = 60600;
   NODE_TYPE_FILE = 80000;
-  NODE_TYPE_SCRIPT = 100000;
-  NODE_TYPE_SERVICE = 101000;
-  NODE_TYPE_METHOD = 102000;
-  NODE_TYPE_ACTION = 102100;
-  NODE_TYPE_TRIGGER = 105000;
-  NODE_TYPE_TRIGGER_EVENT = 105001;
-  NODE_TYPE_TIMER = 105100;
-  NODE_TYPE_TIMER_EVENT = 105101;
-  NODE_TYPE_TIMER_STARTED_EVENT = 105102;
-  NODE_TYPE_TIMER_COMPLETED_EVENT = 105103;
-  NODE_TYPE_TIMER_CANCELLED_EVENT = 105104;
-  NODE_TYPE_CURSOR = 105500;
-  NODE_TYPE_EVENT_CURSOR = 105600;
-  NODE_TYPE_SCREEN_CURSOR = 105700;
-  NODE_TYPE_THREAD_CURSOR = 105800;
-  NODE_TYPE_ROUTE = 106000;
+  NODE_TYPE_SERVICE = 100000;
+  NODE_TYPE_SCRIPT = 105000;
+  NODE_TYPE_METHOD = 106000;
+  NODE_TYPE_ACTION = 106100;
+  NODE_TYPE_TRIGGER = 107000;
+  NODE_TYPE_TRIGGER_EVENT = 107001;
+  NODE_TYPE_TIMER = 107100;
+  NODE_TYPE_TIMER_EVENT = 107101;
+  NODE_TYPE_TIMER_STARTED_EVENT = 107102;
+  NODE_TYPE_TIMER_COMPLETED_EVENT = 107103;
+  NODE_TYPE_TIMER_CANCELLED_EVENT = 107104;
+  NODE_TYPE_CURSOR = 108000;
+  NODE_TYPE_EVENT_CURSOR = 108100;
+  NODE_TYPE_SCREEN_CURSOR = 108200;
+  NODE_TYPE_THREAD_CURSOR = 108300;
+  NODE_TYPE_ROUTE = 110000;
   NODE_TYPE_DATABASE = 140000;
   NODE_TYPE_MACHINE = 140100;
   NODE_TYPE_ENVIRONMENT = 160000;
@@ -905,7 +882,6 @@ enum NodeTypeProto {
   NODE_TYPE_RUN_FAILED_EVENT = 170008;
   NODE_TYPE_RUN_COMPLETED_EVENT = 170009;
   NODE_TYPE_SPAN_EVENT = 170101;
-  NODE_TYPE_INTERRUPTION = 170200;
   NODE_TYPE_LOG_EVENT = 170301;
   NODE_TYPE_GAUGE_METRIC = 180000;
   NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 180001;
@@ -1513,11 +1489,11 @@ enum TraitTypeProto {
   TRAIT_TYPE_CUSTOMIZABLE = 110;
   TRAIT_TYPE_EXTENSIBLE = 111;
   TRAIT_TYPE_IRREVERSIBLE = 120;
-  TRAIT_TYPE_OWNABLE = 20000;
-  TRAIT_TYPE_OWNER = 20001;
-  TRAIT_TYPE_JOINABLE = 20002;
-  TRAIT_TYPE_SUBJECT = 20003;
   TRAIT_TYPE_TAGGABLE = 40000;
+  TRAIT_TYPE_OWNABLE = 60000;
+  TRAIT_TYPE_OWNER = 60001;
+  TRAIT_TYPE_JOINABLE = 60002;
+  TRAIT_TYPE_SUBJECT = 60003;
   TRAIT_TYPE_RUNNABLE = 100001;
   TRAIT_TYPE_SCRIPTABLE = 100002;
   TRAIT_TYPE_SOURCEABLE = 100003;
@@ -2516,6 +2492,7 @@ message DatabaseProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto script_ptr = 70;
   ResourceStatusProto status = 90;
   DatabaseTypeProto type = 100;
   string name = 101;
@@ -2934,6 +2911,7 @@ message FileProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto script_ptr = 70;
   ResourceStatusProto status = 90;
   FileTypeProto type = 100;
   string name = 101;
@@ -3517,31 +3495,6 @@ message InternalViewProto {
   optional DimensionProto max_height = 116;
 }
 
-// An Interruption in run of something.
-message InterruptionProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  optional NodeReferenceProto instance_root_ptr = 14;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  InterruptionTypeProto type = 100;
-  optional NodeReferenceProto runnable_ptr = 110;
-  optional NodeReferenceProto span_ptr = 111;
-  InterruptionStatusProto status = 120;
-  optional google.protobuf.Duration duration = 121;
-  optional google.protobuf.Timestamp closed_at = 122;
-  optional InterruptionResponseProto response = 130;
-  optional NodeReferenceProto message_ptr = 131;
-}
-
 // An Invite to a Joinable.
 message InviteProto {
   NodeTypeProto metatype = 1;
@@ -3945,6 +3898,7 @@ message MachineProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto script_ptr = 70;
   ResourceStatusProto status = 90;
   MachineTypeProto type = 100;
   string version = 110;
@@ -4813,6 +4767,7 @@ message RecordProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
+  optional NodeReferenceProto script_ptr = 70;
 }
 
 // A Resource represents an external asset outside of Destack.
@@ -4834,6 +4789,7 @@ message ResourceProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto script_ptr = 70;
   ResourceStatusProto status = 90;
 }
 
@@ -4940,7 +4896,7 @@ message RouteProto {
   optional NodeReferenceProto scene_ptr = 110;
 }
 
-// Run something somewhere, somehow.
+// Run of a Runnable.
 message RunProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -4964,7 +4920,6 @@ message RunProto {
   optional google.protobuf.Timestamp seen_at = 118;
   optional google.protobuf.Timestamp interrupted_at = 119;
   optional google.protobuf.Timestamp terminated_at = 120;
-  optional NodeReferenceProto interruption_ptr = 121;
 }
 
 // A Run completed.
@@ -5289,7 +5244,7 @@ message ScriptProto {
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 101;
-  optional string code = 110;
+  string code = 110;
 }
 
 message SelectProto {
@@ -5301,7 +5256,8 @@ message SelectionProto {
   StructTypeProto metatype = 1;
 }
 
-// A Service provides functionality.
+// A Service provides related functionality via Actions (and Methods).
+// Services may be stateful (with custom Properties and runtime only state).
 message ServiceProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -5431,6 +5387,7 @@ message SignalProto {
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto script_ptr = 70;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -6060,7 +6017,7 @@ message TriggerProto {
   optional IconProto icon = 102;
   optional NodeDefinitionReferenceProto event = 110;
   optional ConditionProto where = 111;
-  NodeReferenceProto target_ptr = 120;
+  optional NodeReferenceProto target_ptr = 120;
   map<string, ValueProto> arguments = 121;
 }
 
@@ -6380,7 +6337,6 @@ message SomeNodeProto {
     LineShapeProto line_shape = 540200;
     FileProto file = 80000;
     EnvironmentProto environment = 160000;
-    InterruptionProto interruption = 170200;
     LogEventProto log_event = 170301;
     RunStartedEventProto run_started_event = 170002;
     RunPauseRequestedEventProto run_pause_requested_event = 170003;
@@ -6390,7 +6346,6 @@ message SomeNodeProto {
     RunStopRequestedEventProto run_stop_requested_event = 170007;
     RunFailedEventProto run_failed_event = 170008;
     RunCompletedEventProto run_completed_event = 170009;
-    RunProto run = 170000;
     SpanEventProto span_event = 170101;
     DatabaseProto database = 140000;
     MachineProto machine = 140100;
@@ -6420,19 +6375,19 @@ message SomeNodeProto {
     MiddleClickEventProto middle_click_event = 560204;
     DoubleClickEventProto double_click_event = 560205;
     WheelEventProto wheel_event = 560206;
-    MethodProto method = 102000;
-    ActionProto action = 102100;
-    EventCursorProto event_cursor = 105600;
-    ScreenCursorProto screen_cursor = 105700;
-    ThreadCursorProto thread_cursor = 105800;
-    RouteProto route = 106000;
-    ScriptProto script = 100000;
-    ServiceProto service = 101000;
-    TimerStartedEventProto timer_started_event = 105102;
-    TimerCompletedEventProto timer_completed_event = 105103;
-    TimerCancelledEventProto timer_cancelled_event = 105104;
-    TimerProto timer = 105100;
-    TriggerProto trigger = 105000;
+    MethodProto method = 106000;
+    ActionProto action = 106100;
+    EventCursorProto event_cursor = 108100;
+    ScreenCursorProto screen_cursor = 108200;
+    ThreadCursorProto thread_cursor = 108300;
+    RouteProto route = 110000;
+    ScriptProto script = 105000;
+    ServiceProto service = 100000;
+    TimerStartedEventProto timer_started_event = 107102;
+    TimerCompletedEventProto timer_completed_event = 107103;
+    TimerCancelledEventProto timer_cancelled_event = 107104;
+    TimerProto timer = 107100;
+    TriggerProto trigger = 107000;
     GaugeMetricProto gauge_metric = 180000;
     GaugeMeasurementEventProto gauge_measurement_event = 180001;
     CounterMetricProto counter_metric = 180100;
@@ -6516,20 +6471,18 @@ message SomeEntityProto {
     LineShapeProto line_shape = 540200;
     FileProto file = 80000;
     EnvironmentProto environment = 160000;
-    InterruptionProto interruption = 170200;
-    RunProto run = 170000;
     DatabaseProto database = 140000;
     MachineProto machine = 140100;
-    MethodProto method = 102000;
-    ActionProto action = 102100;
-    EventCursorProto event_cursor = 105600;
-    ScreenCursorProto screen_cursor = 105700;
-    ThreadCursorProto thread_cursor = 105800;
-    RouteProto route = 106000;
-    ScriptProto script = 100000;
-    ServiceProto service = 101000;
-    TimerProto timer = 105100;
-    TriggerProto trigger = 105000;
+    MethodProto method = 106000;
+    ActionProto action = 106100;
+    EventCursorProto event_cursor = 108100;
+    ScreenCursorProto screen_cursor = 108200;
+    ThreadCursorProto thread_cursor = 108300;
+    RouteProto route = 110000;
+    ScriptProto script = 105000;
+    ServiceProto service = 100000;
+    TimerProto timer = 107100;
+    TriggerProto trigger = 107000;
     GaugeMetricProto gauge_metric = 180000;
     CounterMetricProto counter_metric = 180100;
     HistogramMetricProto histogram_metric = 180200;
@@ -6628,9 +6581,9 @@ message SomeEventProto {
     MiddleClickEventProto middle_click_event = 560204;
     DoubleClickEventProto double_click_event = 560205;
     WheelEventProto wheel_event = 560206;
-    TimerStartedEventProto timer_started_event = 105102;
-    TimerCompletedEventProto timer_completed_event = 105103;
-    TimerCancelledEventProto timer_cancelled_event = 105104;
+    TimerStartedEventProto timer_started_event = 107102;
+    TimerCompletedEventProto timer_completed_event = 107103;
+    TimerCancelledEventProto timer_cancelled_event = 107104;
     GaugeMeasurementEventProto gauge_measurement_event = 180001;
     CounterMeasurementEventProto counter_measurement_event = 180101;
     HistogramMeasurementEventProto histogram_measurement_event = 180201;

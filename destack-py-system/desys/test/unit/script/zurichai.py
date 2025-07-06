@@ -88,7 +88,14 @@ class EmailSender(Service):
     announcement_template: EmailTemplate
     reminder_template: EmailTemplate
 
-    @method
+    @action
+    async def start(self):
+        pass
+
+    @action
+    async def stop(self):
+        pass
+
     def _create_timers(
         self,
         meetup: Meetup,
@@ -130,7 +137,7 @@ class EmailSender(Service):
                 meetup=meetup,
             )
             await email.send()
-            log("email.sent", membership=membership, email=email)
+            self.log("email.sent", membership=membership, email=email)
 
 
 # ===============================================

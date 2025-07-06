@@ -363,7 +363,7 @@ registerTraitClass(TraitType.SCRIPTABLE, IsScriptable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:100001 ==== */
 /**
- * A Node that can be run (with Runs).
+ * A Node that can be run directly (with Runs).
  */
 export interface IsRunnable {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -372,7 +372,7 @@ export interface IsRunnable {
 }
 
 /**
- * A Node that can be run (with Runs).
+ * A Node that can be run directly (with Runs).
  */
 class IsRunnable$Type extends TraitClass<IsRunnable, TraitType.RUNNABLE> {}
 

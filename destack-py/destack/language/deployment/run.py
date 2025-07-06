@@ -18,7 +18,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Interruption, NodeReference, Space
+    from destack.language import NodeReference, Space
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -69,7 +69,7 @@ class RunEvent(Event["Run"]):
     """An Event regarding a Run."""
 
     node: "Run" = builtin_property(101)
-    target: Optional[IsRunnable] = builtin_property(110)
+    target: Optional["IsRunnable"] = builtin_property(110)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
 
@@ -135,16 +135,15 @@ class RunCompletedEvent(RunEvent):
 @builtin_node(
     NodeType.RUN,
     event_types=(NodeType.RUN_EVENT,),
+    is_abstract=True,
 )
 class Run(IsSpatial, IsCustomizable, IsIrreversible, Entity):
     """
-    Run something somewhere, somehow.
+    Run of a Runnable.
     """
 
     parent: Optional["Space"] = builtin_property_parent()
-    target: Optional[IsRunnable] = builtin_property(111)
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None
+    target: Optional["IsRunnable"] = builtin_property(111)
     status: RunStatus = builtin_property(112, is_repr=True)
     duration: Optional[timedelta] = builtin_property(
         113,
@@ -165,11 +164,5 @@ class Run(IsSpatial, IsCustomizable, IsIrreversible, Entity):
     terminated_at: Optional[datetime] = builtin_property(
         120, description="When the Run was last terminated."
     )
-    interruption: Optional["Interruption"] = builtin_property(
-        121,
-        node_space_from="self",
-        description="The latest Interruption.",
-        is_repr=True,
-    )
     if TYPE_CHECKING:
-        interruption_ptr: Optional[NodeReference] = None
+        target_ptr: Optional[NodeReference] = None

@@ -4,7 +4,6 @@ import type {
   Icon,
   IsCustomizable,
   IsDeletable,
-  IsRunnable,
   IsScriptable,
   IsSourceable,
   IsSpatial,
@@ -52,14 +51,14 @@ export enum MethodCardinality {
 registerEnumClass(EnumType.METHOD_CARDINALITY, MethodCardinality);
 /* ==== DESTACK_GENERATED_END:ENUM:102001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:102000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:106000 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
  */
 export class Method
   extends Entity
-  implements IsSpatial, IsTaggable, IsSourceable, IsCustomizable, IsDeletable, IsRunnable
+  implements IsSpatial, IsTaggable, IsSourceable, IsCustomizable, IsDeletable
 {
   static metatype: NodeType = NodeType.METHOD;
 
@@ -609,7 +608,7 @@ export class Method
 
   static __packValue__(object: Method): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 102000;
+    objectValue["1"] = 106000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -785,7 +784,7 @@ export class Method
   }
 
   static __packProto__(object: Method): MethodProto {
-    const objectProto: Partial<MethodProto> = { metatype: 102000 };
+    const objectProto: Partial<MethodProto> = { metatype: 106000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -994,4 +993,4 @@ export class Method
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.METHOD, Method);
-/* ==== DESTACK_GENERATED_END:NODE:102000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:106000 ==== */

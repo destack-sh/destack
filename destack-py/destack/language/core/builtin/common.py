@@ -111,9 +111,6 @@ class EnumType(Enum):
 
     # runtime [170_000-180_000]
     RUN_STATUS = 170_000
-    INTERRUPTION_TYPE = 170_200
-    INTERRUPTION_STATUS = 170_201
-    INTERRUPTION_RESPONSE = 170_202
     LOG_LEVEL = 170_300
 
     # observability [180_000-200_000]
@@ -537,23 +534,23 @@ class NodeType(Enum):
     # SETTINGS, ...
 
     # logic [100_000-120_000]
-    SCRIPT = 100_000, "Script", None, "fas fa-code"
-    SERVICE = 101_000, "Service", None, "fas fa-screwdriver-wrench"
-    METHOD = 102_000, "Method", None, "fas fa-code"
-    ACTION = 102_100, "Action", None, "fas fa-code"
-    TRIGGER = 105_000, "Trigger", None, "fas fa-bolt"
-    TRIGGER_EVENT = 105_001, "Trigger Event", None, "fas fa-bolt"
-    TIMER = 105_100, "Timer", None, "fas fa-clock"
-    TIMER_EVENT = 105_101, "Timer Event", None, "fas fa-clock"
-    TIMER_STARTED_EVENT = 105_102, "Timer Started Event", None, "fas fa-clock"
-    TIMER_COMPLETED_EVENT = 105_103, "Timer Completed Event", None, "fas fa-clock"
-    TIMER_CANCELLED_EVENT = 105_104, "Timer Cancelled Event", None, "fas fa-clock"
-    CURSOR = 105_500, "Cursor", None, "fas fa-mouse-pointer"
-    EVENT_CURSOR = 105_600, "Event Cursor", None, "fas fa-signal"
-    SCREEN_CURSOR = 105_700, "Screen Cursor", None, "fas fa-mouse"
-    THREAD_CURSOR = 105_800, "Thread Cursor", None, "fas fa-magnifying-glass"
+    SERVICE = 100_000, "Service", None, "fas fa-screwdriver-wrench"
+    SCRIPT = 105_000, "Script", None, "fas fa-code"
+    METHOD = 106_000, "Method", None, "fas fa-code"
+    ACTION = 106_100, "Action", None, "fas fa-code"
+    TRIGGER = 107_000, "Trigger", None, "fas fa-bolt"
+    TRIGGER_EVENT = 107_001, "Trigger Event", None, "fas fa-bolt"
+    TIMER = 107_100, "Timer", None, "fas fa-clock"
+    TIMER_EVENT = 107_101, "Timer Event", None, "fas fa-clock"
+    TIMER_STARTED_EVENT = 107_102, "Timer Started Event", None, "fas fa-clock"
+    TIMER_COMPLETED_EVENT = 107_103, "Timer Completed Event", None, "fas fa-clock"
+    TIMER_CANCELLED_EVENT = 107_104, "Timer Cancelled Event", None, "fas fa-clock"
+    CURSOR = 108_000, "Cursor", None, "fas fa-mouse-pointer"
+    EVENT_CURSOR = 108_100, "Event Cursor", None, "fas fa-signal"
+    SCREEN_CURSOR = 108_200, "Screen Cursor", None, "fas fa-mouse"
+    THREAD_CURSOR = 108_300, "Thread Cursor", None, "fas fa-magnifying-glass"
     # QUERY_CURSOR, WEB_CURSOR, ...
-    ROUTE = 106_000, "Route", None, "fas fa-route"
+    ROUTE = 110_000, "Route", None, "fas fa-route"
     # BREAKPOINT, ...
     # ROOM, CHANNEL, ...
     # SEMAPHORE, LOCK/LATCH, ...
@@ -593,7 +590,6 @@ class NodeType(Enum):
     RUN_FAILED_EVENT = 170_008, "Run Failed Event", None, "fas fa-play"
     RUN_COMPLETED_EVENT = 170_009, "Run Completed Event", None, "fas fa-play"
     SPAN_EVENT = 170_101, "Span", None, "fas fa-ruler-horizontal"
-    INTERRUPTION = 170_200, "Interruption", None, "fas fa-hand"
     LOG_EVENT = 170_301, "Log", None, "fas fa-file-lines"
 
     # observability [180_000-200_000]
