@@ -10169,30 +10169,28 @@ class StringConstraintProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., format: _Optional[_Union[StringFormatProto, str]] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ...) -> None: ...
 
 class StrokeProto(_message.Message):
-    __slots__ = ("metatype", "type", "size", "thinning", "smoothing", "streamline", "simulate_pressure", "easing", "start", "end", "color")
+    __slots__ = ("metatype", "type", "size", "thinning", "smoothing", "streamline", "easing", "color", "start", "end")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     SIZE_FIELD_NUMBER: _ClassVar[int]
     THINNING_FIELD_NUMBER: _ClassVar[int]
     SMOOTHING_FIELD_NUMBER: _ClassVar[int]
     STREAMLINE_FIELD_NUMBER: _ClassVar[int]
-    SIMULATE_PRESSURE_FIELD_NUMBER: _ClassVar[int]
     EASING_FIELD_NUMBER: _ClassVar[int]
+    COLOR_FIELD_NUMBER: _ClassVar[int]
     START_FIELD_NUMBER: _ClassVar[int]
     END_FIELD_NUMBER: _ClassVar[int]
-    COLOR_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     type: StrokeTypeProto
     size: int
     thinning: float
     smoothing: float
     streamline: float
-    simulate_pressure: bool
     easing: EasingProto
+    color: ColorProto
     start: StrokeCapProto
     end: StrokeCapProto
-    color: ColorProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[StrokeTypeProto, str]] = ..., size: _Optional[int] = ..., thinning: _Optional[float] = ..., smoothing: _Optional[float] = ..., streamline: _Optional[float] = ..., simulate_pressure: bool = ..., easing: _Optional[_Union[EasingProto, str]] = ..., start: _Optional[_Union[StrokeCapProto, _Mapping]] = ..., end: _Optional[_Union[StrokeCapProto, _Mapping]] = ..., color: _Optional[_Union[ColorProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[StrokeTypeProto, str]] = ..., size: _Optional[int] = ..., thinning: _Optional[float] = ..., smoothing: _Optional[float] = ..., streamline: _Optional[float] = ..., easing: _Optional[_Union[EasingProto, str]] = ..., color: _Optional[_Union[ColorProto, _Mapping]] = ..., start: _Optional[_Union[StrokeCapProto, _Mapping]] = ..., end: _Optional[_Union[StrokeCapProto, _Mapping]] = ...) -> None: ...
 
 class StrokeCapProto(_message.Message):
     __slots__ = ("metatype", "cap", "taper", "easing")

@@ -14201,25 +14201,21 @@ export interface StrokeProto {
      */
     streamline: number;
     /**
-     * @generated from protobuf field: bool simulate_pressure = 105
-     */
-    simulatePressure: boolean;
-    /**
-     * @generated from protobuf field: symbol.destack.EasingProto easing = 106
+     * @generated from protobuf field: symbol.destack.EasingProto easing = 105
      */
     easing: EasingProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.StrokeCapProto start = 107
+     * @generated from protobuf field: optional symbol.destack.ColorProto color = 106
+     */
+    color?: ColorProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.StrokeCapProto start = 110
      */
     start?: StrokeCapProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.StrokeCapProto end = 108
+     * @generated from protobuf field: optional symbol.destack.StrokeCapProto end = 111
      */
     end?: StrokeCapProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ColorProto color = 109
-     */
-    color?: ColorProto;
 }
 /**
  * @generated from protobuf message symbol.destack.StrokeCapProto
@@ -56427,11 +56423,10 @@ class StrokeProto$Type extends MessageType<StrokeProto> {
             { no: 102, name: "thinning", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 103, name: "smoothing", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 104, name: "streamline", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 105, name: "simulate_pressure", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 106, name: "easing", kind: "enum", T: () => ["symbol.destack.EasingProto", EasingProto] },
-            { no: 107, name: "start", kind: "message", T: () => StrokeCapProto },
-            { no: 108, name: "end", kind: "message", T: () => StrokeCapProto },
-            { no: 109, name: "color", kind: "message", T: () => ColorProto }
+            { no: 105, name: "easing", kind: "enum", T: () => ["symbol.destack.EasingProto", EasingProto] },
+            { no: 106, name: "color", kind: "message", T: () => ColorProto },
+            { no: 110, name: "start", kind: "message", T: () => StrokeCapProto },
+            { no: 111, name: "end", kind: "message", T: () => StrokeCapProto }
         ]);
     }
     create(value?: PartialMessage<StrokeProto>): StrokeProto {
@@ -56442,7 +56437,6 @@ class StrokeProto$Type extends MessageType<StrokeProto> {
         message.thinning = 0;
         message.smoothing = 0;
         message.streamline = 0;
-        message.simulatePressure = false;
         message.easing = 0;
         if (value !== undefined)
             reflectionMergePartial<StrokeProto>(this, message, value);
@@ -56471,20 +56465,17 @@ class StrokeProto$Type extends MessageType<StrokeProto> {
                 case /* double streamline */ 104:
                     message.streamline = reader.double();
                     break;
-                case /* bool simulate_pressure */ 105:
-                    message.simulatePressure = reader.bool();
-                    break;
-                case /* symbol.destack.EasingProto easing */ 106:
+                case /* symbol.destack.EasingProto easing */ 105:
                     message.easing = reader.int32();
                     break;
-                case /* optional symbol.destack.StrokeCapProto start */ 107:
+                case /* optional symbol.destack.ColorProto color */ 106:
+                    message.color = ColorProto.internalBinaryRead(reader, reader.uint32(), options, message.color);
+                    break;
+                case /* optional symbol.destack.StrokeCapProto start */ 110:
                     message.start = StrokeCapProto.internalBinaryRead(reader, reader.uint32(), options, message.start);
                     break;
-                case /* optional symbol.destack.StrokeCapProto end */ 108:
+                case /* optional symbol.destack.StrokeCapProto end */ 111:
                     message.end = StrokeCapProto.internalBinaryRead(reader, reader.uint32(), options, message.end);
-                    break;
-                case /* optional symbol.destack.ColorProto color */ 109:
-                    message.color = ColorProto.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -56516,21 +56507,18 @@ class StrokeProto$Type extends MessageType<StrokeProto> {
         /* double streamline = 104; */
         if (message.streamline !== 0)
             writer.tag(104, WireType.Bit64).double(message.streamline);
-        /* bool simulate_pressure = 105; */
-        if (message.simulatePressure !== false)
-            writer.tag(105, WireType.Varint).bool(message.simulatePressure);
-        /* symbol.destack.EasingProto easing = 106; */
+        /* symbol.destack.EasingProto easing = 105; */
         if (message.easing !== 0)
-            writer.tag(106, WireType.Varint).int32(message.easing);
-        /* optional symbol.destack.StrokeCapProto start = 107; */
-        if (message.start)
-            StrokeCapProto.internalBinaryWrite(message.start, writer.tag(107, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.StrokeCapProto end = 108; */
-        if (message.end)
-            StrokeCapProto.internalBinaryWrite(message.end, writer.tag(108, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.ColorProto color = 109; */
+            writer.tag(105, WireType.Varint).int32(message.easing);
+        /* optional symbol.destack.ColorProto color = 106; */
         if (message.color)
-            ColorProto.internalBinaryWrite(message.color, writer.tag(109, WireType.LengthDelimited).fork(), options).join();
+            ColorProto.internalBinaryWrite(message.color, writer.tag(106, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.StrokeCapProto start = 110; */
+        if (message.start)
+            StrokeCapProto.internalBinaryWrite(message.start, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.StrokeCapProto end = 111; */
+        if (message.end)
+            StrokeCapProto.internalBinaryWrite(message.end, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

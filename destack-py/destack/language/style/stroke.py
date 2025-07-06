@@ -43,13 +43,10 @@ class Stroke(StructFrozen):
     streamline: float = builtin_property(
         104, description="The amount of streamlining applied to path (0-1)."
     )
-    simulate_pressure: bool = builtin_property(
-        105, description="Whether to simulate pressure if not provided."
-    )
-    easing: Easing = builtin_property(106, description="The easing function for pressure mapping.")
-    start: Optional["StrokeCap"] = builtin_property(107, description="The start cap configuration.")
-    end: Optional["StrokeCap"] = builtin_property(108, description="The end cap configuration.")
-    color: Optional["Color"] = builtin_property(109, description="The stroke color.")
+    easing: Easing = builtin_property(105, description="The easing function for pressure mapping.")
+    color: Optional["Color"] = builtin_property(106, description="The stroke color.")
+    start: Optional["StrokeCap"] = builtin_property(110, description="The start cap configuration.")
+    end: Optional["StrokeCap"] = builtin_property(111, description="The end cap configuration.")
 
 
 @builtin_struct(StructType.STROKE_CAP, frozen=True)

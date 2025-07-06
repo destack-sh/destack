@@ -1,6 +1,6 @@
 # ===============================================
 # MOCK STUFF FOR PROTOTYPING
-# nocheckin: Scripts, custom Entities/Events/Schemas/fields, .. (:PostgresSchemaEdits)
+# TODO :Incomplete!: Scripts, custom Entities/Events/Schemas/fields, .. (:PostgresSchemaEdits)
 # ===============================================
 
 from contextlib import contextmanager

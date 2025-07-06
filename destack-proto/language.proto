@@ -5582,11 +5582,10 @@ message StrokeProto {
   double thinning = 102;
   double smoothing = 103;
   double streamline = 104;
-  bool simulate_pressure = 105;
-  EasingProto easing = 106;
-  optional StrokeCapProto start = 107;
-  optional StrokeCapProto end = 108;
-  optional ColorProto color = 109;
+  EasingProto easing = 105;
+  optional ColorProto color = 106;
+  optional StrokeCapProto start = 110;
+  optional StrokeCapProto end = 111;
 }
 
 message StrokeCapProto {
