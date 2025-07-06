@@ -97,14 +97,14 @@ export class Stroke extends StructFrozen {
   readonly streamline: number;
 
   /**
-   * Whether to simulate pressure if not provided.
-   */
-  readonly simulatePressure: boolean;
-
-  /**
    * The easing function for pressure mapping.
    */
   readonly easing: Easing;
+
+  /**
+   * The stroke color.
+   */
+  readonly color: Color | null;
 
   /**
    * The start cap configuration.
@@ -116,22 +116,16 @@ export class Stroke extends StructFrozen {
    */
   readonly end: StrokeCap | null;
 
-  /**
-   * The stroke color.
-   */
-  readonly color: Color | null;
-
   constructor(options: {
     type: StrokeType;
     size: number;
     thinning: number;
     smoothing: number;
     streamline: number;
-    simulatePressure: boolean;
     easing: Easing;
+    color?: Color | null;
     start?: StrokeCap | null;
     end?: StrokeCap | null;
-    color?: Color | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -172,22 +166,17 @@ export class Stroke extends StructFrozen {
       throw new Error(`Stroke.streamline is required`);
     }
     this.streamline = _streamline;
-    let _simulatePressure = options.simulatePressure;
-    if (_simulatePressure === null) {
-      throw new Error(`Stroke.simulatePressure is required`);
-    }
-    this.simulatePressure = _simulatePressure;
     let _easing = options.easing;
     if (_easing === null) {
       throw new Error(`Stroke.easing is required`);
     }
     this.easing = _easing;
+    let _color = options.color ?? null;
+    this.color = _color;
     let _start = options.start ?? null;
     this.start = _start;
     let _end = options.end ?? null;
     this.end = _end;
-    let _color = options.color ?? null;
-    this.color = _color;
 
     // identity
     // @ts-expect-error(readonly)
@@ -225,10 +214,13 @@ export class Stroke extends StructFrozen {
     ) {
       return false;
     }
-    if (!(this.simulatePressure === other.simulatePressure)) {
+    if (!(this.easing === other.easing)) {
       return false;
     }
-    if (!(this.easing === other.easing)) {
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
       return false;
     }
     if (
@@ -240,12 +232,6 @@ export class Stroke extends StructFrozen {
     if (
       (this.end == null) !== (other.end == null) ||
       (this.end != null && !this.end.equals(other.end))
-    ) {
-      return false;
-    }
-    if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
     ) {
       return false;
     }
@@ -268,16 +254,15 @@ export class Stroke extends StructFrozen {
     h = (h * 31 + hashFloat(this.thinning)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.smoothing)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.streamline)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.simulatePressure)) & 0xffffffff;
     h = (h * 31 + this.easing) & 0xffffffff;
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
     if (this.start !== null) {
       h = (h * 31 + this.start.hash()) & 0xffffffff;
     }
     if (this.end !== null) {
       h = (h * 31 + this.end.hash()) & 0xffffffff;
-    }
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -305,16 +290,15 @@ export class Stroke extends StructFrozen {
     objectValue["102"] = object.thinning;
     objectValue["103"] = object.smoothing;
     objectValue["104"] = object.streamline;
-    objectValue["105"] = object.simulatePressure;
-    objectValue["106"] = object.easing;
+    objectValue["105"] = object.easing;
+    if (object.color != null) {
+      objectValue["106"] = object.color.toValue();
+    }
     if (object.start != null) {
-      objectValue["107"] = object.start.toValue();
+      objectValue["110"] = object.start.toValue();
     }
     if (object.end != null) {
-      objectValue["108"] = object.end.toValue();
-    }
-    if (object.color != null) {
-      objectValue["109"] = object.color.toValue();
+      objectValue["111"] = object.end.toValue();
     }
     return objectValue;
   }
@@ -328,20 +312,20 @@ export class Stroke extends StructFrozen {
   ): Stroke {
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
-    const startValue = objectValue["107"];
+    const colorValue = objectValue["106"];
+    const unpackedColor =
+      colorValue != undefined
+        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const startValue = objectValue["110"];
     const unpackedStart =
       startValue != undefined
         ? _StrokeCap.fromValue(startValue, _session, _supergraph, _graph, _connection)
         : null;
-    const endValue = objectValue["108"];
+    const endValue = objectValue["111"];
     const unpackedEnd =
       endValue != undefined
         ? _StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const colorValue = objectValue["109"];
-    const unpackedColor =
-      colorValue != undefined
-        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Stroke({
       type: Number(objectValue["100"]),
@@ -349,11 +333,10 @@ export class Stroke extends StructFrozen {
       thinning: objectValue["102"],
       smoothing: objectValue["103"],
       streamline: objectValue["104"],
-      simulatePressure: objectValue["105"],
-      easing: Number(objectValue["106"]),
+      easing: Number(objectValue["105"]),
+      color: unpackedColor,
       start: unpackedStart,
       end: unpackedEnd,
-      color: unpackedColor,
       _value: objectValue,
       _supergraph,
     });
@@ -384,16 +367,15 @@ export class Stroke extends StructFrozen {
     objectProto.thinning = object.thinning;
     objectProto.smoothing = object.smoothing;
     objectProto.streamline = object.streamline;
-    objectProto.simulatePressure = object.simulatePressure;
     objectProto.easing = Number(object.easing) as EasingProto;
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
     if (object.start != null) {
       objectProto.start = object.start.toProto();
     }
     if (object.end != null) {
       objectProto.end = object.end.toProto();
-    }
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
     }
     return objectProto as StrokeProto;
   }
@@ -413,8 +395,11 @@ export class Stroke extends StructFrozen {
       thinning: objectProto.thinning,
       smoothing: objectProto.smoothing,
       streamline: objectProto.streamline,
-      simulatePressure: objectProto.simulatePressure,
       easing: Number(objectProto.easing) as Easing,
+      color:
+        objectProto.color != undefined
+          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
       start:
         objectProto.start != undefined
           ? _StrokeCap.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection)
@@ -422,10 +407,6 @@ export class Stroke extends StructFrozen {
       end:
         objectProto.end != undefined
           ? _StrokeCap.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection)
-          : null,
-      color:
-        objectProto.color != undefined
-          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
