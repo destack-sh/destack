@@ -83,7 +83,7 @@ class MeetupEnded(Event):
 # ===============================================
 
 
-@service
+@entity
 class EmailSender(Service):
     announcement_template: EmailTemplate
     reminder_template: EmailTemplate

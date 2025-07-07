@@ -337,7 +337,7 @@ export class NodeDefinitionReference extends StructFrozen {
     return property;
   }
 
-  static of(base: NodeType | NodeClass | CustomEventDefinition | CustomEntityDefinition) {
+  static of(base: NodeType | NodeClass | NodeReference) {
     if (typeof base == "number") {
       return new NodeDefinitionReference({ type: NodeDefinitionType.BUILTIN, nodeType: base });
     } else if (
@@ -349,6 +349,33 @@ export class NodeDefinitionReference extends StructFrozen {
         nodeType: base.metatype,
         definition: base,
       });
+    } else if (isStruct(base, StructType.NODE_REFERENCE)) {
+      if (base.definitionId != null) {
+        const nodeClass = NODE_CLASS_BY_TYPE[base.type];
+        let definitionNodeType: NodeType;
+        if (nodeClass.__definition__.inherits.includes(NodeType.ENTITY)) {
+          definitionNodeType = NodeType.CUSTOM_ENTITY_DEFINITION;
+        } else if (nodeClass.__definition__.inherits.includes(NodeType.EVENT)) {
+          definitionNodeType = NodeType.CUSTOM_EVENT_DEFINITION;
+        } else {
+          throw new Error(`unexpected node reference: ${base.repr()}`);
+        }
+        const definitionPtr = new NodeReference({
+          type: definitionNodeType,
+          id: base.definitionId,
+          spaceId: base.spaceId,
+        });
+        return new NodeDefinitionReference({
+          type: NodeDefinitionType.CUSTOM,
+          nodeType: base.type,
+          definition: definitionPtr,
+        });
+      } else {
+        return new NodeDefinitionReference({
+          type: NodeDefinitionType.BUILTIN,
+          nodeType: base.type,
+        });
+      }
     } else {
       return new NodeDefinitionReference({
         type: NodeDefinitionType.BUILTIN,

@@ -48,7 +48,7 @@ export class MemoryContext {
     return `<MemoryContext ${this.toString()}>`;
   }
 
-  /** Expand the specific Definitions for a NodeDefinitionReference. */
+  /** Expand the (separately) stored definitions for a NodeDefinition. */
   resolve(definition: NodeDefinitionReference): NodeDefinitionReference[] {
     if (definition.type === NodeDefinitionType.BUILTIN) {
       if (!definition.nodeType) {
@@ -78,12 +78,9 @@ export class MemoryContext {
     }
   }
 
-  /** Get the (single) Table for a node / definition. Doesn't work for multi-definitions. */
+  /** Get the Table for a NodeDefinition. */
   get(definition: NodeDefinitionReference | NodeReference): MemoryTable {
     const nodeType = definition instanceof NodeReference ? definition.type : definition.nodeType;
-    if (!nodeType) {
-      throw new Error(`no node_type for ${definition.repr()}`);
-    }
     if (!this.database.tables.has(nodeType)) {
       this.database.tables.set(nodeType, new MemoryTable(this.database, nodeType));
     }
