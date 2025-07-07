@@ -22,14 +22,10 @@ from destack.language import Client, DatabaseInfo, IsSubject, Oracle, Session
 from destack.proto import (
     CommitRequest,
     CommitResponse,
-    DownloadFilesRequest,
-    DownloadFilesResponse,
     QueryRequest,
     QueryResponse,
     SubscribeRequest,
     SubscribeResponse,
-    UploadFilesRequest,
-    UploadFilesResponse,
 )
 from destack.utils.env import get_from_env
 from destack.utils.telemetry import set_baggage
@@ -194,26 +190,4 @@ class SpaceRouterService(ServiceBase, SpaceBase):
         client: Client | None,
         metadata: RpcMetadata,
     ) -> CommitResponse:
-        raise NotImplementedError  # implemented in wrap
-
-    @override
-    async def upload_files(
-        self,
-        request: UploadFilesRequest,
-        session: Session,
-        subject: IsSubject | None,
-        client: Client | None,
-        metadata: RpcMetadata,
-    ) -> UploadFilesResponse:
-        raise NotImplementedError  # implemented in wrap
-
-    @override
-    async def download_files(
-        self,
-        request: DownloadFilesRequest,
-        session: Session,
-        subject: IsSubject | None,
-        client: Client | None,
-        metadata: RpcMetadata,
-    ) -> DownloadFilesResponse:
         raise NotImplementedError  # implemented in wrap

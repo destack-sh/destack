@@ -6,7 +6,6 @@ from opentelemetry import trace
 
 from destack.grpc import Network, ServiceBase
 from destack.language import (
-    CLOUD,
     Client,
     Database,
     DatabaseInfo,
@@ -22,8 +21,6 @@ from destack.language import (
 from destack.proto import (
     CommitRequest,
     CommitResponse,
-    DownloadFilesRequest,
-    DownloadFilesResponse,
     QueryRequest,
     QueryResponse,
     RpcMetadata,
@@ -31,11 +28,9 @@ from destack.proto import (
     SpaceBase,
     SubscribeRequest,
     SubscribeResponse,
-    UploadFilesRequest,
-    UploadFilesResponse,
 )
 from destack.store import BufferedStore
-from destack.utils.env import ENV, get_from_env
+from destack.utils.env import get_from_env
 from destack.utils.uuid import UUID
 from desys.sharding import DatabaseProvider, GalaxyProvider
 from desys.store import PostgresStore
@@ -56,7 +51,7 @@ FILE_DOWNLOAD_URL_EXPIRY = get_from_env(
 
 class SpaceService(ServiceBase, SpaceBase):
     """
-    Service for a Space. There is only one Space per Space.
+    Service for a Space. There is only one active SpaceService per Space.
     """
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
@@ -181,38 +176,3 @@ class SpaceService(ServiceBase, SpaceBase):
         #     pass  # nocheckin: access control (approve/reject/amend Queries & Changes)
         # results = await self.store.commit(approved_changes)
         # return CommitResponse(results=[result.to_proto() for result in results])
-
-    @override
-    async def upload_files(
-        self,
-        request: UploadFilesRequest,
-        session: Session,
-        subject: IsSubject | None,
-        client: Client | None,
-        metadata: RpcMetadata,
-    ) -> UploadFilesResponse:
-        raise NotImplementedError
-
-    @override
-    async def download_files(
-        self,
-        request: DownloadFilesRequest,
-        session: Session,
-        subject: IsSubject | None,
-        client: Client | None,
-        metadata: RpcMetadata,
-    ) -> DownloadFilesResponse:
-        raise NotImplementedError
-
-
-def get_drive_bucket(space: Space) -> str:
-    bucket_name = f"destack-{ENV.value}-{CLOUD.name.lower()}-{space.region.slug}-files"
-    return bucket_name
-
-
-def get_file_key(space: Space, sha256: str, name: str | None) -> str:
-    """Gets the key for a file in the given bucket."""
-    if name is None:
-        return f"{space.id}/{sha256}/__UNNAMED__"
-    else:
-        return f"{space.id}/{sha256}/{name}"
