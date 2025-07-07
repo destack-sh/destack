@@ -704,7 +704,7 @@ function queryGroupedScalar(options: {
 /**
  * Walk nodes in a specific direction with optional recursion.
  */
-function walkNode(options: {
+export function walkNode(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   rootsPtrs: NodeReference[];
