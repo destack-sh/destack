@@ -1,5 +1,6 @@
 import {
   CASCADING_EDIT_TYPES,
+  EdgeDirection,
   EditEvent,
   EditOperation,
   EditType,
@@ -11,7 +12,8 @@ import {
   ScalarType,
 } from "@destack/language";
 
-import { MemoryContext, MemoryTable } from "./core";
+import { walkNode } from "@destack/store/memory/query";
+import { MemoryContext } from "./core";
 import { packNodeRow } from "./wiring";
 
 const NODE_PARENT_KEY = String(Node.property("parent").id);
@@ -22,10 +24,10 @@ const DELETED_AT_KEY = String(IsDeletable.property("deleted_at").id);
 /**
  * Execute the Edits.
  */
-export function executeEdits(options: {
-  context: MemoryContext;
+export function executeEdits(options: { context: MemoryContext; edits: EditEvent[] }): {
   edits: EditEvent[];
-}): { edits: EditEvent[]; cascadedEdits: EditEvent[] } {
+  cascadedEdits: EditEvent[];
+} {
   const { context, edits } = options;
 
   if (!edits || edits.length === 0) {
@@ -117,10 +119,21 @@ function optimizeEdits(options: { context: MemoryContext; edits: EditEvent[] }):
  */
 function executeCascade(options: {
   context: MemoryContext;
-  table: MemoryTable;
+  definition: NodeDefinitionReference;
   nodePtrs: NodeReference[];
 }): NodeReference[] {
-  throw new Error("not implemented");
+  const { context, definition, nodePtrs } = options;
+  const childPtrs = walkNode({
+    context,
+    definition,
+    rootsPtrs: nodePtrs,
+    rootsParentsPtrs: [],
+    direction: EdgeDirection.CHILD,
+    depth: 1,
+    where: null,
+    snapshotPath: [],
+  });
+  return childPtrs;
 }
 
 /**
@@ -245,7 +258,7 @@ function executeDataEdit(options: {
     // cascade
     const cascadedNodePtrs = executeCascade({
       context,
-      table,
+      definition,
       nodePtrs: edits.map((edit) => edit.nodePtr),
     });
     const cascadedEdits = cascadedNodePtrs.map(
@@ -280,7 +293,7 @@ function executeDataEdit(options: {
     // cascade
     const cascadedNodePtrs = executeCascade({
       context,
-      table,
+      definition,
       nodePtrs: edits.map((edit) => edit.nodePtr),
     });
     const cascadedEdits = cascadedNodePtrs.map(

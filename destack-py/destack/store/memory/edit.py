@@ -7,6 +7,7 @@ from opentelemetry import trace
 
 from destack.language import (
     CASCADING_EDIT_TYPES,
+    EdgeDirection,
     EditEvent,
     EditOperation,
     EditType,
@@ -117,7 +118,19 @@ def _execute_cascade(
     node_ptrs: Sequence[NodeReference],
 ) -> Sequence[NodeReference]:
     """Get the cascaded Nodes for an Edit."""
-    raise NotImplementedError
+    from .query import _walk_node
+
+    child_ptrs = _walk_node(
+        context=context,
+        definition=definition,
+        roots_ptr=node_ptrs,
+        roots_parents_ptr=(),
+        direction=EdgeDirection.CHILD,
+        depth=1,
+        where=None,
+        snapshot_path=(),
+    )
+    return child_ptrs
 
 
 @tracer.start_as_current_span("memory.execute_data_edit")
