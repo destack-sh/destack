@@ -16,29 +16,20 @@ import React, { useRef } from "react";
 
 const currentLine = signal<Line | null>(null);
 
-// nocheckin: reactive TS querying
+// nocheckin: reactive TS graphs & querying
 
 function useQuery<T extends Node = Node>(
   query: Signal<Query<T>>,
-): { connection: Signal<QueryConnection<T> | null>; nodes: Signal<T[]>; trigger: () => void } {
+): { connection: Signal<QueryConnection<T> | null>; nodes: Signal<T[]> } {
   const session = activeSession();
   const connection: Signal<QueryConnection<T> | null> = useSignal(null);
   const nodes = useComputed(() => connection.value?.toList() ?? []);
 
-  const executeQuery = () => {
-    console.log("useQuery.execute", query.value.repr(), query);
-    query.value.execute().then((c) => (connection.value = c));
-  };
-
   useSignalEffect(() => {
-    executeQuery();
+    query.value.execute().then((c) => (connection.value = c));
   });
 
-  const trigger = () => {
-    executeQuery();
-  };
-
-  return { connection, nodes, trigger };
+  return { connection, nodes };
 }
 
 export const Canvas: React.FC = () => {

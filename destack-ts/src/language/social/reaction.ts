@@ -15,10 +15,25 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  Entity,
+  Event,
+  EventStatus,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
-import { MaterializationProto, ReactionProto } from "@destack/proto";
+import type { Client, Space } from "@destack/language/universe";
+import {
+  EventStatusProto,
+  MaterializationProto,
+  ReactionAddedEventProto,
+  ReactionEventProto,
+  ReactionProto,
+  ReactionRemovedEventProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -717,3 +732,1287 @@ export class Reaction
 }
 registerNodeClass(NodeType.REACTION, Reaction);
 /* ==== DESTACK_GENERATED_END:NODE:220200 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:220201 ==== */
+/**
+ * ReactionEvent
+ */
+export class ReactionEvent extends Event {
+  static metatype: NodeType = NodeType.REACTION_EVENT;
+
+  /**
+   * Event.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
+   * ReactionEvent.node
+   */
+  get node(): Reaction | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Reaction | null;
+    }
+    return null;
+  }
+  readonly nodePtr: NodeReference;
+
+  /**
+   * ReactionEvent.content
+   */
+  readonly content: string;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
+    node: Reaction | NodeReference;
+    content: string;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null || options._graph != null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
+    }
+    this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
+    if (_status === null) {
+      throw new Error(`ReactionEvent.status is required`);
+    }
+    this.status = _status;
+    let _node = options.node;
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
+    }
+    if (_node === null) {
+      throw new Error(`ReactionEvent.node is required`);
+    }
+    this.nodePtr = _node;
+    let _content = options.content;
+    if (_content === null) {
+      throw new Error(`ReactionEvent.content is required`);
+    }
+    this.content = _content;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+    } else {
+      if (options.createdAt == null) {
+        throw new Error(`ReactionEvent.createdAt is required for existing Events`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.content === other.content)) {
+      return false;
+    }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.content)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
+    }
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
+      type: NodeType.REACTION_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "ReactionEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<ReactionEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return ReactionEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: ReactionEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 220201;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
+    objectValue["30"] = object.status;
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["102"] = object.content;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["21"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new ReactionEvent({
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      content: objectValue["102"],
+      parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
+      status: Number(objectValue["30"]),
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionEvent {
+    return ReactionEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ReactionEventProto {
+    return ReactionEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: ReactionEvent): ReactionEventProto {
+    const objectProto: Partial<ReactionEventProto> = { metatype: 220201 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
+    }
+    objectProto.status = Number(object.status) as EventStatusProto;
+    objectProto.nodePtr = object.nodePtr.toProto();
+    objectProto.content = object.content;
+    return objectProto as ReactionEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ReactionEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new ReactionEvent({
+      node: _NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      content: objectProto.content,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      status: Number(objectProto.status) as EventStatus,
+      space:
+        objectProto.spacePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: ReactionEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionEvent {
+    return ReactionEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): ReactionEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ReactionEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.REACTION_EVENT, ReactionEvent);
+/* ==== DESTACK_GENERATED_END:NODE:220201 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:220202 ==== */
+/**
+ * ReactionAddedEvent
+ */
+export class ReactionAddedEvent extends ReactionEvent {
+  static metatype: NodeType = NodeType.REACTION_ADDED_EVENT;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
+    node: Reaction | NodeReference;
+    content: string;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(options);
+
+    // properties
+
+    // identity
+    // ... (already set in parent)
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.content === other.content)) {
+      return false;
+    }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.content)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
+    }
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
+      type: NodeType.REACTION_ADDED_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "ReactionAddedEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<ReactionAddedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return ReactionAddedEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: ReactionAddedEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 220202;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
+    objectValue["30"] = object.status;
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["102"] = object.content;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionAddedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["21"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new ReactionAddedEvent({
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      content: objectValue["102"],
+      parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
+      status: Number(objectValue["30"]),
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionAddedEvent {
+    return ReactionAddedEvent.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): ReactionAddedEventProto {
+    return ReactionAddedEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: ReactionAddedEvent): ReactionAddedEventProto {
+    const objectProto: Partial<ReactionAddedEventProto> = { metatype: 220202 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
+    }
+    objectProto.status = Number(object.status) as EventStatusProto;
+    objectProto.nodePtr = object.nodePtr.toProto();
+    objectProto.content = object.content;
+    return objectProto as ReactionAddedEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ReactionAddedEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionAddedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new ReactionAddedEvent({
+      node: _NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      content: objectProto.content,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      status: Number(objectProto.status) as EventStatus,
+      space:
+        objectProto.spacePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: ReactionAddedEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionAddedEvent {
+    return ReactionAddedEvent.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): ReactionAddedEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ReactionAddedEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.REACTION_ADDED_EVENT, ReactionAddedEvent);
+/* ==== DESTACK_GENERATED_END:NODE:220202 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:220203 ==== */
+/**
+ * ReactionRemovedEvent
+ */
+export class ReactionRemovedEvent extends ReactionEvent {
+  static metatype: NodeType = NodeType.REACTION_REMOVED_EVENT;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
+    node: Reaction | NodeReference;
+    content: string;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(options);
+
+    // properties
+
+    // identity
+    // ... (already set in parent)
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.content === other.content)) {
+      return false;
+    }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.content)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
+    }
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
+      type: NodeType.REACTION_REMOVED_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return "ReactionRemovedEvent[id={this.id}]";
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<ReactionRemovedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { [key: string]: any } {
+    return ReactionRemovedEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: ReactionRemovedEvent): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 220203;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
+    objectValue["30"] = object.status;
+    objectValue["101"] = object.nodePtr.toValue();
+    objectValue["102"] = object.content;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionRemovedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["21"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new ReactionRemovedEvent({
+      node: _NodeReference.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      content: objectValue["102"],
+      parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
+      status: Number(objectValue["30"]),
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionRemovedEvent {
+    return ReactionRemovedEvent.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): ReactionRemovedEventProto {
+    return ReactionRemovedEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: ReactionRemovedEvent): ReactionRemovedEventProto {
+    const objectProto: Partial<ReactionRemovedEventProto> = { metatype: 220203 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
+    }
+    objectProto.status = Number(object.status) as EventStatusProto;
+    objectProto.nodePtr = object.nodePtr.toProto();
+    objectProto.content = object.content;
+    return objectProto as ReactionRemovedEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ReactionRemovedEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionRemovedEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new ReactionRemovedEvent({
+      node: _NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      content: objectProto.content,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      status: Number(objectProto.status) as EventStatus,
+      space:
+        objectProto.spacePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: ReactionRemovedEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ReactionRemovedEvent {
+    return ReactionRemovedEvent.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): ReactionRemovedEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ReactionRemovedEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.REACTION_REMOVED_EVENT, ReactionRemovedEvent);
+/* ==== DESTACK_GENERATED_END:NODE:220203 ==== */

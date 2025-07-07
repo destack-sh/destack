@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Entity,
+    Event,
     IndexIn,
     IsDeletable,
     IsGlobal,
@@ -37,3 +38,19 @@ class Reaction(
     parent: Union["IsReactable", None] = builtin_property_parent()
 
     content: str = builtin_property(101, is_repr=True)
+
+
+@builtin_node(NodeType.REACTION_EVENT, frozen=True)
+class ReactionEvent(Event["Reaction"]):
+    node: "Reaction" = builtin_property(101)
+    content: str = builtin_property(102)
+
+
+@builtin_node(NodeType.REACTION_ADDED_EVENT, frozen=True)
+class ReactionAddedEvent(ReactionEvent):
+    pass
+
+
+@builtin_node(NodeType.REACTION_REMOVED_EVENT, frozen=True)
+class ReactionRemovedEvent(ReactionEvent):
+    pass

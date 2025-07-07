@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.07.07.0"
+VERSION = "2025.07.07.1"
 
 # import from all generated files
 from .health_pb2 import *
@@ -165,6 +165,9 @@ AnyNodeProto = Union[
     VariantProto,
     WindowProto,
     FollowProto,
+    FollowEventProto,
+    FollowAddedEventProto,
+    FollowRemovedEventProto,
     MessageProto,
     NotificationEventProto,
     NotificationSentEventProto,
@@ -174,7 +177,13 @@ AnyNodeProto = Union[
     NotificationExpiredEventProto,
     NotificationProto,
     ReactionProto,
+    ReactionEventProto,
+    ReactionAddedEventProto,
+    ReactionRemovedEventProto,
     StarProto,
+    StarEventProto,
+    StarAddedEventProto,
+    StarRemovedEventProto,
     ThreadProto,
     BranchProto,
     FolderProto,

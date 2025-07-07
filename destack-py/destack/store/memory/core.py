@@ -54,7 +54,6 @@ class MemoryContext:
     def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
         """Expand the specific Definitions for a NodeDefinitionReference."""
         if definition.type == NodeDefinitionType.BUILTIN:
-            assert definition.node_type is not None, f"no node_type for {definition!r}"
             node_cls = NODE_CLASS_BY_TYPE[definition.node_type]
             if not node_cls.__inherited_by__:
                 return (definition,)
@@ -84,9 +83,6 @@ class MemoryContext:
             )
         return self.database.tables[node_type]
 
-    def copy(self) -> "MemoryContext":
-        return MemoryContext(self.database)
-
 
 class MemoryTable:
     """In-memory table of Nodes for some definition."""
@@ -115,7 +111,7 @@ class MemoryTable:
         return f"node_type={self.node_type.name}, rows={len(self.rows)}"
 
     def __repr__(self) -> str:
-        return f"<MemoryTable {self!s}>"
+        return f"<{self.__class__.__name__} {self!s}>"
 
 
 class MemoryRow:

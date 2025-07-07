@@ -118,16 +118,6 @@ async def _execute_cascade(
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("postgres.execute_schema_edits")
-async def _execute_schema_edits(
-    conn: asyncpg.Connection,
-    context: PostgresContext,
-    edits: Sequence[EditEvent],
-) -> None:
-    """Execute the Edits against the schema (schema only, no data)."""
-    pass  # :PostgresSchemaEdits
-
-
 @tracer.start_as_current_span("postgres.execute_data_edit")
 async def _execute_data_edit(
     conn: asyncpg.Connection,

@@ -884,8 +884,17 @@ enum NodeTypeProto {
   NODE_TYPE_THREAD = 220000;
   NODE_TYPE_MESSAGE = 220100;
   NODE_TYPE_REACTION = 220200;
+  NODE_TYPE_REACTION_EVENT = 220201;
+  NODE_TYPE_REACTION_ADDED_EVENT = 220202;
+  NODE_TYPE_REACTION_REMOVED_EVENT = 220203;
   NODE_TYPE_STAR = 220300;
+  NODE_TYPE_STAR_EVENT = 220301;
+  NODE_TYPE_STAR_ADDED_EVENT = 220302;
+  NODE_TYPE_STAR_REMOVED_EVENT = 220303;
   NODE_TYPE_FOLLOW = 220400;
+  NODE_TYPE_FOLLOW_EVENT = 220401;
+  NODE_TYPE_FOLLOW_ADDED_EVENT = 220402;
+  NODE_TYPE_FOLLOW_REMOVED_EVENT = 220403;
   NODE_TYPE_NOTIFICATION = 220500;
   NODE_TYPE_NOTIFICATION_EVENT = 220501;
   NODE_TYPE_NOTIFICATION_SENT_EVENT = 220502;
@@ -3056,6 +3065,48 @@ message FollowProto {
   NodeReferenceProto owned_by_ptr = 28;
 }
 
+message FollowAddedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  NodeReferenceProto node_ptr = 101;
+}
+
+message FollowEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  NodeReferenceProto node_ptr = 101;
+}
+
+message FollowRemovedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  NodeReferenceProto node_ptr = 101;
+}
+
 message FontProto {
   StructTypeProto metatype = 1;
   FontTypeProto type = 100;
@@ -4835,6 +4886,51 @@ message ReactionProto {
   string content = 101;
 }
 
+message ReactionAddedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  NodeReferenceProto node_ptr = 101;
+  string content = 102;
+}
+
+message ReactionEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  NodeReferenceProto node_ptr = 101;
+  string content = 102;
+}
+
+message ReactionRemovedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  NodeReferenceProto node_ptr = 101;
+  string content = 102;
+}
+
 // A generic Record instance of a CustomEntityDefinition like a relational Table.
 // The Archivable, Deletable, and Ownable traits are always present for plain Records
 // (but must be explicitly added to the CustomEntityDefinition to use them).
@@ -5722,6 +5818,48 @@ message StarProto {
   NodeReferenceProto owned_by_ptr = 28;
 }
 
+message StarAddedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  NodeReferenceProto node_ptr = 101;
+}
+
+message StarEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  NodeReferenceProto node_ptr = 101;
+}
+
+message StarRemovedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  NodeReferenceProto node_ptr = 101;
+}
+
 message StringConstraintProto {
   StructTypeProto metatype = 1;
   optional StringFormatProto format = 40;
@@ -6578,6 +6716,9 @@ message SomeNodeProto {
     VariantProto variant = 500300;
     WindowProto window = 500000;
     FollowProto follow = 220400;
+    FollowEventProto follow_event = 220401;
+    FollowAddedEventProto follow_added_event = 220402;
+    FollowRemovedEventProto follow_removed_event = 220403;
     MessageProto message = 220100;
     NotificationSentEventProto notification_sent_event = 220502;
     NotificationRescindedEventProto notification_rescinded_event = 220503;
@@ -6586,7 +6727,13 @@ message SomeNodeProto {
     NotificationExpiredEventProto notification_expired_event = 220506;
     NotificationProto notification = 220500;
     ReactionProto reaction = 220200;
+    ReactionEventProto reaction_event = 220201;
+    ReactionAddedEventProto reaction_added_event = 220202;
+    ReactionRemovedEventProto reaction_removed_event = 220203;
     StarProto star = 220300;
+    StarEventProto star_event = 220301;
+    StarAddedEventProto star_added_event = 220302;
+    StarRemovedEventProto star_removed_event = 220303;
     ThreadProto thread = 220000;
     BranchProto branch = 45000;
     FolderProto folder = 40000;
@@ -6764,11 +6911,20 @@ message SomeEventProto {
     GaugeMeasurementEventProto gauge_measurement_event = 180001;
     CounterMeasurementEventProto counter_measurement_event = 180101;
     HistogramMeasurementEventProto histogram_measurement_event = 180201;
+    FollowEventProto follow_event = 220401;
+    FollowAddedEventProto follow_added_event = 220402;
+    FollowRemovedEventProto follow_removed_event = 220403;
     NotificationSentEventProto notification_sent_event = 220502;
     NotificationRescindedEventProto notification_rescinded_event = 220503;
     NotificationReadEventProto notification_read_event = 220504;
     NotificationDismissedEventProto notification_dismissed_event = 220505;
     NotificationExpiredEventProto notification_expired_event = 220506;
+    ReactionEventProto reaction_event = 220201;
+    ReactionAddedEventProto reaction_added_event = 220202;
+    ReactionRemovedEventProto reaction_removed_event = 220203;
+    StarEventProto star_event = 220301;
+    StarAddedEventProto star_added_event = 220302;
+    StarRemovedEventProto star_removed_event = 220303;
     FriendshipInviteSentEventProto friendship_invite_sent_event = 21202;
     FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 21203;
     FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 21204;
