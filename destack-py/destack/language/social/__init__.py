@@ -1,4 +1,4 @@
-from .follow import Follow
+from .follow import Follow, FollowAddedEvent, FollowEvent, FollowRemovedEvent
 from .message import Message
 from .notification import (
     Notification,
@@ -8,12 +8,15 @@ from .notification import (
     NotificationRescindedEvent,
     NotificationSentEvent,
 )
-from .reaction import Reaction
-from .star import Star
+from .reaction import Reaction, ReactionAddedEvent, ReactionEvent, ReactionRemovedEvent
+from .star import Star, StarAddedEvent, StarEvent, StarRemovedEvent
 from .thread import Thread, ThreadStatus
 
 __all__ = [
     "Follow",
+    "FollowAddedEvent",
+    "FollowEvent",
+    "FollowRemovedEvent",
     "Message",
     "Notification",
     "NotificationDismissedEvent",
@@ -22,7 +25,13 @@ __all__ = [
     "NotificationRescindedEvent",
     "NotificationSentEvent",
     "Reaction",
+    "ReactionAddedEvent",
+    "ReactionEvent",
+    "ReactionRemovedEvent",
     "Star",
+    "StarAddedEvent",
+    "StarEvent",
+    "StarRemovedEvent",
     "Thread",
     "ThreadStatus",
 ]

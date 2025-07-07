@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Entity,
+    Event,
     IndexIn,
     IsDeletable,
     IsGlobal,
@@ -9,6 +10,7 @@ from destack.language.core import (
     IsSpatial,
     NodeType,
     builtin_node,
+    builtin_property,
     builtin_property_parent,
 )
 
@@ -32,3 +34,18 @@ class Follow(
     """A Follow is a relationship between a Subject and an IsFollowable Node."""
 
     parent: Union["IsFollowable", None] = builtin_property_parent()
+
+
+@builtin_node(NodeType.FOLLOW_EVENT, frozen=True)
+class FollowEvent(Event["Follow"]):
+    node: "Follow" = builtin_property(101)
+
+
+@builtin_node(NodeType.FOLLOW_ADDED_EVENT, frozen=True)
+class FollowAddedEvent(FollowEvent):
+    pass
+
+
+@builtin_node(NodeType.FOLLOW_REMOVED_EVENT, frozen=True)
+class FollowRemovedEvent(FollowEvent):
+    pass

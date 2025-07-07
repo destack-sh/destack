@@ -5364,6 +5364,153 @@ export interface FollowProto {
     ownedByPtr?: NodeReferenceProto;
 }
 /**
+ * @generated from protobuf message symbol.destack.FollowAddedEventProto
+ */
+export interface FollowAddedEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+}
+/**
+ * @generated from protobuf message symbol.destack.FollowEventProto
+ */
+export interface FollowEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+}
+/**
+ * @generated from protobuf message symbol.destack.FollowRemovedEventProto
+ */
+export interface FollowRemovedEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+}
+/**
  * @generated from protobuf message symbol.destack.FontProto
  */
 export interface FontProto {
@@ -11683,6 +11830,165 @@ export interface ReactionProto {
     content: string;
 }
 /**
+ * @generated from protobuf message symbol.destack.ReactionAddedEventProto
+ */
+export interface ReactionAddedEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: string content = 102
+     */
+    content: string;
+}
+/**
+ * @generated from protobuf message symbol.destack.ReactionEventProto
+ */
+export interface ReactionEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: string content = 102
+     */
+    content: string;
+}
+/**
+ * @generated from protobuf message symbol.destack.ReactionRemovedEventProto
+ */
+export interface ReactionRemovedEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: string content = 102
+     */
+    content: string;
+}
+/**
  * A generic Record instance of a CustomEntityDefinition like a relational Table.
  * The Archivable, Deletable, and Ownable traits are always present for plain Records
  * (but must be explicitly added to the CustomEntityDefinition to use them).
@@ -14861,6 +15167,153 @@ export interface StarProto {
      * @generated from protobuf field: symbol.destack.NodeReferenceProto owned_by_ptr = 28
      */
     ownedByPtr?: NodeReferenceProto;
+}
+/**
+ * @generated from protobuf message symbol.destack.StarAddedEventProto
+ */
+export interface StarAddedEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+}
+/**
+ * @generated from protobuf message symbol.destack.StarEventProto
+ */
+export interface StarEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+}
+/**
+ * @generated from protobuf message symbol.destack.StarRemovedEventProto
+ */
+export interface StarRemovedEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
 }
 /**
  * @generated from protobuf message symbol.destack.StringConstraintProto
@@ -18112,6 +18565,24 @@ export interface SomeNodeProto {
          */
         follow: FollowProto;
     } | {
+        oneofKind: "followEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.FollowEventProto follow_event = 220401
+         */
+        followEvent: FollowEventProto;
+    } | {
+        oneofKind: "followAddedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.FollowAddedEventProto follow_added_event = 220402
+         */
+        followAddedEvent: FollowAddedEventProto;
+    } | {
+        oneofKind: "followRemovedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.FollowRemovedEventProto follow_removed_event = 220403
+         */
+        followRemovedEvent: FollowRemovedEventProto;
+    } | {
         oneofKind: "message";
         /**
          * @generated from protobuf field: symbol.destack.MessageProto message = 220100
@@ -18160,11 +18631,47 @@ export interface SomeNodeProto {
          */
         reaction: ReactionProto;
     } | {
+        oneofKind: "reactionEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.ReactionEventProto reaction_event = 220201
+         */
+        reactionEvent: ReactionEventProto;
+    } | {
+        oneofKind: "reactionAddedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.ReactionAddedEventProto reaction_added_event = 220202
+         */
+        reactionAddedEvent: ReactionAddedEventProto;
+    } | {
+        oneofKind: "reactionRemovedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.ReactionRemovedEventProto reaction_removed_event = 220203
+         */
+        reactionRemovedEvent: ReactionRemovedEventProto;
+    } | {
         oneofKind: "star";
         /**
          * @generated from protobuf field: symbol.destack.StarProto star = 220300
          */
         star: StarProto;
+    } | {
+        oneofKind: "starEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.StarEventProto star_event = 220301
+         */
+        starEvent: StarEventProto;
+    } | {
+        oneofKind: "starAddedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.StarAddedEventProto star_added_event = 220302
+         */
+        starAddedEvent: StarAddedEventProto;
+    } | {
+        oneofKind: "starRemovedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.StarRemovedEventProto star_removed_event = 220303
+         */
+        starRemovedEvent: StarRemovedEventProto;
     } | {
         oneofKind: "thread";
         /**
@@ -19190,6 +19697,24 @@ export interface SomeEventProto {
          */
         histogramMeasurementEvent: HistogramMeasurementEventProto;
     } | {
+        oneofKind: "followEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.FollowEventProto follow_event = 220401
+         */
+        followEvent: FollowEventProto;
+    } | {
+        oneofKind: "followAddedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.FollowAddedEventProto follow_added_event = 220402
+         */
+        followAddedEvent: FollowAddedEventProto;
+    } | {
+        oneofKind: "followRemovedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.FollowRemovedEventProto follow_removed_event = 220403
+         */
+        followRemovedEvent: FollowRemovedEventProto;
+    } | {
         oneofKind: "notificationSentEvent";
         /**
          * @generated from protobuf field: symbol.destack.NotificationSentEventProto notification_sent_event = 220502
@@ -19219,6 +19744,42 @@ export interface SomeEventProto {
          * @generated from protobuf field: symbol.destack.NotificationExpiredEventProto notification_expired_event = 220506
          */
         notificationExpiredEvent: NotificationExpiredEventProto;
+    } | {
+        oneofKind: "reactionEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.ReactionEventProto reaction_event = 220201
+         */
+        reactionEvent: ReactionEventProto;
+    } | {
+        oneofKind: "reactionAddedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.ReactionAddedEventProto reaction_added_event = 220202
+         */
+        reactionAddedEvent: ReactionAddedEventProto;
+    } | {
+        oneofKind: "reactionRemovedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.ReactionRemovedEventProto reaction_removed_event = 220203
+         */
+        reactionRemovedEvent: ReactionRemovedEventProto;
+    } | {
+        oneofKind: "starEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.StarEventProto star_event = 220301
+         */
+        starEvent: StarEventProto;
+    } | {
+        oneofKind: "starAddedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.StarAddedEventProto star_added_event = 220302
+         */
+        starAddedEvent: StarAddedEventProto;
+    } | {
+        oneofKind: "starRemovedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.StarRemovedEventProto star_removed_event = 220303
+         */
+        starRemovedEvent: StarRemovedEventProto;
     } | {
         oneofKind: "friendshipInviteSentEvent";
         /**
@@ -22294,13 +22855,49 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_REACTION = 220200,
     /**
+     * @generated from protobuf enum value: NODE_TYPE_REACTION_EVENT = 220201;
+     */
+    NODE_TYPE_REACTION_EVENT = 220201,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_REACTION_ADDED_EVENT = 220202;
+     */
+    NODE_TYPE_REACTION_ADDED_EVENT = 220202,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_REACTION_REMOVED_EVENT = 220203;
+     */
+    NODE_TYPE_REACTION_REMOVED_EVENT = 220203,
+    /**
      * @generated from protobuf enum value: NODE_TYPE_STAR = 220300;
      */
     NODE_TYPE_STAR = 220300,
     /**
+     * @generated from protobuf enum value: NODE_TYPE_STAR_EVENT = 220301;
+     */
+    NODE_TYPE_STAR_EVENT = 220301,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_STAR_ADDED_EVENT = 220302;
+     */
+    NODE_TYPE_STAR_ADDED_EVENT = 220302,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_STAR_REMOVED_EVENT = 220303;
+     */
+    NODE_TYPE_STAR_REMOVED_EVENT = 220303,
+    /**
      * @generated from protobuf enum value: NODE_TYPE_FOLLOW = 220400;
      */
     NODE_TYPE_FOLLOW = 220400,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_FOLLOW_EVENT = 220401;
+     */
+    NODE_TYPE_FOLLOW_EVENT = 220401,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_FOLLOW_ADDED_EVENT = 220402;
+     */
+    NODE_TYPE_FOLLOW_ADDED_EVENT = 220402,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_FOLLOW_REMOVED_EVENT = 220403;
+     */
+    NODE_TYPE_FOLLOW_REMOVED_EVENT = 220403,
     /**
      * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION = 220500;
      */
@@ -36529,6 +37126,363 @@ class FollowProto$Type extends MessageType<FollowProto> {
  * @generated MessageType for protobuf message symbol.destack.FollowProto
  */
 export const FollowProto = new FollowProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class FollowAddedEventProto$Type extends MessageType<FollowAddedEventProto> {
+    constructor() {
+        super("symbol.destack.FollowAddedEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<FollowAddedEventProto>): FollowAddedEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<FollowAddedEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FollowAddedEventProto): FollowAddedEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: FollowAddedEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.FollowAddedEventProto
+ */
+export const FollowAddedEventProto = new FollowAddedEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class FollowEventProto$Type extends MessageType<FollowEventProto> {
+    constructor() {
+        super("symbol.destack.FollowEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<FollowEventProto>): FollowEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<FollowEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FollowEventProto): FollowEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: FollowEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.FollowEventProto
+ */
+export const FollowEventProto = new FollowEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class FollowRemovedEventProto$Type extends MessageType<FollowRemovedEventProto> {
+    constructor() {
+        super("symbol.destack.FollowRemovedEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<FollowRemovedEventProto>): FollowRemovedEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<FollowRemovedEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FollowRemovedEventProto): FollowRemovedEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: FollowRemovedEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.FollowRemovedEventProto
+ */
+export const FollowRemovedEventProto = new FollowRemovedEventProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class FontProto$Type extends MessageType<FontProto> {
     constructor() {
@@ -51060,6 +52014,387 @@ class ReactionProto$Type extends MessageType<ReactionProto> {
  */
 export const ReactionProto = new ReactionProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ReactionAddedEventProto$Type extends MessageType<ReactionAddedEventProto> {
+    constructor() {
+        super("symbol.destack.ReactionAddedEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 102, name: "content", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ReactionAddedEventProto>): ReactionAddedEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        message.content = "";
+        if (value !== undefined)
+            reflectionMergePartial<ReactionAddedEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReactionAddedEventProto): ReactionAddedEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* string content */ 102:
+                    message.content = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ReactionAddedEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* string content = 102; */
+        if (message.content !== "")
+            writer.tag(102, WireType.LengthDelimited).string(message.content);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.ReactionAddedEventProto
+ */
+export const ReactionAddedEventProto = new ReactionAddedEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ReactionEventProto$Type extends MessageType<ReactionEventProto> {
+    constructor() {
+        super("symbol.destack.ReactionEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 102, name: "content", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ReactionEventProto>): ReactionEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        message.content = "";
+        if (value !== undefined)
+            reflectionMergePartial<ReactionEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReactionEventProto): ReactionEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* string content */ 102:
+                    message.content = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ReactionEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* string content = 102; */
+        if (message.content !== "")
+            writer.tag(102, WireType.LengthDelimited).string(message.content);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.ReactionEventProto
+ */
+export const ReactionEventProto = new ReactionEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ReactionRemovedEventProto$Type extends MessageType<ReactionRemovedEventProto> {
+    constructor() {
+        super("symbol.destack.ReactionRemovedEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 102, name: "content", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ReactionRemovedEventProto>): ReactionRemovedEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        message.content = "";
+        if (value !== undefined)
+            reflectionMergePartial<ReactionRemovedEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReactionRemovedEventProto): ReactionRemovedEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* string content */ 102:
+                    message.content = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ReactionRemovedEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* string content = 102; */
+        if (message.content !== "")
+            writer.tag(102, WireType.LengthDelimited).string(message.content);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.ReactionRemovedEventProto
+ */
+export const ReactionRemovedEventProto = new ReactionRemovedEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class RecordProto$Type extends MessageType<RecordProto> {
     constructor() {
         super("symbol.destack.RecordProto", [
@@ -58228,6 +59563,363 @@ class StarProto$Type extends MessageType<StarProto> {
  */
 export const StarProto = new StarProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class StarAddedEventProto$Type extends MessageType<StarAddedEventProto> {
+    constructor() {
+        super("symbol.destack.StarAddedEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<StarAddedEventProto>): StarAddedEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<StarAddedEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StarAddedEventProto): StarAddedEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StarAddedEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.StarAddedEventProto
+ */
+export const StarAddedEventProto = new StarAddedEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class StarEventProto$Type extends MessageType<StarEventProto> {
+    constructor() {
+        super("symbol.destack.StarEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<StarEventProto>): StarEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<StarEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StarEventProto): StarEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StarEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.StarEventProto
+ */
+export const StarEventProto = new StarEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class StarRemovedEventProto$Type extends MessageType<StarRemovedEventProto> {
+    constructor() {
+        super("symbol.destack.StarRemovedEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<StarRemovedEventProto>): StarRemovedEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<StarRemovedEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StarRemovedEventProto): StarRemovedEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StarRemovedEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.StarRemovedEventProto
+ */
+export const StarRemovedEventProto = new StarRemovedEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class StringConstraintProto$Type extends MessageType<StringConstraintProto> {
     constructor() {
         super("symbol.destack.StringConstraintProto", [
@@ -64585,6 +66277,9 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 500300, name: "variant", kind: "message", oneof: "node", T: () => VariantProto },
             { no: 500000, name: "window", kind: "message", oneof: "node", T: () => WindowProto },
             { no: 220400, name: "follow", kind: "message", oneof: "node", T: () => FollowProto },
+            { no: 220401, name: "follow_event", kind: "message", oneof: "node", T: () => FollowEventProto },
+            { no: 220402, name: "follow_added_event", kind: "message", oneof: "node", T: () => FollowAddedEventProto },
+            { no: 220403, name: "follow_removed_event", kind: "message", oneof: "node", T: () => FollowRemovedEventProto },
             { no: 220100, name: "message", kind: "message", oneof: "node", T: () => MessageProto },
             { no: 220502, name: "notification_sent_event", kind: "message", oneof: "node", T: () => NotificationSentEventProto },
             { no: 220503, name: "notification_rescinded_event", kind: "message", oneof: "node", T: () => NotificationRescindedEventProto },
@@ -64593,7 +66288,13 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 220506, name: "notification_expired_event", kind: "message", oneof: "node", T: () => NotificationExpiredEventProto },
             { no: 220500, name: "notification", kind: "message", oneof: "node", T: () => NotificationProto },
             { no: 220200, name: "reaction", kind: "message", oneof: "node", T: () => ReactionProto },
+            { no: 220201, name: "reaction_event", kind: "message", oneof: "node", T: () => ReactionEventProto },
+            { no: 220202, name: "reaction_added_event", kind: "message", oneof: "node", T: () => ReactionAddedEventProto },
+            { no: 220203, name: "reaction_removed_event", kind: "message", oneof: "node", T: () => ReactionRemovedEventProto },
             { no: 220300, name: "star", kind: "message", oneof: "node", T: () => StarProto },
+            { no: 220301, name: "star_event", kind: "message", oneof: "node", T: () => StarEventProto },
+            { no: 220302, name: "star_added_event", kind: "message", oneof: "node", T: () => StarAddedEventProto },
+            { no: 220303, name: "star_removed_event", kind: "message", oneof: "node", T: () => StarRemovedEventProto },
             { no: 220000, name: "thread", kind: "message", oneof: "node", T: () => ThreadProto },
             { no: 45000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
             { no: 40000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
@@ -65302,6 +67003,24 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         follow: FollowProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).follow)
                     };
                     break;
+                case /* symbol.destack.FollowEventProto follow_event */ 220401:
+                    message.node = {
+                        oneofKind: "followEvent",
+                        followEvent: FollowEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followEvent)
+                    };
+                    break;
+                case /* symbol.destack.FollowAddedEventProto follow_added_event */ 220402:
+                    message.node = {
+                        oneofKind: "followAddedEvent",
+                        followAddedEvent: FollowAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followAddedEvent)
+                    };
+                    break;
+                case /* symbol.destack.FollowRemovedEventProto follow_removed_event */ 220403:
+                    message.node = {
+                        oneofKind: "followRemovedEvent",
+                        followRemovedEvent: FollowRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followRemovedEvent)
+                    };
+                    break;
                 case /* symbol.destack.MessageProto message */ 220100:
                     message.node = {
                         oneofKind: "message",
@@ -65350,10 +67069,46 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         reaction: ReactionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reaction)
                     };
                     break;
+                case /* symbol.destack.ReactionEventProto reaction_event */ 220201:
+                    message.node = {
+                        oneofKind: "reactionEvent",
+                        reactionEvent: ReactionEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionEvent)
+                    };
+                    break;
+                case /* symbol.destack.ReactionAddedEventProto reaction_added_event */ 220202:
+                    message.node = {
+                        oneofKind: "reactionAddedEvent",
+                        reactionAddedEvent: ReactionAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionAddedEvent)
+                    };
+                    break;
+                case /* symbol.destack.ReactionRemovedEventProto reaction_removed_event */ 220203:
+                    message.node = {
+                        oneofKind: "reactionRemovedEvent",
+                        reactionRemovedEvent: ReactionRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionRemovedEvent)
+                    };
+                    break;
                 case /* symbol.destack.StarProto star */ 220300:
                     message.node = {
                         oneofKind: "star",
                         star: StarProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).star)
+                    };
+                    break;
+                case /* symbol.destack.StarEventProto star_event */ 220301:
+                    message.node = {
+                        oneofKind: "starEvent",
+                        starEvent: StarEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starEvent)
+                    };
+                    break;
+                case /* symbol.destack.StarAddedEventProto star_added_event */ 220302:
+                    message.node = {
+                        oneofKind: "starAddedEvent",
+                        starAddedEvent: StarAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starAddedEvent)
+                    };
+                    break;
+                case /* symbol.destack.StarRemovedEventProto star_removed_event */ 220303:
+                    message.node = {
+                        oneofKind: "starRemovedEvent",
+                        starRemovedEvent: StarRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starRemovedEvent)
                     };
                     break;
                 case /* symbol.destack.ThreadProto thread */ 220000:
@@ -65794,12 +67549,39 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.ReactionProto reaction = 220200; */
         if (message.node.oneofKind === "reaction")
             ReactionProto.internalBinaryWrite(message.node.reaction, writer.tag(220200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionEventProto reaction_event = 220201; */
+        if (message.node.oneofKind === "reactionEvent")
+            ReactionEventProto.internalBinaryWrite(message.node.reactionEvent, writer.tag(220201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionAddedEventProto reaction_added_event = 220202; */
+        if (message.node.oneofKind === "reactionAddedEvent")
+            ReactionAddedEventProto.internalBinaryWrite(message.node.reactionAddedEvent, writer.tag(220202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionRemovedEventProto reaction_removed_event = 220203; */
+        if (message.node.oneofKind === "reactionRemovedEvent")
+            ReactionRemovedEventProto.internalBinaryWrite(message.node.reactionRemovedEvent, writer.tag(220203, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.StarProto star = 220300; */
         if (message.node.oneofKind === "star")
             StarProto.internalBinaryWrite(message.node.star, writer.tag(220300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarEventProto star_event = 220301; */
+        if (message.node.oneofKind === "starEvent")
+            StarEventProto.internalBinaryWrite(message.node.starEvent, writer.tag(220301, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarAddedEventProto star_added_event = 220302; */
+        if (message.node.oneofKind === "starAddedEvent")
+            StarAddedEventProto.internalBinaryWrite(message.node.starAddedEvent, writer.tag(220302, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarRemovedEventProto star_removed_event = 220303; */
+        if (message.node.oneofKind === "starRemovedEvent")
+            StarRemovedEventProto.internalBinaryWrite(message.node.starRemovedEvent, writer.tag(220303, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.FollowProto follow = 220400; */
         if (message.node.oneofKind === "follow")
             FollowProto.internalBinaryWrite(message.node.follow, writer.tag(220400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowEventProto follow_event = 220401; */
+        if (message.node.oneofKind === "followEvent")
+            FollowEventProto.internalBinaryWrite(message.node.followEvent, writer.tag(220401, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowAddedEventProto follow_added_event = 220402; */
+        if (message.node.oneofKind === "followAddedEvent")
+            FollowAddedEventProto.internalBinaryWrite(message.node.followAddedEvent, writer.tag(220402, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowRemovedEventProto follow_removed_event = 220403; */
+        if (message.node.oneofKind === "followRemovedEvent")
+            FollowRemovedEventProto.internalBinaryWrite(message.node.followRemovedEvent, writer.tag(220403, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.NotificationProto notification = 220500; */
         if (message.node.oneofKind === "notification")
             NotificationProto.internalBinaryWrite(message.node.notification, writer.tag(220500, WireType.LengthDelimited).fork(), options).join();
@@ -66875,11 +68657,20 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 180001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
             { no: 180101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
             { no: 180201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
+            { no: 220401, name: "follow_event", kind: "message", oneof: "node", T: () => FollowEventProto },
+            { no: 220402, name: "follow_added_event", kind: "message", oneof: "node", T: () => FollowAddedEventProto },
+            { no: 220403, name: "follow_removed_event", kind: "message", oneof: "node", T: () => FollowRemovedEventProto },
             { no: 220502, name: "notification_sent_event", kind: "message", oneof: "node", T: () => NotificationSentEventProto },
             { no: 220503, name: "notification_rescinded_event", kind: "message", oneof: "node", T: () => NotificationRescindedEventProto },
             { no: 220504, name: "notification_read_event", kind: "message", oneof: "node", T: () => NotificationReadEventProto },
             { no: 220505, name: "notification_dismissed_event", kind: "message", oneof: "node", T: () => NotificationDismissedEventProto },
             { no: 220506, name: "notification_expired_event", kind: "message", oneof: "node", T: () => NotificationExpiredEventProto },
+            { no: 220201, name: "reaction_event", kind: "message", oneof: "node", T: () => ReactionEventProto },
+            { no: 220202, name: "reaction_added_event", kind: "message", oneof: "node", T: () => ReactionAddedEventProto },
+            { no: 220203, name: "reaction_removed_event", kind: "message", oneof: "node", T: () => ReactionRemovedEventProto },
+            { no: 220301, name: "star_event", kind: "message", oneof: "node", T: () => StarEventProto },
+            { no: 220302, name: "star_added_event", kind: "message", oneof: "node", T: () => StarAddedEventProto },
+            { no: 220303, name: "star_removed_event", kind: "message", oneof: "node", T: () => StarRemovedEventProto },
             { no: 21202, name: "friendship_invite_sent_event", kind: "message", oneof: "node", T: () => FriendshipInviteSentEventProto },
             { no: 21203, name: "friendship_invite_rescinded_event", kind: "message", oneof: "node", T: () => FriendshipInviteRescindedEventProto },
             { no: 21204, name: "friendship_invite_accepted_event", kind: "message", oneof: "node", T: () => FriendshipInviteAcceptedEventProto },
@@ -67264,6 +69055,24 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         histogramMeasurementEvent: HistogramMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMeasurementEvent)
                     };
                     break;
+                case /* symbol.destack.FollowEventProto follow_event */ 220401:
+                    message.node = {
+                        oneofKind: "followEvent",
+                        followEvent: FollowEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followEvent)
+                    };
+                    break;
+                case /* symbol.destack.FollowAddedEventProto follow_added_event */ 220402:
+                    message.node = {
+                        oneofKind: "followAddedEvent",
+                        followAddedEvent: FollowAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followAddedEvent)
+                    };
+                    break;
+                case /* symbol.destack.FollowRemovedEventProto follow_removed_event */ 220403:
+                    message.node = {
+                        oneofKind: "followRemovedEvent",
+                        followRemovedEvent: FollowRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followRemovedEvent)
+                    };
+                    break;
                 case /* symbol.destack.NotificationSentEventProto notification_sent_event */ 220502:
                     message.node = {
                         oneofKind: "notificationSentEvent",
@@ -67292,6 +69101,42 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                     message.node = {
                         oneofKind: "notificationExpiredEvent",
                         notificationExpiredEvent: NotificationExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationExpiredEvent)
+                    };
+                    break;
+                case /* symbol.destack.ReactionEventProto reaction_event */ 220201:
+                    message.node = {
+                        oneofKind: "reactionEvent",
+                        reactionEvent: ReactionEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionEvent)
+                    };
+                    break;
+                case /* symbol.destack.ReactionAddedEventProto reaction_added_event */ 220202:
+                    message.node = {
+                        oneofKind: "reactionAddedEvent",
+                        reactionAddedEvent: ReactionAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionAddedEvent)
+                    };
+                    break;
+                case /* symbol.destack.ReactionRemovedEventProto reaction_removed_event */ 220203:
+                    message.node = {
+                        oneofKind: "reactionRemovedEvent",
+                        reactionRemovedEvent: ReactionRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionRemovedEvent)
+                    };
+                    break;
+                case /* symbol.destack.StarEventProto star_event */ 220301:
+                    message.node = {
+                        oneofKind: "starEvent",
+                        starEvent: StarEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starEvent)
+                    };
+                    break;
+                case /* symbol.destack.StarAddedEventProto star_added_event */ 220302:
+                    message.node = {
+                        oneofKind: "starAddedEvent",
+                        starAddedEvent: StarAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starAddedEvent)
+                    };
+                    break;
+                case /* symbol.destack.StarRemovedEventProto star_removed_event */ 220303:
+                    message.node = {
+                        oneofKind: "starRemovedEvent",
+                        starRemovedEvent: StarRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starRemovedEvent)
                     };
                     break;
                 case /* symbol.destack.FriendshipInviteSentEventProto friendship_invite_sent_event */ 21202:
@@ -67441,6 +69286,33 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 180201; */
         if (message.node.oneofKind === "histogramMeasurementEvent")
             HistogramMeasurementEventProto.internalBinaryWrite(message.node.histogramMeasurementEvent, writer.tag(180201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionEventProto reaction_event = 220201; */
+        if (message.node.oneofKind === "reactionEvent")
+            ReactionEventProto.internalBinaryWrite(message.node.reactionEvent, writer.tag(220201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionAddedEventProto reaction_added_event = 220202; */
+        if (message.node.oneofKind === "reactionAddedEvent")
+            ReactionAddedEventProto.internalBinaryWrite(message.node.reactionAddedEvent, writer.tag(220202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionRemovedEventProto reaction_removed_event = 220203; */
+        if (message.node.oneofKind === "reactionRemovedEvent")
+            ReactionRemovedEventProto.internalBinaryWrite(message.node.reactionRemovedEvent, writer.tag(220203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarEventProto star_event = 220301; */
+        if (message.node.oneofKind === "starEvent")
+            StarEventProto.internalBinaryWrite(message.node.starEvent, writer.tag(220301, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarAddedEventProto star_added_event = 220302; */
+        if (message.node.oneofKind === "starAddedEvent")
+            StarAddedEventProto.internalBinaryWrite(message.node.starAddedEvent, writer.tag(220302, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarRemovedEventProto star_removed_event = 220303; */
+        if (message.node.oneofKind === "starRemovedEvent")
+            StarRemovedEventProto.internalBinaryWrite(message.node.starRemovedEvent, writer.tag(220303, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowEventProto follow_event = 220401; */
+        if (message.node.oneofKind === "followEvent")
+            FollowEventProto.internalBinaryWrite(message.node.followEvent, writer.tag(220401, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowAddedEventProto follow_added_event = 220402; */
+        if (message.node.oneofKind === "followAddedEvent")
+            FollowAddedEventProto.internalBinaryWrite(message.node.followAddedEvent, writer.tag(220402, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowRemovedEventProto follow_removed_event = 220403; */
+        if (message.node.oneofKind === "followRemovedEvent")
+            FollowRemovedEventProto.internalBinaryWrite(message.node.followRemovedEvent, writer.tag(220403, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.NotificationSentEventProto notification_sent_event = 220502; */
         if (message.node.oneofKind === "notificationSentEvent")
             NotificationSentEventProto.internalBinaryWrite(message.node.notificationSentEvent, writer.tag(220502, WireType.LengthDelimited).fork(), options).join();
@@ -67558,7 +69430,7 @@ export const SomeEventProto = new SomeEventProto$Type();
 //
 
 // Any...
-export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | AgentProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewEnteredEventProto | ViewExitedEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
+export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | AgentProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewEnteredEventProto | ViewExitedEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | ThreadProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
 export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | PropertyGroupDefinitionProto | OptionDefinitionProto | OptionGroupDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | PermissionDefinitionProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

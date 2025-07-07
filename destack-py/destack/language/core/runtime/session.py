@@ -240,7 +240,7 @@ class Session:
             event for event in events if event.status != EventStatus.COMPLETED
         ]
         if failed_events:
-            pass  # nocheckin: 1) update Event status and 2) do something on failure
+            pass  # nocheckin: 1) update Event status and 2) do something on failure :RejectedEvents
         #     raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
         return applied_events
 

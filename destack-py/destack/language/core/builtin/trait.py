@@ -244,21 +244,33 @@ class IsTaggable(Trait):
 #
 
 
-@builtin_trait(TraitType.REACTABLE, is_extensible=True)
+@builtin_trait(
+    TraitType.REACTABLE,
+    is_extensible=True,
+    event_types=(NodeType.REACTION_EVENT,),
+)
 class IsReactable(Trait):
     """A Node that can be reacted to (with Reactions)."""
 
     pass
 
 
-@builtin_trait(TraitType.STARABLE, is_extensible=True)
+@builtin_trait(
+    TraitType.STARABLE,
+    is_extensible=True,
+    event_types=(NodeType.STAR_EVENT,),
+)
 class IsStarable(Trait):
     """A Node that can be starred (with Stars)."""
 
     pass
 
 
-@builtin_trait(TraitType.FOLLOWABLE, is_extensible=True)
+@builtin_trait(
+    TraitType.FOLLOWABLE,
+    is_extensible=True,
+    event_types=(NodeType.FOLLOW_EVENT,),
+)
 class IsFollowable(Trait):
     """A Node that can be followed (with Follows)."""
 

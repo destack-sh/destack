@@ -329,7 +329,12 @@ import type { Layer, LayerType } from "@destack/language/scene/layer";
 import type { Scene, SceneEvent } from "@destack/language/scene/scene";
 import type { Variant, VariantStateType, VariantType } from "@destack/language/scene/variant";
 import type { Window, WindowType } from "@destack/language/scene/window";
-import type { Follow } from "@destack/language/social/follow";
+import type {
+  Follow,
+  FollowAddedEvent,
+  FollowEvent,
+  FollowRemovedEvent,
+} from "@destack/language/social/follow";
 import type { Message } from "@destack/language/social/message";
 import type {
   Notification,
@@ -341,8 +346,18 @@ import type {
   NotificationSentEvent,
   NotificationStatus,
 } from "@destack/language/social/notification";
-import type { Reaction } from "@destack/language/social/reaction";
-import type { Star } from "@destack/language/social/star";
+import type {
+  Reaction,
+  ReactionAddedEvent,
+  ReactionEvent,
+  ReactionRemovedEvent,
+} from "@destack/language/social/reaction";
+import type {
+  Star,
+  StarAddedEvent,
+  StarEvent,
+  StarRemovedEvent,
+} from "@destack/language/social/star";
 import type { Thread, ThreadStatus } from "@destack/language/social/thread";
 import type { Branch } from "@destack/language/space/branch";
 import type { Folder, FolderType } from "@destack/language/space/folder";
@@ -589,6 +604,9 @@ export type NodeTypeMapping = {
   [NodeType.VARIANT]: Variant;
   [NodeType.WINDOW]: Window;
   [NodeType.FOLLOW]: Follow;
+  [NodeType.FOLLOW_EVENT]: FollowEvent;
+  [NodeType.FOLLOW_ADDED_EVENT]: FollowAddedEvent;
+  [NodeType.FOLLOW_REMOVED_EVENT]: FollowRemovedEvent;
   [NodeType.MESSAGE]: Message;
   [NodeType.NOTIFICATION_EVENT]: NotificationEvent;
   [NodeType.NOTIFICATION_SENT_EVENT]: NotificationSentEvent;
@@ -598,7 +616,13 @@ export type NodeTypeMapping = {
   [NodeType.NOTIFICATION_EXPIRED_EVENT]: NotificationExpiredEvent;
   [NodeType.NOTIFICATION]: Notification;
   [NodeType.REACTION]: Reaction;
+  [NodeType.REACTION_EVENT]: ReactionEvent;
+  [NodeType.REACTION_ADDED_EVENT]: ReactionAddedEvent;
+  [NodeType.REACTION_REMOVED_EVENT]: ReactionRemovedEvent;
   [NodeType.STAR]: Star;
+  [NodeType.STAR_EVENT]: StarEvent;
+  [NodeType.STAR_ADDED_EVENT]: StarAddedEvent;
+  [NodeType.STAR_REMOVED_EVENT]: StarRemovedEvent;
   [NodeType.THREAD]: Thread;
   [NodeType.BRANCH]: Branch;
   [NodeType.FOLDER]: Folder;
