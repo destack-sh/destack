@@ -6,11 +6,12 @@ import {
   IsArchivable,
   IsDeletable,
   Node,
+  NodeDefinitionReference,
   NodeReference,
   ScalarType,
 } from "@destack/language";
 
-import { MemoryContext, MemoryDatabase, MemoryTable, VersionedNodeKey } from "./core";
+import { MemoryContext, MemoryTable } from "./core";
 import { packNodeRow } from "./wiring";
 
 const NODE_PARENT_KEY = String(Node.property("parent").id);
@@ -19,14 +20,13 @@ const ARCHIVED_AT_KEY = String(IsArchivable.property("archived_at").id);
 const DELETED_AT_KEY = String(IsDeletable.property("deleted_at").id);
 
 /**
- * Execute the Change.
+ * Execute the Edits.
  */
-export function executeChange(options: {
-  database: MemoryDatabase;
+export function executeEdits(options: {
   context: MemoryContext;
   edits: EditEvent[];
 }): { edits: EditEvent[]; cascadedEdits: EditEvent[] } {
-  const { database, context, edits } = options;
+  const { context, edits } = options;
 
   if (!edits || edits.length === 0) {
     return { edits: [], cascadedEdits: [] };
@@ -36,23 +36,22 @@ export function executeChange(options: {
   const cascadedEdits: EditEvent[] = [];
   const appliedEdits: EditEvent[] = [];
 
-  let currentTable = context.get(optimizedEdits[0].nodePtr);
+  let currentDefinition = NodeDefinitionReference.of(optimizedEdits[0].nodePtr);
   let currentEditType = optimizedEdits[0].type;
   let currentBatch: EditEvent[] = [];
 
   for (const edit of edits) {
-    const editTable = context.get(edit.nodePtr);
-    if (editTable !== currentTable || edit.type !== currentEditType) {
+    const editDefinition = NodeDefinitionReference.of(edit.nodePtr);
+    if (editDefinition.nodeType !== currentDefinition.nodeType || edit.type !== currentEditType) {
       const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = executeDataEdit({
-        database,
         context,
         edits: currentBatch,
-        table: currentTable,
+        definition: currentDefinition,
         editType: currentEditType,
       });
       appliedEdits.push(...batchAppliedEdits);
       cascadedEdits.push(...batchCascadedEdits);
-      currentTable = editTable;
+      currentDefinition = editDefinition;
       currentEditType = edit.type;
       currentBatch = [];
     }
@@ -61,10 +60,9 @@ export function executeChange(options: {
 
   if (currentBatch.length > 0) {
     const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = executeDataEdit({
-      database,
       context,
       edits: currentBatch,
-      table: currentTable,
+      definition: currentDefinition,
       editType: currentEditType,
     });
     appliedEdits.push(...batchAppliedEdits);
@@ -118,7 +116,6 @@ function optimizeEdits(options: { context: MemoryContext; edits: EditEvent[] }):
  * Get the cascaded Nodes for an Edit.
  */
 function executeCascade(options: {
-  database: MemoryDatabase;
   context: MemoryContext;
   table: MemoryTable;
   nodePtrs: NodeReference[];
@@ -131,13 +128,13 @@ function executeCascade(options: {
  * Returns the applied Edits and any cascaded Edits.
  */
 function executeDataEdit(options: {
-  database: MemoryDatabase;
   context: MemoryContext;
   edits: EditEvent[];
-  table: MemoryTable;
+  definition: NodeDefinitionReference;
   editType: EditType;
 }): { edits: EditEvent[]; cascadedEdits: EditEvent[] } {
-  const { database, context, table, editType, edits } = options;
+  const { context, definition, editType, edits } = options;
+  const table = context.get(definition);
 
   // create/upsert
   if (editType === EditType.CREATE || editType === EditType.UPSERT) {
@@ -247,7 +244,6 @@ function executeDataEdit(options: {
   ) {
     // cascade
     const cascadedNodePtrs = executeCascade({
-      database,
       context,
       table,
       nodePtrs: edits.map((edit) => edit.nodePtr),
@@ -283,7 +279,6 @@ function executeDataEdit(options: {
   else if (editType === EditType.ERASE) {
     // cascade
     const cascadedNodePtrs = executeCascade({
-      database,
       context,
       table,
       nodePtrs: edits.map((edit) => edit.nodePtr),

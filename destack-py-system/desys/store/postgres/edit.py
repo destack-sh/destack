@@ -12,12 +12,13 @@ from destack.language import (
     EditEvent,
     EditOperation,
     EditType,
+    NodeDefinitionReference,
     NodeReference,
     ScalarType,
 )
 from destack.language.registry import NODE_CLASS_BY_TYPE
 
-from .core import PostgresContext, PostgresTable
+from .core import PostgresContext
 from .wiring import pack_column_wide, pack_node_row
 
 tracer = trace.get_tracer(__name__)
@@ -35,23 +36,25 @@ async def execute_edits(
     cascaded_edits: list[EditEvent] = []
     applied_edits: list[EditEvent] = []
 
-    current_table = context.get(edits[0].node_ptr)
+    current_definition = NodeDefinitionReference.of(edits[0].node_ptr)
     current_edit_type = edits[0].type
     current_batch: list[EditEvent] = []
     for edit in edits:
-        edit_table = context.get(edit.node_ptr)
-        if edit_table is not current_table or edit.type != current_edit_type:
+        edit_definition = NodeDefinitionReference.of(edit.node_ptr)
+        if (
+            edit_definition.node_type != current_definition.node_type
+            or edit.type != current_edit_type
+        ):
             batch_applied_edits, batch_cascaded_edits = await _execute_data_edit(
                 conn=conn,
                 context=context,
-                table=current_table,
+                definition=current_definition,
                 edit_type=current_edit_type,
                 edits=current_batch,
             )
             applied_edits.extend(batch_applied_edits)
             cascaded_edits.extend(batch_cascaded_edits)
-
-            current_table = edit_table
+            current_definition = edit_definition
             current_edit_type = edit.type
             current_batch = []
 
@@ -61,7 +64,7 @@ async def execute_edits(
         batch_applied_edits, batch_cascaded_edits = await _execute_data_edit(
             conn=conn,
             context=context,
-            table=current_table,
+            definition=current_definition,
             edit_type=current_edit_type,
             edits=current_batch,
         )
@@ -87,7 +90,8 @@ def _optimize_edits(context: PostgresContext, edits: Sequence[EditEvent]) -> lis
             return
         grouped: OrderedDict[tuple[str, EditType], list[EditEvent]] = OrderedDict()
         for e in buffer:
-            table = context.get(e.node_ptr)
+            definition = NodeDefinitionReference.of(e.node_ptr)
+            table = context.get(definition)
             key = (table.name, e.type)
             if key not in grouped:
                 grouped[key] = []
@@ -111,7 +115,7 @@ def _optimize_edits(context: PostgresContext, edits: Sequence[EditEvent]) -> lis
 async def _execute_cascade(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    table: PostgresTable,
+    definition: NodeDefinitionReference,
     node_ptrs: Sequence[NodeReference],
 ) -> Sequence[NodeReference]:
     """Get the cascaded Nodes for an Edit."""
@@ -122,7 +126,7 @@ async def _execute_cascade(
 async def _execute_data_edit(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    table: PostgresTable,
+    definition: NodeDefinitionReference,
     edit_type: EditType,
     edits: Sequence[EditEvent],
 ) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
@@ -131,6 +135,7 @@ async def _execute_data_edit(
     Returns the Edits and any cascaded Edits.
     """
 
+    table = context.get(definition)
     node_type = table.node_type
     node_cls = NODE_CLASS_BY_TYPE[node_type]
 
@@ -274,7 +279,7 @@ WHERE id = ${len(update_template) + 1}
         cascaded_node_ptrs = await _execute_cascade(
             conn=conn,
             context=context,
-            table=table,
+            definition=definition,
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(
@@ -321,7 +326,7 @@ WHERE id = $1
         cascaded_node_ptrs = await _execute_cascade(
             conn=conn,
             context=context,
-            table=table,
+            definition=definition,
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(

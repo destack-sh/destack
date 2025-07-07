@@ -158,6 +158,16 @@ async def test_create_folders_recursive(session: Session):
         assert len(folders_unpacked) == 1
         assert folders_unpacked[0].equals(root_folder)
 
+    # delete root folder (should cascade delete all folders)
+    session.delete(root_folder)
+    await session.commit()
+    assert await Folder.count().execute_count() == 0
+
+    # restore root folder (should restore all folders)
+    session.restore(root_folder)
+    await session.commit()
+    assert await Folder.count().execute_count() == target_folder_count
+
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
 async def test_create_scene_with_heterogeneous_views(session: Session):
