@@ -38,11 +38,11 @@ from .core import (
     PostgresExtension,
     PostgresIndex,
     PostgresIndexType,
-    PostgresObject,
     PostgresObjectKind,
     PostgresSchema,
     PostgresTable,
     PostgresTableObject,
+    _PostgresObject,
 )
 
 if TYPE_CHECKING:
@@ -280,8 +280,8 @@ class PostgresMigrationOpType(enum.Enum):
 @dataclass
 class PostgresMigrationOp:
     type: PostgresMigrationOpType
-    new_object: Optional[PostgresObject]
-    old_object: Optional[PostgresObject]
+    new_object: Optional[_PostgresObject]
+    old_object: Optional[_PostgresObject]
     diff_keys: Optional[tuple[str, ...]] = None
 
     def __str__(self) -> str:

@@ -1,11 +1,10 @@
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Any, NamedTuple, assert_never
+from typing import Any, NamedTuple
 
 from destack.language import (
     Materialization,
     NodeDefinitionReference,
-    NodeDefinitionType,
     NodeReference,
     NodeType,
 )
@@ -52,27 +51,21 @@ class MemoryContext:
         return f"<MemoryContext {self!s}>"
 
     def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
-        """Expand the specific Definitions for a NodeDefinitionReference."""
-        if definition.type == NodeDefinitionType.BUILTIN:
-            node_cls = NODE_CLASS_BY_TYPE[definition.node_type]
-            if not node_cls.__inherited_by__:
-                return (definition,)
-            subdefinitions: list[NodeDefinitionReference] = []
-            if not node_cls.__is_abstract__:
-                subdefinitions.append(definition)
-            for subnode_type in node_cls.__inherited_by__:
-                subnode_cls = NODE_CLASS_BY_TYPE[subnode_type]
-                if not subnode_cls.__is_abstract__:
-                    subdefinitions.append(NODE_DEFINITION_REFERENCE_BY_CLASS[subnode_cls])
-            return tuple(subdefinitions)
-        elif definition.type == NodeDefinitionType.CUSTOM:
-            raise NotImplementedError(f"cannot resolve {definition!r}")
-        else:
-            assert_never(definition.type)
+        """Expand the (separately) stored definitions for a NodeDefinition."""
+        node_cls = NODE_CLASS_BY_TYPE[definition.node_type]
+        if not node_cls.__inherited_by__:
+            return (definition,)
+        subdefinitions: list[NodeDefinitionReference] = []
+        if not node_cls.__is_abstract__:
+            subdefinitions.append(definition)
+        for subnode_type in node_cls.__inherited_by__:
+            subnode_cls = NODE_CLASS_BY_TYPE[subnode_type]
+            if not subnode_cls.__is_abstract__:
+                subdefinitions.append(NODE_DEFINITION_REFERENCE_BY_CLASS[subnode_cls])
+        return tuple(subdefinitions)
 
     def get(self, definition: NodeDefinitionReference | NodeReference) -> "MemoryTable":
-        """Get the (single) Table for a node / definition. Doesn't work for multi-definitions."""
-        assert definition.type is not None, f"no node_type for {definition!r}"
+        """Get the Table for a NodeDefinition."""
         if isinstance(definition, NodeReference):
             node_type = definition.type
         else:

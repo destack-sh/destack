@@ -88,22 +88,30 @@ class NodeDefinitionReference(StructFrozen):
         return resolved
 
     @classmethod
-    def of(
-        cls, base: "NodeType | type[Node] | CustomEntityDefinition"
-    ) -> "NodeDefinitionReference":
-        from .node import Node
-
+    def of(cls, base: "NodeType | type[Node] | NodeReference") -> "NodeDefinitionReference":
         if isinstance(base, NodeType):
             return NodeDefinitionReference(type=NodeDefinitionType.BUILTIN, node_type=base)
         elif isinstance(base, type):
-            if issubclass(base, Node):
+            return NodeDefinitionReference(type=NodeDefinitionType.BUILTIN, node_type=base.metatype)
+        elif isinstance(base, NodeReference):
+            if base.definition_id is not None:
+                node_cls = NODE_CLASS_BY_TYPE[base.type]
+                if NodeType.ENTITY in node_cls.__inherits__:
+                    definition_node_type = NodeType.CUSTOM_ENTITY_DEFINITION
+                elif NodeType.EVENT in node_cls.__inherits__:
+                    definition_node_type = NodeType.CUSTOM_EVENT_DEFINITION
+                else:
+                    raise ValueError(f"unexpected node reference: {base!r}")
+                definition_ptr = NodeReference(
+                    type=definition_node_type, id=base.definition_id, space_id=base.space_id
+                )
                 return NodeDefinitionReference(
-                    type=NodeDefinitionType.BUILTIN, node_type=base.metatype
+                    type=NodeDefinitionType.CUSTOM,
+                    node_type=base.type,
+                    definition_ptr=definition_ptr,
                 )
             else:
-                raise ValueError(f"invalid definition reference type: {base!r}")
-        elif isinstance(base, Node):
-            raise NotImplementedError(f"unexpected node definition reference: {base!r}")
+                return NodeDefinitionReference(type=NodeDefinitionType.BUILTIN, node_type=base.type)
         else:
             assert_never(base)
 

@@ -1,4 +1,3 @@
-import abc
 import dataclasses
 import enum
 from collections.abc import Sequence
@@ -16,7 +15,9 @@ from destack.language import (
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
+    StoreType,
 )
+from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_DEFINITION_REFERENCE_BY_CLASS
 from destack.utils.func import hash_stable
 
 if TYPE_CHECKING:
@@ -50,6 +51,58 @@ class PostgresSchema:
         return PostgresSchema(extensions=(), tables=())
 
 
+class PostgresContext:
+    """Progressive context for Database operations."""
+
+    __slots__ = ("store_types", "tables_by_name")
+
+    def __init__(self, store_types: tuple[StoreType, ...]):
+        from .map import get_builtin_schema
+
+        self.store_types = store_types
+        self.tables_by_name: dict[str, PostgresTable] = {}
+        for store_type in store_types:
+            for table in get_builtin_schema(store_type).tables:
+                self.tables_by_name[table.name] = table
+
+    def __str__(self) -> str:
+        return f"store_types={self.store_types!r}, tables={list(self.tables_by_name.keys())}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self!s}>"
+
+    def copy(self) -> Self:
+        return self  # :PostgresSchemaEdits
+
+    def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
+        """Expand the (separately) stored definitions for a NodeDefinition."""
+        node_cls = NODE_CLASS_BY_TYPE[definition.node_type]
+        if not node_cls.__inherited_by__:
+            return (definition,)
+        subdefinitions: list[NodeDefinitionReference] = []
+        if not node_cls.__is_abstract__:
+            subdefinitions.append(definition)
+        for subnode_type in node_cls.__inherited_by__:
+            subnode_cls = NODE_CLASS_BY_TYPE[subnode_type]
+            if not subnode_cls.__is_abstract__:
+                subdefinitions.append(NODE_DEFINITION_REFERENCE_BY_CLASS[subnode_cls])
+        return tuple(subdefinitions)
+
+    def get(self, definition: NodeDefinitionReference | NodeReference) -> "PostgresTable":
+        """Get the Table for a NodeDefinition."""
+        from .map import DESTACK_BUILTIN_TABLE_PREFIX
+
+        if isinstance(definition, NodeReference):
+            node_type = definition.type
+        else:
+            node_type = definition.node_type
+        table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{node_type.name.lower()}"
+        table = self.tables_by_name.get(table_name)
+        if table is None:
+            raise LookupError(f"no table for {table_name!r} in {self.store_types!r}")
+        return table
+
+
 class PostgresObjectKind(enum.StrEnum):
     EXTENSION = "EXTENSION"
     TABLE = "TABLE"
@@ -59,7 +112,7 @@ class PostgresObjectKind(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class PostgresObject:
+class _PostgresObject:
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]]
     kind: ClassVar[PostgresObjectKind]
 
@@ -77,7 +130,7 @@ class PostgresObject:
         """Turns this object into a SQL block."""
         raise NotImplementedError
 
-    def walk(self) -> tuple["PostgresObject", ...]:
+    def walk(self) -> tuple["_PostgresObject", ...]:
         return (self,)
 
     def hash_flat(self) -> int:
@@ -109,7 +162,7 @@ class PostgresObject:
 
 
 @dataclass(slots=True)
-class PostgresExtension(PostgresObject):
+class PostgresExtension(_PostgresObject):
     """
     A Postgres extension.
     """
@@ -140,7 +193,7 @@ class PostgresExtension(PostgresObject):
 
 
 @dataclass(slots=True)
-class PostgresTableObject(PostgresObject):
+class PostgresTableObject(_PostgresObject):
     @property
     def table(self) -> "PostgresTable":
         assert self._table is not None, f"{self} is not attached to a table"
@@ -475,20 +528,6 @@ class PostgresTable(PostgresTableObject):
     def walk(self) -> tuple[PostgresTableObject, ...]:
         # NOTE: the order here matters and is assumed in the diff logic
         return self, *self.columns, *self.indexes, *self.constraints
-
-
-class PostgresContext(abc.ABC):
-    """Progressive context for Database operations."""
-
-    @abc.abstractmethod
-    def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
-        """Expand the specific Definitions for a DefinitionReference."""
-        ...
-
-    @abc.abstractmethod
-    def get(self, definition: NodeDefinitionReference | NodeReference) -> PostgresTable:
-        """Get the (single) Table for a node / definition. Doesn't work for multi-definitions."""
-        ...
 
 
 class PostgresColumnType(enum.StrEnum):

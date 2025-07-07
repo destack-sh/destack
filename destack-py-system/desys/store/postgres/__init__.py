@@ -8,10 +8,10 @@ from .core import (
     PostgresExtension,
     PostgresIndex,
     PostgresIndexType,
-    PostgresObject,
     PostgresObjectKind,
     PostgresSchema,
     PostgresTable,
+    _PostgresObject,
 )
 from .edit import execute_edits
 from .map import (
@@ -58,10 +58,10 @@ __all__ = [
     "PostgresIndexType",
     "PostgresMigrationOp",
     "PostgresMigrationOpType",
-    "PostgresObject",
     "PostgresObjectKind",
     "PostgresSchema",
     "PostgresTable",
+    "_PostgresObject",
     "add_migration_to_fs",
     "apply_migration_ops",
     "execute_edits",
