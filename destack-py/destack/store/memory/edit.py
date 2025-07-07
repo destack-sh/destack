@@ -262,7 +262,7 @@ def _execute_data_edit(
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(
-            Edit(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
+            EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
         )
 
         # delete rows

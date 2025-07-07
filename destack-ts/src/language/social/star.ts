@@ -3,11 +3,11 @@ import type {
   Graph,
   IsDeletable,
   IsGlobal,
-  IsOwnable,
+  IsOwned,
+  IsOwner,
   IsSpatial,
   IsStarable,
   IsSubject,
-  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -26,7 +26,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Star is a relationship between a Subject and a Starred Node.
  */
-export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, IsOwnable {
+export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, IsOwned {
   static metatype: NodeType = NodeType.STAR;
 
   /**
@@ -146,27 +146,16 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * Star.ownedBy
+   * IsOwned.ownedBy
    */
-  get ownedBy(): (Node & IsSubject) | null {
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-  set ownedBy(node: Node & IsSubject) {
-    this.ownedByPtr = node.toRef();
-  }
-  get ownedByPtr(): NodeReference {
-    return this._ownedByPtr;
-  }
-  set ownedByPtr(value: NodeReference) {
-    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
-    this._session.updateSetProperty(this, prop, value);
-    this._ownedByPtr = value;
-  }
-  _ownedByPtr: NodeReference;
+  readonly ownedByPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -182,7 +171,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy: (Node & IsSubject) | NodeReference;
+    ownedBy?: (Node & IsOwner) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -252,14 +241,14 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _ownedBy = options.ownedBy;
+    let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     if (_ownedBy === null) {
       throw new Error(`Star.ownedBy is required`);
     }
-    this._ownedByPtr = _ownedBy;
+    this.ownedByPtr = _ownedBy;
 
     // identity
     if (options.id == null) {
@@ -293,10 +282,10 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._ownedByPtr.id === other._ownedByPtr.id)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.ownedByPtr.id === other.ownedByPtr.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -320,13 +309,13 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -386,7 +375,9 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   }
 
   repr(): string {
-    return `<Star '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    return `<Star '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -427,7 +418,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["28"] = object._ownedByPtr.toValue();
+    objectValue["28"] = object.ownedByPtr.toValue();
     return objectValue;
   }
 
@@ -486,6 +477,8 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
         : null;
     return new Star({
       parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      deletedAt: unpackedDeletedAt,
       ownedBy: _NodeReference.fromValue(
         objectValue["28"],
         _session,
@@ -493,8 +486,6 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
         _graph,
         _connection,
       ),
-      space: unpackedSpacePtr,
-      deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -558,7 +549,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    objectProto.ownedByPtr = object.ownedByPtr.toProto();
     return objectProto as StarProto;
   }
 
@@ -581,13 +572,6 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
               _connection,
             )
           : null,
-      ownedBy: _NodeReference.fromProto(
-        objectProto.ownedByPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -600,6 +584,13 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy: _NodeReference.fromProto(
+        objectProto.ownedByPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined

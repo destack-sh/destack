@@ -409,6 +409,25 @@ registerTraitClass(TraitType.OWNABLE, IsOwnable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:60002 ==== */
 /**
+ * A Node that can be an Owner.
+ */
+export interface IsOwner {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be an Owner.
+ */
+class IsOwner$Type extends TraitClass<IsOwner, TraitType.OWNER> {}
+
+export const IsOwner = new IsOwner$Type(TraitType.OWNER);
+registerTraitClass(TraitType.OWNER, IsOwner);
+/* ==== DESTACK_GENERATED_END:TRAIT:60002 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:60003 ==== */
+/**
  * A Node that can be joined by Subjects.
  */
 export interface IsJoinable {
@@ -424,9 +443,31 @@ class IsJoinable$Type extends TraitClass<IsJoinable, TraitType.JOINABLE> {}
 
 export const IsJoinable = new IsJoinable$Type(TraitType.JOINABLE);
 registerTraitClass(TraitType.JOINABLE, IsJoinable);
-/* ==== DESTACK_GENERATED_END:TRAIT:60002 ==== */
+/* ==== DESTACK_GENERATED_END:TRAIT:60003 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:60003 ==== */
+/* ==== DESTACK_GENERATED_START:TRAIT:60001 ==== */
+/**
+ * A Node that must be owned by another Node.
+ */
+export interface IsOwned extends IsOwnable {
+  get ownedBy(): (Node & IsOwner) | null;
+  readonly ownedByPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that must be owned by another Node.
+ */
+class IsOwned$Type extends TraitClass<IsOwned, TraitType.OWNED> {}
+
+export const IsOwned = new IsOwned$Type(TraitType.OWNED);
+registerTraitClass(TraitType.OWNED, IsOwned);
+/* ==== DESTACK_GENERATED_END:TRAIT:60001 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:60004 ==== */
 /**
  * A Node that can be a Subject.
  */
@@ -443,23 +484,4 @@ class IsSubject$Type extends TraitClass<IsSubject, TraitType.SUBJECT> {}
 
 export const IsSubject = new IsSubject$Type(TraitType.SUBJECT);
 registerTraitClass(TraitType.SUBJECT, IsSubject);
-/* ==== DESTACK_GENERATED_END:TRAIT:60003 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:60001 ==== */
-/**
- * A Node that can be an Owner.
- */
-export interface IsOwner {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be an Owner.
- */
-class IsOwner$Type extends TraitClass<IsOwner, TraitType.OWNER> {}
-
-export const IsOwner = new IsOwner$Type(TraitType.OWNER);
-registerTraitClass(TraitType.OWNER, IsOwner);
-/* ==== DESTACK_GENERATED_END:TRAIT:60001 ==== */
+/* ==== DESTACK_GENERATED_END:TRAIT:60004 ==== */

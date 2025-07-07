@@ -115,6 +115,7 @@ import type {
   IsJoinable,
   IsOrdered,
   IsOwnable,
+  IsOwned,
   IsOwner,
   IsReactable,
   IsRunnable,
@@ -636,6 +637,7 @@ export type TraitTypeMapping = {
   [TraitType.SPATIAL]: IsSpatial;
   [TraitType.ORDERED]: IsOrdered;
   [TraitType.OWNABLE]: IsOwnable;
+  [TraitType.OWNED]: IsOwned;
   [TraitType.JOINABLE]: IsJoinable;
   [TraitType.SUBJECT]: IsSubject;
   [TraitType.OWNER]: IsOwner;

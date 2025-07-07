@@ -17,10 +17,8 @@ from destack.utils.fractional import INTEGER_ZERO
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import (
-    NodeType,
-    TraitType,
-)
+from .common import NodeType, TraitType
+from .const import UNSET
 from .constant import register_constant
 from .object import BuiltinObject, _process_object_cls
 from .property import (
@@ -197,6 +195,15 @@ class IsOwnable(Trait):
     owned_by: Optional["IsOwner"] = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: Optional[NodeReference] = None
+
+
+@builtin_trait(TraitType.OWNED)
+class IsOwned(IsOwnable):
+    """A Node that must be owned by another Node."""
+
+    owned_by: "IsOwner" = builtin_property(28, is_repr=True, is_managed=True)
+    if TYPE_CHECKING:
+        owned_by_ptr: NodeReference = UNSET
 
 
 @builtin_trait(TraitType.JOINABLE, is_extensible=True)

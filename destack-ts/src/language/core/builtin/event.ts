@@ -35,6 +35,7 @@ import { Temporal } from "temporal-polyfill";
 /* ==== DESTACK_GENERATED_START:NODE:3 ==== */
 /**
  * An Event is an immutable datum of something happening to an Entity.
+ * Events are proposed by Clients as pending Events, then applied or refused by the system.
  */
 export abstract class Event extends Node implements IsSpatial {
   static metatype: NodeType = NodeType.EVENT;

@@ -9,10 +9,9 @@ import {
   StoreImplementation,
   StoreType,
 } from "@destack/language";
-
-import { MemoryContext, MemoryDatabase } from "./core";
-import { executeChange } from "./edit";
-import { executeQuery } from "./query";
+import { MemoryContext, MemoryDatabase } from "@destack/store/memory/core";
+import { executeChange } from "@destack/store/memory/edit";
+import { executeQuery } from "@destack/store/memory/query";
 
 /** An in-memory Store. */
 export class MemoryStore extends Store {
