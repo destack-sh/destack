@@ -1479,9 +1479,10 @@ enum TraitTypeProto {
   TRAIT_TYPE_IRREVERSIBLE = 120;
   TRAIT_TYPE_TAGGABLE = 40000;
   TRAIT_TYPE_OWNABLE = 60000;
-  TRAIT_TYPE_OWNER = 60001;
-  TRAIT_TYPE_JOINABLE = 60002;
-  TRAIT_TYPE_SUBJECT = 60003;
+  TRAIT_TYPE_OWNED = 60001;
+  TRAIT_TYPE_OWNER = 60002;
+  TRAIT_TYPE_JOINABLE = 60003;
+  TRAIT_TYPE_SUBJECT = 60004;
   TRAIT_TYPE_RUNNABLE = 100001;
   TRAIT_TYPE_SCRIPTABLE = 100002;
   TRAIT_TYPE_SOURCEABLE = 100003;
@@ -2806,6 +2807,7 @@ message EnvironmentProto {
 }
 
 // An Event is an immutable datum of something happening to an Entity.
+// Events are proposed by Clients as pending Events, then applied or refused by the system.
 message EventProto {
   NodeTypeProto metatype = 1;
   string id = 2;

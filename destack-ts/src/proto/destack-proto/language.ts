@@ -4453,6 +4453,7 @@ export interface EnvironmentProto {
 }
 /**
  * An Event is an immutable datum of something happening to an Entity.
+ * Events are proposed by Clients as pending Events, then applied or refused by the system.
  *
  * @generated from protobuf message symbol.destack.EventProto
  */
@@ -23537,17 +23538,21 @@ export enum TraitTypeProto {
      */
     TRAIT_TYPE_OWNABLE = 60000,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_OWNER = 60001;
+     * @generated from protobuf enum value: TRAIT_TYPE_OWNED = 60001;
      */
-    TRAIT_TYPE_OWNER = 60001,
+    TRAIT_TYPE_OWNED = 60001,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_JOINABLE = 60002;
+     * @generated from protobuf enum value: TRAIT_TYPE_OWNER = 60002;
      */
-    TRAIT_TYPE_JOINABLE = 60002,
+    TRAIT_TYPE_OWNER = 60002,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_SUBJECT = 60003;
+     * @generated from protobuf enum value: TRAIT_TYPE_JOINABLE = 60003;
      */
-    TRAIT_TYPE_SUBJECT = 60003,
+    TRAIT_TYPE_JOINABLE = 60003,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_SUBJECT = 60004;
+     */
+    TRAIT_TYPE_SUBJECT = 60004,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_RUNNABLE = 100001;
      */

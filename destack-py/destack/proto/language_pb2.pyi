@@ -1449,6 +1449,7 @@ class TraitTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_IRREVERSIBLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_TAGGABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_OWNABLE: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_OWNED: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_OWNER: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_JOINABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_SUBJECT: _ClassVar[TraitTypeProto]
@@ -2633,6 +2634,7 @@ TRAIT_TYPE_EXTENSIBLE: TraitTypeProto
 TRAIT_TYPE_IRREVERSIBLE: TraitTypeProto
 TRAIT_TYPE_TAGGABLE: TraitTypeProto
 TRAIT_TYPE_OWNABLE: TraitTypeProto
+TRAIT_TYPE_OWNED: TraitTypeProto
 TRAIT_TYPE_OWNER: TraitTypeProto
 TRAIT_TYPE_JOINABLE: TraitTypeProto
 TRAIT_TYPE_SUBJECT: TraitTypeProto

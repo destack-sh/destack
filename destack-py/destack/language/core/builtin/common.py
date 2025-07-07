@@ -353,9 +353,10 @@ class TraitType(Enum):
 
     # access [60_000-80_000]
     OWNABLE = 60_000, "Ownable", "Is ownable", "fas fa-user"
-    OWNER = 60_001, "Owner", "Is an Owner", "fas fa-user"
-    JOINABLE = 60_002, "Joinable", "Is joinable", "fas fa-users"
-    SUBJECT = 60_003, "Subject", "Is a Subject", "fas fa-user"
+    OWNED = 60_001, "Owned", "Is owned", "fas fa-user"
+    OWNER = 60_002, "Owner", "Is an Owner", "fas fa-user"
+    JOINABLE = 60_003, "Joinable", "Is joinable", "fas fa-users"
+    SUBJECT = 60_004, "Subject", "Is a Subject", "fas fa-user"
 
     # data [80_000-100_000]
     # ...

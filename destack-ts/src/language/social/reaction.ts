@@ -3,7 +3,8 @@ import type {
   Graph,
   IsDeletable,
   IsGlobal,
-  IsOwnable,
+  IsOwned,
+  IsOwner,
   IsReactable,
   IsSpatial,
   IsSubject,
@@ -28,7 +29,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Reaction
   extends Entity
-  implements IsGlobal, IsSpatial, IsReactable, IsDeletable, IsOwnable
+  implements IsGlobal, IsSpatial, IsReactable, IsDeletable, IsOwned
 {
   static metatype: NodeType = NodeType.REACTION;
 
@@ -149,27 +150,16 @@ export class Reaction
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * Reaction.ownedBy
+   * IsOwned.ownedBy
    */
-  get ownedBy(): (Node & IsSubject) | null {
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-  set ownedBy(node: Node & IsSubject) {
-    this.ownedByPtr = node.toRef();
-  }
-  get ownedByPtr(): NodeReference {
-    return this._ownedByPtr;
-  }
-  set ownedByPtr(value: NodeReference) {
-    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
-    this._session.updateSetProperty(this, prop, value);
-    this._ownedByPtr = value;
-  }
-  _ownedByPtr: NodeReference;
+  readonly ownedByPtr: NodeReference;
 
   /**
    * Reaction.content
@@ -198,7 +188,7 @@ export class Reaction
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy: (Node & IsSubject) | NodeReference;
+    ownedBy?: (Node & IsOwner) | NodeReference;
     content: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -269,14 +259,14 @@ export class Reaction
     this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _ownedBy = options.ownedBy;
+    let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     if (_ownedBy === null) {
       throw new Error(`Reaction.ownedBy is required`);
     }
-    this._ownedByPtr = _ownedBy;
+    this.ownedByPtr = _ownedBy;
     let _content = options.content;
     if (_content === null) {
       throw new Error(`Reaction.content is required`);
@@ -317,13 +307,13 @@ export class Reaction
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._ownedByPtr.id === other._ownedByPtr.id)) {
-      return false;
-    }
     if (!(this._content === other._content)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.ownedByPtr.id === other.ownedByPtr.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -347,7 +337,6 @@ export class Reaction
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this._content)) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -355,6 +344,7 @@ export class Reaction
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -416,6 +406,7 @@ export class Reaction
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`content=${this.content}`);
+    propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     return `<Reaction '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -457,7 +448,7 @@ export class Reaction
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["28"] = object._ownedByPtr.toValue();
+    objectValue["28"] = object.ownedByPtr.toValue();
     objectValue["101"] = object._content;
     return objectValue;
   }
@@ -517,6 +508,9 @@ export class Reaction
         : null;
     return new Reaction({
       parent: unpackedParentPtr,
+      content: objectValue["101"],
+      space: unpackedSpacePtr,
+      deletedAt: unpackedDeletedAt,
       ownedBy: _NodeReference.fromValue(
         objectValue["28"],
         _session,
@@ -524,9 +518,6 @@ export class Reaction
         _graph,
         _connection,
       ),
-      content: objectValue["101"],
-      space: unpackedSpacePtr,
-      deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -590,7 +581,7 @@ export class Reaction
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    objectProto.ownedByPtr = object.ownedByPtr.toProto();
     objectProto.content = object._content;
     return objectProto as ReactionProto;
   }
@@ -614,13 +605,6 @@ export class Reaction
               _connection,
             )
           : null,
-      ownedBy: _NodeReference.fromProto(
-        objectProto.ownedByPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       content: objectProto.content,
       space:
         objectProto.spacePtr != undefined
@@ -634,6 +618,13 @@ export class Reaction
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy: _NodeReference.fromProto(
+        objectProto.ownedByPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined

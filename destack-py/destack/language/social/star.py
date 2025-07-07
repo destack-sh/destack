@@ -5,12 +5,10 @@ from destack.language.core import (
     IndexIn,
     IsDeletable,
     IsGlobal,
-    IsOwnable,
+    IsOwned,
     IsSpatial,
-    IsSubject,
     NodeType,
     builtin_node,
-    builtin_property,
     builtin_property_parent,
 )
 
@@ -28,10 +26,9 @@ class Star(
     IsGlobal,
     IsSpatial,
     IsDeletable,
-    IsOwnable,
+    IsOwned,
     Entity,
 ):
     """A Star is a relationship between a Subject and a Starred Node."""
 
     parent: Union["IsStarable", None] = builtin_property_parent()
-    owned_by: "IsSubject" = builtin_property(28)
