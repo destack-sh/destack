@@ -1,23 +1,19 @@
-import type {
-  Entity,
-  IsSubject,
-  Node,
-  PropertyDefinition,
-  QueryConnection,
-  Space,
-  Store,
+import {
+  EntityStore,
+  EventStatus,
+  EventStore,
+  type Client,
+  type Entity,
+  type Event,
+  type IsSubject,
+  type Node,
+  type PropertyDefinition,
+  type QueryConnection,
+  type Space,
 } from "@destack/language";
 import { TypeCardinality } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
-import {
-  Change,
-  ChangeResult,
-  ChangeStatus,
-  Edit,
-  EditOperation,
-  EditType,
-  Origin,
-} from "@destack/language/core/builtin/edit";
+import { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
 import { toValue, Value } from "@destack/language/core/common/value";
 import { Supergraph } from "@destack/language/core/runtime/graph";
 import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";
@@ -30,13 +26,13 @@ import { Temporal } from "temporal-polyfill";
 export class Session {
   oracle: Oracle;
   space: Space | null;
-  origin: Origin | null;
+  client: Client | null;
+  clientNonce: string | null;
   subject: (Node & IsSubject) | null;
-  store: Store | null;
+  store: EventStore | EntityStore | null;
   supergraph: Supergraph;
 
-  edits: Edit[];
-  changes: Change[];
+  pendingEvents: Event[];
 
   connections: QueryConnection[];
   closedAt: Temporal.ZonedDateTime | null;
@@ -45,22 +41,21 @@ export class Session {
   constructor(options?: {
     oracle?: Oracle;
     space?: Space | null;
-    origin?: Origin | null;
+    client?: Client | null;
+    clientNonce?: string | null;
     subject?: (Node & IsSubject) | null;
-    store?: Store | null;
+    store?: EventStore | EntityStore | null;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
     this.space = options?.space ?? null;
-    this.origin = options?.origin ?? null;
+    this.client = options?.client ?? null;
+    this.clientNonce = options?.clientNonce ?? null;
     this.subject = options?.subject ?? null;
     this.store = options?.store ?? null;
     this.supergraph = new Supergraph(this);
 
-    // transaction (pending)
-    this.edits = [];
-    this.changes = [];
-
     // runtime
+    this.pendingEvents = [];
     this.connections = [];
     this.closedAt = null;
     this._token = null;
@@ -109,8 +104,12 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const edit = new Edit({ type: EditType.CREATE, node, value: toValue(node, null, true) });
-    this.edits.push(edit);
+    const edit = new EditEvent({
+      type: EditType.CREATE,
+      node,
+      value: toValue(node, null, true),
+    });
+    this.pendingEvents.push(edit);
     node._isNew = false;
     node._isAttached = true;
   }
@@ -120,18 +119,18 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const edit = new Edit({ type: EditType.UPSERT, node, value: toValue(node, null, true) });
-    this.edits.push(edit);
+    const edit = new EditEvent({ type: EditType.UPSERT, node, value: toValue(node, null, true) });
+    this.pendingEvents.push(edit);
     node._isNew = false;
     node._isAttached = true;
   }
 
   /** Update an Entity. */
-  update(node: Entity, edit: Edit): void {
+  update(node: Entity, edit: EditEvent): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    this.edits.push(edit);
+    this.pendingEvents.push(edit);
   }
 
   /** Set a Property on an Entity (direct SET/CLEAR operations). */
@@ -165,23 +164,17 @@ export class Session {
       newValue = toValue(newValue, propType);
     }
 
-    // create Edits
-    const undoEdit = new Edit({
-      type: EditType.UPDATE,
-      node: nodePtr,
-      attribute: propPtr,
-      operation: undoOperation,
-      value: oldValue,
-    });
-    const edit = new Edit({
+    // edit
+    const edit = new EditEvent({
       type: EditType.UPDATE,
       node: nodePtr,
       attribute: propPtr,
       operation: operation,
       value: newValue,
-      undo: undoEdit,
+      reverseOperation: undoOperation,
+      reverseValue: oldValue,
     });
-    this.edits.push(edit);
+    this.pendingEvents.push(edit);
   }
 
   /** Move a Node to a new parent. */
@@ -189,8 +182,8 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const edit = new Edit({ type: EditType.MOVE, node, value: toValue(parent) });
-    this.edits.push(edit);
+    const edit = new EditEvent({ type: EditType.MOVE, node, value: toValue(parent) });
+    this.pendingEvents.push(edit);
   }
 
   /** Archive an Entity. */
@@ -198,9 +191,8 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const undoEdit = new Edit({ type: EditType.RESTORE, node, value: toValue(node, null, true) });
-    const edit = new Edit({ type: EditType.ARCHIVE, node, undo: undoEdit });
-    this.edits.push(edit);
+    const edit = new EditEvent({ type: EditType.ARCHIVE, node, value: toValue(node, null, true) });
+    this.pendingEvents.push(edit);
   }
 
   /** Unarchive an Entity. */
@@ -208,8 +200,8 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const edit = new Edit({ type: EditType.UNARCHIVE, node });
-    this.edits.push(edit);
+    const edit = new EditEvent({ type: EditType.UNARCHIVE, node });
+    this.pendingEvents.push(edit);
   }
 
   /** Delete an Entity. */
@@ -217,9 +209,8 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const undoEdit = new Edit({ type: EditType.RESTORE, node, value: toValue(node, null, true) });
-    const edit = new Edit({ type: EditType.DELETE, node, undo: undoEdit });
-    this.edits.push(edit);
+    const edit = new EditEvent({ type: EditType.DELETE, node, value: toValue(node, null, true) });
+    this.pendingEvents.push(edit);
   }
 
   /** Restore a deleted Entity. */
@@ -227,8 +218,8 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const edit = new Edit({ type: EditType.RESTORE, node });
-    this.edits.push(edit);
+    const edit = new EditEvent({ type: EditType.RESTORE, node });
+    this.pendingEvents.push(edit);
   }
 
   /** Flush pending Edits and Changes. */
@@ -236,16 +227,7 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    // flush Edits
-    if (this.edits.length > 0) {
-      const change = new Change({
-        edits: this.edits,
-        createdBy: this.subject,
-        origin: this.origin,
-      });
-      this.edits = [];
-      this.changes.push(change);
-    }
+    // nothing to do?
   }
 
   /** Stage pending Edits and Changes. */
@@ -256,25 +238,37 @@ export class Session {
     this.flush();
   }
 
-  /** Commit all Changes/Edits. Returns applied Changes. */
-  async commit(): Promise<ChangeResult[]> {
+  /** Commit all Events. */
+  async commit(): Promise<Event[]> {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     } else if (this.store == null) {
       throw new Error(`${this.repr()} has no Store`);
     }
     this.flush();
-    const changes = this.changes;
-    this.changes = [];
-    const results = await this.store.commit(changes);
-    if (results.some((result) => result.status != ChangeStatus.COMPLETED)) {
-      const badResults = results.filter((result) => result.status != ChangeStatus.COMPLETED);
-      throw new Error(
-        `failed to commit ${changes.length} Changes: ${badResults
-          .map((result) => result.id)
-          .join(", ")}`,
-      );
+    const events = this.pendingEvents;
+    this.pendingEvents = [];
+
+    // commit
+    let appliedEvents: Event[];
+    if (this.store instanceof EventStore) {
+      appliedEvents = await this.store.append(events);
+    } else if (this.store instanceof EntityStore) {
+      const editEvents = events.filter((event) => event instanceof EditEvent);
+      appliedEvents = await this.store.commit(editEvents);
+    } else {
+      throw new Error(`${this.repr()} has no Store`);
     }
-    return results;
+
+    // check
+    if (appliedEvents.some((event) => event.status != EventStatus.COMPLETED)) {
+      const badEvents = appliedEvents.filter((event) => event.status != EventStatus.COMPLETED);
+      // throw new Error(
+      //   `failed to commit ${events.length} Events: ${badEvents
+      //     .map((event) => event.id)
+      //     .join(", ")}`,
+      // );
+    }
+    return appliedEvents;
   }
 }

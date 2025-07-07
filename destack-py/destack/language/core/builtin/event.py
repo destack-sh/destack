@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
+from destack.utils.uuid import UUID
+
 from .common import EnumType, RoleType
 from .entity import Entity
 from .enum import Enum, builtin_enum
@@ -10,6 +12,7 @@ from .trait import IsCustomizable, IsExtensible, IsSourceable, IsSpatial
 
 if TYPE_CHECKING:
     from destack.language import (
+        Client,
         Icon,
         IsSubject,
         NodeDefinitionReference,
@@ -53,9 +56,6 @@ class Event[N: Node = Node](IsSpatial, Node):
         node_space_from="self",
         description="The Snapshot this Event originated from.",
     )
-    if TYPE_CHECKING:
-        snapshot_ptr: Optional[NodeReference] = None
-
     # 20-40: node tracking
     created_at: datetime = builtin_property(
         20,
@@ -73,11 +73,18 @@ class Event[N: Node = Node](IsSpatial, Node):
         node_space_from="self",
         can_write=RoleType.SYSTEM,
     )
-    if TYPE_CHECKING:
-        created_by_ptr: Optional[NodeReference] = None
+    client: Optional["Client"] = builtin_property(22, is_managed=True, is_readonly=True)
+    client_nonce: Optional[UUID] = builtin_property(23, is_managed=True, is_readonly=True)
     status: "EventStatus" = builtin_property(
-        30, is_repr=True, description="The status of the Event."
+        30,
+        is_repr=True,
+        default=EventStatus.PENDING,
+        description="The status of the Event.",
     )
+    if TYPE_CHECKING:
+        snapshot_ptr: Optional[NodeReference] = None
+        created_by_ptr: Optional[NodeReference] = None
+        client_ptr: Optional[NodeReference] = None
 
     # 100+: content
     if TYPE_CHECKING:

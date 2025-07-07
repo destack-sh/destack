@@ -25,7 +25,7 @@ import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Folder } from "@destack/language/space";
-import type { Space } from "@destack/language/universe";
+import type { Client, Space } from "@destack/language/universe";
 import type { ContainerView } from "@destack/language/view/container";
 import { EventStatusProto, ViewEnteredEventProto, ViewExitedEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -55,6 +55,14 @@ export abstract class ViewEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  abstract get client(): Client | null;
+  declare readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  declare readonly clientNonce: string | null;
 
   /**
    * The status of the Event.
@@ -132,6 +140,23 @@ export class ViewEnteredEvent extends ViewEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -155,7 +180,9 @@ export class ViewEnteredEvent extends ViewEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node: View | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -201,7 +228,17 @@ export class ViewEnteredEvent extends ViewEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`ViewEnteredEvent.status is required`);
     }
@@ -244,6 +281,12 @@ export class ViewEnteredEvent extends ViewEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -266,6 +309,12 @@ export class ViewEnteredEvent extends ViewEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
@@ -336,6 +385,12 @@ export class ViewEnteredEvent extends ViewEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
@@ -364,6 +419,13 @@ export class ViewEnteredEvent extends ViewEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -381,6 +443,8 @@ export class ViewEnteredEvent extends ViewEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -425,6 +489,12 @@ export class ViewEnteredEvent extends ViewEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
@@ -478,6 +548,17 @@ export class ViewEnteredEvent extends ViewEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
@@ -586,6 +667,23 @@ export class ViewExitedEvent extends ViewEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -609,7 +707,9 @@ export class ViewExitedEvent extends ViewEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node: View | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -655,7 +755,17 @@ export class ViewExitedEvent extends ViewEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`ViewExitedEvent.status is required`);
     }
@@ -698,6 +808,12 @@ export class ViewExitedEvent extends ViewEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -720,6 +836,12 @@ export class ViewExitedEvent extends ViewEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
@@ -790,6 +912,12 @@ export class ViewExitedEvent extends ViewEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
@@ -818,6 +946,13 @@ export class ViewExitedEvent extends ViewEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -835,6 +970,8 @@ export class ViewExitedEvent extends ViewEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -873,6 +1010,12 @@ export class ViewExitedEvent extends ViewEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
@@ -926,6 +1069,17 @@ export class ViewExitedEvent extends ViewEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined

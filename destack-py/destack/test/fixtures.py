@@ -7,7 +7,7 @@ import pytest
 import structlog
 from opentelemetry import trace
 
-from destack.store import MemoryStore
+from destack.store import MemoryEntityStore
 from destack.test.conftest import _setup_test_env
 
 # ruff: noqa: E402
@@ -30,12 +30,12 @@ tracer = trace.get_tracer(__name__)
 
 
 @pytest.fixture
-def memory_store() -> MemoryStore:
-    return MemoryStore(types=tuple(StoreType))
+def memory_store() -> MemoryEntityStore:
+    return MemoryEntityStore(types=tuple(StoreType))
 
 
 @pytest.fixture  # :PytestAsyncContext
-async def memory_session_async(memory_store: MemoryStore) -> AsyncGenerator[Session, None]:
+async def memory_session_async(memory_store: MemoryEntityStore) -> AsyncGenerator[Session, None]:
     session = Session(store=memory_store)
     await session.open()
     yield session

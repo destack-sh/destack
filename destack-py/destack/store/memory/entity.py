@@ -29,14 +29,14 @@ ARCHIVED_AT_KEY = str(IsArchivable.property("archived_at").id)
 DELETED_AT_KEY = str(IsDeletable.property("deleted_at").id)
 
 
-@tracer.start_as_current_span("memory.execute_events")
-def execute_events(
+@tracer.start_as_current_span("memory.execute_edits")
+def execute_edits(
     database: MemoryDatabase, context: MemoryContext, events: Sequence[EditEvent]
 ) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
     """Execute the Events."""
     assert events, f"no Events in {events!r}"
 
-    edits = _optimize_events(context, events)
+    edits = _optimize_edits(context, events)
     cascaded_edits: list[EditEvent] = []
     applied_edits: list[EditEvent] = []
 
@@ -70,12 +70,12 @@ def execute_events(
         applied_edits.extend(batch_applied_edits)
         cascaded_edits.extend(batch_cascaded_edits)
 
-    logger.trace("memory.execute_events", events=len(events), span="current")
+    logger.trace("memory.execute_edits", events=len(events), span="current")
     return applied_edits, cascaded_edits
 
 
-@tracer.start_as_current_span("memory.optimize_change")
-def _optimize_events(context: MemoryContext, edits: Sequence[EditEvent]) -> list[EditEvent]:
+@tracer.start_as_current_span("memory.optimize_edits")
+def _optimize_edits(context: MemoryContext, edits: Sequence[EditEvent]) -> list[EditEvent]:
     """
     Optimize the Change/Edits *while retaining semantic equivalence*.
     Reorder and batch non-interfering Edits to minimize roundtrips.
@@ -235,11 +235,11 @@ def _execute_data_edit(
             node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
             if row := node_table.rows.get(node_key):
                 if edit_type == EditType.ARCHIVE:
-                    row.value[ARCHIVED_AT_KEY] = change.created_at
+                    row.value[ARCHIVED_AT_KEY] = edits[0].created_at
                 elif edit_type == EditType.UNARCHIVE:
                     row.value.pop(ARCHIVED_AT_KEY, None)
                 elif edit_type == EditType.DELETE:
-                    row.value[DELETED_AT_KEY] = change.created_at
+                    row.value[DELETED_AT_KEY] = edits[0].created_at
                 elif edit_type == EditType.RESTORE:
                     row.value.pop(DELETED_AT_KEY, None)
                 else:

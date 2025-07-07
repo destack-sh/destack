@@ -13,7 +13,7 @@ from .core import (
     PostgresSchema,
     PostgresTable,
 )
-from .edit import execute_events
+from .entity import execute_edits
 from .map import (
     EXTENSIONS,
     get_builtin_schema,
@@ -38,7 +38,7 @@ from .migrate import (
     read_migrations_from_pg,
 )
 from .query import execute_query
-from .store import PostgresStore
+from .store import PostgresEntityStore
 
 __all__ = [
     "EXTENSIONS",
@@ -52,6 +52,7 @@ __all__ = [
     "PostgresConstraint",
     "PostgresConstraintType",
     "PostgresContext",
+    "PostgresEntityStore",
     "PostgresExtension",
     "PostgresIndex",
     "PostgresIndexType",
@@ -60,11 +61,10 @@ __all__ = [
     "PostgresObject",
     "PostgresObjectKind",
     "PostgresSchema",
-    "PostgresStore",
     "PostgresTable",
     "add_migration_to_fs",
     "apply_migration_ops",
-    "execute_events",
+    "execute_edits",
     "execute_query",
     "generate_migration_code",
     "generate_migration_ops",

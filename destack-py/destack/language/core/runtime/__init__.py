@@ -11,12 +11,15 @@ from .graph import (
 from .oracle import WORLD_ORACLE, Oracle, WorldOracle
 from .render import Aliasing, Renderer, RenderOptions, get_active_aliasing
 from .session import Session
-from .store import Store
+from .store import EntityStore, EventStore, LiveStore, Store
 
 __all__ = [
     "WORLD_ORACLE",
     "Aliasing",
+    "EntityStore",
+    "EventStore",
     "Graph",
+    "LiveStore",
     "Oracle",
     "PolyGraph",
     "QueryConnection",

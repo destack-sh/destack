@@ -42,7 +42,7 @@ import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/regis
 import type { Window } from "@destack/language/scene/window";
 import type { Folder } from "@destack/language/space";
 import type { Border, Fill, Shadow } from "@destack/language/style";
-import type { Space } from "@destack/language/universe";
+import type { Client, Space } from "@destack/language/universe";
 import { ContainerView } from "@destack/language/view";
 import {
   AlignProto,
@@ -79,6 +79,14 @@ export abstract class SceneEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  abstract get client(): Client | null;
+  declare readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  declare readonly clientNonce: string | null;
 
   /**
    * The status of the Event.

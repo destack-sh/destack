@@ -1,8 +1,10 @@
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from typing import ClassVar, override
 
 from destack.language import (
+    EditEvent,
     Event,
+    LiveStore,
     Query,
     QueryResult,
     QueryUpdate,
@@ -10,14 +12,14 @@ from destack.language import (
     StoreImplementation,
     StoreType,
 )
-from destack.store.memory import MemoryStore
+from destack.store.memory import MemoryEntityStore
 
 # nocheckin: implement BufferedStore
 #  (keep store_type/snapshot/... in Node & NodeReference instances?)
 #  (including live/in-memory overrides with Snapshots?)
 
 
-class BufferedStore(Store):
+class BufferedStore(LiveStore):
     """
     Route Queries and commits to underlying Stores, buffer certain Events in memory.
     Does not support atomic Events across Stores (yet).
@@ -35,7 +37,7 @@ class BufferedStore(Store):
                         f"already have a {store_type.name} Store: {self.store_by_type[store_type]!r} != {store!r}"
                     )
                 self.store_by_type[store_type] = store
-        self.buffer: MemoryStore = MemoryStore(types=tuple(self.store_by_type.keys()))
+        self.buffer: MemoryEntityStore = MemoryEntityStore(types=tuple(self.store_by_type.keys()))
 
     def __str__(self):
         content_parts: list[str] = []
@@ -52,10 +54,12 @@ class BufferedStore(Store):
         return result
 
     @override
-    async def commit(self, events: Sequence[Event]) -> Sequence[Event]:
-        results = await self.buffer.commit(events)
-        return results
+    async def append(self, events: Sequence[Event]) -> Sequence[Event]:
+        edit_events = [event for event in events if isinstance(event, EditEvent)]
+        applied_events = await self.buffer.commit(edit_events)
+        return applied_events
 
     @override
-    async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
+    async def subscribe(self, query: Query) -> AsyncGenerator[QueryUpdate]:
         raise NotImplementedError
+        yield

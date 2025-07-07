@@ -1283,8 +1283,6 @@ enum StoreImplementationProto {
 
 enum StoreTypeProto {
   STORE_TYPE_UNSPECIFIED = 0;
-  STORE_TYPE_LOCAL_ENTITY = 1;
-  STORE_TYPE_LOCAL_EVENT = 2;
   STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000;
   STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100;
   STORE_TYPE_SPATIAL_EVENT_PRIMARY = 2100;
@@ -1884,6 +1882,8 @@ message ClickEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -1935,6 +1935,8 @@ message ClipboardEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -2095,6 +2097,8 @@ message CopyEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -2118,6 +2122,8 @@ message CounterMeasurementEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -2425,6 +2431,8 @@ message CutEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -2488,6 +2496,8 @@ message DoubleClickEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -2509,6 +2519,8 @@ message DragEndEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -2523,6 +2535,8 @@ message DragEnterEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -2537,6 +2551,8 @@ message DragEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -2551,6 +2567,8 @@ message DragLeaveEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -2565,6 +2583,8 @@ message DragOverEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -2579,6 +2599,8 @@ message DragStartEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -2593,6 +2615,8 @@ message DropEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -2607,6 +2631,8 @@ message EditEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto cascaded_from_ptr = 85;
   EditTypeProto type = 100;
@@ -2703,6 +2729,8 @@ message EntitlementEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -2716,6 +2744,8 @@ message EntitlementExpiredEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -2729,6 +2759,8 @@ message EntitlementGrantedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -2742,6 +2774,8 @@ message EntitlementRequestedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -2755,6 +2789,8 @@ message EntitlementRevokedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -2816,6 +2852,8 @@ message EventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -2938,6 +2976,8 @@ message FocusEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -2951,6 +2991,8 @@ message FocusInEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -2964,6 +3006,8 @@ message FocusOutEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -3149,6 +3193,8 @@ message FriendshipInviteAcceptedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -3162,6 +3208,8 @@ message FriendshipInviteEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -3175,6 +3223,8 @@ message FriendshipInviteRejectedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -3188,6 +3238,8 @@ message FriendshipInviteRescindedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -3201,6 +3253,8 @@ message FriendshipInviteSentEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -3229,6 +3283,8 @@ message GaugeMeasurementEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -3342,6 +3398,8 @@ message HistogramMeasurementEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -3387,6 +3445,8 @@ message InputEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -3495,6 +3555,8 @@ message InviteAcceptedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto joinable_ptr = 102;
@@ -3512,6 +3574,8 @@ message InviteEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto joinable_ptr = 102;
@@ -3527,6 +3591,8 @@ message InviteRejectedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto joinable_ptr = 102;
@@ -3542,6 +3608,8 @@ message InviteRescindedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto joinable_ptr = 102;
@@ -3557,6 +3625,8 @@ message InviteSentEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto joinable_ptr = 102;
@@ -3583,6 +3653,8 @@ message KeyDownEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
@@ -3603,6 +3675,8 @@ message KeyPressEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
@@ -3623,6 +3697,8 @@ message KeyUpEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
@@ -3643,6 +3719,8 @@ message KeyboardEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
@@ -3766,6 +3844,8 @@ message LeftClickEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -3851,6 +3931,8 @@ message LogEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   string content = 110;
@@ -3905,6 +3987,8 @@ message MeasurementEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -3940,6 +4024,8 @@ message MembershipEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto joinable_ptr = 102;
@@ -3955,6 +4041,8 @@ message MembershipJoinedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto joinable_ptr = 102;
@@ -3972,6 +4060,8 @@ message MembershipLeftEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto joinable_ptr = 102;
@@ -4068,6 +4158,8 @@ message MiddleClickEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4089,6 +4181,8 @@ message MouseEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4191,6 +4285,8 @@ message NotificationDismissedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -4204,6 +4300,8 @@ message NotificationEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -4217,6 +4315,8 @@ message NotificationExpiredEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -4230,6 +4330,8 @@ message NotificationReadEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -4243,6 +4345,8 @@ message NotificationRescindedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -4256,6 +4360,8 @@ message NotificationSentEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -4382,6 +4488,8 @@ message PasteEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
 }
@@ -4426,6 +4534,8 @@ message PointerDownEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4446,6 +4556,8 @@ message PointerEnterEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4466,6 +4578,8 @@ message PointerEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4486,6 +4600,8 @@ message PointerLeaveEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4506,6 +4622,8 @@ message PointerLongPressEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4526,6 +4644,8 @@ message PointerMoveEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4546,6 +4666,8 @@ message PointerOverEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4566,6 +4688,8 @@ message PointerUpEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4770,6 +4894,8 @@ message RightClickEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
@@ -4813,6 +4939,8 @@ message RoleAssignedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto subject_ptr = 110;
@@ -4827,6 +4955,8 @@ message RoleEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto subject_ptr = 110;
@@ -4841,6 +4971,8 @@ message RoleUnassignedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto subject_ptr = 110;
@@ -4903,6 +5035,8 @@ message RunCompletedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   optional NodeReferenceProto target_ptr = 110;
@@ -4917,6 +5051,8 @@ message RunEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   optional NodeReferenceProto target_ptr = 110;
@@ -4931,6 +5067,8 @@ message RunFailedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   optional NodeReferenceProto target_ptr = 110;
@@ -4945,6 +5083,8 @@ message RunPauseRequestedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   optional NodeReferenceProto target_ptr = 110;
@@ -4959,6 +5099,8 @@ message RunPausedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   optional NodeReferenceProto target_ptr = 110;
@@ -4973,6 +5115,8 @@ message RunResumeRequestedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   optional NodeReferenceProto target_ptr = 110;
@@ -4987,6 +5131,8 @@ message RunResumedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   optional NodeReferenceProto target_ptr = 110;
@@ -5001,6 +5147,8 @@ message RunStartedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   optional NodeReferenceProto target_ptr = 110;
@@ -5015,6 +5163,8 @@ message RunStopRequestedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   optional NodeReferenceProto target_ptr = 110;
@@ -5049,6 +5199,8 @@ message SanctionEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -5062,6 +5214,8 @@ message SanctionExpiredEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -5075,6 +5229,8 @@ message SanctionGrantedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -5088,6 +5244,8 @@ message SanctionRequestedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -5101,6 +5259,8 @@ message SanctionRevokedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
   NodeReferenceProto target_ptr = 110;
@@ -5167,6 +5327,8 @@ message SceneEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -5373,6 +5535,8 @@ message SignalProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
   optional NodeReferenceProto script_ptr = 70;
@@ -5483,6 +5647,8 @@ message SpanEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -5887,6 +6053,8 @@ message TimerCancelledEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -5900,6 +6068,8 @@ message TimerCompletedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -5913,6 +6083,8 @@ message TimerEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -5926,6 +6098,8 @@ message TimerStartedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -6022,6 +6196,8 @@ message TriggerEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -6207,6 +6383,8 @@ message ViewEnteredEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -6220,6 +6398,8 @@ message ViewEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -6233,6 +6413,8 @@ message ViewExitedEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
 }
@@ -6246,6 +6428,8 @@ message WheelEventProto {
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;

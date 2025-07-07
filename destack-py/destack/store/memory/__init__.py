@@ -1,3 +1,3 @@
-from .store import MemoryStore
+from .store import MemoryEntityStore
 
-__all__ = ["MemoryStore"]
+__all__ = ["MemoryEntityStore"]

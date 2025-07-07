@@ -1,7 +1,7 @@
 import type { EventStatus, IsSubject, NodeReference, Snapshot } from "@destack/language/core";
 import { Event, Node, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
+import type { Client, Space } from "@destack/language/universe";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:560000 ==== */
@@ -27,6 +27,14 @@ export abstract class InputEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  abstract get client(): Client | null;
+  declare readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  declare readonly clientNonce: string | null;
 
   /**
    * The status of the Event.

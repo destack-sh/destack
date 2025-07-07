@@ -782,8 +782,6 @@ class PropertyType(Enum):
 
 @builtin_enum(EnumType.STORE_TYPE)
 class StoreType(Enum):
-    LOCAL_ENTITY = 1
-    LOCAL_EVENT = 2
     GLOBAL_ENTITY_PRIMARY = 1000
     SPATIAL_ENTITY_PRIMARY = 1100
     SPATIAL_EVENT_PRIMARY = 2100

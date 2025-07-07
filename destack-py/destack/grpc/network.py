@@ -1,5 +1,5 @@
 import abc
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING, Optional, cast, override
 from urllib.parse import urlparse
 
@@ -91,8 +91,11 @@ async def unary_stream_rpc[ReqT, RepT](
     request: ReqT,
     *,
     timeout: Optional[float] = None,
+    metadata: Optional[Mapping[str, str]] = None,
 ) -> AsyncIterator[RepT]:
-    async with method.open(timeout=timeout, metadata=collect_propagation_context()) as stream:
+    metadata = {**(metadata or {})}
+    metadata.update(collect_propagation_context())
+    async with method.open(timeout=timeout, metadata=metadata) as stream:
         await stream.send_message(request, end=True)
         async for response in stream:
             yield response

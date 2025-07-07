@@ -52,9 +52,9 @@ export interface QueryResponse {
     result?: QueryResultProto;
 }
 /**
- * @generated from protobuf message symbol.destack.CommitRequest
+ * @generated from protobuf message symbol.destack.AppendRequest
  */
-export interface CommitRequest {
+export interface AppendRequest {
     /**
      * @generated from protobuf field: symbol.destack.ScopeProto scope = 1
      */
@@ -65,9 +65,9 @@ export interface CommitRequest {
     events: SomeEventProto[];
 }
 /**
- * @generated from protobuf message symbol.destack.CommitResponse
+ * @generated from protobuf message symbol.destack.AppendResponse
  */
-export interface CommitResponse {
+export interface AppendResponse {
     /**
      * @generated from protobuf field: uint64 epoch = 3
      */
@@ -244,21 +244,21 @@ class QueryResponse$Type extends MessageType<QueryResponse> {
  */
 export const QueryResponse = new QueryResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CommitRequest$Type extends MessageType<CommitRequest> {
+class AppendRequest$Type extends MessageType<AppendRequest> {
     constructor() {
-        super("symbol.destack.CommitRequest", [
+        super("symbol.destack.AppendRequest", [
             { no: 1, name: "scope", kind: "message", T: () => ScopeProto },
             { no: 3, name: "events", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => SomeEventProto }
         ]);
     }
-    create(value?: PartialMessage<CommitRequest>): CommitRequest {
+    create(value?: PartialMessage<AppendRequest>): AppendRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.events = [];
         if (value !== undefined)
-            reflectionMergePartial<CommitRequest>(this, message, value);
+            reflectionMergePartial<AppendRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitRequest): CommitRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AppendRequest): AppendRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -280,7 +280,7 @@ class CommitRequest$Type extends MessageType<CommitRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: CommitRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: AppendRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.ScopeProto scope = 1; */
         if (message.scope)
             ScopeProto.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -294,26 +294,26 @@ class CommitRequest$Type extends MessageType<CommitRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.CommitRequest
+ * @generated MessageType for protobuf message symbol.destack.AppendRequest
  */
-export const CommitRequest = new CommitRequest$Type();
+export const AppendRequest = new AppendRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CommitResponse$Type extends MessageType<CommitResponse> {
+class AppendResponse$Type extends MessageType<AppendResponse> {
     constructor() {
-        super("symbol.destack.CommitResponse", [
+        super("symbol.destack.AppendResponse", [
             { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 4, name: "events", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => SomeEventProto }
         ]);
     }
-    create(value?: PartialMessage<CommitResponse>): CommitResponse {
+    create(value?: PartialMessage<AppendResponse>): AppendResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.epoch = 0n;
         message.events = [];
         if (value !== undefined)
-            reflectionMergePartial<CommitResponse>(this, message, value);
+            reflectionMergePartial<AppendResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitResponse): CommitResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AppendResponse): AppendResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -335,7 +335,7 @@ class CommitResponse$Type extends MessageType<CommitResponse> {
         }
         return message;
     }
-    internalBinaryWrite(message: CommitResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: AppendResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* uint64 epoch = 3; */
         if (message.epoch !== 0n)
             writer.tag(3, WireType.Varint).uint64(message.epoch);
@@ -349,9 +349,9 @@ class CommitResponse$Type extends MessageType<CommitResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.CommitResponse
+ * @generated MessageType for protobuf message symbol.destack.AppendResponse
  */
-export const CommitResponse = new CommitResponse$Type();
+export const AppendResponse = new AppendResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SubscribeRequest$Type extends MessageType<SubscribeRequest> {
     constructor() {
@@ -449,6 +449,6 @@ export const SubscribeResponse = new SubscribeResponse$Type();
  */
 export const Space = new ServiceType("symbol.destack.Space", [
     { name: "Query", options: {}, I: QueryRequest, O: QueryResponse },
-    { name: "Commit", options: {}, I: CommitRequest, O: CommitResponse },
+    { name: "Append", options: {}, I: AppendRequest, O: AppendResponse },
     { name: "Subscribe", serverStreaming: true, options: {}, I: SubscribeRequest, O: SubscribeResponse }
 ], { "symbol.destack.kind": "PUBLIC" });

@@ -27,7 +27,7 @@ from . import language_pb2 as language__pb2
 
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x0bspace.proto\x12\x0esymbol.destack\x1a\x1cgoogle/protobuf/struct.proto\x1a\x0c\x63ommon.proto\x1a\x0elanguage.proto"\x1e\n\nScopeProto\x12\x10\n\x08space_id\x18\x01 \x01(\t"d\n\x0cQueryRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12)\n\x05query\x18\x02 \x01(\x0b\x32\x1a.symbol.destack.QueryProto"A\n\rQueryResponse\x12\x30\n\x06result\x18\x01 \x01(\x0b\x32 .symbol.destack.QueryResultProto"j\n\rCommitRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12.\n\x06\x65vents\x18\x03 \x03(\x0b\x32\x1e.symbol.destack.SomeEventProto"O\n\x0e\x43ommitResponse\x12\r\n\x05\x65poch\x18\x03 \x01(\x04\x12.\n\x06\x65vents\x18\x04 \x03(\x0b\x32\x1e.symbol.destack.SomeEventProto"=\n\x10SubscribeRequest\x12)\n\x05query\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.QueryProto"E\n\x11SubscribeResponse\x12\x30\n\x06update\x18\x01 \x01(\x0b\x32 .symbol.destack.QueryUpdateProto2\xf0\x01\n\x05Space\x12\x44\n\x05Query\x12\x1c.symbol.destack.QueryRequest\x1a\x1d.symbol.destack.QueryResponse\x12G\n\x06\x43ommit\x12\x1d.symbol.destack.CommitRequest\x1a\x1e.symbol.destack.CommitResponse\x12R\n\tSubscribe\x12 .symbol.destack.SubscribeRequest\x1a!.symbol.destack.SubscribeResponse0\x01\x1a\x04\x80\xb5\x18\x02\x62\x06proto3'
+    b'\n\x0bspace.proto\x12\x0esymbol.destack\x1a\x1cgoogle/protobuf/struct.proto\x1a\x0c\x63ommon.proto\x1a\x0elanguage.proto"\x1e\n\nScopeProto\x12\x10\n\x08space_id\x18\x01 \x01(\t"d\n\x0cQueryRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12)\n\x05query\x18\x02 \x01(\x0b\x32\x1a.symbol.destack.QueryProto"A\n\rQueryResponse\x12\x30\n\x06result\x18\x01 \x01(\x0b\x32 .symbol.destack.QueryResultProto"j\n\rAppendRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12.\n\x06\x65vents\x18\x03 \x03(\x0b\x32\x1e.symbol.destack.SomeEventProto"O\n\x0e\x41ppendResponse\x12\r\n\x05\x65poch\x18\x03 \x01(\x04\x12.\n\x06\x65vents\x18\x04 \x03(\x0b\x32\x1e.symbol.destack.SomeEventProto"=\n\x10SubscribeRequest\x12)\n\x05query\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.QueryProto"E\n\x11SubscribeResponse\x12\x30\n\x06update\x18\x01 \x01(\x0b\x32 .symbol.destack.QueryUpdateProto2\xf0\x01\n\x05Space\x12\x44\n\x05Query\x12\x1c.symbol.destack.QueryRequest\x1a\x1d.symbol.destack.QueryResponse\x12G\n\x06\x41ppend\x12\x1d.symbol.destack.AppendRequest\x1a\x1e.symbol.destack.AppendResponse\x12R\n\tSubscribe\x12 .symbol.destack.SubscribeRequest\x1a!.symbol.destack.SubscribeResponse0\x01\x1a\x04\x80\xb5\x18\x02\x62\x06proto3'
 )
 
 _globals = globals()
@@ -43,10 +43,10 @@ if not _descriptor._USE_C_DESCRIPTORS:
     _globals["_QUERYREQUEST"]._serialized_end = 223
     _globals["_QUERYRESPONSE"]._serialized_start = 225
     _globals["_QUERYRESPONSE"]._serialized_end = 290
-    _globals["_COMMITREQUEST"]._serialized_start = 292
-    _globals["_COMMITREQUEST"]._serialized_end = 398
-    _globals["_COMMITRESPONSE"]._serialized_start = 400
-    _globals["_COMMITRESPONSE"]._serialized_end = 479
+    _globals["_APPENDREQUEST"]._serialized_start = 292
+    _globals["_APPENDREQUEST"]._serialized_end = 398
+    _globals["_APPENDRESPONSE"]._serialized_start = 400
+    _globals["_APPENDRESPONSE"]._serialized_end = 479
     _globals["_SUBSCRIBEREQUEST"]._serialized_start = 481
     _globals["_SUBSCRIBEREQUEST"]._serialized_end = 542
     _globals["_SUBSCRIBERESPONSE"]._serialized_start = 544

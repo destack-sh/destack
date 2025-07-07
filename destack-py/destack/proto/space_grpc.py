@@ -38,14 +38,14 @@ class SpaceBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def commit(
+    async def append(
         self,
-        request: "space_pb2.CommitRequest",
+        request: "space_pb2.AppendRequest",
         session: "Session",
         subject: "IsSubject | None",
         client: "Client | None",
         metadata: "RpcMetadata",
-    ) -> "space_pb2.CommitResponse":
+    ) -> "space_pb2.AppendResponse":
         pass
 
     @abc.abstractmethod
@@ -67,11 +67,11 @@ class SpaceBase(abc.ABC):
                 space_pb2.QueryRequest,
                 space_pb2.QueryResponse,
             ),
-            "/symbol.destack.Space/Commit": grpclib.const.Handler(
-                self.commit,
+            "/symbol.destack.Space/Append": grpclib.const.Handler(
+                self.append,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                space_pb2.CommitRequest,
-                space_pb2.CommitResponse,
+                space_pb2.AppendRequest,
+                space_pb2.AppendResponse,
             ),
             "/symbol.destack.Space/Subscribe": grpclib.const.Handler(
                 self.subscribe,
@@ -90,11 +90,11 @@ class SpaceClient:
             space_pb2.QueryRequest,
             space_pb2.QueryResponse,
         )
-        self.commit = grpclib.client.UnaryUnaryMethod(
+        self.append = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbol.destack.Space/Commit",
-            space_pb2.CommitRequest,
-            space_pb2.CommitResponse,
+            "/symbol.destack.Space/Append",
+            space_pb2.AppendRequest,
+            space_pb2.AppendResponse,
         )
         self.subscribe = grpclib.client.UnaryStreamMethod(
             channel,

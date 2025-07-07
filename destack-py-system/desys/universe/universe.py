@@ -44,7 +44,7 @@ from destack.store import BufferedStore
 from destack.utils.func import generate_access_token, generate_salt
 from destack.utils.uuid import UUID
 from desys.sharding import DatabaseProvider, GalaxyProvider
-from desys.store import PostgresStore
+from desys.store import PostgresEntityStore
 
 from .access import ACCESS_TOKEN_LENGTH, SALT_LENGTH, check_password, hash_password
 
@@ -96,7 +96,7 @@ class UniverseService(ServiceBase, UniverseBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        postgres_store = PostgresStore(
+        postgres_store = PostgresEntityStore(
             database=self.global_database, types=(StoreType.GLOBAL_ENTITY_PRIMARY,)
         )
         return Session(store=postgres_store)
@@ -178,8 +178,12 @@ class UniverseService(ServiceBase, UniverseBase):
         )
         space.database = database
         session.store = BufferedStore(
-            PostgresStore(database=self.global_database, types=(StoreType.GLOBAL_ENTITY_PRIMARY,)),
-            PostgresStore(database=spatial_database, types=(StoreType.SPATIAL_ENTITY_PRIMARY,)),
+            PostgresEntityStore(
+                database=self.global_database, types=(StoreType.GLOBAL_ENTITY_PRIMARY,)
+            ),
+            PostgresEntityStore(
+                database=spatial_database, types=(StoreType.SPATIAL_ENTITY_PRIMARY,)
+            ),
         )
         await session.stage()
 

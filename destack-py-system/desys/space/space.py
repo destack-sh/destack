@@ -19,8 +19,8 @@ from destack.language import (
     StoreType,
 )
 from destack.proto import (
-    CommitRequest,
-    CommitResponse,
+    AppendRequest,
+    AppendResponse,
     QueryRequest,
     QueryResponse,
     RpcMetadata,
@@ -33,7 +33,7 @@ from destack.store import BufferedStore
 from destack.utils.env import get_from_env
 from destack.utils.uuid import UUID
 from desys.sharding import DatabaseProvider, GalaxyProvider
-from desys.store import PostgresStore
+from desys.store import PostgresEntityStore
 
 if TYPE_CHECKING:
     pass
@@ -78,10 +78,10 @@ class SpaceService(ServiceBase, SpaceBase):
         )
         self.space_id = space_id
         self.space_ptr = NodeReference(type=NodeType.SPACE, id=space_id, space_id=space_id)
-        self.global_postgres_store = PostgresStore(
+        self.global_postgres_store = PostgresEntityStore(
             database=global_database, types=(StoreType.GLOBAL_ENTITY_PRIMARY,)
         )
-        self.spatial_postgres_store: PostgresStore | None = None
+        self.spatial_postgres_store: PostgresEntityStore | None = None
         self.store: BufferedStore | None = None
         self.galaxy_provider = galaxy_provider
         self.database_provider = database_provider
@@ -105,7 +105,7 @@ class SpaceService(ServiceBase, SpaceBase):
                 Databases=Database.search(),
             ).execute_one()
             if (database := space.database) is not None:
-                self.spatial_postgres_store = PostgresStore(
+                self.spatial_postgres_store = PostgresEntityStore(
                     database=database.to_info(), types=(StoreType.SPATIAL_ENTITY_PRIMARY,)
                 )
                 self.store = BufferedStore(self.global_postgres_store, self.spatial_postgres_store)
@@ -139,10 +139,27 @@ class SpaceService(ServiceBase, SpaceBase):
     ) -> QueryResponse:
         assert self.store is not None, f"no store ready in {self!r}"
         query = Query.from_proto(request.query)
-        query.validate()
         # query = transform_query(query, subject, client)
         query_result = await self.store.query(query)
         return QueryResponse(result=query_result.to_proto())
+
+    @override
+    async def append(
+        self,
+        request: AppendRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
+    ) -> AppendResponse:
+        assert self.store is not None, f"no store ready in {self!r}"
+        raise NotImplementedError
+        # changes = [Change.from_proto(change) for change in request.changes]
+        # approved_changes: list[Change] = []
+        # for _ in changes:
+        #     pass  # nocheckin: access control (approve/reject/amend Queries & Changes)
+        # results = await self.store.commit(approved_changes)
+        # return CommitResponse(results=[result.to_proto() for result in results])
 
     @override
     async def subscribe(
@@ -155,24 +172,5 @@ class SpaceService(ServiceBase, SpaceBase):
     ) -> AsyncIterator[SubscribeResponse]:
         assert self.store is not None, f"no store ready in {self!r}"
         query = Query.from_proto(request.query)
-        query.validate()
-        async for update in await self.store.subscribe(query):
+        async for update in self.store.subscribe(query):
             yield SubscribeResponse(update=update.to_proto())
-
-    @override
-    async def commit(
-        self,
-        request: CommitRequest,
-        session: Session,
-        subject: IsSubject | None,
-        client: Client | None,
-        metadata: RpcMetadata,
-    ) -> CommitResponse:
-        assert self.store is not None, f"no store ready in {self!r}"
-        raise NotImplementedError
-        # changes = [Change.from_proto(change) for change in request.changes]
-        # approved_changes: list[Change] = []
-        # for _ in changes:
-        #     pass  # nocheckin: access control (approve/reject/amend Queries & Changes)
-        # results = await self.store.commit(approved_changes)
-        # return CommitResponse(results=[result.to_proto() for result in results])
