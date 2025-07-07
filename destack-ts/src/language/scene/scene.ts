@@ -6,6 +6,7 @@ import type {
   CustomEntityDefinition,
   CustomEventDefinition,
   Dimension,
+  EventStatus,
   Graph,
   Grid,
   GridSpan,
@@ -78,6 +79,11 @@ export abstract class SceneEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Scene | null;
   declare readonly nodePtr: NodeReference;

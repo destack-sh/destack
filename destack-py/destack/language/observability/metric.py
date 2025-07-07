@@ -1,12 +1,34 @@
-from ..core.builtin import (
-    MeasurementEvent,
-    Metric,
+from typing import TYPE_CHECKING
+
+from destack.language.core import (
+    Entity,
+    Event,
+    IsSourceable,
+    IsSpatial,
     NodeType,
     builtin_node,
     builtin_property,
 )
 
+if TYPE_CHECKING:
+    from destack.language import Icon
+
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@builtin_node(NodeType.METRIC, is_abstract=True)
+class Metric(IsSpatial, IsSourceable, Entity):
+    """An Entity that represents a Metric."""
+
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+
+
+@builtin_node(NodeType.MEASUREMENT_EVENT, frozen=True, is_abstract=True)
+class MeasurementEvent(Event):
+    """An Event that represents a Measurement."""
+
+    definition: "Metric" = builtin_property(6, is_managed=True, can_write=None)
 
 
 @builtin_node(

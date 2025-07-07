@@ -9,11 +9,12 @@ import type {
   Supergraph,
   Vector2f,
 } from "@destack/language/core";
-import { Node, NodeType, StructType } from "@destack/language/core";
+import { EventStatus, Node, NodeType, StructType } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import {
+  EventStatusProto,
   PointerDownEventProto,
   PointerEnterEventProto,
   PointerLeaveEventProto,
@@ -49,6 +50,11 @@ export abstract class PointerEvent extends InputEvent {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
@@ -156,6 +162,11 @@ export class PointerDownEvent extends PointerEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -209,6 +220,7 @@ export class PointerDownEvent extends PointerEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -261,6 +273,11 @@ export class PointerDownEvent extends PointerEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`PointerDownEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -349,6 +366,9 @@ export class PointerDownEvent extends PointerEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -378,6 +398,7 @@ export class PointerDownEvent extends PointerEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -423,7 +444,9 @@ export class PointerDownEvent extends PointerEvent {
   }
 
   repr(): string {
-    return `<PointerDownEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<PointerDownEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -447,6 +470,7 @@ export class PointerDownEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -506,6 +530,7 @@ export class PointerDownEvent extends PointerEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -551,6 +576,7 @@ export class PointerDownEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -618,6 +644,7 @@ export class PointerDownEvent extends PointerEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -735,6 +762,11 @@ export class PointerUpEvent extends PointerEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -788,6 +820,7 @@ export class PointerUpEvent extends PointerEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -840,6 +873,11 @@ export class PointerUpEvent extends PointerEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`PointerUpEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -928,6 +966,9 @@ export class PointerUpEvent extends PointerEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -957,6 +998,7 @@ export class PointerUpEvent extends PointerEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1002,7 +1044,9 @@ export class PointerUpEvent extends PointerEvent {
   }
 
   repr(): string {
-    return `<PointerUpEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<PointerUpEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1026,6 +1070,7 @@ export class PointerUpEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1085,6 +1130,7 @@ export class PointerUpEvent extends PointerEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1124,6 +1170,7 @@ export class PointerUpEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1191,6 +1238,7 @@ export class PointerUpEvent extends PointerEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -1302,6 +1350,11 @@ export class PointerMoveEvent extends PointerEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -1355,6 +1408,7 @@ export class PointerMoveEvent extends PointerEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -1407,6 +1461,11 @@ export class PointerMoveEvent extends PointerEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`PointerMoveEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1495,6 +1554,9 @@ export class PointerMoveEvent extends PointerEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -1524,6 +1586,7 @@ export class PointerMoveEvent extends PointerEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1569,7 +1632,9 @@ export class PointerMoveEvent extends PointerEvent {
   }
 
   repr(): string {
-    return `<PointerMoveEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<PointerMoveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1593,6 +1658,7 @@ export class PointerMoveEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1652,6 +1718,7 @@ export class PointerMoveEvent extends PointerEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1697,6 +1764,7 @@ export class PointerMoveEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1764,6 +1832,7 @@ export class PointerMoveEvent extends PointerEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -1881,6 +1950,11 @@ export class PointerEnterEvent extends PointerEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -1934,6 +2008,7 @@ export class PointerEnterEvent extends PointerEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -1986,6 +2061,11 @@ export class PointerEnterEvent extends PointerEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`PointerEnterEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2074,6 +2154,9 @@ export class PointerEnterEvent extends PointerEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -2103,6 +2186,7 @@ export class PointerEnterEvent extends PointerEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -2148,7 +2232,9 @@ export class PointerEnterEvent extends PointerEvent {
   }
 
   repr(): string {
-    return `<PointerEnterEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<PointerEnterEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2172,6 +2258,7 @@ export class PointerEnterEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -2231,6 +2318,7 @@ export class PointerEnterEvent extends PointerEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2276,6 +2364,7 @@ export class PointerEnterEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2343,6 +2432,7 @@ export class PointerEnterEvent extends PointerEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -2460,6 +2550,11 @@ export class PointerOverEvent extends PointerEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -2513,6 +2608,7 @@ export class PointerOverEvent extends PointerEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -2565,6 +2661,11 @@ export class PointerOverEvent extends PointerEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`PointerOverEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2653,6 +2754,9 @@ export class PointerOverEvent extends PointerEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -2682,6 +2786,7 @@ export class PointerOverEvent extends PointerEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -2727,7 +2832,9 @@ export class PointerOverEvent extends PointerEvent {
   }
 
   repr(): string {
-    return `<PointerOverEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<PointerOverEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2751,6 +2858,7 @@ export class PointerOverEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -2810,6 +2918,7 @@ export class PointerOverEvent extends PointerEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2855,6 +2964,7 @@ export class PointerOverEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2922,6 +3032,7 @@ export class PointerOverEvent extends PointerEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -3039,6 +3150,11 @@ export class PointerLeaveEvent extends PointerEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -3092,6 +3208,7 @@ export class PointerLeaveEvent extends PointerEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -3144,6 +3261,11 @@ export class PointerLeaveEvent extends PointerEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`PointerLeaveEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3232,6 +3354,9 @@ export class PointerLeaveEvent extends PointerEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -3261,6 +3386,7 @@ export class PointerLeaveEvent extends PointerEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -3306,7 +3432,9 @@ export class PointerLeaveEvent extends PointerEvent {
   }
 
   repr(): string {
-    return `<PointerLeaveEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<PointerLeaveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -3330,6 +3458,7 @@ export class PointerLeaveEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -3389,6 +3518,7 @@ export class PointerLeaveEvent extends PointerEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -3434,6 +3564,7 @@ export class PointerLeaveEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -3501,6 +3632,7 @@ export class PointerLeaveEvent extends PointerEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -3618,6 +3750,11 @@ export class PointerLongPressEvent extends PointerEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -3671,6 +3808,7 @@ export class PointerLongPressEvent extends PointerEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -3723,6 +3861,11 @@ export class PointerLongPressEvent extends PointerEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`PointerLongPressEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3811,6 +3954,9 @@ export class PointerLongPressEvent extends PointerEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -3840,6 +3986,7 @@ export class PointerLongPressEvent extends PointerEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -3885,7 +4032,9 @@ export class PointerLongPressEvent extends PointerEvent {
   }
 
   repr(): string {
-    return `<PointerLongPressEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<PointerLongPressEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -3909,6 +4058,7 @@ export class PointerLongPressEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -3968,6 +4118,7 @@ export class PointerLongPressEvent extends PointerEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -4013,6 +4164,7 @@ export class PointerLongPressEvent extends PointerEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -4080,6 +4232,7 @@ export class PointerLongPressEvent extends PointerEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(

@@ -13,7 +13,7 @@ from .core import (
     PostgresSchema,
     PostgresTable,
 )
-from .edit import execute_change
+from .edit import execute_events
 from .map import (
     EXTENSIONS,
     get_builtin_schema,
@@ -64,7 +64,7 @@ __all__ = [
     "PostgresTable",
     "add_migration_to_fs",
     "apply_migration_ops",
-    "execute_change",
+    "execute_events",
     "execute_query",
     "generate_migration_code",
     "generate_migration_ops",

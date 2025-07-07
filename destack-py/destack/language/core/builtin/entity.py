@@ -419,14 +419,6 @@ class Resource(IsDeletable, IsExtensible, Entity):
     status: ResourceStatus = builtin_property(90, default=ResourceStatus.PENDING)
 
 
-@builtin_node(NodeType.METRIC, is_abstract=True)
-class Metric(IsSpatial, IsSourceable, Entity):
-    """An Entity that represents a Metric."""
-
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
-
-
 @builtin_enum(EnumType.SNAPSHOT_TYPE)
 class SnapshotType(Enum):
     """The type of a Snapshot."""

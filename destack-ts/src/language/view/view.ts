@@ -20,14 +20,14 @@ import type {
   Supergraph,
   Value,
 } from "@destack/language/core";
-import { Entity, Event, Node, NodeType, StructType } from "@destack/language/core";
+import { Entity, Event, EventStatus, Node, NodeType, StructType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
 import type { Folder } from "@destack/language/space";
 import type { Space } from "@destack/language/universe";
 import type { ContainerView } from "@destack/language/view/container";
-import { ViewEnteredEventProto, ViewExitedEventProto } from "@destack/proto";
+import { EventStatusProto, ViewEnteredEventProto, ViewExitedEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -55,6 +55,11 @@ export abstract class ViewEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): View | null;
   declare readonly nodePtr: NodeReference;
@@ -127,6 +132,11 @@ export class ViewEnteredEvent extends ViewEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * ViewEvent.node
    */
   get node(): View | null {
@@ -145,6 +155,7 @@ export class ViewEnteredEvent extends ViewEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: View | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -190,6 +201,11 @@ export class ViewEnteredEvent extends ViewEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`ViewEnteredEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -228,6 +244,9 @@ export class ViewEnteredEvent extends ViewEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -248,6 +267,7 @@ export class ViewEnteredEvent extends ViewEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -290,7 +310,9 @@ export class ViewEnteredEvent extends ViewEvent {
   }
 
   repr(): string {
-    return `<ViewEnteredEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<ViewEnteredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -314,6 +336,7 @@ export class ViewEnteredEvent extends ViewEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -358,6 +381,7 @@ export class ViewEnteredEvent extends ViewEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -402,6 +426,7 @@ export class ViewEnteredEvent extends ViewEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as ViewEnteredEventProto;
   }
@@ -453,6 +478,7 @@ export class ViewEnteredEvent extends ViewEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -560,6 +586,11 @@ export class ViewExitedEvent extends ViewEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * ViewEvent.node
    */
   get node(): View | null {
@@ -578,6 +609,7 @@ export class ViewExitedEvent extends ViewEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: View | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -623,6 +655,11 @@ export class ViewExitedEvent extends ViewEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`ViewExitedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -661,6 +698,9 @@ export class ViewExitedEvent extends ViewEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -681,6 +721,7 @@ export class ViewExitedEvent extends ViewEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -723,7 +764,9 @@ export class ViewExitedEvent extends ViewEvent {
   }
 
   repr(): string {
-    return `<ViewExitedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<ViewExitedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -747,6 +790,7 @@ export class ViewExitedEvent extends ViewEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -791,6 +835,7 @@ export class ViewExitedEvent extends ViewEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -829,6 +874,7 @@ export class ViewExitedEvent extends ViewEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as ViewExitedEventProto;
   }
@@ -880,6 +926,7 @@ export class ViewExitedEvent extends ViewEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

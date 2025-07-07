@@ -16,8 +16,7 @@ import { NodeReferenceProto } from "./language";
 import { Struct } from "../google/protobuf/struct";
 import { FileProto } from "./language";
 import { QueryUpdateProto } from "./language";
-import { ChangeResultProto } from "./language";
-import { ChangeProto } from "./language";
+import { SomeEventProto } from "./language";
 import { QueryResultProto } from "./language";
 import { QueryProto } from "./language";
 /**
@@ -64,9 +63,9 @@ export interface CommitRequest {
      */
     scope?: ScopeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.ChangeProto changes = 3
+     * @generated from protobuf field: repeated symbol.destack.SomeEventProto events = 3
      */
-    changes: ChangeProto[];
+    events: SomeEventProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.CommitResponse
@@ -77,9 +76,9 @@ export interface CommitResponse {
      */
     epoch: bigint;
     /**
-     * @generated from protobuf field: repeated symbol.destack.ChangeResultProto results = 4
+     * @generated from protobuf field: repeated symbol.destack.SomeEventProto events = 4
      */
-    results: ChangeResultProto[];
+    events: SomeEventProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.SubscribeRequest
@@ -330,12 +329,12 @@ class CommitRequest$Type extends MessageType<CommitRequest> {
     constructor() {
         super("symbol.destack.CommitRequest", [
             { no: 1, name: "scope", kind: "message", T: () => ScopeProto },
-            { no: 3, name: "changes", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ChangeProto }
+            { no: 3, name: "events", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => SomeEventProto }
         ]);
     }
     create(value?: PartialMessage<CommitRequest>): CommitRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.changes = [];
+        message.events = [];
         if (value !== undefined)
             reflectionMergePartial<CommitRequest>(this, message, value);
         return message;
@@ -348,8 +347,8 @@ class CommitRequest$Type extends MessageType<CommitRequest> {
                 case /* symbol.destack.ScopeProto scope */ 1:
                     message.scope = ScopeProto.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* repeated symbol.destack.ChangeProto changes */ 3:
-                    message.changes.push(ChangeProto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.SomeEventProto events */ 3:
+                    message.events.push(SomeEventProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -366,9 +365,9 @@ class CommitRequest$Type extends MessageType<CommitRequest> {
         /* symbol.destack.ScopeProto scope = 1; */
         if (message.scope)
             ScopeProto.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.ChangeProto changes = 3; */
-        for (let i = 0; i < message.changes.length; i++)
-            ChangeProto.internalBinaryWrite(message.changes[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.SomeEventProto events = 3; */
+        for (let i = 0; i < message.events.length; i++)
+            SomeEventProto.internalBinaryWrite(message.events[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -384,13 +383,13 @@ class CommitResponse$Type extends MessageType<CommitResponse> {
     constructor() {
         super("symbol.destack.CommitResponse", [
             { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 4, name: "results", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ChangeResultProto }
+            { no: 4, name: "events", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => SomeEventProto }
         ]);
     }
     create(value?: PartialMessage<CommitResponse>): CommitResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.epoch = 0n;
-        message.results = [];
+        message.events = [];
         if (value !== undefined)
             reflectionMergePartial<CommitResponse>(this, message, value);
         return message;
@@ -403,8 +402,8 @@ class CommitResponse$Type extends MessageType<CommitResponse> {
                 case /* uint64 epoch */ 3:
                     message.epoch = reader.uint64().toBigInt();
                     break;
-                case /* repeated symbol.destack.ChangeResultProto results */ 4:
-                    message.results.push(ChangeResultProto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.SomeEventProto events */ 4:
+                    message.events.push(SomeEventProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -421,9 +420,9 @@ class CommitResponse$Type extends MessageType<CommitResponse> {
         /* uint64 epoch = 3; */
         if (message.epoch !== 0n)
             writer.tag(3, WireType.Varint).uint64(message.epoch);
-        /* repeated symbol.destack.ChangeResultProto results = 4; */
-        for (let i = 0; i < message.results.length; i++)
-            ChangeResultProto.internalBinaryWrite(message.results[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.SomeEventProto events = 4; */
+        for (let i = 0; i < message.events.length; i++)
+            SomeEventProto.internalBinaryWrite(message.events[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

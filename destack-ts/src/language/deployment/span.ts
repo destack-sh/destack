@@ -8,11 +8,11 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Event, Node, NodeType, StructType } from "@destack/language/core";
+import { Event, EventStatus, Node, NodeType, StructType } from "@destack/language/core";
 import type { Run } from "@destack/language/deployment/run";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import { SpanEventProto } from "@destack/proto";
+import { EventStatusProto, SpanEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -78,6 +78,11 @@ export class SpanEvent extends Event {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * SpanEvent.node
    */
   get node(): Run | null {
@@ -96,6 +101,7 @@ export class SpanEvent extends Event {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Run | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -141,6 +147,11 @@ export class SpanEvent extends Event {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`SpanEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -179,6 +190,9 @@ export class SpanEvent extends Event {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -199,6 +213,7 @@ export class SpanEvent extends Event {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -241,7 +256,9 @@ export class SpanEvent extends Event {
   }
 
   repr(): string {
-    return `<SpanEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<SpanEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -265,6 +282,7 @@ export class SpanEvent extends Event {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -309,6 +327,7 @@ export class SpanEvent extends Event {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -347,6 +366,7 @@ export class SpanEvent extends Event {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as SpanEventProto;
   }
@@ -398,6 +418,7 @@ export class SpanEvent extends Event {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

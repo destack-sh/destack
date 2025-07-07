@@ -21,6 +21,7 @@ class EnumType(Enum):
     NODE_TYPE = 2
     STRUCT_TYPE = 3
     TRAIT_TYPE = 4
+    EVENT_STATUS = 8
     UNIVERSE_CATEGORY = 9
     NODE_DEFINITION_TYPE = 10
     OBJECT_DEFINITION_TYPE = 11
@@ -34,8 +35,6 @@ class EnumType(Enum):
     OPERATING_SYSTEM = 40
     EDIT_TYPE = 50
     EDIT_OPERATION = 51
-    CHANGE_STATUS = 52
-    CHANGE_DEBOUNCE = 53
     PRIMITIVE_TYPE = 60
     TYPE_CARDINALITY = 61
     SCALAR_TYPE = 62
@@ -207,11 +206,6 @@ class StructType(Enum):
     # METHOD_REFERENCE, ACTION_REFERENCE, ...
     NODE_REFERENCE = 250
     PROPERTY_REFERENCE = 251
-    # edits
-    EDIT = 300
-    CHANGE = 301
-    CHANGE_RESULT = 302
-    ORIGIN = 303
     # expressions
     EXPRESSION = 500
     FUNCTION = 501
@@ -440,9 +434,8 @@ class NodeType(Enum):
     # event
     SIGNAL = 2000, "Signal", "Custom Event", "fas fa-signal"
     EDIT_EVENT = 2001, "Edit Event", None, "fas fa-file-lines"
-    CHANGE_EVENT = 2002, "Change Event", None, "fas fa-file-lines"
-    QUERY_EVENT = 2003, "Query Event", None, "fas fa-file-lines"
-    MEASUREMENT_EVENT = 2004, "Measurement", None, "fas fa-gauge"
+    # CHANGE_EVENT?
+    MEASUREMENT_EVENT = 2010, "Measurement", None, "fas fa-gauge"
 
     # universe [20_000-40_000]
     UNIVERSE = 20_000, "Universe", "Universal Space", None

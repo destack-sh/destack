@@ -16,6 +16,7 @@ import {
   Entity,
   EnumType,
   Event,
+  EventStatus,
   Materialization,
   Node,
   NodeType,
@@ -34,6 +35,7 @@ import {
   EntitlementRequestedEventProto,
   EntitlementRevokedEventProto,
   EntitlementTypeProto,
+  EventStatusProto,
   MaterializationProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -78,6 +80,11 @@ export abstract class EntitlementEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Entitlement | null;
   declare readonly nodePtr: NodeReference;
@@ -153,6 +160,11 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * EntitlementEvent.node
    */
   get node(): Entitlement | null {
@@ -183,6 +195,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Entitlement | NodeReference;
     target: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -229,6 +242,11 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`EntitlementRequestedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -278,6 +296,9 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -299,6 +320,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -341,7 +363,9 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   }
 
   repr(): string {
-    return `<EntitlementRequestedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<EntitlementRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -365,6 +389,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
@@ -417,6 +442,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -461,6 +487,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.targetPtr = object.targetPtr.toProto();
     return objectProto as EntitlementRequestedEventProto;
@@ -520,6 +547,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -627,6 +655,11 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * EntitlementEvent.node
    */
   get node(): Entitlement | null {
@@ -657,6 +690,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Entitlement | NodeReference;
     target: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -703,6 +737,11 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`EntitlementGrantedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -752,6 +791,9 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -773,6 +815,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -815,7 +858,9 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   }
 
   repr(): string {
-    return `<EntitlementGrantedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<EntitlementGrantedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -839,6 +884,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
@@ -891,6 +937,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -935,6 +982,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.targetPtr = object.targetPtr.toProto();
     return objectProto as EntitlementGrantedEventProto;
@@ -994,6 +1042,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1101,6 +1150,11 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * EntitlementEvent.node
    */
   get node(): Entitlement | null {
@@ -1131,6 +1185,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Entitlement | NodeReference;
     target: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -1177,6 +1232,11 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`EntitlementRevokedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1226,6 +1286,9 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1247,6 +1310,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1289,7 +1353,9 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   }
 
   repr(): string {
-    return `<EntitlementRevokedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<EntitlementRevokedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1313,6 +1379,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
@@ -1365,6 +1432,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1409,6 +1477,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.targetPtr = object.targetPtr.toProto();
     return objectProto as EntitlementRevokedEventProto;
@@ -1468,6 +1537,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1575,6 +1645,11 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * EntitlementEvent.node
    */
   get node(): Entitlement | null {
@@ -1605,6 +1680,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Entitlement | NodeReference;
     target: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -1651,6 +1727,11 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`EntitlementExpiredEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1700,6 +1781,9 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1721,6 +1805,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1763,7 +1848,9 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   }
 
   repr(): string {
-    return `<EntitlementExpiredEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<EntitlementExpiredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1787,6 +1874,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
@@ -1839,6 +1927,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1883,6 +1972,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.targetPtr = object.targetPtr.toProto();
     return objectProto as EntitlementExpiredEventProto;
@@ -1942,6 +2032,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

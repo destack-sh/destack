@@ -1,5 +1,6 @@
 export * from "@destack/language/core/builtin/common";
 export * from "@destack/language/core/builtin/const";
+export * from "@destack/language/core/builtin/edit";
 export * from "@destack/language/core/builtin/entity";
 export * from "@destack/language/core/builtin/enum";
 export * from "@destack/language/core/builtin/event";

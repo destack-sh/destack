@@ -8,11 +8,11 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Node, NodeType, StructType } from "@destack/language/core";
+import { EventStatus, Node, NodeType, StructType } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import { FocusInEventProto, FocusOutEventProto } from "@destack/proto";
+import { EventStatusProto, FocusInEventProto, FocusOutEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -40,6 +40,11 @@ export abstract class FocusEvent extends InputEvent {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
@@ -112,6 +117,11 @@ export class FocusInEvent extends FocusEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -130,6 +140,7 @@ export class FocusInEvent extends FocusEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -175,6 +186,11 @@ export class FocusInEvent extends FocusEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`FocusInEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -207,6 +223,9 @@ export class FocusInEvent extends FocusEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -229,6 +248,7 @@ export class FocusInEvent extends FocusEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -274,7 +294,9 @@ export class FocusInEvent extends FocusEvent {
   }
 
   repr(): string {
-    return `<FocusInEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<FocusInEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -298,6 +320,7 @@ export class FocusInEvent extends FocusEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -342,6 +365,7 @@ export class FocusInEvent extends FocusEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -381,6 +405,7 @@ export class FocusInEvent extends FocusEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -427,6 +452,7 @@ export class FocusInEvent extends FocusEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -538,6 +564,11 @@ export class FocusOutEvent extends FocusEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -556,6 +587,7 @@ export class FocusOutEvent extends FocusEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -601,6 +633,11 @@ export class FocusOutEvent extends FocusEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`FocusOutEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -633,6 +670,9 @@ export class FocusOutEvent extends FocusEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -655,6 +695,7 @@ export class FocusOutEvent extends FocusEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -700,7 +741,9 @@ export class FocusOutEvent extends FocusEvent {
   }
 
   repr(): string {
-    return `<FocusOutEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<FocusOutEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -724,6 +767,7 @@ export class FocusOutEvent extends FocusEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -768,6 +812,7 @@ export class FocusOutEvent extends FocusEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -807,6 +852,7 @@ export class FocusOutEvent extends FocusEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -853,6 +899,7 @@ export class FocusOutEvent extends FocusEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(

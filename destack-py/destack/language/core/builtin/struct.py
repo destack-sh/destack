@@ -127,7 +127,7 @@ class StructMutable[StructProtoT: AnyStructProto](Struct[StructProtoT]):
 
 @builtin_struct(
     None,
-    frozen=True,  # type: ignore (frozen can't inherit from non-frozen, but it's fine)
+    frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
     is_abstract=True,
     is_extensible=True,
 )

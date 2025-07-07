@@ -6,8 +6,7 @@ from destack.language.registry import NODE_TYPES_BY_PRIMARY_STORE_TYPE
 
 if TYPE_CHECKING:
     from destack.language import (
-        Change,
-        ChangeResult,
+        Event,
         NodeType,
         Query,
         QueryResult,
@@ -43,9 +42,9 @@ class Store(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def commit(self, changes: Sequence["Change"]) -> Sequence["ChangeResult"]:
+    async def commit(self, events: Sequence["Event"]) -> Sequence["Event"]:
         """
-        Commit the Changes as individual transactions (every Change is atomic by itself).
+        Commit the Events to the Store. Return the applied Events (including any cascaded Events).
         """
         ...
 

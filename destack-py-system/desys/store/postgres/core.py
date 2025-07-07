@@ -10,7 +10,6 @@ from more_itertools import first
 
 from destack.language import (
     CustomProperty,
-    Edit,
     IndexIn,
     NodeDefinitionReference,
     NodeReference,
@@ -480,11 +479,6 @@ class PostgresTable(PostgresTableObject):
 
 class PostgresContext(abc.ABC):
     """Progressive context for Database operations."""
-
-    @abc.abstractmethod
-    def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
-        """Apply the Edits to the context. Returns the Edits that were applied."""
-        ...
 
     @abc.abstractmethod
     def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:

@@ -1,11 +1,4 @@
-import type {
-  Change,
-  ChangeResult,
-  NodeType,
-  Query,
-  QueryResult,
-  QueryUpdate,
-} from "@destack/language";
+import type { Event, NodeType, Query, QueryResult, QueryUpdate } from "@destack/language";
 import { StoreType } from "@destack/language/core/builtin/common";
 import { NODE_TYPES_BY_PRIMARY_STORE_TYPE } from "@destack/language/registry";
 
@@ -49,9 +42,9 @@ export abstract class Store {
   abstract query(query: Query): Promise<QueryResult>;
 
   /**
-   * Commit the Changes as individual transactions (every Change is atomic by itself).
+   * Commit the Events.
    */
-  abstract commit(changes: Change[]): Promise<ChangeResult[]>;
+  abstract commit(events: Event[]): Promise<Event[]>;
 
   /**
    * Subscribe to a Query in the Store.

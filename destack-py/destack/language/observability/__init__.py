@@ -5,6 +5,8 @@ from .metric import (
     GaugeMetric,
     HistogramMeasurementEvent,
     HistogramMetric,
+    MeasurementEvent,
+    Metric,
 )
 
 __all__ = [
@@ -14,4 +16,6 @@ __all__ = [
     "GaugeMetric",
     "HistogramMeasurementEvent",
     "HistogramMetric",
+    "MeasurementEvent",
+    "Metric",
 ]

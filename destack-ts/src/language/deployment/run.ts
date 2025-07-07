@@ -14,7 +14,15 @@ import type {
   Supergraph,
   Value,
 } from "@destack/language/core";
-import { Entity, EnumType, Event, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  Entity,
+  EnumType,
+  Event,
+  EventStatus,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -22,6 +30,7 @@ import {
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import {
+  EventStatusProto,
   RunCompletedEventProto,
   RunFailedEventProto,
   RunPauseRequestedEventProto,
@@ -79,6 +88,11 @@ export abstract class RunEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Run | null;
   declare readonly nodePtr: NodeReference;
@@ -154,6 +168,11 @@ export class RunStartedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RunEvent.node
    */
   get node(): Run | null {
@@ -184,6 +203,7 @@ export class RunStartedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -230,6 +250,11 @@ export class RunStartedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RunStartedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -276,6 +301,9 @@ export class RunStartedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -299,6 +327,7 @@ export class RunStartedEvent extends RunEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -341,7 +370,9 @@ export class RunStartedEvent extends RunEvent {
   }
 
   repr(): string {
-    return `<RunStartedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RunStartedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -365,6 +396,7 @@ export class RunStartedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -418,6 +450,7 @@ export class RunStartedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -456,6 +489,7 @@ export class RunStartedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -520,6 +554,7 @@ export class RunStartedEvent extends RunEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -621,6 +656,11 @@ export class RunPauseRequestedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RunEvent.node
    */
   get node(): Run | null {
@@ -651,6 +691,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -697,6 +738,11 @@ export class RunPauseRequestedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RunPauseRequestedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -743,6 +789,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -766,6 +815,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -808,7 +858,9 @@ export class RunPauseRequestedEvent extends RunEvent {
   }
 
   repr(): string {
-    return `<RunPauseRequestedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RunPauseRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -832,6 +884,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -885,6 +938,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -929,6 +983,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -993,6 +1048,7 @@ export class RunPauseRequestedEvent extends RunEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1100,6 +1156,11 @@ export class RunPausedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RunEvent.node
    */
   get node(): Run | null {
@@ -1130,6 +1191,7 @@ export class RunPausedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -1176,6 +1238,11 @@ export class RunPausedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RunPausedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1222,6 +1289,9 @@ export class RunPausedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1245,6 +1315,7 @@ export class RunPausedEvent extends RunEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1287,7 +1358,9 @@ export class RunPausedEvent extends RunEvent {
   }
 
   repr(): string {
-    return `<RunPausedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RunPausedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1311,6 +1384,7 @@ export class RunPausedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -1364,6 +1438,7 @@ export class RunPausedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1402,6 +1477,7 @@ export class RunPausedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -1466,6 +1542,7 @@ export class RunPausedEvent extends RunEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1567,6 +1644,11 @@ export class RunResumeRequestedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RunEvent.node
    */
   get node(): Run | null {
@@ -1597,6 +1679,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -1643,6 +1726,11 @@ export class RunResumeRequestedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RunResumeRequestedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1689,6 +1777,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1712,6 +1803,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1754,7 +1846,9 @@ export class RunResumeRequestedEvent extends RunEvent {
   }
 
   repr(): string {
-    return `<RunResumeRequestedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RunResumeRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1778,6 +1872,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -1831,6 +1926,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1875,6 +1971,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -1939,6 +2036,7 @@ export class RunResumeRequestedEvent extends RunEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -2046,6 +2144,11 @@ export class RunResumedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RunEvent.node
    */
   get node(): Run | null {
@@ -2076,6 +2179,7 @@ export class RunResumedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -2122,6 +2226,11 @@ export class RunResumedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RunResumedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2168,6 +2277,9 @@ export class RunResumedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -2191,6 +2303,7 @@ export class RunResumedEvent extends RunEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -2233,7 +2346,9 @@ export class RunResumedEvent extends RunEvent {
   }
 
   repr(): string {
-    return `<RunResumedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RunResumedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2257,6 +2372,7 @@ export class RunResumedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -2310,6 +2426,7 @@ export class RunResumedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -2348,6 +2465,7 @@ export class RunResumedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -2412,6 +2530,7 @@ export class RunResumedEvent extends RunEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -2513,6 +2632,11 @@ export class RunStopRequestedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RunEvent.node
    */
   get node(): Run | null {
@@ -2543,6 +2667,7 @@ export class RunStopRequestedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -2589,6 +2714,11 @@ export class RunStopRequestedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RunStopRequestedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2635,6 +2765,9 @@ export class RunStopRequestedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -2658,6 +2791,7 @@ export class RunStopRequestedEvent extends RunEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -2700,7 +2834,9 @@ export class RunStopRequestedEvent extends RunEvent {
   }
 
   repr(): string {
-    return `<RunStopRequestedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RunStopRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2724,6 +2860,7 @@ export class RunStopRequestedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -2777,6 +2914,7 @@ export class RunStopRequestedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -2821,6 +2959,7 @@ export class RunStopRequestedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -2885,6 +3024,7 @@ export class RunStopRequestedEvent extends RunEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -2992,6 +3132,11 @@ export class RunFailedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RunEvent.node
    */
   get node(): Run | null {
@@ -3022,6 +3167,7 @@ export class RunFailedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -3068,6 +3214,11 @@ export class RunFailedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RunFailedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3114,6 +3265,9 @@ export class RunFailedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -3137,6 +3291,7 @@ export class RunFailedEvent extends RunEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -3179,7 +3334,9 @@ export class RunFailedEvent extends RunEvent {
   }
 
   repr(): string {
-    return `<RunFailedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RunFailedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -3203,6 +3360,7 @@ export class RunFailedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -3256,6 +3414,7 @@ export class RunFailedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -3294,6 +3453,7 @@ export class RunFailedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -3358,6 +3518,7 @@ export class RunFailedEvent extends RunEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -3459,6 +3620,11 @@ export class RunCompletedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RunEvent.node
    */
   get node(): Run | null {
@@ -3489,6 +3655,7 @@ export class RunCompletedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Run | NodeReference;
     target?: (Node & IsRunnable) | NodeReference | null;
     _session?: Session | null;
@@ -3535,6 +3702,11 @@ export class RunCompletedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RunCompletedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3581,6 +3753,9 @@ export class RunCompletedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -3604,6 +3779,7 @@ export class RunCompletedEvent extends RunEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -3646,7 +3822,9 @@ export class RunCompletedEvent extends RunEvent {
   }
 
   repr(): string {
-    return `<RunCompletedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RunCompletedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -3670,6 +3848,7 @@ export class RunCompletedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -3723,6 +3902,7 @@ export class RunCompletedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -3767,6 +3947,7 @@ export class RunCompletedEvent extends RunEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
       objectProto.targetPtr = object.targetPtr.toProto();
@@ -3831,6 +4012,7 @@ export class RunCompletedEvent extends RunEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

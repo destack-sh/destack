@@ -7,7 +7,6 @@ from opentelemetry import trace
 from destack.grpc import Network, ServiceBase
 from destack.language import (
     CLOUD,
-    Change,
     Client,
     Database,
     DatabaseInfo,
@@ -175,12 +174,13 @@ class SpaceService(ServiceBase, SpaceBase):
         metadata: RpcMetadata,
     ) -> CommitResponse:
         assert self.store is not None, f"no store ready in {self!r}"
-        changes = [Change.from_proto(change) for change in request.changes]
-        approved_changes: list[Change] = []
-        for _ in changes:
-            pass  # nocheckin: access control (approve/reject/amend Queries & Changes)
-        results = await self.store.commit(approved_changes)
-        return CommitResponse(results=[result.to_proto() for result in results])
+        raise NotImplementedError
+        # changes = [Change.from_proto(change) for change in request.changes]
+        # approved_changes: list[Change] = []
+        # for _ in changes:
+        #     pass  # nocheckin: access control (approve/reject/amend Queries & Changes)
+        # results = await self.store.commit(approved_changes)
+        # return CommitResponse(results=[result.to_proto() for result in results])
 
     @override
     async def upload_files(

@@ -17,6 +17,7 @@ import {
   Entity,
   EnumType,
   Event,
+  EventStatus,
   Materialization,
   Node,
   NodeType,
@@ -29,6 +30,7 @@ import {
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import {
+  EventStatusProto,
   MaterializationProto,
   NotificationDismissedEventProto,
   NotificationExpiredEventProto,
@@ -83,6 +85,11 @@ export abstract class NotificationEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Notification | null;
   declare readonly nodePtr: NodeReference;
@@ -155,6 +162,11 @@ export class NotificationSentEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * NotificationEvent.node
    */
   get node(): Notification | null {
@@ -173,6 +185,7 @@ export class NotificationSentEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -218,6 +231,11 @@ export class NotificationSentEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`NotificationSentEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -256,6 +274,9 @@ export class NotificationSentEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -276,6 +297,7 @@ export class NotificationSentEvent extends NotificationEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -318,7 +340,9 @@ export class NotificationSentEvent extends NotificationEvent {
   }
 
   repr(): string {
-    return `<NotificationSentEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<NotificationSentEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -342,6 +366,7 @@ export class NotificationSentEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -386,6 +411,7 @@ export class NotificationSentEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -430,6 +456,7 @@ export class NotificationSentEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as NotificationSentEventProto;
   }
@@ -481,6 +508,7 @@ export class NotificationSentEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -588,6 +616,11 @@ export class NotificationRescindedEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * NotificationEvent.node
    */
   get node(): Notification | null {
@@ -606,6 +639,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -651,6 +685,11 @@ export class NotificationRescindedEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`NotificationRescindedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -689,6 +728,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -709,6 +751,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -751,7 +794,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
   }
 
   repr(): string {
-    return `<NotificationRescindedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<NotificationRescindedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -775,6 +820,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -819,6 +865,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -863,6 +910,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as NotificationRescindedEventProto;
   }
@@ -914,6 +962,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1021,6 +1070,11 @@ export class NotificationReadEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * NotificationEvent.node
    */
   get node(): Notification | null {
@@ -1039,6 +1093,7 @@ export class NotificationReadEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1084,6 +1139,11 @@ export class NotificationReadEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`NotificationReadEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1122,6 +1182,9 @@ export class NotificationReadEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1142,6 +1205,7 @@ export class NotificationReadEvent extends NotificationEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1184,7 +1248,9 @@ export class NotificationReadEvent extends NotificationEvent {
   }
 
   repr(): string {
-    return `<NotificationReadEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<NotificationReadEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1208,6 +1274,7 @@ export class NotificationReadEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -1252,6 +1319,7 @@ export class NotificationReadEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1296,6 +1364,7 @@ export class NotificationReadEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as NotificationReadEventProto;
   }
@@ -1347,6 +1416,7 @@ export class NotificationReadEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1454,6 +1524,11 @@ export class NotificationDismissedEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * NotificationEvent.node
    */
   get node(): Notification | null {
@@ -1472,6 +1547,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1517,6 +1593,11 @@ export class NotificationDismissedEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`NotificationDismissedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1555,6 +1636,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1575,6 +1659,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1617,7 +1702,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
   }
 
   repr(): string {
-    return `<NotificationDismissedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<NotificationDismissedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1641,6 +1728,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -1685,6 +1773,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1729,6 +1818,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as NotificationDismissedEventProto;
   }
@@ -1780,6 +1870,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1887,6 +1978,11 @@ export class NotificationExpiredEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * NotificationEvent.node
    */
   get node(): Notification | null {
@@ -1905,6 +2001,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1950,6 +2047,11 @@ export class NotificationExpiredEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`NotificationExpiredEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1988,6 +2090,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -2008,6 +2113,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -2050,7 +2156,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
   }
 
   repr(): string {
-    return `<NotificationExpiredEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<NotificationExpiredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2074,6 +2182,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -2118,6 +2227,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -2162,6 +2272,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as NotificationExpiredEventProto;
   }
@@ -2213,6 +2324,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

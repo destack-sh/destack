@@ -11,11 +11,20 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Event, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  Entity,
+  Event,
+  EventStatus,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe/space";
 import type { User } from "@destack/language/universe/user";
 import {
+  EventStatusProto,
   FriendshipInviteAcceptedEventProto,
   FriendshipInviteProto,
   FriendshipInviteRejectedEventProto,
@@ -693,6 +702,11 @@ export abstract class FriendshipInviteEvent extends Event {
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
+
   abstract get node(): FriendshipInvite | null;
   declare readonly nodePtr: NodeReference;
 
@@ -764,6 +778,11 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * FriendshipInviteEvent.node
    */
   get node(): FriendshipInvite | null {
@@ -782,6 +801,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: FriendshipInvite | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -827,6 +847,11 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`FriendshipInviteSentEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -865,6 +890,9 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -885,6 +913,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -927,7 +956,9 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   }
 
   repr(): string {
-    return `<FriendshipInviteSentEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<FriendshipInviteSentEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -951,6 +982,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -995,6 +1027,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1039,6 +1072,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as FriendshipInviteSentEventProto;
   }
@@ -1090,6 +1124,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1197,6 +1232,11 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * FriendshipInviteEvent.node
    */
   get node(): FriendshipInvite | null {
@@ -1215,6 +1255,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: FriendshipInvite | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1260,6 +1301,11 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`FriendshipInviteRescindedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1298,6 +1344,9 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1318,6 +1367,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1360,7 +1410,9 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   }
 
   repr(): string {
-    return `<FriendshipInviteRescindedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<FriendshipInviteRescindedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1384,6 +1436,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -1428,6 +1481,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1474,6 +1528,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as FriendshipInviteRescindedEventProto;
   }
@@ -1525,6 +1580,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1632,6 +1688,11 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * FriendshipInviteEvent.node
    */
   get node(): FriendshipInvite | null {
@@ -1650,6 +1711,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: FriendshipInvite | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1695,6 +1757,11 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`FriendshipInviteAcceptedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1733,6 +1800,9 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1753,6 +1823,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1795,7 +1866,9 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   }
 
   repr(): string {
-    return `<FriendshipInviteAcceptedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<FriendshipInviteAcceptedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1819,6 +1892,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -1863,6 +1937,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1907,6 +1982,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as FriendshipInviteAcceptedEventProto;
   }
@@ -1958,6 +2034,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -2065,6 +2142,11 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * FriendshipInviteEvent.node
    */
   get node(): FriendshipInvite | null {
@@ -2083,6 +2165,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: FriendshipInvite | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2128,6 +2211,11 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`FriendshipInviteRejectedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2166,6 +2254,9 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -2186,6 +2277,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -2228,7 +2320,9 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   }
 
   repr(): string {
-    return `<FriendshipInviteRejectedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<FriendshipInviteRejectedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2252,6 +2346,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -2296,6 +2391,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -2340,6 +2436,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as FriendshipInviteRejectedEventProto;
   }
@@ -2391,6 +2488,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

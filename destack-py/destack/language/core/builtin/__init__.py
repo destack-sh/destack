@@ -57,12 +57,17 @@ from .const import (
     get_active_snapshot,
 )
 from .constant import CONSTANT_DECLARATIONS, ConstantDeclaration, register_constant
+from .edit import (
+    CASCADING_EDIT_TYPES,
+    EditEvent,
+    EditOperation,
+    EditType,
+)
 from .entity import (
     CustomEntityDefinition,
     CustomTraitDefinition,
     Entity,
     Materialization,
-    Metric,
     Record,
     Resource,
     Snapshot,
@@ -70,15 +75,7 @@ from .entity import (
     SnapshotType,
 )
 from .enum import Enum, builtin_enum
-from .event import (
-    ChangeEvent,
-    CustomEventDefinition,
-    EditEvent,
-    Event,
-    MeasurementEvent,
-    QueryEvent,
-    Signal,
-)
+from .event import CustomEventDefinition, Event, EventStatus, Signal
 from .node import IndexIn, Node, builtin_node
 from .object import BuiltinObject, _is_finalized
 from .property import (
@@ -130,6 +127,7 @@ __all__ = [
     "ACTIVE_SESSION",
     "ACTIVE_SNAPSHOT",
     "BEGINNING_OF_TIME",
+    "CASCADING_EDIT_TYPES",
     "CLOUD",
     "CONSTANT_DECLARATIONS",
     "DESTACK_ID",
@@ -154,7 +152,6 @@ __all__ = [
     "VERSION",
     "BuiltinObject",
     "CascadeAction",
-    "ChangeEvent",
     "ClientType",
     "Cloud",
     "ConstantDeclaration",
@@ -165,11 +162,14 @@ __all__ = [
     "EdgeDirection",
     "EdgeType",
     "EditEvent",
+    "EditOperation",
+    "EditType",
     "Entity",
     "Enum",
     "EnumType",
     "EnvironmentType",
     "Event",
+    "EventStatus",
     "IndexIn",
     "IsArchivable",
     "IsCustomizable",
@@ -191,8 +191,6 @@ __all__ = [
     "IsSubject",
     "IsTaggable",
     "Materialization",
-    "MeasurementEvent",
-    "Metric",
     "Node",
     "NodeDefinitionReference",
     "NodeDefinitionType",
@@ -207,7 +205,6 @@ __all__ = [
     "PropertyReference",
     "PropertyReferenceType",
     "PropertyType",
-    "QueryEvent",
     "Record",
     "Region",
     "RegionArea",

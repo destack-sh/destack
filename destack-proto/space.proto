@@ -22,11 +22,11 @@ message QueryResponse {
 
 message CommitRequest {
   ScopeProto scope = 1;
-  repeated ChangeProto changes = 3;
+  repeated SomeEventProto events = 3;
 }
 message CommitResponse {
   uint64 epoch = 3;
-  repeated ChangeResultProto results = 4;
+  repeated SomeEventProto events = 4;
 }
 
 message SubscribeRequest {

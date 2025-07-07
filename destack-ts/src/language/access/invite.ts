@@ -19,6 +19,7 @@ import type {
 import {
   Entity,
   Event,
+  EventStatus,
   Materialization,
   Node,
   NodeType,
@@ -28,6 +29,7 @@ import {
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import {
+  EventStatusProto,
   InviteAcceptedEventProto,
   InviteProto,
   InviteRejectedEventProto,
@@ -63,6 +65,11 @@ export abstract class InviteEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Invite | null;
   declare readonly nodePtr: NodeReference;
@@ -141,6 +148,11 @@ export class InviteSentEvent extends InviteEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * InviteEvent.node
    */
   get node(): Invite | null {
@@ -200,6 +212,7 @@ export class InviteSentEvent extends InviteEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Invite | NodeReference;
     joinable: (Node & IsJoinable) | NodeReference;
     member: (Node & IsSubject) | NodeReference;
@@ -249,6 +262,11 @@ export class InviteSentEvent extends InviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`InviteSentEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -328,6 +346,9 @@ export class InviteSentEvent extends InviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -352,6 +373,7 @@ export class InviteSentEvent extends InviteEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -394,7 +416,9 @@ export class InviteSentEvent extends InviteEvent {
   }
 
   repr(): string {
-    return `<InviteSentEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<InviteSentEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -418,6 +442,7 @@ export class InviteSentEvent extends InviteEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["102"] = object.joinablePtr.toValue();
     objectValue["103"] = object.memberPtr.toValue();
@@ -488,6 +513,7 @@ export class InviteSentEvent extends InviteEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -526,6 +552,7 @@ export class InviteSentEvent extends InviteEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.joinablePtr = object.joinablePtr.toProto();
     objectProto.memberPtr = object.memberPtr.toProto();
@@ -603,6 +630,7 @@ export class InviteSentEvent extends InviteEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -704,6 +732,11 @@ export class InviteRescindedEvent extends InviteEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * InviteEvent.node
    */
   get node(): Invite | null {
@@ -746,6 +779,7 @@ export class InviteRescindedEvent extends InviteEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Invite | NodeReference;
     joinable: (Node & IsJoinable) | NodeReference;
     member: (Node & IsSubject) | NodeReference;
@@ -793,6 +827,11 @@ export class InviteRescindedEvent extends InviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`InviteRescindedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -853,6 +892,9 @@ export class InviteRescindedEvent extends InviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -875,6 +917,7 @@ export class InviteRescindedEvent extends InviteEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -917,7 +960,9 @@ export class InviteRescindedEvent extends InviteEvent {
   }
 
   repr(): string {
-    return `<InviteRescindedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<InviteRescindedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -941,6 +986,7 @@ export class InviteRescindedEvent extends InviteEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["102"] = object.joinablePtr.toValue();
     objectValue["103"] = object.memberPtr.toValue();
@@ -1001,6 +1047,7 @@ export class InviteRescindedEvent extends InviteEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1045,6 +1092,7 @@ export class InviteRescindedEvent extends InviteEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.joinablePtr = object.joinablePtr.toProto();
     objectProto.memberPtr = object.memberPtr.toProto();
@@ -1112,6 +1160,7 @@ export class InviteRescindedEvent extends InviteEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1219,6 +1268,11 @@ export class InviteAcceptedEvent extends InviteEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * InviteEvent.node
    */
   get node(): Invite | null {
@@ -1278,6 +1332,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Invite | NodeReference;
     joinable: (Node & IsJoinable) | NodeReference;
     member: (Node & IsSubject) | NodeReference;
@@ -1327,6 +1382,11 @@ export class InviteAcceptedEvent extends InviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`InviteAcceptedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1406,6 +1466,9 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1430,6 +1493,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1472,7 +1536,9 @@ export class InviteAcceptedEvent extends InviteEvent {
   }
 
   repr(): string {
-    return `<InviteAcceptedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<InviteAcceptedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1496,6 +1562,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["102"] = object.joinablePtr.toValue();
     objectValue["103"] = object.memberPtr.toValue();
@@ -1566,6 +1633,7 @@ export class InviteAcceptedEvent extends InviteEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1610,6 +1678,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.joinablePtr = object.joinablePtr.toProto();
     objectProto.memberPtr = object.memberPtr.toProto();
@@ -1687,6 +1756,7 @@ export class InviteAcceptedEvent extends InviteEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1794,6 +1864,11 @@ export class InviteRejectedEvent extends InviteEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * InviteEvent.node
    */
   get node(): Invite | null {
@@ -1836,6 +1911,7 @@ export class InviteRejectedEvent extends InviteEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Invite | NodeReference;
     joinable: (Node & IsJoinable) | NodeReference;
     member: (Node & IsSubject) | NodeReference;
@@ -1883,6 +1959,11 @@ export class InviteRejectedEvent extends InviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`InviteRejectedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1943,6 +2024,9 @@ export class InviteRejectedEvent extends InviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1965,6 +2049,7 @@ export class InviteRejectedEvent extends InviteEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -2007,7 +2092,9 @@ export class InviteRejectedEvent extends InviteEvent {
   }
 
   repr(): string {
-    return `<InviteRejectedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<InviteRejectedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2031,6 +2118,7 @@ export class InviteRejectedEvent extends InviteEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["102"] = object.joinablePtr.toValue();
     objectValue["103"] = object.memberPtr.toValue();
@@ -2091,6 +2179,7 @@ export class InviteRejectedEvent extends InviteEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -2135,6 +2224,7 @@ export class InviteRejectedEvent extends InviteEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.joinablePtr = object.joinablePtr.toProto();
     objectProto.memberPtr = object.memberPtr.toProto();
@@ -2202,6 +2292,7 @@ export class InviteRejectedEvent extends InviteEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

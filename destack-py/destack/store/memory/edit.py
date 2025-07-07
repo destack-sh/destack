@@ -7,8 +7,7 @@ from opentelemetry import trace
 
 from destack.language import (
     CASCADING_EDIT_TYPES,
-    Change,
-    Edit,
+    EditEvent,
     EditOperation,
     EditType,
     IsArchivable,
@@ -30,25 +29,29 @@ ARCHIVED_AT_KEY = str(IsArchivable.property("archived_at").id)
 DELETED_AT_KEY = str(IsDeletable.property("deleted_at").id)
 
 
-@tracer.start_as_current_span("memory.execute_change")
-def execute_change(
-    database: MemoryDatabase, context: MemoryContext, change: Change
-) -> tuple[Sequence[Edit], Sequence[Edit]]:
-    """Execute the Change."""
-    assert change.edits, f"no Edits in {change!r}"
+@tracer.start_as_current_span("memory.execute_events")
+def execute_events(
+    database: MemoryDatabase, context: MemoryContext, events: Sequence[EditEvent]
+) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
+    """Execute the Events."""
+    assert events, f"no Events in {events!r}"
 
-    edits = _optimize_change(context, change.edits)
-    cascaded_edits: list[Edit] = []
-    applied_edits: list[Edit] = []
+    edits = _optimize_events(context, events)
+    cascaded_edits: list[EditEvent] = []
+    applied_edits: list[EditEvent] = []
 
-    current_table = context.get(change.edits[0].node_ptr)
-    current_edit_type = change.edits[0].type
-    current_batch: list[Edit] = []
+    current_table = context.get(events[0].node_ptr)
+    current_edit_type = events[0].type
+    current_batch: list[EditEvent] = []
     for edit in edits:
         edit_table = context.get(edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
             batch_applied_edits, batch_cascaded_edits = _execute_data_edit(
-                database, context, change, current_table, current_edit_type, current_batch
+                database=database,
+                context=context,
+                table=current_table,
+                edit_type=current_edit_type,
+                edits=current_batch,
             )
             current_table = edit_table
             current_edit_type = edit.type
@@ -58,29 +61,33 @@ def execute_change(
 
     if current_batch:
         batch_applied_edits, batch_cascaded_edits = _execute_data_edit(
-            database, context, change, current_table, current_edit_type, current_batch
+            database=database,
+            context=context,
+            table=current_table,
+            edit_type=current_edit_type,
+            edits=current_batch,
         )
         applied_edits.extend(batch_applied_edits)
         cascaded_edits.extend(batch_cascaded_edits)
 
-    logger.trace("memory.execute_change", change=change, span="current")
+    logger.trace("memory.execute_events", events=len(events), span="current")
     return applied_edits, cascaded_edits
 
 
 @tracer.start_as_current_span("memory.optimize_change")
-def _optimize_change(context: MemoryContext, edits: Sequence[Edit]) -> list[Edit]:
+def _optimize_events(context: MemoryContext, edits: Sequence[EditEvent]) -> list[EditEvent]:
     """
     Optimize the Change/Edits *while retaining semantic equivalence*.
     Reorder and batch non-interfering Edits to minimize roundtrips.
     """
 
-    optimized_edits: list[Edit] = []
-    buffer: list[Edit] = []
+    optimized_edits: list[EditEvent] = []
+    buffer: list[EditEvent] = []
 
     def flush():
         if not buffer:
             return
-        grouped: OrderedDict[tuple[NodeType, EditType], list[Edit]] = OrderedDict()
+        grouped: OrderedDict[tuple[NodeType, EditType], list[EditEvent]] = OrderedDict()
         for e in buffer:
             key = (e.node_ptr.type, e.type)
             if key not in grouped:
@@ -116,11 +123,10 @@ def _execute_cascade(
 def _execute_data_edit(
     database: MemoryDatabase,
     context: MemoryContext,
-    change: Change,
     table: MemoryTable,
     edit_type: EditType,
-    edits: Sequence[Edit],
-) -> tuple[Sequence[Edit], Sequence[Edit]]:
+    edits: Sequence[EditEvent],
+) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
     """
     Execute the Edits to the data (data only, no schema).
     Returns the applied Edits and any cascaded Edits.
@@ -144,7 +150,6 @@ def _execute_data_edit(
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",
-            change=change,
             edits=len(edits),
             span="current",
         )
@@ -169,7 +174,6 @@ def _execute_data_edit(
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",
-            change=change,
             edits=len(edits),
             span="current",
         )
@@ -201,7 +205,6 @@ def _execute_data_edit(
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",
-            change=change,
             edits=len(edits),
             span="current",
         )
@@ -222,7 +225,7 @@ def _execute_data_edit(
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(
-            Edit(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
+            EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
         )
 
         # update timestamps
@@ -244,7 +247,6 @@ def _execute_data_edit(
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",
-            change=change,
             edits=len(edits),
             span="current",
         )
@@ -280,7 +282,6 @@ def _execute_data_edit(
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",
-            change=change,
             edits=len(edits),
             span="current",
         )

@@ -9,7 +9,7 @@ import type {
   Supergraph,
   Vector2f,
 } from "@destack/language/core";
-import { Node, NodeType, StructType } from "@destack/language/core";
+import { EventStatus, Node, NodeType, StructType } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
@@ -20,6 +20,7 @@ import {
   DragOverEventProto,
   DragStartEventProto,
   DropEventProto,
+  EventStatusProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
@@ -48,6 +49,11 @@ export abstract class DragEvent extends InputEvent {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
@@ -125,6 +131,11 @@ export class DragStartEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -148,6 +159,7 @@ export class DragStartEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     _session?: Session | null;
@@ -194,6 +206,11 @@ export class DragStartEvent extends DragEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`DragStartEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -234,6 +251,9 @@ export class DragStartEvent extends DragEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -257,6 +277,7 @@ export class DragStartEvent extends DragEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -302,7 +323,9 @@ export class DragStartEvent extends DragEvent {
   }
 
   repr(): string {
-    return `<DragStartEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<DragStartEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -326,6 +349,7 @@ export class DragStartEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -373,6 +397,7 @@ export class DragStartEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -412,6 +437,7 @@ export class DragStartEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -467,6 +493,7 @@ export class DragStartEvent extends DragEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -578,6 +605,11 @@ export class DragEndEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -601,6 +633,7 @@ export class DragEndEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     _session?: Session | null;
@@ -647,6 +680,11 @@ export class DragEndEvent extends DragEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`DragEndEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -687,6 +725,9 @@ export class DragEndEvent extends DragEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -710,6 +751,7 @@ export class DragEndEvent extends DragEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -755,7 +797,9 @@ export class DragEndEvent extends DragEvent {
   }
 
   repr(): string {
-    return `<DragEndEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<DragEndEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -779,6 +823,7 @@ export class DragEndEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -826,6 +871,7 @@ export class DragEndEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -865,6 +911,7 @@ export class DragEndEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -920,6 +967,7 @@ export class DragEndEvent extends DragEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -1031,6 +1079,11 @@ export class DragOverEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -1054,6 +1107,7 @@ export class DragOverEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     _session?: Session | null;
@@ -1100,6 +1154,11 @@ export class DragOverEvent extends DragEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`DragOverEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1140,6 +1199,9 @@ export class DragOverEvent extends DragEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -1163,6 +1225,7 @@ export class DragOverEvent extends DragEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1208,7 +1271,9 @@ export class DragOverEvent extends DragEvent {
   }
 
   repr(): string {
-    return `<DragOverEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<DragOverEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1232,6 +1297,7 @@ export class DragOverEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1279,6 +1345,7 @@ export class DragOverEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1318,6 +1385,7 @@ export class DragOverEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1373,6 +1441,7 @@ export class DragOverEvent extends DragEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -1484,6 +1553,11 @@ export class DragEnterEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -1507,6 +1581,7 @@ export class DragEnterEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     _session?: Session | null;
@@ -1553,6 +1628,11 @@ export class DragEnterEvent extends DragEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`DragEnterEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1593,6 +1673,9 @@ export class DragEnterEvent extends DragEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -1616,6 +1699,7 @@ export class DragEnterEvent extends DragEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1661,7 +1745,9 @@ export class DragEnterEvent extends DragEvent {
   }
 
   repr(): string {
-    return `<DragEnterEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<DragEnterEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1685,6 +1771,7 @@ export class DragEnterEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1732,6 +1819,7 @@ export class DragEnterEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1771,6 +1859,7 @@ export class DragEnterEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1826,6 +1915,7 @@ export class DragEnterEvent extends DragEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -1937,6 +2027,11 @@ export class DragLeaveEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -1960,6 +2055,7 @@ export class DragLeaveEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     _session?: Session | null;
@@ -2006,6 +2102,11 @@ export class DragLeaveEvent extends DragEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`DragLeaveEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2046,6 +2147,9 @@ export class DragLeaveEvent extends DragEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -2069,6 +2173,7 @@ export class DragLeaveEvent extends DragEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -2114,7 +2219,9 @@ export class DragLeaveEvent extends DragEvent {
   }
 
   repr(): string {
-    return `<DragLeaveEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<DragLeaveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2138,6 +2245,7 @@ export class DragLeaveEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -2185,6 +2293,7 @@ export class DragLeaveEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2224,6 +2333,7 @@ export class DragLeaveEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2279,6 +2389,7 @@ export class DragLeaveEvent extends DragEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -2390,6 +2501,11 @@ export class DropEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -2413,6 +2529,7 @@ export class DropEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     _session?: Session | null;
@@ -2459,6 +2576,11 @@ export class DropEvent extends DragEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`DropEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2499,6 +2621,9 @@ export class DropEvent extends DragEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -2522,6 +2647,7 @@ export class DropEvent extends DragEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -2567,7 +2693,9 @@ export class DropEvent extends DragEvent {
   }
 
   repr(): string {
-    return `<DropEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<DropEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2591,6 +2719,7 @@ export class DropEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -2638,6 +2767,7 @@ export class DropEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2677,6 +2807,7 @@ export class DropEvent extends DragEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2732,6 +2863,7 @@ export class DropEvent extends DragEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(

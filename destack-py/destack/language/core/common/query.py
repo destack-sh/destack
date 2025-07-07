@@ -390,7 +390,7 @@ If Query.snapshot is set, this must contain at least one element.
         connection = QueryConnection(query=self, store=store, session=session)
         session.connections.append(connection)
         await connection.execute()
-        return connection
+        return cast("QueryConnection[RootT]", connection)
 
     async def execute_one_or_none(self) -> Optional[RootT]:
         """Execute the Query and return the root (if any)."""

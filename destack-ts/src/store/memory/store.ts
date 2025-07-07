@@ -28,10 +28,10 @@ export class MemoryStore extends Store {
   }
 
   toString(): string {
-    const numNodes = Array.from(this.database.tables.values()).reduce(
-      (sum, table) => sum + table.rows.size,
-      0,
-    );
+    let numNodes = 0;
+    for (const table of this.database.tables.values()) {
+      numNodes += table.rows.size;
+    }
     return `nodes=${numNodes}, tables=${this.database.tables.size}`;
   }
 
