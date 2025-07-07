@@ -13,7 +13,7 @@ from .core import (
     PostgresSchema,
     PostgresTable,
 )
-from .entity import execute_edits
+from .edit import execute_edits
 from .map import (
     EXTENSIONS,
     get_builtin_schema,

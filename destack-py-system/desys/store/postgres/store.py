@@ -24,7 +24,7 @@ from destack.language.registry import (
 
 from .client import pg_connection
 from .core import PostgresContext, PostgresTable
-from .entity import execute_edits
+from .edit import execute_edits
 from .map import DESTACK_BUILTIN_TABLE_PREFIX, get_builtin_schema
 from .query import execute_query
 
