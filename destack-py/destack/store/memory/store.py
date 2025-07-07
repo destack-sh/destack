@@ -7,15 +7,20 @@ import structlog
 from destack.language import (
     EditEvent,
     EntityStore,
+    Event,
+    EventStore,
+    NodeType,
     Query,
     QueryResult,
     StoreImplementation,
     StoreType,
+    to_value,
 )
 
-from .core import MemoryContext, MemoryDatabase
-from .entity import execute_edits
+from .core import MemoryContext, MemoryDatabase, MemoryTable, VersionedNodeKey
+from .edit import execute_edits
 from .query import execute_query
+from .wiring import pack_node_row
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
@@ -26,9 +31,9 @@ class MemoryEntityStore(EntityStore):
 
     implementation: ClassVar[StoreImplementation | None] = StoreImplementation.MEMORY
 
-    def __init__(self, types: tuple[StoreType, ...]):
+    def __init__(self, types: tuple[StoreType, ...], database: MemoryDatabase | None = None):
         super().__init__(types)
-        self.database = MemoryDatabase()
+        self.database = database or MemoryDatabase()
         self.context = MemoryContext(self.database)
 
     def __str__(self) -> str:
@@ -36,7 +41,7 @@ class MemoryEntityStore(EntityStore):
         return f"nodes={num_nodes}, tables={len(self.database.tables)}"
 
     def __repr__(self) -> str:
-        return f"<MemoryStore {self!s}>"
+        return f"<MemoryEntityStore {self!s}>"
 
     @override
     @tracer.start_as_current_span("memory.query")
@@ -57,3 +62,44 @@ class MemoryEntityStore(EntityStore):
             span="current",
         )
         return applied_edits
+
+
+class MemoryEventStore(EventStore):
+    """An in-memory Store for Events."""
+
+    implementation: ClassVar[StoreImplementation | None] = StoreImplementation.MEMORY
+
+    def __init__(self, types: tuple[StoreType, ...], database: MemoryDatabase | None = None):
+        super().__init__(types)
+        self.database = database or MemoryDatabase()
+        self.context = MemoryContext(self.database)
+
+    def __str__(self) -> str:
+        num_nodes = sum(len(table.rows) for table in self.database.tables.values())
+        return f"nodes={num_nodes}, tables={len(self.database.tables)}"
+
+    def __repr__(self) -> str:
+        return f"<MemoryEventStore {self!s}>"
+
+    @override
+    @tracer.start_as_current_span("memory.query")
+    async def query(self, query: Query) -> QueryResult:
+        result = execute_query(self.context, query)
+        logger.debug("memory.query", query=query, result=result, span="current")
+        return result
+
+    @override
+    @tracer.start_as_current_span("memory.append")
+    async def append(self, events: Sequence[Event]) -> Sequence[Event]:
+        for event in events:
+            node_type = NodeType(event.metatype)
+            if node_type not in self.database.tables:
+                self.database.tables[node_type] = MemoryTable(
+                    database=self.database, metatype=node_type
+                )
+            table = self.database.tables[node_type]
+            event_value = to_value(event, node_as_value=True)
+            row = pack_node_row(table, event_value)
+            row_key = VersionedNodeKey(id=row.id, snapshot_id=row.snapshot_id)
+            table.rows[row_key] = row
+        return events
