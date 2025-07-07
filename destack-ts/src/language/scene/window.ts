@@ -7,6 +7,7 @@ import type {
   IsOwner,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -197,16 +198,8 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -218,16 +211,8 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
     return this._type;
   }
   set type(value: WindowType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: WindowType;
@@ -239,16 +224,8 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;

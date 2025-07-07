@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -617,16 +618,8 @@ export class ColorStyle extends Style {
     return this._type;
   }
   set type(value: ColorType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: ColorType;
@@ -638,16 +631,8 @@ export class ColorStyle extends Style {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -659,16 +644,8 @@ export class ColorStyle extends Style {
     return this._hue;
   }
   set hue(value: ColorHue | null) {
-    const oldValue = this._hue;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["hue"] === undefined) {
-      this._dirty["hue"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["hue"];
+    this._session.updateSetProperty(this, prop, value);
     this._hue = value;
   }
   _hue: ColorHue | null;
@@ -680,16 +657,8 @@ export class ColorStyle extends Style {
     return this._shade;
   }
   set shade(value: ColorShade | null) {
-    const oldValue = this._shade;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["shade"] === undefined) {
-      this._dirty["shade"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["shade"];
+    this._session.updateSetProperty(this, prop, value);
     this._shade = value;
   }
   _shade: ColorShade | null;
@@ -701,16 +670,8 @@ export class ColorStyle extends Style {
     return this._intent;
   }
   set intent(value: ColorIntent | null) {
-    const oldValue = this._intent;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["intent"] === undefined) {
-      this._dirty["intent"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["intent"];
+    this._session.updateSetProperty(this, prop, value);
     this._intent = value;
   }
   _intent: ColorIntent | null;
@@ -722,16 +683,8 @@ export class ColorStyle extends Style {
     return this._x;
   }
   set x(value: number | null) {
-    const oldValue = this._x;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["x"] === undefined) {
-      this._dirty["x"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["x"];
+    this._session.updateSetProperty(this, prop, value);
     this._x = value;
   }
   _x: number | null;
@@ -743,16 +696,8 @@ export class ColorStyle extends Style {
     return this._y;
   }
   set y(value: number | null) {
-    const oldValue = this._y;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["y"] === undefined) {
-      this._dirty["y"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["y"];
+    this._session.updateSetProperty(this, prop, value);
     this._y = value;
   }
   _y: number | null;
@@ -764,16 +709,8 @@ export class ColorStyle extends Style {
     return this._z;
   }
   set z(value: number | null) {
-    const oldValue = this._z;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["z"] === undefined) {
-      this._dirty["z"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["z"];
+    this._session.updateSetProperty(this, prop, value);
     this._z = value;
   }
   _z: number | null;
@@ -785,16 +722,8 @@ export class ColorStyle extends Style {
     return this._alpha;
   }
   set alpha(value: number | null) {
-    const oldValue = this._alpha;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["alpha"] === undefined) {
-      this._dirty["alpha"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["alpha"];
+    this._session.updateSetProperty(this, prop, value);
     this._alpha = value;
   }
   _alpha: number | null;
@@ -806,16 +735,8 @@ export class ColorStyle extends Style {
     return this._dark;
   }
   set dark(value: Color | null) {
-    const oldValue = this._dark;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["dark"] === undefined) {
-      this._dirty["dark"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["dark"];
+    this._session.updateSetProperty(this, prop, value);
     this._dark = value;
   }
   _dark: Color | null;

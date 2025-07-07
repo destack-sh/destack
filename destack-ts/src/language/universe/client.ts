@@ -4,6 +4,7 @@ import type {
   IsDeletable,
   IsGlobal,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -145,16 +146,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._browserVersion;
   }
   set browserVersion(value: string | null) {
-    const oldValue = this._browserVersion;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["browserVersion"] === undefined) {
-      this._dirty["browserVersion"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["browser_version"];
+    this._session.updateSetProperty(this, prop, value);
     this._browserVersion = value;
   }
   _browserVersion: string | null;
@@ -166,16 +159,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._type;
   }
   set type(value: ClientType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: ClientType;
@@ -187,16 +172,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -222,16 +199,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._machinePtr;
   }
   set machinePtr(value: NodeReference | null) {
-    const oldValue = this._machinePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["machinePtr"] === undefined) {
-      this._dirty["machinePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["machine"];
+    this._session.updateSetProperty(this, prop, value);
     this._machinePtr = value;
   }
   _machinePtr: NodeReference | null;
@@ -257,16 +226,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._userPtr;
   }
   set userPtr(value: NodeReference | null) {
-    const oldValue = this._userPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["userPtr"] === undefined) {
-      this._dirty["userPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["user"];
+    this._session.updateSetProperty(this, prop, value);
     this._userPtr = value;
   }
   _userPtr: NodeReference | null;
@@ -278,16 +239,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._accessToken;
   }
   set accessToken(value: string | null) {
-    const oldValue = this._accessToken;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["accessToken"] === undefined) {
-      this._dirty["accessToken"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["access_token"];
+    this._session.updateSetProperty(this, prop, value);
     this._accessToken = value;
   }
   _accessToken: string | null;
@@ -299,16 +252,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._seenAt;
   }
   set seenAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this._seenAt;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["seenAt"] === undefined) {
-      this._dirty["seenAt"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["seen_at"];
+    this._session.updateSetProperty(this, prop, value);
     this._seenAt = value;
   }
   _seenAt: Temporal.ZonedDateTime | null;
@@ -320,16 +265,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._loggedInAt;
   }
   set loggedInAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this._loggedInAt;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["loggedInAt"] === undefined) {
-      this._dirty["loggedInAt"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["logged_in_at"];
+    this._session.updateSetProperty(this, prop, value);
     this._loggedInAt = value;
   }
   _loggedInAt: Temporal.ZonedDateTime | null;
@@ -355,16 +292,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._cursorPtr;
   }
   set cursorPtr(value: NodeReference | null) {
-    const oldValue = this._cursorPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["cursorPtr"] === undefined) {
-      this._dirty["cursorPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["cursor"];
+    this._session.updateSetProperty(this, prop, value);
     this._cursorPtr = value;
   }
   _cursorPtr: NodeReference | null;
@@ -376,16 +305,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._deviceType;
   }
   set deviceType(value: string | null) {
-    const oldValue = this._deviceType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["deviceType"] === undefined) {
-      this._dirty["deviceType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["device_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._deviceType = value;
   }
   _deviceType: string | null;
@@ -397,16 +318,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._deviceName;
   }
   set deviceName(value: string | null) {
-    const oldValue = this._deviceName;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["deviceName"] === undefined) {
-      this._dirty["deviceName"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["device_name"];
+    this._session.updateSetProperty(this, prop, value);
     this._deviceName = value;
   }
   _deviceName: string | null;
@@ -418,16 +331,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._operatingSystem;
   }
   set operatingSystem(value: string | null) {
-    const oldValue = this._operatingSystem;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["operatingSystem"] === undefined) {
-      this._dirty["operatingSystem"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["operating_system"];
+    this._session.updateSetProperty(this, prop, value);
     this._operatingSystem = value;
   }
   _operatingSystem: string | null;
@@ -439,16 +344,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
     return this._browserName;
   }
   set browserName(value: string | null) {
-    const oldValue = this._browserName;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["browserName"] === undefined) {
-      this._dirty["browserName"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["browser_name"];
+    this._session.updateSetProperty(this, prop, value);
     this._browserName = value;
   }
   _browserName: string | null;

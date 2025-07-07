@@ -7,6 +7,7 @@ import type {
   IsReactable,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -164,16 +165,8 @@ export class Reaction
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference;
@@ -185,16 +178,8 @@ export class Reaction
     return this._content;
   }
   set content(value: string) {
-    const oldValue = this._content;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["content"] === undefined) {
-      this._dirty["content"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["content"];
+    this._session.updateSetProperty(this, prop, value);
     this._content = value;
   }
   _content: string;

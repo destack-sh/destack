@@ -148,19 +148,11 @@ class Entity(Node):
         updated_by_ptr: Optional[NodeReference] = None
     # revision? epoch?
 
-    _dirty: dict[str, Any] | None = builtin_property_runtime(default=None)
-
     def _do_set(self, key: str, value: Any):
-        """Set a Property on this Node."""
+        """Set a Property on this Node (direct SET/CLEAR operations)."""
         prop = self.__tracked_properties__.get(key)
         if prop is not None and not self._is_new:
-            old_value = getattr(self, key)
-            if self._dirty is None:
-                self._dirty = {}
-            if prop.name not in self._dirty:
-                self._dirty[prop.name] = old_value  # type: ignore
-            if self.id not in self._session.dirty:
-                self._session.dirty[self.id] = self
+            self._session.update_set_property(self, prop, value)
         object_set_(self, key, value)
 
     if not TYPE_CHECKING:

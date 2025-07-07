@@ -18,6 +18,7 @@ import type {
 } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
+import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
@@ -221,16 +222,8 @@ export class CustomProperty
     return this._type;
   }
   set type(value: PropertyType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: PropertyType;
@@ -242,16 +235,8 @@ export class CustomProperty
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -263,16 +248,8 @@ export class CustomProperty
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -298,16 +275,8 @@ export class CustomProperty
     return this._groupPtr;
   }
   set groupPtr(value: NodeReference | null) {
-    const oldValue = this._groupPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["groupPtr"] === undefined) {
-      this._dirty["groupPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["group"];
+    this._session.updateSetProperty(this, prop, value);
     this._groupPtr = value;
   }
   _groupPtr: NodeReference | null;
@@ -319,16 +288,8 @@ export class CustomProperty
     return this._cardinality;
   }
   set cardinality(value: TypeCardinality) {
-    const oldValue = this._cardinality;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["cardinality"] === undefined) {
-      this._dirty["cardinality"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["cardinality"];
+    this._session.updateSetProperty(this, prop, value);
     this._cardinality = value;
   }
   _cardinality: TypeCardinality;
@@ -340,16 +301,8 @@ export class CustomProperty
     return this._scalarType;
   }
   set scalarType(value: ScalarType) {
-    const oldValue = this._scalarType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scalarType"] === undefined) {
-      this._dirty["scalarType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["scalar_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._scalarType = value;
   }
   _scalarType: ScalarType;
@@ -361,16 +314,8 @@ export class CustomProperty
     return this._primitiveType;
   }
   set primitiveType(value: PrimitiveType | null) {
-    const oldValue = this._primitiveType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["primitiveType"] === undefined) {
-      this._dirty["primitiveType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["primitive_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._primitiveType = value;
   }
   _primitiveType: PrimitiveType | null;
@@ -382,16 +327,8 @@ export class CustomProperty
     return this._enumType;
   }
   set enumType(value: EnumType | null) {
-    const oldValue = this._enumType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["enumType"] === undefined) {
-      this._dirty["enumType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["enum_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._enumType = value;
   }
   _enumType: EnumType | null;
@@ -403,16 +340,8 @@ export class CustomProperty
     return this._nodeType;
   }
   set nodeType(value: NodeType | null) {
-    const oldValue = this._nodeType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["nodeType"] === undefined) {
-      this._dirty["nodeType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["node_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._nodeType = value;
   }
   _nodeType: NodeType | null;
@@ -424,16 +353,8 @@ export class CustomProperty
     return this._structType;
   }
   set structType(value: StructType | null) {
-    const oldValue = this._structType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["structType"] === undefined) {
-      this._dirty["structType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["struct_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._structType = value;
   }
   _structType: StructType | null;
@@ -479,16 +400,8 @@ export class CustomProperty
     return this._definitionPtr;
   }
   set definitionPtr(value: NodeReference | null) {
-    const oldValue = this._definitionPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["definitionPtr"] === undefined) {
-      this._dirty["definitionPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["definition"];
+    this._session.updateSetProperty(this, prop, value);
     this._definitionPtr = value;
   }
   _definitionPtr: NodeReference | null;
@@ -500,16 +413,8 @@ export class CustomProperty
     return this._keyType;
   }
   set keyType(value: Type | null) {
-    const oldValue = this._keyType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["keyType"] === undefined) {
-      this._dirty["keyType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["key_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._keyType = value;
   }
   _keyType: Type | null;
@@ -521,16 +426,8 @@ export class CustomProperty
     return this._value;
   }
   set value(value: Value | null) {
-    const oldValue = this._value;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["value"] === undefined) {
-      this._dirty["value"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["value"];
+    this._session.updateSetProperty(this, prop, value);
     this._value = value;
   }
   _value: Value | null;
@@ -542,16 +439,8 @@ export class CustomProperty
     return this._valueFactory;
   }
   set valueFactory(value: ValueFactory | null) {
-    const oldValue = this._valueFactory;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["valueFactory"] === undefined) {
-      this._dirty["valueFactory"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["value_factory"];
+    this._session.updateSetProperty(this, prop, value);
     this._valueFactory = value;
   }
   _valueFactory: ValueFactory | null;
@@ -563,16 +452,8 @@ export class CustomProperty
     return this._collectionConstraint;
   }
   set collectionConstraint(value: CollectionConstraint | null) {
-    const oldValue = this._collectionConstraint;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["collectionConstraint"] === undefined) {
-      this._dirty["collectionConstraint"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["collection_constraint"];
+    this._session.updateSetProperty(this, prop, value);
     this._collectionConstraint = value;
   }
   _collectionConstraint: CollectionConstraint | null;
@@ -584,16 +465,8 @@ export class CustomProperty
     return this._stringConstraint;
   }
   set stringConstraint(value: StringConstraint | null) {
-    const oldValue = this._stringConstraint;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["stringConstraint"] === undefined) {
-      this._dirty["stringConstraint"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["string_constraint"];
+    this._session.updateSetProperty(this, prop, value);
     this._stringConstraint = value;
   }
   _stringConstraint: StringConstraint | null;
@@ -605,16 +478,8 @@ export class CustomProperty
     return this._numberConstraint;
   }
   set numberConstraint(value: NumberConstraint | null) {
-    const oldValue = this._numberConstraint;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["numberConstraint"] === undefined) {
-      this._dirty["numberConstraint"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["number_constraint"];
+    this._session.updateSetProperty(this, prop, value);
     this._numberConstraint = value;
   }
   _numberConstraint: NumberConstraint | null;
@@ -626,16 +491,8 @@ export class CustomProperty
     return this._nodeConstraint;
   }
   set nodeConstraint(value: NodeConstraint | null) {
-    const oldValue = this._nodeConstraint;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["nodeConstraint"] === undefined) {
-      this._dirty["nodeConstraint"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["node_constraint"];
+    this._session.updateSetProperty(this, prop, value);
     this._nodeConstraint = value;
   }
   _nodeConstraint: NodeConstraint | null;
@@ -647,16 +504,8 @@ export class CustomProperty
     return this._edgeType;
   }
   set edgeType(value: EdgeType | null) {
-    const oldValue = this._edgeType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["edgeType"] === undefined) {
-      this._dirty["edgeType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["edge_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._edgeType = value;
   }
   _edgeType: EdgeType | null;
@@ -668,16 +517,8 @@ export class CustomProperty
     return this._cascade;
   }
   set cascade(value: CascadeAction | null) {
-    const oldValue = this._cascade;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["cascade"] === undefined) {
-      this._dirty["cascade"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["cascade"];
+    this._session.updateSetProperty(this, prop, value);
     this._cascade = value;
   }
   _cascade: CascadeAction | null;
@@ -689,16 +530,8 @@ export class CustomProperty
     return this._isRequired;
   }
   set isRequired(value: boolean | null) {
-    const oldValue = this._isRequired;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isRequired"] === undefined) {
-      this._dirty["isRequired"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_required"];
+    this._session.updateSetProperty(this, prop, value);
     this._isRequired = value;
   }
   _isRequired: boolean | null;
@@ -710,16 +543,8 @@ export class CustomProperty
     return this._isUnique;
   }
   set isUnique(value: boolean | null) {
-    const oldValue = this._isUnique;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isUnique"] === undefined) {
-      this._dirty["isUnique"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_unique"];
+    this._session.updateSetProperty(this, prop, value);
     this._isUnique = value;
   }
   _isUnique: boolean | null;
@@ -731,16 +556,8 @@ export class CustomProperty
     return this._isComputed;
   }
   set isComputed(value: boolean | null) {
-    const oldValue = this._isComputed;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isComputed"] === undefined) {
-      this._dirty["isComputed"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_computed"];
+    this._session.updateSetProperty(this, prop, value);
     this._isComputed = value;
   }
   _isComputed: boolean | null;
@@ -752,16 +569,8 @@ export class CustomProperty
     return this._isReadonly;
   }
   set isReadonly(value: boolean | null) {
-    const oldValue = this._isReadonly;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isReadonly"] === undefined) {
-      this._dirty["isReadonly"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_readonly"];
+    this._session.updateSetProperty(this, prop, value);
     this._isReadonly = value;
   }
   _isReadonly: boolean | null;
@@ -2206,16 +2015,8 @@ export class CustomPropertyGroup
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -2227,16 +2028,8 @@ export class CustomPropertyGroup
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;

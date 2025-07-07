@@ -5,6 +5,7 @@ import type {
   IsOwner,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -2397,16 +2398,8 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -2418,16 +2411,8 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     return this._status;
   }
   set status(value: NotificationStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: NotificationStatus;
@@ -2439,16 +2424,8 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     return this._title;
   }
   set title(value: string) {
-    const oldValue = this._title;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["title"] === undefined) {
-      this._dirty["title"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["title"];
+    this._session.updateSetProperty(this, prop, value);
     this._title = value;
   }
   _title: string;
@@ -2460,16 +2437,8 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     return this._text;
   }
   set text(value: Text | null) {
-    const oldValue = this._text;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["text"] === undefined) {
-      this._dirty["text"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["text"];
+    this._session.updateSetProperty(this, prop, value);
     this._text = value;
   }
   _text: Text | null;

@@ -93,7 +93,6 @@ def _generate_init[ObjectT: BuiltinObject](
 ) -> tuple[str, dict[str, Any]]:
     """Generates an __init__ for a BuiltinObject class."""
 
-    is_entity = NodeType.ENTITY in inherits
     extra_glbls: dict[str, Any] = {}
 
     # header
@@ -102,8 +101,6 @@ def _generate_init[ObjectT: BuiltinObject](
         header_properties.pop("_ref")
         header_properties.pop("_is_new")
         header_properties.pop("_is_attached")
-        if is_entity:
-            header_properties.pop("_dirty")
     properties_in_order = list(header_properties.values())
     properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
     method_header_lines = ["def __init__(self, *"]
@@ -177,8 +174,6 @@ def _generate_init[ObjectT: BuiltinObject](
         body_properties.pop("_ref")
         body_properties.pop("_is_new")
         body_properties.pop("_is_attached")
-        if is_entity:
-            body_properties.pop("_dirty")
         method_body_lines.append(f"""\
 # session
 if _session is None:
@@ -232,8 +227,6 @@ else:
 {set_template_str.format("_is_new", "_is_new")}
 {set_template_str.format("_is_attached", "_is_attached")}
 """)
-        if is_entity:
-            method_body_lines.append(f"{set_template_str.format('_dirty', 'None')}")
 
     else:
         # struct setup

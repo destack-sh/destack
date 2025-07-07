@@ -102,28 +102,27 @@ class Edit(StructFrozen):
         default_factory=ValueFactory.UUID,
         description="The id of the Edit.",
     )
+    snapshot: Optional["Snapshot"] = builtin_property(11)
     type: EditType = builtin_property(100, is_repr=True, description="The type of Edit.")
     operation: EditOperation | None = builtin_property(
         101, is_repr=True, description="The specific Edit operation."
     )
     node: Entity = builtin_property(102, is_repr=True, description="The Entity being edited.")
     attribute: PropertyReference | None = builtin_property(
-        103, is_repr=True, description="The Property being edited."
+        103, is_repr=True, description="The builtin or custom Property being edited."
     )
-    key: "Value | None" = builtin_property(105, is_repr=True)  # for map operations
+    key: "Value | None" = builtin_property(
+        105, is_repr=True, description="The key for map operations."
+    )
     if TYPE_CHECKING:
+        snapshot_ptr: NodeReference | None = None
         node_ptr: NodeReference = UNSET
-        field_ptr: NodeReference | None = None
     value: "Value | None" = builtin_property(110)
 
     undo: "Edit | None" = builtin_property(
         120,
-        description="The inverse Edit *if* it cannot be unambiguously derived from the Edit).",
+        description="The inverse Edit if it cannot be unambiguously derived from the Edit).",
     )
-    snapshot: Optional["Snapshot"] = builtin_property(121)
-    ancestors: list[UUID] = builtin_property(122)
-    if TYPE_CHECKING:
-        snapshot_ptr: NodeReference | None = None
 
 
 @builtin_struct(StructType.ORIGIN, frozen=True)

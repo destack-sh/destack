@@ -8,6 +8,7 @@ import type {
   Axis3,
   Graph,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -934,16 +935,8 @@ export class EffectStyle extends Style {
     return this._type;
   }
   set type(value: EffectType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: EffectType;
@@ -955,16 +948,8 @@ export class EffectStyle extends Style {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -976,16 +961,8 @@ export class EffectStyle extends Style {
     return this._opacity;
   }
   set opacity(value: number | null) {
-    const oldValue = this._opacity;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["opacity"] === undefined) {
-      this._dirty["opacity"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["opacity"];
+    this._session.updateSetProperty(this, prop, value);
     this._opacity = value;
   }
   _opacity: number | null;
@@ -997,16 +974,8 @@ export class EffectStyle extends Style {
     return this._offset;
   }
   set offset(value: Vector2f | null) {
-    const oldValue = this._offset;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["offset"] === undefined) {
-      this._dirty["offset"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["offset"];
+    this._session.updateSetProperty(this, prop, value);
     this._offset = value;
   }
   _offset: Vector2f | null;
@@ -1018,16 +987,8 @@ export class EffectStyle extends Style {
     return this._scale;
   }
   set scale(value: number | null) {
-    const oldValue = this._scale;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scale"] === undefined) {
-      this._dirty["scale"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["scale"];
+    this._session.updateSetProperty(this, prop, value);
     this._scale = value;
   }
   _scale: number | null;
@@ -1039,16 +1000,8 @@ export class EffectStyle extends Style {
     return this._rotate;
   }
   set rotate(value: Axis3 | null) {
-    const oldValue = this._rotate;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["rotate"] === undefined) {
-      this._dirty["rotate"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["rotate"];
+    this._session.updateSetProperty(this, prop, value);
     this._rotate = value;
   }
   _rotate: Axis3 | null;
@@ -1060,16 +1013,8 @@ export class EffectStyle extends Style {
     return this._skew;
   }
   set skew(value: Vector2f | null) {
-    const oldValue = this._skew;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["skew"] === undefined) {
-      this._dirty["skew"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["skew"];
+    this._session.updateSetProperty(this, prop, value);
     this._skew = value;
   }
   _skew: Vector2f | null;
@@ -1081,16 +1026,8 @@ export class EffectStyle extends Style {
     return this._perspective;
   }
   set perspective(value: number | null) {
-    const oldValue = this._perspective;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["perspective"] === undefined) {
-      this._dirty["perspective"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["perspective"];
+    this._session.updateSetProperty(this, prop, value);
     this._perspective = value;
   }
   _perspective: number | null;
@@ -1102,16 +1039,8 @@ export class EffectStyle extends Style {
     return this._delay;
   }
   set delay(value: Temporal.Duration | null) {
-    const oldValue = this._delay;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["delay"] === undefined) {
-      this._dirty["delay"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["delay"];
+    this._session.updateSetProperty(this, prop, value);
     this._delay = value;
   }
   _delay: Temporal.Duration | null;
@@ -1123,16 +1052,8 @@ export class EffectStyle extends Style {
     return this._duration;
   }
   set duration(value: number | null) {
-    const oldValue = this._duration;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["duration"] === undefined) {
-      this._dirty["duration"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["duration"];
+    this._session.updateSetProperty(this, prop, value);
     this._duration = value;
   }
   _duration: number | null;
@@ -1144,16 +1065,8 @@ export class EffectStyle extends Style {
     return this._threshold;
   }
   set threshold(value: number | null) {
-    const oldValue = this._threshold;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["threshold"] === undefined) {
-      this._dirty["threshold"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["threshold"];
+    this._session.updateSetProperty(this, prop, value);
     this._threshold = value;
   }
   _threshold: number | null;
@@ -1165,16 +1078,8 @@ export class EffectStyle extends Style {
     return this._once;
   }
   set once(value: boolean | null) {
-    const oldValue = this._once;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["once"] === undefined) {
-      this._dirty["once"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["once"];
+    this._session.updateSetProperty(this, prop, value);
     this._once = value;
   }
   _once: boolean | null;
@@ -1186,16 +1091,8 @@ export class EffectStyle extends Style {
     return this._repeat;
   }
   set repeat(value: RepeatType | null) {
-    const oldValue = this._repeat;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["repeat"] === undefined) {
-      this._dirty["repeat"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["repeat"];
+    this._session.updateSetProperty(this, prop, value);
     this._repeat = value;
   }
   _repeat: RepeatType | null;
@@ -1207,16 +1104,8 @@ export class EffectStyle extends Style {
     return this._split;
   }
   set split(value: TextSplitType | null) {
-    const oldValue = this._split;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["split"] === undefined) {
-      this._dirty["split"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["split"];
+    this._session.updateSetProperty(this, prop, value);
     this._split = value;
   }
   _split: TextSplitType | null;
@@ -1228,16 +1117,8 @@ export class EffectStyle extends Style {
     return this._offscreen;
   }
   set offscreen(value: OffscreenBehavior | null) {
-    const oldValue = this._offscreen;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["offscreen"] === undefined) {
-      this._dirty["offscreen"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["offscreen"];
+    this._session.updateSetProperty(this, prop, value);
     this._offscreen = value;
   }
   _offscreen: OffscreenBehavior | null;
@@ -1249,16 +1130,8 @@ export class EffectStyle extends Style {
     return this._transition;
   }
   set transition(value: Transition | null) {
-    const oldValue = this._transition;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["transition"] === undefined) {
-      this._dirty["transition"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["transition"];
+    this._session.updateSetProperty(this, prop, value);
     this._transition = value;
   }
   _transition: Transition | null;

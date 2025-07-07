@@ -9,6 +9,7 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -185,16 +186,8 @@ export class Method
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -223,16 +216,8 @@ export class Method
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -244,16 +229,8 @@ export class Method
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -265,16 +242,8 @@ export class Method
     return this._text;
   }
   set text(value: Text | null) {
-    const oldValue = this._text;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["text"] === undefined) {
-      this._dirty["text"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["text"];
+    this._session.updateSetProperty(this, prop, value);
     this._text = value;
   }
   _text: Text | null;
@@ -286,16 +255,8 @@ export class Method
     return this._cardinality;
   }
   set cardinality(value: MethodCardinality) {
-    const oldValue = this._cardinality;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["cardinality"] === undefined) {
-      this._dirty["cardinality"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["cardinality"];
+    this._session.updateSetProperty(this, prop, value);
     this._cardinality = value;
   }
   _cardinality: MethodCardinality;

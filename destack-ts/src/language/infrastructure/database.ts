@@ -6,6 +6,7 @@ import type {
   Icon,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeDefinitionReference,
   NodeReference,
   QueryConnection,
@@ -530,16 +531,8 @@ export class Database extends Resource implements IsSpatial {
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -565,16 +558,8 @@ export class Database extends Resource implements IsSpatial {
     return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this._scriptPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scriptPtr"] === undefined) {
-      this._dirty["scriptPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
@@ -586,16 +571,8 @@ export class Database extends Resource implements IsSpatial {
     return this._status;
   }
   set status(value: ResourceStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: ResourceStatus;
@@ -607,16 +584,8 @@ export class Database extends Resource implements IsSpatial {
     return this._type;
   }
   set type(value: DatabaseType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: DatabaseType;
@@ -628,16 +597,8 @@ export class Database extends Resource implements IsSpatial {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -649,16 +610,8 @@ export class Database extends Resource implements IsSpatial {
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -670,16 +623,8 @@ export class Database extends Resource implements IsSpatial {
     return this._region;
   }
   set region(value: Region) {
-    const oldValue = this._region;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["region"] === undefined) {
-      this._dirty["region"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["region"];
+    this._session.updateSetProperty(this, prop, value);
     this._region = value;
   }
   _region: Region;
@@ -691,16 +636,8 @@ export class Database extends Resource implements IsSpatial {
     return this._galaxyName;
   }
   set galaxyName(value: string | null) {
-    const oldValue = this._galaxyName;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["galaxyName"] === undefined) {
-      this._dirty["galaxyName"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["galaxy_name"];
+    this._session.updateSetProperty(this, prop, value);
     this._galaxyName = value;
   }
   _galaxyName: string | null;
@@ -712,16 +649,8 @@ export class Database extends Resource implements IsSpatial {
     return this._externalName;
   }
   set externalName(value: string) {
-    const oldValue = this._externalName;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["externalName"] === undefined) {
-      this._dirty["externalName"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["external_name"];
+    this._session.updateSetProperty(this, prop, value);
     this._externalName = value;
   }
   _externalName: string;
@@ -733,16 +662,8 @@ export class Database extends Resource implements IsSpatial {
     return this._customSchemaName;
   }
   set customSchemaName(value: string | null) {
-    const oldValue = this._customSchemaName;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customSchemaName"] === undefined) {
-      this._dirty["customSchemaName"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_schema_name"];
+    this._session.updateSetProperty(this, prop, value);
     this._customSchemaName = value;
   }
   _customSchemaName: string | null;
@@ -754,16 +675,8 @@ export class Database extends Resource implements IsSpatial {
     return this._tenancy;
   }
   set tenancy(value: Tenancy) {
-    const oldValue = this._tenancy;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["tenancy"] === undefined) {
-      this._dirty["tenancy"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["tenancy"];
+    this._session.updateSetProperty(this, prop, value);
     this._tenancy = value;
   }
   _tenancy: Tenancy;
@@ -775,16 +688,8 @@ export class Database extends Resource implements IsSpatial {
     return this._connectionUrl;
   }
   set connectionUrl(value: string | null) {
-    const oldValue = this._connectionUrl;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["connectionUrl"] === undefined) {
-      this._dirty["connectionUrl"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["connection_url"];
+    this._session.updateSetProperty(this, prop, value);
     this._connectionUrl = value;
   }
   _connectionUrl: string | null;

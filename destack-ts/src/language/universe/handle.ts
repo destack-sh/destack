@@ -3,6 +3,7 @@ import type {
   Graph,
   IsGlobal,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -130,16 +131,8 @@ export class Handle extends Entity implements IsGlobal {
     return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this._slug;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["slug"] === undefined) {
-      this._dirty["slug"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["slug"];
+    this._session.updateSetProperty(this, prop, value);
     this._slug = value;
   }
   _slug: string;

@@ -5,6 +5,7 @@ import type {
   IsOwner,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -277,16 +278,8 @@ export class EventCursor extends Cursor {
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -298,16 +291,8 @@ export class EventCursor extends Cursor {
     return this._status;
   }
   set status(value: CursorStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: CursorStatus;
@@ -319,16 +304,8 @@ export class EventCursor extends Cursor {
     return this._activeAt;
   }
   set activeAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this._activeAt;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["activeAt"] === undefined) {
-      this._dirty["activeAt"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["active_at"];
+    this._session.updateSetProperty(this, prop, value);
     this._activeAt = value;
   }
   _activeAt: Temporal.ZonedDateTime | null;
@@ -1029,16 +1006,8 @@ export class ScreenCursor extends Cursor {
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -1050,16 +1019,8 @@ export class ScreenCursor extends Cursor {
     return this._status;
   }
   set status(value: CursorStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: CursorStatus;
@@ -1071,16 +1032,8 @@ export class ScreenCursor extends Cursor {
     return this._activeAt;
   }
   set activeAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this._activeAt;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["activeAt"] === undefined) {
-      this._dirty["activeAt"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["active_at"];
+    this._session.updateSetProperty(this, prop, value);
     this._activeAt = value;
   }
   _activeAt: Temporal.ZonedDateTime | null;
@@ -1092,16 +1045,8 @@ export class ScreenCursor extends Cursor {
     return this._position;
   }
   set position(value: Vector2i | null) {
-    const oldValue = this._position;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["position"] === undefined) {
-      this._dirty["position"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["position"];
+    this._session.updateSetProperty(this, prop, value);
     this._position = value;
   }
   _position: Vector2i | null;
@@ -1832,16 +1777,8 @@ export class ThreadCursor extends Cursor {
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -1853,16 +1790,8 @@ export class ThreadCursor extends Cursor {
     return this._status;
   }
   set status(value: CursorStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: CursorStatus;
@@ -1874,16 +1803,8 @@ export class ThreadCursor extends Cursor {
     return this._activeAt;
   }
   set activeAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this._activeAt;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["activeAt"] === undefined) {
-      this._dirty["activeAt"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["active_at"];
+    this._session.updateSetProperty(this, prop, value);
     this._activeAt = value;
   }
   _activeAt: Temporal.ZonedDateTime | null;

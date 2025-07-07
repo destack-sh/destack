@@ -5,6 +5,7 @@ import type {
   Graph,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeDefinitionReference,
   NodeReference,
   QueryConnection,
@@ -209,16 +210,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -244,16 +237,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this._scriptPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scriptPtr"] === undefined) {
-      this._dirty["scriptPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
@@ -265,16 +250,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._status;
   }
   set status(value: ResourceStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: ResourceStatus;
@@ -286,16 +263,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._type;
   }
   set type(value: MachineType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: MachineType;
@@ -307,16 +276,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._version;
   }
   set version(value: string) {
-    const oldValue = this._version;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["version"] === undefined) {
-      this._dirty["version"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["version"];
+    this._session.updateSetProperty(this, prop, value);
     this._version = value;
   }
   _version: string;
@@ -328,16 +289,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._externalName;
   }
   set externalName(value: string | null) {
-    const oldValue = this._externalName;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["externalName"] === undefined) {
-      this._dirty["externalName"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["external_name"];
+    this._session.updateSetProperty(this, prop, value);
     this._externalName = value;
   }
   _externalName: string | null;
@@ -349,16 +302,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._externalId;
   }
   set externalId(value: string | null) {
-    const oldValue = this._externalId;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["externalId"] === undefined) {
-      this._dirty["externalId"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["external_id"];
+    this._session.updateSetProperty(this, prop, value);
     this._externalId = value;
   }
   _externalId: string | null;
@@ -370,16 +315,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._imageId;
   }
   set imageId(value: string | null) {
-    const oldValue = this._imageId;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["imageId"] === undefined) {
-      this._dirty["imageId"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["image_id"];
+    this._session.updateSetProperty(this, prop, value);
     this._imageId = value;
   }
   _imageId: string | null;
@@ -391,16 +328,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._grpcUrl;
   }
   set grpcUrl(value: string | null) {
-    const oldValue = this._grpcUrl;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["grpcUrl"] === undefined) {
-      this._dirty["grpcUrl"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["grpc_url"];
+    this._session.updateSetProperty(this, prop, value);
     this._grpcUrl = value;
   }
   _grpcUrl: string | null;
@@ -412,16 +341,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._vncUrl;
   }
   set vncUrl(value: string | null) {
-    const oldValue = this._vncUrl;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["vncUrl"] === undefined) {
-      this._dirty["vncUrl"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["vnc_url"];
+    this._session.updateSetProperty(this, prop, value);
     this._vncUrl = value;
   }
   _vncUrl: string | null;
@@ -447,16 +368,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._clientPtr;
   }
   set clientPtr(value: NodeReference | null) {
-    const oldValue = this._clientPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["clientPtr"] === undefined) {
-      this._dirty["clientPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["client"];
+    this._session.updateSetProperty(this, prop, value);
     this._clientPtr = value;
   }
   _clientPtr: NodeReference | null;
@@ -468,16 +381,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._cpu;
   }
   set cpu(value: number) {
-    const oldValue = this._cpu;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["cpu"] === undefined) {
-      this._dirty["cpu"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["cpu"];
+    this._session.updateSetProperty(this, prop, value);
     this._cpu = value;
   }
   _cpu: number;
@@ -489,16 +394,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._ram;
   }
   set ram(value: number) {
-    const oldValue = this._ram;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ram"] === undefined) {
-      this._dirty["ram"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["ram"];
+    this._session.updateSetProperty(this, prop, value);
     this._ram = value;
   }
   _ram: number;
@@ -510,16 +407,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._width;
   }
   set width(value: number) {
-    const oldValue = this._width;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["width"] === undefined) {
-      this._dirty["width"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["width"];
+    this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
   _width: number;
@@ -531,16 +420,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._height;
   }
   set height(value: number) {
-    const oldValue = this._height;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["height"] === undefined) {
-      this._dirty["height"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["height"];
+    this._session.updateSetProperty(this, prop, value);
     this._height = value;
   }
   _height: number;
@@ -552,16 +433,8 @@ export class Machine extends Resource implements IsSpatial {
     return this._isHeadless;
   }
   set isHeadless(value: boolean) {
-    const oldValue = this._isHeadless;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isHeadless"] === undefined) {
-      this._dirty["isHeadless"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_headless"];
+    this._session.updateSetProperty(this, prop, value);
     this._isHeadless = value;
   }
   _isHeadless: boolean;

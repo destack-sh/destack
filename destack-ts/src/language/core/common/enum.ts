@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
+import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
@@ -164,16 +165,8 @@ export class CustomEnumDefinition
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -202,16 +195,8 @@ export class CustomEnumDefinition
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -223,16 +208,8 @@ export class CustomEnumDefinition
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -1054,16 +1031,8 @@ export class CustomOption
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -1075,16 +1044,8 @@ export class CustomOption
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -1110,16 +1071,8 @@ export class CustomOption
     return this._groupPtr;
   }
   set groupPtr(value: NodeReference | null) {
-    const oldValue = this._groupPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["groupPtr"] === undefined) {
-      this._dirty["groupPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["group"];
+    this._session.updateSetProperty(this, prop, value);
     this._groupPtr = value;
   }
   _groupPtr: NodeReference | null;
@@ -1925,16 +1878,8 @@ export class CustomOptionGroup
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -1946,16 +1891,8 @@ export class CustomOptionGroup
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;

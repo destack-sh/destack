@@ -5,6 +5,7 @@ import type {
   Icon,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeDefinitionReference,
   NodeReference,
   QueryConnection,
@@ -208,16 +209,8 @@ export class Trigger extends Entity implements IsSpatial {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -229,16 +222,8 @@ export class Trigger extends Entity implements IsSpatial {
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -250,16 +235,8 @@ export class Trigger extends Entity implements IsSpatial {
     return this._event;
   }
   set event(value: NodeDefinitionReference | null) {
-    const oldValue = this._event;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["event"] === undefined) {
-      this._dirty["event"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["event"];
+    this._session.updateSetProperty(this, prop, value);
     this._event = value;
   }
   _event: NodeDefinitionReference | null;
@@ -271,16 +248,8 @@ export class Trigger extends Entity implements IsSpatial {
     return this._where;
   }
   set where(value: Condition | null) {
-    const oldValue = this._where;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["where"] === undefined) {
-      this._dirty["where"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["where"];
+    this._session.updateSetProperty(this, prop, value);
     this._where = value;
   }
   _where: Condition | null;
@@ -306,16 +275,8 @@ export class Trigger extends Entity implements IsSpatial {
     return this._targetPtr;
   }
   set targetPtr(value: NodeReference | null) {
-    const oldValue = this._targetPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["targetPtr"] === undefined) {
-      this._dirty["targetPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["target"];
+    this._session.updateSetProperty(this, prop, value);
     this._targetPtr = value;
   }
   _targetPtr: NodeReference | null;
@@ -327,16 +288,8 @@ export class Trigger extends Entity implements IsSpatial {
     return this._arguments;
   }
   set arguments(value: Map<string, Value>) {
-    const oldValue = this._arguments;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["arguments"] === undefined) {
-      this._dirty["arguments"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["arguments"];
+    this._session.updateSetProperty(this, prop, value);
     this._arguments = value;
   }
   _arguments: Map<string, Value>;

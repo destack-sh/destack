@@ -7,6 +7,7 @@ import type {
   IsScriptable,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -152,16 +153,8 @@ export class Script extends Entity implements IsSpatial, IsOrdered, IsDeletable,
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -178,16 +171,8 @@ export class Script extends Entity implements IsSpatial, IsOrdered, IsDeletable,
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -199,16 +184,8 @@ export class Script extends Entity implements IsSpatial, IsOrdered, IsDeletable,
     return this._code;
   }
   set code(value: string) {
-    const oldValue = this._code;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["code"] === undefined) {
-      this._dirty["code"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["code"];
+    this._session.updateSetProperty(this, prop, value);
     this._code = value;
   }
   _code: string;

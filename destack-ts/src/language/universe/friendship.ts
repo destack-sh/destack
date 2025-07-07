@@ -4,6 +4,7 @@ import type {
   IsGlobal,
   IsOwnable,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -147,16 +148,8 @@ export class Friendship extends Entity implements IsGlobal {
     return this._userAPtr;
   }
   set userAPtr(value: NodeReference) {
-    const oldValue = this._userAPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["userAPtr"] === undefined) {
-      this._dirty["userAPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["user_a"];
+    this._session.updateSetProperty(this, prop, value);
     this._userAPtr = value;
   }
   _userAPtr: NodeReference;
@@ -175,16 +168,8 @@ export class Friendship extends Entity implements IsGlobal {
     return this._userBPtr;
   }
   set userBPtr(value: NodeReference) {
-    const oldValue = this._userBPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["userBPtr"] === undefined) {
-      this._dirty["userBPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["user_b"];
+    this._session.updateSetProperty(this, prop, value);
     this._userBPtr = value;
   }
   _userBPtr: NodeReference;
@@ -2575,16 +2560,8 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference;

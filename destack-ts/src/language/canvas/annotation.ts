@@ -12,6 +12,7 @@ import type {
   GridSpan,
   Insets,
   IsSubject,
+  NodeClass,
   NodeDefinitionReference,
   NodeReference,
   Position,
@@ -209,16 +210,8 @@ export class AnnotationShape extends Shape {
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -249,16 +242,8 @@ export class AnnotationShape extends Shape {
     return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this._scriptPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scriptPtr"] === undefined) {
-      this._dirty["scriptPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
@@ -270,16 +255,8 @@ export class AnnotationShape extends Shape {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -291,16 +268,8 @@ export class AnnotationShape extends Shape {
     return this._position;
   }
   set position(value: Position | null) {
-    const oldValue = this._position;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["position"] === undefined) {
-      this._dirty["position"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["position"];
+    this._session.updateSetProperty(this, prop, value);
     this._position = value;
   }
   _position: Position | null;
@@ -312,16 +281,8 @@ export class AnnotationShape extends Shape {
     return this._width;
   }
   set width(value: Dimension | null) {
-    const oldValue = this._width;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["width"] === undefined) {
-      this._dirty["width"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["width"];
+    this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
   _width: Dimension | null;
@@ -333,16 +294,8 @@ export class AnnotationShape extends Shape {
     return this._height;
   }
   set height(value: Dimension | null) {
-    const oldValue = this._height;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["height"] === undefined) {
-      this._dirty["height"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["height"];
+    this._session.updateSetProperty(this, prop, value);
     this._height = value;
   }
   _height: Dimension | null;
@@ -354,16 +307,8 @@ export class AnnotationShape extends Shape {
     return this._minWidth;
   }
   set minWidth(value: Dimension | null) {
-    const oldValue = this._minWidth;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["minWidth"] === undefined) {
-      this._dirty["minWidth"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["min_width"];
+    this._session.updateSetProperty(this, prop, value);
     this._minWidth = value;
   }
   _minWidth: Dimension | null;
@@ -375,16 +320,8 @@ export class AnnotationShape extends Shape {
     return this._minHeight;
   }
   set minHeight(value: Dimension | null) {
-    const oldValue = this._minHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["minHeight"] === undefined) {
-      this._dirty["minHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["min_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._minHeight = value;
   }
   _minHeight: Dimension | null;
@@ -396,16 +333,8 @@ export class AnnotationShape extends Shape {
     return this._maxWidth;
   }
   set maxWidth(value: Dimension | null) {
-    const oldValue = this._maxWidth;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["maxWidth"] === undefined) {
-      this._dirty["maxWidth"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["max_width"];
+    this._session.updateSetProperty(this, prop, value);
     this._maxWidth = value;
   }
   _maxWidth: Dimension | null;
@@ -417,16 +346,8 @@ export class AnnotationShape extends Shape {
     return this._maxHeight;
   }
   set maxHeight(value: Dimension | null) {
-    const oldValue = this._maxHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["maxHeight"] === undefined) {
-      this._dirty["maxHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["max_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._maxHeight = value;
   }
   _maxHeight: Dimension | null;
@@ -438,16 +359,8 @@ export class AnnotationShape extends Shape {
     return this._layout;
   }
   set layout(value: Layout | null) {
-    const oldValue = this._layout;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["layout"] === undefined) {
-      this._dirty["layout"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["layout"];
+    this._session.updateSetProperty(this, prop, value);
     this._layout = value;
   }
   _layout: Layout | null;
@@ -459,16 +372,8 @@ export class AnnotationShape extends Shape {
     return this._direction;
   }
   set direction(value: Direction | null) {
-    const oldValue = this._direction;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["direction"] === undefined) {
-      this._dirty["direction"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["direction"];
+    this._session.updateSetProperty(this, prop, value);
     this._direction = value;
   }
   _direction: Direction | null;
@@ -480,16 +385,8 @@ export class AnnotationShape extends Shape {
     return this._distribute;
   }
   set distribute(value: Distribute | null) {
-    const oldValue = this._distribute;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["distribute"] === undefined) {
-      this._dirty["distribute"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["distribute"];
+    this._session.updateSetProperty(this, prop, value);
     this._distribute = value;
   }
   _distribute: Distribute | null;
@@ -501,16 +398,8 @@ export class AnnotationShape extends Shape {
     return this._align;
   }
   set align(value: Align | null) {
-    const oldValue = this._align;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["align"] === undefined) {
-      this._dirty["align"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["align"];
+    this._session.updateSetProperty(this, prop, value);
     this._align = value;
   }
   _align: Align | null;
@@ -522,16 +411,8 @@ export class AnnotationShape extends Shape {
     return this._gap;
   }
   set gap(value: Axis2 | null) {
-    const oldValue = this._gap;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["gap"] === undefined) {
-      this._dirty["gap"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["gap"];
+    this._session.updateSetProperty(this, prop, value);
     this._gap = value;
   }
   _gap: Axis2 | null;
@@ -543,16 +424,8 @@ export class AnnotationShape extends Shape {
     return this._padding;
   }
   set padding(value: Insets | null) {
-    const oldValue = this._padding;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["padding"] === undefined) {
-      this._dirty["padding"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["padding"];
+    this._session.updateSetProperty(this, prop, value);
     this._padding = value;
   }
   _padding: Insets | null;
@@ -564,16 +437,8 @@ export class AnnotationShape extends Shape {
     return this._grid;
   }
   set grid(value: Grid | null) {
-    const oldValue = this._grid;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["grid"] === undefined) {
-      this._dirty["grid"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["grid"];
+    this._session.updateSetProperty(this, prop, value);
     this._grid = value;
   }
   _grid: Grid | null;
@@ -585,16 +450,8 @@ export class AnnotationShape extends Shape {
     return this._gridSpan;
   }
   set gridSpan(value: GridSpan | null) {
-    const oldValue = this._gridSpan;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["gridSpan"] === undefined) {
-      this._dirty["gridSpan"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["grid_span"];
+    this._session.updateSetProperty(this, prop, value);
     this._gridSpan = value;
   }
   _gridSpan: GridSpan | null;
@@ -606,16 +463,8 @@ export class AnnotationShape extends Shape {
     return this._aspectRatio;
   }
   set aspectRatio(value: number | null) {
-    const oldValue = this._aspectRatio;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["aspectRatio"] === undefined) {
-      this._dirty["aspectRatio"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["aspect_ratio"];
+    this._session.updateSetProperty(this, prop, value);
     this._aspectRatio = value;
   }
   _aspectRatio: number | null;
@@ -627,16 +476,8 @@ export class AnnotationShape extends Shape {
     return this._isWrap;
   }
   set isWrap(value: boolean | null) {
-    const oldValue = this._isWrap;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isWrap"] === undefined) {
-      this._dirty["isWrap"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_wrap"];
+    this._session.updateSetProperty(this, prop, value);
     this._isWrap = value;
   }
   _isWrap: boolean | null;
@@ -648,16 +489,8 @@ export class AnnotationShape extends Shape {
     return this._isVisible;
   }
   set isVisible(value: boolean | null) {
-    const oldValue = this._isVisible;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isVisible"] === undefined) {
-      this._dirty["isVisible"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_visible"];
+    this._session.updateSetProperty(this, prop, value);
     this._isVisible = value;
   }
   _isVisible: boolean | null;
@@ -669,16 +502,8 @@ export class AnnotationShape extends Shape {
     return this._opacity;
   }
   set opacity(value: number | null) {
-    const oldValue = this._opacity;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["opacity"] === undefined) {
-      this._dirty["opacity"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["opacity"];
+    this._session.updateSetProperty(this, prop, value);
     this._opacity = value;
   }
   _opacity: number | null;
@@ -690,16 +515,8 @@ export class AnnotationShape extends Shape {
     return this._fill;
   }
   set fill(value: Fill | null) {
-    const oldValue = this._fill;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["fill"] === undefined) {
-      this._dirty["fill"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["fill"];
+    this._session.updateSetProperty(this, prop, value);
     this._fill = value;
   }
   _fill: Fill | null;
@@ -711,16 +528,8 @@ export class AnnotationShape extends Shape {
     return this._rotation;
   }
   set rotation(value: Axis3 | null) {
-    const oldValue = this._rotation;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["rotation"] === undefined) {
-      this._dirty["rotation"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["rotation"];
+    this._session.updateSetProperty(this, prop, value);
     this._rotation = value;
   }
   _rotation: Axis3 | null;
@@ -732,16 +541,8 @@ export class AnnotationShape extends Shape {
     return this._skew;
   }
   set skew(value: Vector2f | null) {
-    const oldValue = this._skew;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["skew"] === undefined) {
-      this._dirty["skew"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["skew"];
+    this._session.updateSetProperty(this, prop, value);
     this._skew = value;
   }
   _skew: Vector2f | null;
@@ -753,16 +554,8 @@ export class AnnotationShape extends Shape {
     return this._scale;
   }
   set scale(value: number | null) {
-    const oldValue = this._scale;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scale"] === undefined) {
-      this._dirty["scale"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["scale"];
+    this._session.updateSetProperty(this, prop, value);
     this._scale = value;
   }
   _scale: number | null;
@@ -774,16 +567,8 @@ export class AnnotationShape extends Shape {
     return this._shadow;
   }
   set shadow(value: Shadow | null) {
-    const oldValue = this._shadow;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["shadow"] === undefined) {
-      this._dirty["shadow"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["shadow"];
+    this._session.updateSetProperty(this, prop, value);
     this._shadow = value;
   }
   _shadow: Shadow | null;
@@ -795,16 +580,8 @@ export class AnnotationShape extends Shape {
     return this._border;
   }
   set border(value: Border | null) {
-    const oldValue = this._border;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["border"] === undefined) {
-      this._dirty["border"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["border"];
+    this._session.updateSetProperty(this, prop, value);
     this._border = value;
   }
   _border: Border | null;
@@ -816,16 +593,8 @@ export class AnnotationShape extends Shape {
     return this._radius;
   }
   set radius(value: Corners | null) {
-    const oldValue = this._radius;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["radius"] === undefined) {
-      this._dirty["radius"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["radius"];
+    this._session.updateSetProperty(this, prop, value);
     this._radius = value;
   }
   _radius: Corners | null;
@@ -837,16 +606,8 @@ export class AnnotationShape extends Shape {
     return this._stroke;
   }
   set stroke(value: Stroke | null) {
-    const oldValue = this._stroke;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["stroke"] === undefined) {
-      this._dirty["stroke"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["stroke"];
+    this._session.updateSetProperty(this, prop, value);
     this._stroke = value;
   }
   _stroke: Stroke | null;
@@ -858,16 +619,8 @@ export class AnnotationShape extends Shape {
     return this._text;
   }
   set text(value: Text | null) {
-    const oldValue = this._text;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["text"] === undefined) {
-      this._dirty["text"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["text"];
+    this._session.updateSetProperty(this, prop, value);
     this._text = value;
   }
   _text: Text | null;

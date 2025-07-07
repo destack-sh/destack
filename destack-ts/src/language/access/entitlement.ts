@@ -5,6 +5,7 @@ import type {
   IsJoinable,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -2117,16 +2118,8 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
     return this._type;
   }
   set type(value: EntitlementType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: EntitlementType;
@@ -2138,16 +2131,8 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
     return this._expiresAt;
   }
   set expiresAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this._expiresAt;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["expiresAt"] === undefined) {
-      this._dirty["expiresAt"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["expires_at"];
+    this._session.updateSetProperty(this, prop, value);
     this._expiresAt = value;
   }
   _expiresAt: Temporal.ZonedDateTime | null;
@@ -2169,16 +2154,8 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
     return this._targetPtr;
   }
   set targetPtr(value: NodeReference) {
-    const oldValue = this._targetPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["targetPtr"] === undefined) {
-      this._dirty["targetPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["target"];
+    this._session.updateSetProperty(this, prop, value);
     this._targetPtr = value;
   }
   _targetPtr: NodeReference;
