@@ -75,12 +75,12 @@ import type {
   UniverseCategory,
   ValueFactory,
 } from "@destack/language/core/builtin/common";
+import type { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
 import type {
   CustomEntityDefinition,
   CustomTraitDefinition,
   Entity,
   Materialization,
-  Metric,
   Record,
   Resource,
   Snapshot,
@@ -88,12 +88,9 @@ import type {
   SnapshotType,
 } from "@destack/language/core/builtin/entity";
 import type {
-  ChangeEvent,
   CustomEventDefinition,
-  EditEvent,
   Event,
-  MeasurementEvent,
-  QueryEvent,
+  EventStatus,
   Signal,
 } from "@destack/language/core/builtin/event";
 import type {
@@ -143,16 +140,6 @@ import type {
   StructDefinition,
   TraitDefinition,
 } from "@destack/language/core/common/definition";
-import type {
-  Change,
-  ChangeDebounce,
-  ChangeResult,
-  ChangeStatus,
-  Edit,
-  EditOperation,
-  EditType,
-  Origin,
-} from "@destack/language/core/common/edit";
 import type {
   CustomEnumDefinition,
   CustomOption,
@@ -334,6 +321,8 @@ import type {
   GaugeMetric,
   HistogramMeasurementEvent,
   HistogramMetric,
+  MeasurementEvent,
+  Metric,
 } from "@destack/language/observability/metric";
 import type { Layer, LayerType } from "@destack/language/scene/layer";
 import type { Scene, SceneEvent } from "@destack/language/scene/scene";
@@ -461,15 +450,11 @@ export type NodeTypeMapping = {
   [NodeType.CUSTOM_TRAIT_DEFINITION]: CustomTraitDefinition;
   [NodeType.RECORD]: Record;
   [NodeType.RESOURCE]: Resource;
-  [NodeType.METRIC]: Metric;
   [NodeType.SNAPSHOT]: Snapshot;
   [NodeType.EVENT]: Event;
   [NodeType.CUSTOM_EVENT_DEFINITION]: CustomEventDefinition;
   [NodeType.SIGNAL]: Signal;
   [NodeType.EDIT_EVENT]: EditEvent;
-  [NodeType.CHANGE_EVENT]: ChangeEvent;
-  [NodeType.QUERY_EVENT]: QueryEvent;
-  [NodeType.MEASUREMENT_EVENT]: MeasurementEvent;
   [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
   [NodeType.CUSTOM_OPTION]: CustomOption;
   [NodeType.CUSTOM_OPTION_GROUP]: CustomOptionGroup;
@@ -589,6 +574,8 @@ export type NodeTypeMapping = {
   [NodeType.TIMER]: Timer;
   [NodeType.TRIGGER_EVENT]: TriggerEvent;
   [NodeType.TRIGGER]: Trigger;
+  [NodeType.METRIC]: Metric;
+  [NodeType.MEASUREMENT_EVENT]: MeasurementEvent;
   [NodeType.GAUGE_METRIC]: GaugeMetric;
   [NodeType.GAUGE_MEASUREMENT_EVENT]: GaugeMeasurementEvent;
   [NodeType.COUNTER_METRIC]: CounterMetric;
@@ -686,10 +673,6 @@ export type StructTypeMapping = {
   [StructType.METHOD_DEFINITION]: MethodDefinition;
   [StructType.ACTION_DEFINITION]: ActionDefinition;
   [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
-  [StructType.EDIT]: Edit;
-  [StructType.ORIGIN]: Origin;
-  [StructType.CHANGE]: Change;
-  [StructType.CHANGE_RESULT]: ChangeResult;
   [StructType.ICON]: Icon;
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
@@ -788,10 +771,9 @@ export type EnumTypeMapping = {
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
   [EnumType.SNAPSHOT_TYPE]: SnapshotType;
   [EnumType.SNAPSHOT_STATUS]: SnapshotStatus;
+  [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
-  [EnumType.CHANGE_STATUS]: ChangeStatus;
-  [EnumType.CHANGE_DEBOUNCE]: ChangeDebounce;
   [EnumType.ICON_TYPE]: IconType;
   [EnumType.STRING_FORMAT]: StringFormat;
   [EnumType.NUMBER_FORMAT]: NumberFormat;

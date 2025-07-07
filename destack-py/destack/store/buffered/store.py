@@ -2,8 +2,7 @@ from collections.abc import AsyncIterator, Sequence
 from typing import ClassVar, override
 
 from destack.language import (
-    Change,
-    ChangeResult,
+    Event,
     Query,
     QueryResult,
     QueryUpdate,
@@ -20,8 +19,8 @@ from destack.store.memory import MemoryStore
 
 class BufferedStore(Store):
     """
-    Route Queries and commits to underlying Stores, buffer certain Changes in memory.
-    Does not support atomic Changes across Stores (yet).
+    Route Queries and commits to underlying Stores, buffer certain Events in memory.
+    Does not support atomic Events across Stores (yet).
     """
 
     implementation: ClassVar[StoreImplementation | None] = None  # no single implementation
@@ -53,8 +52,8 @@ class BufferedStore(Store):
         return result
 
     @override
-    async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
-        results = await self.buffer.commit(changes)
+    async def commit(self, events: Sequence[Event]) -> Sequence[Event]:
+        results = await self.buffer.commit(events)
         return results
 
     @override

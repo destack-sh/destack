@@ -9,12 +9,10 @@ from destack.language.core import (
     IsSubject,
     NodeReference,
     NodeType,
-    Origin,
     builtin_node,
     builtin_property,
     builtin_property_parent,
 )
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Cursor, Machine, User
@@ -53,6 +51,3 @@ class Client(
     operating_system: Optional[str] = builtin_property(132)
     browser_name: Optional[str] = builtin_property(133)
     browser_version: Optional[str] = builtin_property(44)
-
-    def to_origin(self, *, nonce: UUID | None) -> "Origin":
-        return Origin(type=self.type, id=self.id, nonce=nonce or self.id)

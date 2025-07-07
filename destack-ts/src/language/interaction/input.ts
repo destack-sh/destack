@@ -1,4 +1,4 @@
-import type { IsSubject, NodeReference, Snapshot } from "@destack/language/core";
+import type { EventStatus, IsSubject, NodeReference, Snapshot } from "@destack/language/core";
 import { Event, Node, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
@@ -27,6 +27,11 @@ export abstract class InputEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;

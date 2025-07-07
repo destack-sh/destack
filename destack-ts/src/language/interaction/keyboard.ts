@@ -8,11 +8,16 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Node, NodeType, StructType } from "@destack/language/core";
+import { EventStatus, Node, NodeType, StructType } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import { KeyDownEventProto, KeyPressEventProto, KeyUpEventProto } from "@destack/proto";
+import {
+  EventStatusProto,
+  KeyDownEventProto,
+  KeyPressEventProto,
+  KeyUpEventProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -40,6 +45,11 @@ export abstract class KeyboardEvent extends InputEvent {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
@@ -147,6 +157,11 @@ export class KeyDownEvent extends KeyboardEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -200,6 +215,7 @@ export class KeyDownEvent extends KeyboardEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -252,6 +268,11 @@ export class KeyDownEvent extends KeyboardEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`KeyDownEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -340,6 +361,9 @@ export class KeyDownEvent extends KeyboardEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -369,6 +393,7 @@ export class KeyDownEvent extends KeyboardEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -414,7 +439,9 @@ export class KeyDownEvent extends KeyboardEvent {
   }
 
   repr(): string {
-    return `<KeyDownEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<KeyDownEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -438,6 +465,7 @@ export class KeyDownEvent extends KeyboardEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -496,6 +524,7 @@ export class KeyDownEvent extends KeyboardEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -535,6 +564,7 @@ export class KeyDownEvent extends KeyboardEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -595,6 +625,7 @@ export class KeyDownEvent extends KeyboardEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -706,6 +737,11 @@ export class KeyUpEvent extends KeyboardEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -759,6 +795,7 @@ export class KeyUpEvent extends KeyboardEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -811,6 +848,11 @@ export class KeyUpEvent extends KeyboardEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`KeyUpEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -899,6 +941,9 @@ export class KeyUpEvent extends KeyboardEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -928,6 +973,7 @@ export class KeyUpEvent extends KeyboardEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -973,7 +1019,9 @@ export class KeyUpEvent extends KeyboardEvent {
   }
 
   repr(): string {
-    return `<KeyUpEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<KeyUpEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -997,6 +1045,7 @@ export class KeyUpEvent extends KeyboardEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1055,6 +1104,7 @@ export class KeyUpEvent extends KeyboardEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1094,6 +1144,7 @@ export class KeyUpEvent extends KeyboardEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1154,6 +1205,7 @@ export class KeyUpEvent extends KeyboardEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -1265,6 +1317,11 @@ export class KeyPressEvent extends KeyboardEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -1318,6 +1375,7 @@ export class KeyPressEvent extends KeyboardEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -1370,6 +1428,11 @@ export class KeyPressEvent extends KeyboardEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`KeyPressEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1458,6 +1521,9 @@ export class KeyPressEvent extends KeyboardEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -1487,6 +1553,7 @@ export class KeyPressEvent extends KeyboardEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1532,7 +1599,9 @@ export class KeyPressEvent extends KeyboardEvent {
   }
 
   repr(): string {
-    return `<KeyPressEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<KeyPressEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1556,6 +1625,7 @@ export class KeyPressEvent extends KeyboardEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1614,6 +1684,7 @@ export class KeyPressEvent extends KeyboardEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1653,6 +1724,7 @@ export class KeyPressEvent extends KeyboardEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1713,6 +1785,7 @@ export class KeyPressEvent extends KeyboardEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(

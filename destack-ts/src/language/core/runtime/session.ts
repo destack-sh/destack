@@ -17,7 +17,7 @@ import {
   EditOperation,
   EditType,
   Origin,
-} from "@destack/language/core/common/edit";
+} from "@destack/language/core/builtin/edit";
 import { toValue, Value } from "@destack/language/core/common/value";
 import { Supergraph } from "@destack/language/core/runtime/graph";
 import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";

@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Condition,
+  EventStatus,
   Graph,
   Icon,
   IsSpatial,
@@ -73,6 +74,11 @@ export abstract class TriggerEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Trigger | null;
   declare readonly nodePtr: NodeReference;

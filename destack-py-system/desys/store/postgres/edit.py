@@ -9,8 +9,7 @@ from opentelemetry import trace
 
 from destack.language import (
     CASCADING_EDIT_TYPES,
-    Change,
-    Edit,
+    EditEvent,
     EditOperation,
     EditType,
     NodeReference,
@@ -25,36 +24,32 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 
-@tracer.start_as_current_span("postgres.execute_change")
-async def execute_change(
-    conn: asyncpg.Connection, context: PostgresContext, change: Change
-) -> tuple[Sequence[Edit], Sequence[Edit]]:
-    """Execute the Change."""
-    assert change.edits, f"no Edits in {change!r}"
+@tracer.start_as_current_span("postgres.execute_events")
+async def execute_events(
+    conn: asyncpg.Connection, context: PostgresContext, events: Sequence[EditEvent]
+) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
+    """Execute the Events."""
+    assert events, f"no Events in {events!r}"
 
-    edits = _optimize_change(context, change.edits)
-    cascaded_edits: list[Edit] = []
-    applied_edits: list[Edit] = []
+    edits = _optimize_events(context, events)
+    cascaded_edits: list[EditEvent] = []
+    applied_edits: list[EditEvent] = []
 
     current_table = context.get(edits[0].node_ptr)
     current_edit_type = edits[0].type
-    current_batch: list[Edit] = []
+    current_batch: list[EditEvent] = []
     for edit in edits:
         edit_table = context.get(edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
             batch_applied_edits, batch_cascaded_edits = await _execute_data_edit(
                 conn=conn,
                 context=context,
-                change=change,
                 table=current_table,
                 edit_type=current_edit_type,
                 edits=current_batch,
             )
             applied_edits.extend(batch_applied_edits)
             cascaded_edits.extend(batch_cascaded_edits)
-            schema_edits = context.apply(tuple(current_batch) + tuple(batch_cascaded_edits))
-            if schema_edits:
-                await _execute_schema_edits(conn=conn, context=context, edits=schema_edits)
 
             current_table = edit_table
             current_edit_type = edit.type
@@ -66,35 +61,31 @@ async def execute_change(
         batch_applied_edits, batch_cascaded_edits = await _execute_data_edit(
             conn=conn,
             context=context,
-            change=change,
             table=current_table,
             edit_type=current_edit_type,
             edits=current_batch,
         )
         applied_edits.extend(batch_applied_edits)
         cascaded_edits.extend(batch_cascaded_edits)
-        schema_edits = context.apply(tuple(current_batch) + tuple(batch_cascaded_edits))
-        if schema_edits:
-            await _execute_schema_edits(conn=conn, context=context, edits=schema_edits)
 
-    logger.trace("postgres.execute_change", change=change, span="current")
+    logger.trace("postgres.execute_events", events=len(events), span="current")
     return applied_edits, cascaded_edits
 
 
 @tracer.start_as_current_span("postgres.optimize_change")
-def _optimize_change(context: PostgresContext, edits: Sequence[Edit]) -> list[Edit]:
+def _optimize_events(context: PostgresContext, edits: Sequence[EditEvent]) -> list[EditEvent]:
     """
     Optimize the Change/Edits *while retaining semantic equivalence*.
     Reorder and batch non-interfering Edits to minimize roundtrips.
     """
 
-    optimized_edits: list[Edit] = []
-    buffer: list[Edit] = []
+    optimized_edits: list[EditEvent] = []
+    buffer: list[EditEvent] = []
 
     def flush():
         if not buffer:
             return
-        grouped: OrderedDict[tuple[str, EditType], list[Edit]] = OrderedDict()
+        grouped: OrderedDict[tuple[str, EditType], list[EditEvent]] = OrderedDict()
         for e in buffer:
             table = context.get(e.node_ptr)
             key = (table.name, e.type)
@@ -131,7 +122,7 @@ async def _execute_cascade(
 async def _execute_schema_edits(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    edits: Sequence[Edit],
+    edits: Sequence[EditEvent],
 ) -> None:
     """Execute the Edits against the schema (schema only, no data)."""
     pass  # :PostgresSchemaEdits
@@ -141,11 +132,10 @@ async def _execute_schema_edits(
 async def _execute_data_edit(
     conn: asyncpg.Connection,
     context: PostgresContext,
-    change: Change,
     table: PostgresTable,
     edit_type: EditType,
-    edits: Sequence[Edit],
-) -> tuple[Sequence[Edit], Sequence[Edit]]:
+    edits: Sequence[EditEvent],
+) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
     """
     Execute the Edits to the data (data only, no schema).
     Returns the Edits and any cascaded Edits.
@@ -179,7 +169,6 @@ SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_colum
         await conn.executemany(stmt, values_packed)
         logger.trace(
             f"postgres.{edit_type.name.lower()}",
-            change=change,
             edits=len(edits),
             stmt=stmt,
             span="current",
@@ -245,7 +234,6 @@ WHERE id = ${param_i}
         await conn.executemany(stmt, values_packed)
         logger.trace(
             "postgres.update",
-            change=change,
             edits=len(edits),
             stmt=stmt,
             span="current",
@@ -278,7 +266,6 @@ WHERE id = ${len(update_template) + 1}
         await conn.executemany(stmt, values_packed)
         logger.trace(
             "postgres.move",
-            change=change,
             edits=len(edits),
             stmt=stmt,
             span="current",
@@ -301,7 +288,7 @@ WHERE id = ${len(update_template) + 1}
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(
-            Edit(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
+            EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
         )
 
         # update
@@ -320,7 +307,7 @@ WHERE id = ${len(update_template) + 1}
             table_name = context.get(node_ptr).name
             node_id_packed = uuid.UUID(str(node_ptr.id))
             edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
-        at_packed = uuid.UUID(str(change.created_at))
+        at_packed = uuid.UUID(str(edits[0].created_at))
         for table_name, table_node_ids in edited_node_ptrs_by_table.items():
             stmt = f"""\
 UPDATE {table_name}
@@ -330,7 +317,6 @@ WHERE id = $1
             await conn.executemany(stmt, [(node_id, at_packed) for node_id in table_node_ids])
             logger.trace(
                 f"postgres.{edit_type.name.lower()}",
-                change=change,
                 edits=len(edits),
                 cascaded_edits=len(cascaded_edits),
                 stmt=stmt,
@@ -349,7 +335,7 @@ WHERE id = $1
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(
-            Edit(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
+            EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
         )
 
         # delete
@@ -366,7 +352,6 @@ WHERE id = $1
             await conn.executemany(stmt, table_node_ids)
             logger.trace(
                 "postgres.erase",
-                change=change,
                 edits=len(edits),
                 cascaded_edits=len(cascaded_edits),
                 stmt=stmt,

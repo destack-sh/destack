@@ -2,6 +2,8 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   Icon,
+  IsSourceable,
+  IsSpatial,
   IsSubject,
   NodeClass,
   NodeReference,
@@ -12,9 +14,9 @@ import type {
 } from "@destack/language/core";
 import {
   Entity,
+  Event,
+  EventStatus,
   Materialization,
-  MeasurementEvent,
-  Metric,
   Node,
   NodeType,
   StructType,
@@ -25,6 +27,7 @@ import type { Space } from "@destack/language/universe";
 import {
   CounterMeasurementEventProto,
   CounterMetricProto,
+  EventStatusProto,
   GaugeMeasurementEventProto,
   GaugeMetricProto,
   HistogramMeasurementEventProto,
@@ -34,6 +37,127 @@ import {
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
+
+/* ==== DESTACK_GENERATED_START:NODE:1200 ==== */
+/**
+ * An Entity that represents a Metric.
+ */
+export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
+  static metatype: NodeType = NodeType.METRIC;
+
+  abstract get parent(): Node | null;
+  declare readonly parentPtr: NodeReference | null;
+
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  abstract get snapshot(): Snapshot | null;
+  declare readonly snapshotPtr: NodeReference | null;
+
+  abstract get predecessor(): Metric | null;
+  declare readonly predecessorPtr: NodeReference | null;
+
+  abstract get template(): Metric | null;
+  declare readonly templatePtr: NodeReference | null;
+
+  abstract get instanceRoot(): Entity | null;
+  declare readonly instanceRootPtr: NodeReference | null;
+
+  /**
+   * Entity.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  abstract get createdBy(): (Node & IsSubject) | null;
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * Entity.updatedAt
+   */
+  declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  abstract get updatedBy(): (Node & IsSubject) | null;
+  declare readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * The absolute order key of this Node in its parent.
+   */
+  declare readonly orderKey: string;
+
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * Metric.name
+   */
+  /**
+   * Metric.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
+   * Metric.icon
+   */
+  /**
+   * Metric.icon
+   */
+  abstract get icon(): Icon | null;
+  abstract set icon(value: Icon | null);
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.METRIC, Metric);
+/* ==== DESTACK_GENERATED_END:NODE:1200 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:2010 ==== */
+/**
+ * An Event that represents a Measurement.
+ */
+export abstract class MeasurementEvent extends Event {
+  static metatype: NodeType = NodeType.MEASUREMENT_EVENT;
+
+  abstract get parent(): Space | null;
+  declare readonly parentPtr: NodeReference | null;
+
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference | null;
+
+  abstract get definition(): Metric | null;
+  declare readonly definitionPtr: NodeReference;
+
+  abstract get snapshot(): Snapshot | null;
+  declare readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  abstract get createdBy(): (Node & IsSubject) | null;
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
+
+  abstract get node(): Node | null;
+  declare readonly nodePtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.MEASUREMENT_EVENT, MeasurementEvent);
+/* ==== DESTACK_GENERATED_END:NODE:2010 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:180000 ==== */
 /**
@@ -841,6 +965,11 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -860,6 +989,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -913,6 +1043,11 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`GaugeMeasurementEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -948,6 +1083,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -971,6 +1109,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1016,7 +1155,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   }
 
   repr(): string {
-    return `<GaugeMeasurementEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<GaugeMeasurementEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1041,6 +1182,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1092,6 +1234,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1138,6 +1281,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1191,6 +1335,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -2053,6 +2198,11 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -2072,6 +2222,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2125,6 +2276,11 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`CounterMeasurementEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2160,6 +2316,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -2183,6 +2342,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -2228,7 +2388,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   }
 
   repr(): string {
-    return `<CounterMeasurementEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<CounterMeasurementEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2253,6 +2415,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -2304,6 +2467,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2350,6 +2514,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2403,6 +2568,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -3265,6 +3431,11 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -3284,6 +3455,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -3337,6 +3509,11 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`HistogramMeasurementEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3372,6 +3549,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
@@ -3395,6 +3575,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -3440,7 +3621,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   }
 
   repr(): string {
-    return `<HistogramMeasurementEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<HistogramMeasurementEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -3465,6 +3648,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -3516,6 +3700,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -3562,6 +3747,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -3615,6 +3801,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(

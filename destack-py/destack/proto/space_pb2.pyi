@@ -40,20 +40,20 @@ class QueryResponse(_message.Message):
     def __init__(self, result: _Optional[_Union[_language_pb2.QueryResultProto, _Mapping]] = ...) -> None: ...
 
 class CommitRequest(_message.Message):
-    __slots__ = ("scope", "changes")
+    __slots__ = ("scope", "events")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
-    CHANGES_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_FIELD_NUMBER: _ClassVar[int]
     scope: ScopeProto
-    changes: _containers.RepeatedCompositeFieldContainer[_language_pb2.ChangeProto]
-    def __init__(self, scope: _Optional[_Union[ScopeProto, _Mapping]] = ..., changes: _Optional[_Iterable[_Union[_language_pb2.ChangeProto, _Mapping]]] = ...) -> None: ...
+    events: _containers.RepeatedCompositeFieldContainer[_language_pb2.SomeEventProto]
+    def __init__(self, scope: _Optional[_Union[ScopeProto, _Mapping]] = ..., events: _Optional[_Iterable[_Union[_language_pb2.SomeEventProto, _Mapping]]] = ...) -> None: ...
 
 class CommitResponse(_message.Message):
-    __slots__ = ("epoch", "results")
+    __slots__ = ("epoch", "events")
     EPOCH_FIELD_NUMBER: _ClassVar[int]
-    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_FIELD_NUMBER: _ClassVar[int]
     epoch: int
-    results: _containers.RepeatedCompositeFieldContainer[_language_pb2.ChangeResultProto]
-    def __init__(self, epoch: _Optional[int] = ..., results: _Optional[_Iterable[_Union[_language_pb2.ChangeResultProto, _Mapping]]] = ...) -> None: ...
+    events: _containers.RepeatedCompositeFieldContainer[_language_pb2.SomeEventProto]
+    def __init__(self, epoch: _Optional[int] = ..., events: _Optional[_Iterable[_Union[_language_pb2.SomeEventProto, _Mapping]]] = ...) -> None: ...
 
 class SubscribeRequest(_message.Message):
     __slots__ = ("query",)

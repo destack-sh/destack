@@ -5,9 +5,7 @@ import opentelemetry.trace as trace
 import structlog
 
 from destack.language import (
-    Change,
-    ChangeResult,
-    ChangeStatus,
+    Event,
     Query,
     QueryResult,
     QueryUpdate,
@@ -17,7 +15,7 @@ from destack.language import (
 )
 
 from .core import MemoryContext, MemoryDatabase
-from .edit import execute_change
+from .edit import execute_events
 from .query import execute_query
 
 tracer = trace.get_tracer(__name__)
@@ -50,13 +48,13 @@ class MemoryStore(Store):
 
     @override
     @tracer.start_as_current_span("memory.commit")
-    async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
-        results: list[ChangeResult] = []
-        for change in changes:
-            edits, cascaded_edits = execute_change(self.database, self.context, change)
-            result = ChangeResult(
-                id=change.id,
-                status=ChangeStatus.COMPLETED,
+    async def commit(self, events: Sequence[Event]) -> Sequence[Event]:
+        results: list[Event] = []
+        for event in events:
+            edits, cascaded_edits = execute_events(self.database, self.context, event)
+            result = EventResult(
+                id=event.id,
+                status=EventStatus.COMPLETED,
                 edits=list(edits),
                 cascaded_edits=list(cascaded_edits),
             )

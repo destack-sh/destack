@@ -19,6 +19,7 @@ import type {
 import {
   Entity,
   Event,
+  EventStatus,
   Materialization,
   Node,
   NodeType,
@@ -28,6 +29,7 @@ import {
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import {
+  EventStatusProto,
   MaterializationProto,
   MembershipJoinedEventProto,
   MembershipLeftEventProto,
@@ -61,6 +63,11 @@ export abstract class MembershipEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Membership | null;
   declare readonly nodePtr: NodeReference;
@@ -139,6 +146,11 @@ export class MembershipJoinedEvent extends MembershipEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * MembershipEvent.node
    */
   get node(): Membership | null {
@@ -198,6 +210,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Membership | NodeReference;
     joinable: (Node & IsJoinable) | NodeReference;
     member: (Node & IsSubject) | NodeReference;
@@ -247,6 +260,11 @@ export class MembershipJoinedEvent extends MembershipEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`MembershipJoinedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -326,6 +344,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -350,6 +371,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -392,7 +414,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
   }
 
   repr(): string {
-    return `<MembershipJoinedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<MembershipJoinedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -416,6 +440,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["102"] = object.joinablePtr.toValue();
     objectValue["103"] = object.memberPtr.toValue();
@@ -486,6 +511,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -530,6 +556,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.joinablePtr = object.joinablePtr.toProto();
     objectProto.memberPtr = object.memberPtr.toProto();
@@ -607,6 +634,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -714,6 +742,11 @@ export class MembershipLeftEvent extends MembershipEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * MembershipEvent.node
    */
   get node(): Membership | null {
@@ -756,6 +789,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Membership | NodeReference;
     joinable: (Node & IsJoinable) | NodeReference;
     member: (Node & IsSubject) | NodeReference;
@@ -803,6 +837,11 @@ export class MembershipLeftEvent extends MembershipEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`MembershipLeftEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -863,6 +902,9 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -885,6 +927,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -927,7 +970,9 @@ export class MembershipLeftEvent extends MembershipEvent {
   }
 
   repr(): string {
-    return `<MembershipLeftEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<MembershipLeftEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -951,6 +996,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["102"] = object.joinablePtr.toValue();
     objectValue["103"] = object.memberPtr.toValue();
@@ -1011,6 +1057,7 @@ export class MembershipLeftEvent extends MembershipEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1055,6 +1102,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.joinablePtr = object.joinablePtr.toProto();
     objectProto.memberPtr = object.memberPtr.toProto();
@@ -1122,6 +1170,7 @@ export class MembershipLeftEvent extends MembershipEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

@@ -19,6 +19,7 @@ import type {
 import {
   Entity,
   Event,
+  EventStatus,
   Materialization,
   Node,
   NodeType,
@@ -28,6 +29,7 @@ import {
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import {
+  EventStatusProto,
   MaterializationProto,
   RoleAssignedEventProto,
   RoleProto,
@@ -61,6 +63,11 @@ export abstract class RoleEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Role | null;
   declare readonly nodePtr: NodeReference;
@@ -136,6 +143,11 @@ export class RoleAssignedEvent extends RoleEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RoleEvent.node
    */
   get node(): Role | null {
@@ -166,6 +178,7 @@ export class RoleAssignedEvent extends RoleEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Role | NodeReference;
     subject: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -212,6 +225,11 @@ export class RoleAssignedEvent extends RoleEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RoleAssignedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -261,6 +279,9 @@ export class RoleAssignedEvent extends RoleEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -282,6 +303,7 @@ export class RoleAssignedEvent extends RoleEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -324,7 +346,9 @@ export class RoleAssignedEvent extends RoleEvent {
   }
 
   repr(): string {
-    return `<RoleAssignedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RoleAssignedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -348,6 +372,7 @@ export class RoleAssignedEvent extends RoleEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.subjectPtr.toValue();
     return objectValue;
@@ -400,6 +425,7 @@ export class RoleAssignedEvent extends RoleEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -444,6 +470,7 @@ export class RoleAssignedEvent extends RoleEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.subjectPtr = object.subjectPtr.toProto();
     return objectProto as RoleAssignedEventProto;
@@ -503,6 +530,7 @@ export class RoleAssignedEvent extends RoleEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -610,6 +638,11 @@ export class RoleUnassignedEvent extends RoleEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * RoleEvent.node
    */
   get node(): Role | null {
@@ -640,6 +673,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Role | NodeReference;
     subject: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -686,6 +720,11 @@ export class RoleUnassignedEvent extends RoleEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`RoleUnassignedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -735,6 +774,9 @@ export class RoleUnassignedEvent extends RoleEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -756,6 +798,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -798,7 +841,9 @@ export class RoleUnassignedEvent extends RoleEvent {
   }
 
   repr(): string {
-    return `<RoleUnassignedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<RoleUnassignedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -822,6 +867,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.subjectPtr.toValue();
     return objectValue;
@@ -874,6 +920,7 @@ export class RoleUnassignedEvent extends RoleEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -918,6 +965,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.subjectPtr = object.subjectPtr.toProto();
     return objectProto as RoleUnassignedEventProto;
@@ -977,6 +1025,7 @@ export class RoleUnassignedEvent extends RoleEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

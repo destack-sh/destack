@@ -3,7 +3,6 @@ from collections.abc import Sequence
 from typing import Any, NamedTuple, assert_never
 
 from destack.language import (
-    Edit,
     Materialization,
     NodeDefinitionReference,
     NodeDefinitionType,
@@ -51,10 +50,6 @@ class MemoryContext:
 
     def __repr__(self) -> str:
         return f"<MemoryContext {self!s}>"
-
-    def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
-        """Apply the Edits to the context. Returns the Edits that were applied."""
-        ...
 
     def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
         """Expand the specific Definitions for a NodeDefinitionReference."""

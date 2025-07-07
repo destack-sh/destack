@@ -16,6 +16,7 @@ import {
   Entity,
   EnumType,
   Event,
+  EventStatus,
   Materialization,
   Node,
   NodeType,
@@ -28,6 +29,7 @@ import {
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import {
+  EventStatusProto,
   MaterializationProto,
   SanctionExpiredEventProto,
   SanctionGrantedEventProto,
@@ -78,6 +80,11 @@ export abstract class SanctionEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The status of the Event.
+   */
+  declare readonly status: EventStatus;
 
   abstract get node(): Sanction | null;
   declare readonly nodePtr: NodeReference;
@@ -153,6 +160,11 @@ export class SanctionRequestedEvent extends SanctionEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * SanctionEvent.node
    */
   get node(): Sanction | null {
@@ -183,6 +195,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Sanction | NodeReference;
     target: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -229,6 +242,11 @@ export class SanctionRequestedEvent extends SanctionEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`SanctionRequestedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -278,6 +296,9 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -299,6 +320,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -341,7 +363,9 @@ export class SanctionRequestedEvent extends SanctionEvent {
   }
 
   repr(): string {
-    return `<SanctionRequestedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<SanctionRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -365,6 +389,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
@@ -417,6 +442,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -461,6 +487,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.targetPtr = object.targetPtr.toProto();
     return objectProto as SanctionRequestedEventProto;
@@ -520,6 +547,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -627,6 +655,11 @@ export class SanctionGrantedEvent extends SanctionEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * SanctionEvent.node
    */
   get node(): Sanction | null {
@@ -657,6 +690,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Sanction | NodeReference;
     target: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -703,6 +737,11 @@ export class SanctionGrantedEvent extends SanctionEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`SanctionGrantedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -752,6 +791,9 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -773,6 +815,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -815,7 +858,9 @@ export class SanctionGrantedEvent extends SanctionEvent {
   }
 
   repr(): string {
-    return `<SanctionGrantedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<SanctionGrantedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -839,6 +884,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
@@ -891,6 +937,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -935,6 +982,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.targetPtr = object.targetPtr.toProto();
     return objectProto as SanctionGrantedEventProto;
@@ -994,6 +1042,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1101,6 +1150,11 @@ export class SanctionRevokedEvent extends SanctionEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * SanctionEvent.node
    */
   get node(): Sanction | null {
@@ -1131,6 +1185,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Sanction | NodeReference;
     target: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -1177,6 +1232,11 @@ export class SanctionRevokedEvent extends SanctionEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`SanctionRevokedEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1226,6 +1286,9 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1247,6 +1310,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1289,7 +1353,9 @@ export class SanctionRevokedEvent extends SanctionEvent {
   }
 
   repr(): string {
-    return `<SanctionRevokedEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<SanctionRevokedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1313,6 +1379,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
@@ -1365,6 +1432,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1409,6 +1477,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.targetPtr = object.targetPtr.toProto();
     return objectProto as SanctionRevokedEventProto;
@@ -1468,6 +1537,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1575,6 +1645,11 @@ export class SanctionExpiredEvent extends SanctionEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
    * SanctionEvent.node
    */
   get node(): Sanction | null {
@@ -1605,6 +1680,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
+    status: EventStatus;
     node: Sanction | NodeReference;
     target: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
@@ -1651,6 +1727,11 @@ export class SanctionExpiredEvent extends SanctionEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`SanctionExpiredEvent.status is required`);
+    }
+    this.status = _status;
     let _node = options.node;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1700,6 +1781,9 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.status === other.status)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1721,6 +1805,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1763,7 +1848,9 @@ export class SanctionExpiredEvent extends SanctionEvent {
   }
 
   repr(): string {
-    return `<SanctionExpiredEvent '${this.path}'>`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<SanctionExpiredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1787,6 +1874,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     objectValue["110"] = object.targetPtr.toValue();
     return objectValue;
@@ -1839,6 +1927,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1883,6 +1972,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
+    objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     objectProto.targetPtr = object.targetPtr.toProto();
     return objectProto as SanctionExpiredEventProto;
@@ -1942,6 +2032,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
               _connection,
             )
           : null,
+      status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
