@@ -5,10 +5,6 @@
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { Space } from "./space";
-import type { DownloadFilesResponse } from "./space";
-import type { DownloadFilesRequest } from "./space";
-import type { UploadFilesResponse } from "./space";
-import type { UploadFilesRequest } from "./space";
 import type { SubscribeResponse } from "./space";
 import type { SubscribeRequest } from "./space";
 import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
@@ -44,18 +40,6 @@ export interface ISpaceClient {
      * @generated from protobuf rpc: Subscribe
      */
     subscribe(input: SubscribeRequest, options?: RpcOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse>;
-    /**
-     * 'Upload' some files (get URLs to upload them to).
-     *
-     * @generated from protobuf rpc: UploadFiles
-     */
-    uploadFiles(input: UploadFilesRequest, options?: RpcOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse>;
-    /**
-     * 'Download' some files (get URLs to download them from).
-     *
-     * @generated from protobuf rpc: DownloadFiles
-     */
-    downloadFiles(input: DownloadFilesRequest, options?: RpcOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse>;
 }
 /**
  * A Host provides the operating system of a Space.
@@ -95,23 +79,5 @@ export class SpaceClient implements ISpaceClient, ServiceInfo {
     subscribe(input: SubscribeRequest, options?: RpcOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse> {
         const method = this.methods[2], opt = this._transport.mergeOptions(options);
         return stackIntercept<SubscribeRequest, SubscribeResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
-     * 'Upload' some files (get URLs to upload them to).
-     *
-     * @generated from protobuf rpc: UploadFiles
-     */
-    uploadFiles(input: UploadFilesRequest, options?: RpcOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
-        return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * 'Download' some files (get URLs to download them from).
-     *
-     * @generated from protobuf rpc: DownloadFiles
-     */
-    downloadFiles(input: DownloadFilesRequest, options?: RpcOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
 }
