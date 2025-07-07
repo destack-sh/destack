@@ -8,7 +8,7 @@ import {
   StoreType,
 } from "@destack/language";
 import { MemoryContext, MemoryDatabase } from "@destack/store/memory/core";
-import { executeChange } from "@destack/store/memory/edit";
+import { executeEdits } from "@destack/store/memory/edit";
 import { executeQuery } from "@destack/store/memory/query";
 
 /** An in-memory Store. */
@@ -45,8 +45,7 @@ export class MemoryEntityStore extends EntityStore {
   }
 
   async commit(events: EditEvent[]): Promise<EditEvent[]> {
-    const { edits, cascadedEdits } = executeChange({
-      database: this.database,
+    const { edits, cascadedEdits } = executeEdits({
       context: this.context,
       edits: events,
     });

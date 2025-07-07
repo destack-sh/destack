@@ -53,7 +53,7 @@ class MemoryEntityStore(EntityStore):
     @override
     @tracer.start_as_current_span("memory.commit")
     async def commit(self, events: Sequence[EditEvent]) -> Sequence[EditEvent]:
-        edits, cascaded_edits = execute_edits(self.database, self.context, events)
+        edits, cascaded_edits = execute_edits(self.context, events)
         applied_edits = [*edits, *cascaded_edits]
         logger.trace(
             "memory.commit.edits",

@@ -13,11 +13,12 @@ from destack.language import (
     IsArchivable,
     IsDeletable,
     Node,
+    NodeDefinitionReference,
     NodeReference,
     NodeType,
 )
 
-from .core import MemoryContext, MemoryDatabase, MemoryTable, VersionedNodeKey
+from .core import MemoryContext, VersionedNodeKey
 from .wiring import pack_node_row
 
 tracer = trace.get_tracer(__name__)
@@ -31,7 +32,7 @@ DELETED_AT_KEY = str(IsDeletable.property("deleted_at").id)
 
 @tracer.start_as_current_span("memory.execute_edits")
 def execute_edits(
-    database: MemoryDatabase, context: MemoryContext, events: Sequence[EditEvent]
+    context: MemoryContext, events: Sequence[EditEvent]
 ) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
     """Execute the Events."""
     assert events, f"no Events in {events!r}"
@@ -40,20 +41,22 @@ def execute_edits(
     cascaded_edits: list[EditEvent] = []
     applied_edits: list[EditEvent] = []
 
-    current_table = context.get(events[0].node_ptr)
+    current_definition = NodeDefinitionReference.of(events[0].node_ptr)
     current_edit_type = events[0].type
     current_batch: list[EditEvent] = []
     for edit in edits:
-        edit_table = context.get(edit.node_ptr)
-        if edit_table is not current_table or edit.type != current_edit_type:
+        edit_definition = NodeDefinitionReference.of(edit.node_ptr)
+        if (
+            edit_definition.node_type != current_definition.node_type
+            or edit.type != current_edit_type
+        ):
             batch_applied_edits, batch_cascaded_edits = _execute_data_edit(
-                database=database,
                 context=context,
-                table=current_table,
+                definition=current_definition,
                 edit_type=current_edit_type,
                 edits=current_batch,
             )
-            current_table = edit_table
+            current_definition = edit_definition
             current_edit_type = edit.type
             current_batch = []
 
@@ -61,9 +64,8 @@ def execute_edits(
 
     if current_batch:
         batch_applied_edits, batch_cascaded_edits = _execute_data_edit(
-            database=database,
             context=context,
-            table=current_table,
+            definition=current_definition,
             edit_type=current_edit_type,
             edits=current_batch,
         )
@@ -110,9 +112,8 @@ def _optimize_edits(context: MemoryContext, edits: Sequence[EditEvent]) -> list[
 
 @tracer.start_as_current_span("memory.execute_cascade")
 def _execute_cascade(
-    database: MemoryDatabase,
     context: MemoryContext,
-    table: MemoryTable,
+    definition: NodeDefinitionReference,
     node_ptrs: Sequence[NodeReference],
 ) -> Sequence[NodeReference]:
     """Get the cascaded Nodes for an Edit."""
@@ -121,9 +122,8 @@ def _execute_cascade(
 
 @tracer.start_as_current_span("memory.execute_data_edit")
 def _execute_data_edit(
-    database: MemoryDatabase,
     context: MemoryContext,
-    table: MemoryTable,
+    definition: NodeDefinitionReference,
     edit_type: EditType,
     edits: Sequence[EditEvent],
 ) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
@@ -132,6 +132,8 @@ def _execute_data_edit(
     Returns the applied Edits and any cascaded Edits.
     """
     from destack.language import ScalarType
+
+    table = context.get(definition)
 
     # create/upsert
     if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
@@ -219,9 +221,8 @@ def _execute_data_edit(
     ):
         # cascade
         cascaded_node_ptrs = _execute_cascade(
-            database=database,
             context=context,
-            table=table,
+            definition=definition,
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(
@@ -256,9 +257,8 @@ def _execute_data_edit(
     elif edit_type == EditType.ERASE:
         # cascade
         cascaded_node_ptrs = _execute_cascade(
-            database=database,
             context=context,
-            table=table,
+            definition=definition,
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(

@@ -1974,7 +1974,7 @@ export class Join extends StructFrozen {
   static of(
     joinType: JoinType | Join,
     options?: {
-      definition?: NodeType | NodeClass | CustomEntityDefinition;
+      definition?: NodeType | NodeClass | NodeReference;
       recursive?: boolean;
       depth?: number | null;
       on?: Condition | null;
