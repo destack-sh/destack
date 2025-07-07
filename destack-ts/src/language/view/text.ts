@@ -5,6 +5,7 @@ import type {
   Dimension,
   Graph,
   IsSubject,
+  NodeClass,
   NodeDefinitionReference,
   NodeReference,
   Position,
@@ -185,16 +186,8 @@ export class TextView extends ContentView {
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -225,16 +218,8 @@ export class TextView extends ContentView {
     return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this._scriptPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scriptPtr"] === undefined) {
-      this._dirty["scriptPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
@@ -246,16 +231,8 @@ export class TextView extends ContentView {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -267,16 +244,8 @@ export class TextView extends ContentView {
     return this._position;
   }
   set position(value: Position | null) {
-    const oldValue = this._position;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["position"] === undefined) {
-      this._dirty["position"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["position"];
+    this._session.updateSetProperty(this, prop, value);
     this._position = value;
   }
   _position: Position | null;
@@ -288,16 +257,8 @@ export class TextView extends ContentView {
     return this._width;
   }
   set width(value: Dimension | null) {
-    const oldValue = this._width;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["width"] === undefined) {
-      this._dirty["width"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["width"];
+    this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
   _width: Dimension | null;
@@ -309,16 +270,8 @@ export class TextView extends ContentView {
     return this._height;
   }
   set height(value: Dimension | null) {
-    const oldValue = this._height;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["height"] === undefined) {
-      this._dirty["height"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["height"];
+    this._session.updateSetProperty(this, prop, value);
     this._height = value;
   }
   _height: Dimension | null;
@@ -330,16 +283,8 @@ export class TextView extends ContentView {
     return this._minWidth;
   }
   set minWidth(value: Dimension | null) {
-    const oldValue = this._minWidth;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["minWidth"] === undefined) {
-      this._dirty["minWidth"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["min_width"];
+    this._session.updateSetProperty(this, prop, value);
     this._minWidth = value;
   }
   _minWidth: Dimension | null;
@@ -351,16 +296,8 @@ export class TextView extends ContentView {
     return this._minHeight;
   }
   set minHeight(value: Dimension | null) {
-    const oldValue = this._minHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["minHeight"] === undefined) {
-      this._dirty["minHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["min_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._minHeight = value;
   }
   _minHeight: Dimension | null;
@@ -372,16 +309,8 @@ export class TextView extends ContentView {
     return this._maxWidth;
   }
   set maxWidth(value: Dimension | null) {
-    const oldValue = this._maxWidth;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["maxWidth"] === undefined) {
-      this._dirty["maxWidth"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["max_width"];
+    this._session.updateSetProperty(this, prop, value);
     this._maxWidth = value;
   }
   _maxWidth: Dimension | null;
@@ -393,16 +322,8 @@ export class TextView extends ContentView {
     return this._maxHeight;
   }
   set maxHeight(value: Dimension | null) {
-    const oldValue = this._maxHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["maxHeight"] === undefined) {
-      this._dirty["maxHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["max_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._maxHeight = value;
   }
   _maxHeight: Dimension | null;
@@ -414,16 +335,8 @@ export class TextView extends ContentView {
     return this._align;
   }
   set align(value: Align | null) {
-    const oldValue = this._align;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["align"] === undefined) {
-      this._dirty["align"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["align"];
+    this._session.updateSetProperty(this, prop, value);
     this._align = value;
   }
   _align: Align | null;
@@ -435,16 +348,8 @@ export class TextView extends ContentView {
     return this._isVisible;
   }
   set isVisible(value: boolean | null) {
-    const oldValue = this._isVisible;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isVisible"] === undefined) {
-      this._dirty["isVisible"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_visible"];
+    this._session.updateSetProperty(this, prop, value);
     this._isVisible = value;
   }
   _isVisible: boolean | null;
@@ -456,16 +361,8 @@ export class TextView extends ContentView {
     return this._opacity;
   }
   set opacity(value: number | null) {
-    const oldValue = this._opacity;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["opacity"] === undefined) {
-      this._dirty["opacity"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["opacity"];
+    this._session.updateSetProperty(this, prop, value);
     this._opacity = value;
   }
   _opacity: number | null;
@@ -477,16 +374,8 @@ export class TextView extends ContentView {
     return this._font;
   }
   set font(value: Font | null) {
-    const oldValue = this._font;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["font"] === undefined) {
-      this._dirty["font"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["font"];
+    this._session.updateSetProperty(this, prop, value);
     this._font = value;
   }
   _font: Font | null;
@@ -498,16 +387,8 @@ export class TextView extends ContentView {
     return this._color;
   }
   set color(value: Fill | null) {
-    const oldValue = this._color;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["color"] === undefined) {
-      this._dirty["color"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["color"];
+    this._session.updateSetProperty(this, prop, value);
     this._color = value;
   }
   _color: Fill | null;
@@ -519,16 +400,8 @@ export class TextView extends ContentView {
     return this._text;
   }
   set text(value: Text | null) {
-    const oldValue = this._text;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["text"] === undefined) {
-      this._dirty["text"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["text"];
+    this._session.updateSetProperty(this, prop, value);
     this._text = value;
   }
   _text: Text | null;

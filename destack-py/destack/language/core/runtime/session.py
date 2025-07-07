@@ -11,7 +11,7 @@ from opentelemetry import trace
 
 from destack.utils.uuid import UUID
 
-from ..builtin import ACTIVE_SESSION, Entity, IsSubject, TypeCardinality
+from ..builtin import ACTIVE_SESSION, Entity, IsSubject, PropertyDeclaration, TypeCardinality
 from ..common import (
     Change,
     ChangeResult,
@@ -43,7 +43,6 @@ class Session:
         "changes",
         "closed_at",
         "connections",
-        "dirty",
         "edits",
         "oracle",
         "origin",
@@ -71,7 +70,6 @@ class Session:
 
         # state/events tracking
         # nocheckin: track Events
-        self.dirty: dict[UUID, Entity] = {}
         self.edits: list[Edit] = []
         self.changes: list[Change] = []
 
@@ -117,7 +115,6 @@ class Session:
         assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.CREATE, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
-        self.dirty[node.id] = node
         node._is_new = False
         node._is_attached = True
 
@@ -126,118 +123,90 @@ class Session:
         assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.UPSERT, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
-        self.dirty[node.id] = node
         node._is_new = False
         node._is_attached = True
+
+    def update_set_property(self, node: Entity, prop: PropertyDeclaration, new_value: Any):
+        """Set a Property on this Node (direct SET/CLEAR operations)."""
+        old_value = getattr(node, prop.name)
+        node_ptr = node.to_ref()
+        prop_ptr = prop.to_ref()
+        prop_type = prop.to_type()
+
+        # undo
+        if old_value is None or (prop.cardinality != TypeCardinality.SCALAR and not old_value):
+            undo_operation = EditOperation.CLEAR
+            old_value = None
+        else:
+            undo_operation = EditOperation.SET
+            old_value = to_value(old_value, prop_type)
+
+        # do
+        if new_value is None or (prop.cardinality != TypeCardinality.SCALAR and not new_value):
+            operation = EditOperation.CLEAR
+            new_value = None
+        else:
+            operation = EditOperation.SET
+            new_value = to_value(new_value, prop_type)
+
+        undo_edit = Edit(
+            type=EditType.UPDATE,
+            node_ptr=node_ptr,
+            attribute=prop_ptr,
+            operation=undo_operation,
+            value=old_value,
+        )
+        edit = Edit(
+            type=EditType.UPDATE,
+            node_ptr=node_ptr,
+            attribute=prop_ptr,
+            operation=operation,
+            value=new_value,
+            undo=undo_edit,
+        )
+        self.edits.append(edit)
 
     def update(self, node: Entity, edit: Edit):
         """Updates an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        self._flush_node(node)
         self.edits.append(edit)
-        self.dirty[node.id] = node
 
     def move(self, node: Entity, parent: Entity):
         """Moves an Entity to a new parent."""
         assert self.closed_at is None, f"{self!r} is closed"
-        self._flush_node(node)
         edit = Edit(type=EditType.MOVE, node=node, value=to_value(parent))
         self.edits.append(edit)
-        self.dirty[node.id] = node
 
     def archive(self, node: Entity):
         """Archives an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        self._flush_node(node)
         undo_edit = Edit(
             type=EditType.UNARCHIVE, node=node, value=to_value(node, node_as_value=True)
         )
         edit = Edit(type=EditType.ARCHIVE, node=node, undo=undo_edit)
         self.edits.append(edit)
-        self.dirty[node.id] = node
 
     def unarchive(self, node: Entity):
         """Unarchives an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        self._flush_node(node)
         edit = Edit(type=EditType.UNARCHIVE, node=node)
         self.edits.append(edit)
-        self.dirty[node.id] = node
 
     def delete(self, node: Entity):
         """Deletes an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        self._flush_node(node)
         undo_edit = Edit(type=EditType.RESTORE, node=node, value=to_value(node, node_as_value=True))
         edit = Edit(type=EditType.DELETE, node=node, undo=undo_edit)
         self.edits.append(edit)
-        self.dirty[node.id] = node
 
     def restore(self, node: Entity):
         """Restores a deleted Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        self._flush_node(node)
         edit = Edit(type=EditType.RESTORE, node=node)
         self.edits.append(edit)
-        self.dirty[node.id] = node
-
-    def _flush_node(self, node: Entity):
-        """Turn a dirty Entity into Edits."""
-        if node._is_new:
-            node._is_new = False
-        elif node._dirty is not None:
-            # turn dirty properties into Edits (basic SET/CLEAR operations)
-            node_ptr = node.to_ref()
-            for prop_name, prop_old_value in node._dirty.items():
-                prop = node.__properties__[prop_name]
-                prop_ptr = prop.to_ref()
-                prop_type = prop.to_type()
-
-                # undo
-                if prop_old_value is None or (
-                    prop.cardinality != TypeCardinality.SCALAR and not prop_old_value
-                ):
-                    undo_operation = EditOperation.CLEAR
-                    old_value = None
-                else:
-                    undo_operation = EditOperation.SET
-                    old_value = to_value(prop_old_value, prop_type)
-
-                # do
-                prop_new_value = getattr(node, prop_name)
-                if prop_new_value is None or (
-                    prop.cardinality != TypeCardinality.SCALAR and not prop_new_value
-                ):
-                    operation = EditOperation.CLEAR
-                    new_value = None
-                else:
-                    operation = EditOperation.SET
-                    new_value = to_value(prop_new_value, prop_type)
-
-                undo_edit = Edit(
-                    type=EditType.UPDATE,
-                    node_ptr=node_ptr,
-                    attribute=prop_ptr,
-                    operation=undo_operation,
-                    value=old_value,
-                )
-                edit = Edit(
-                    type=EditType.UPDATE,
-                    node_ptr=node_ptr,
-                    attribute=prop_ptr,
-                    operation=operation,
-                    value=new_value,
-                    undo=undo_edit,
-                )
-                self.edits.append(edit)
 
     def flush(self):
         """Turn pending updates into Edits, and Edits into Changes."""
-        # flush dirty Nodes
-        if self.dirty:
-            for node in self.dirty.values():
-                self._flush_node(node)
-            self.dirty.clear()
         # turn unassigned Edits into a Change
         if self.edits:
             change = Change(edits=self.edits, created_by=self.subject, origin=self.origin)

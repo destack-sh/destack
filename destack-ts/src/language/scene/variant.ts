@@ -8,6 +8,7 @@ import type {
   IsSpatial,
   IsSubject,
   Length,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -210,16 +211,8 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -231,16 +224,8 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     return this._type;
   }
   set type(value: VariantType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: VariantType;
@@ -252,16 +237,8 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -273,16 +250,8 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -294,16 +263,8 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     return this._maxWidth;
   }
   set maxWidth(value: Length | null) {
-    const oldValue = this._maxWidth;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["maxWidth"] === undefined) {
-      this._dirty["maxWidth"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["max_width"];
+    this._session.updateSetProperty(this, prop, value);
     this._maxWidth = value;
   }
   _maxWidth: Length | null;
@@ -315,16 +276,8 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     return this._maxHeight;
   }
   set maxHeight(value: Length | null) {
-    const oldValue = this._maxHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["maxHeight"] === undefined) {
-      this._dirty["maxHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["max_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._maxHeight = value;
   }
   _maxHeight: Length | null;
@@ -336,16 +289,8 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     return this._minWidth;
   }
   set minWidth(value: Length | null) {
-    const oldValue = this._minWidth;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["minWidth"] === undefined) {
-      this._dirty["minWidth"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["min_width"];
+    this._session.updateSetProperty(this, prop, value);
     this._minWidth = value;
   }
   _minWidth: Length | null;
@@ -357,16 +302,8 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     return this._minHeight;
   }
   set minHeight(value: Length | null) {
-    const oldValue = this._minHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["minHeight"] === undefined) {
-      this._dirty["minHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["min_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._minHeight = value;
   }
   _minHeight: Length | null;

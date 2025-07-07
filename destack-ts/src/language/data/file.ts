@@ -11,6 +11,7 @@ import type {
   IsGlobal,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeDefinitionReference,
   NodeReference,
   QueryConnection,
@@ -357,16 +358,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -392,16 +385,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this._scriptPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scriptPtr"] === undefined) {
-      this._dirty["scriptPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
@@ -413,16 +398,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._status;
   }
   set status(value: ResourceStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: ResourceStatus;
@@ -434,16 +411,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._type;
   }
   set type(value: FileType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: FileType;
@@ -455,16 +424,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -476,16 +437,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._source;
   }
   set source(value: FileSource) {
-    const oldValue = this._source;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["source"] === undefined) {
-      this._dirty["source"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["source"];
+    this._session.updateSetProperty(this, prop, value);
     this._source = value;
   }
   _source: FileSource;
@@ -497,16 +450,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._mimeType;
   }
   set mimeType(value: string | null) {
-    const oldValue = this._mimeType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["mimeType"] === undefined) {
-      this._dirty["mimeType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["mime_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._mimeType = value;
   }
   _mimeType: string | null;
@@ -518,16 +463,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._format;
   }
   set format(value: FileFormat | null) {
-    const oldValue = this._format;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["format"] === undefined) {
-      this._dirty["format"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["format"];
+    this._session.updateSetProperty(this, prop, value);
     this._format = value;
   }
   _format: FileFormat | null;
@@ -539,16 +476,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._size;
   }
   set size(value: number | null) {
-    const oldValue = this._size;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["size"] === undefined) {
-      this._dirty["size"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["size"];
+    this._session.updateSetProperty(this, prop, value);
     this._size = value;
   }
   _size: number | null;
@@ -560,16 +489,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._sha256;
   }
   set sha256(value: string | null) {
-    const oldValue = this._sha256;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["sha256"] === undefined) {
-      this._dirty["sha256"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["sha256"];
+    this._session.updateSetProperty(this, prop, value);
     this._sha256 = value;
   }
   _sha256: string | null;
@@ -581,16 +502,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._width;
   }
   set width(value: number | null) {
-    const oldValue = this._width;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["width"] === undefined) {
-      this._dirty["width"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["width"];
+    this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
   _width: number | null;
@@ -602,16 +515,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._height;
   }
   set height(value: number | null) {
-    const oldValue = this._height;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["height"] === undefined) {
-      this._dirty["height"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["height"];
+    this._session.updateSetProperty(this, prop, value);
     this._height = value;
   }
   _height: number | null;
@@ -623,16 +528,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._aspectRatio;
   }
   set aspectRatio(value: number | null) {
-    const oldValue = this._aspectRatio;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["aspectRatio"] === undefined) {
-      this._dirty["aspectRatio"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["aspect_ratio"];
+    this._session.updateSetProperty(this, prop, value);
     this._aspectRatio = value;
   }
   _aspectRatio: number | null;
@@ -644,16 +541,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._codec;
   }
   set codec(value: string | null) {
-    const oldValue = this._codec;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["codec"] === undefined) {
-      this._dirty["codec"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["codec"];
+    this._session.updateSetProperty(this, prop, value);
     this._codec = value;
   }
   _codec: string | null;
@@ -665,16 +554,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._duration;
   }
   set duration(value: Temporal.Duration | null) {
-    const oldValue = this._duration;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["duration"] === undefined) {
-      this._dirty["duration"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["duration"];
+    this._session.updateSetProperty(this, prop, value);
     this._duration = value;
   }
   _duration: Temporal.Duration | null;
@@ -686,16 +567,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._url;
   }
   set url(value: string | null) {
-    const oldValue = this._url;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["url"] === undefined) {
-      this._dirty["url"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["url"];
+    this._session.updateSetProperty(this, prop, value);
     this._url = value;
   }
   _url: string | null;
@@ -707,16 +580,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._contentUrl;
   }
   set contentUrl(value: string | null) {
-    const oldValue = this._contentUrl;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["contentUrl"] === undefined) {
-      this._dirty["contentUrl"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["content_url"];
+    this._session.updateSetProperty(this, prop, value);
     this._contentUrl = value;
   }
   _contentUrl: string | null;
@@ -728,16 +593,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._thumbnailUrl;
   }
   set thumbnailUrl(value: string | null) {
-    const oldValue = this._thumbnailUrl;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["thumbnailUrl"] === undefined) {
-      this._dirty["thumbnailUrl"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["thumbnail_url"];
+    this._session.updateSetProperty(this, prop, value);
     this._thumbnailUrl = value;
   }
   _thumbnailUrl: string | null;
@@ -749,16 +606,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._faviconUrl;
   }
   set faviconUrl(value: string | null) {
-    const oldValue = this._faviconUrl;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["faviconUrl"] === undefined) {
-      this._dirty["faviconUrl"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["favicon_url"];
+    this._session.updateSetProperty(this, prop, value);
     this._faviconUrl = value;
   }
   _faviconUrl: string | null;
@@ -770,16 +619,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._thumbnailWidth;
   }
   set thumbnailWidth(value: number | null) {
-    const oldValue = this._thumbnailWidth;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["thumbnailWidth"] === undefined) {
-      this._dirty["thumbnailWidth"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["thumbnail_width"];
+    this._session.updateSetProperty(this, prop, value);
     this._thumbnailWidth = value;
   }
   _thumbnailWidth: number | null;
@@ -791,16 +632,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._thumbnailHeight;
   }
   set thumbnailHeight(value: number | null) {
-    const oldValue = this._thumbnailHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["thumbnailHeight"] === undefined) {
-      this._dirty["thumbnailHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["thumbnail_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._thumbnailHeight = value;
   }
   _thumbnailHeight: number | null;
@@ -812,16 +645,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return this._content;
   }
   set content(value: Uint8Array | null) {
-    const oldValue = this._content;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["content"] === undefined) {
-      this._dirty["content"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["content"];
+    this._session.updateSetProperty(this, prop, value);
     this._content = value;
   }
   _content: Uint8Array | null;

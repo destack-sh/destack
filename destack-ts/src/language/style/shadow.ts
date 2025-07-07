@@ -3,6 +3,7 @@ import type {
   Axis2,
   Graph,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -623,16 +624,8 @@ export class ShadowStyle extends Style {
     return this._type;
   }
   set type(value: ShadowType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: ShadowType;
@@ -644,16 +637,8 @@ export class ShadowStyle extends Style {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -665,16 +650,8 @@ export class ShadowStyle extends Style {
     return this._color;
   }
   set color(value: Color | null) {
-    const oldValue = this._color;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["color"] === undefined) {
-      this._dirty["color"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["color"];
+    this._session.updateSetProperty(this, prop, value);
     this._color = value;
   }
   _color: Color | null;
@@ -686,16 +663,8 @@ export class ShadowStyle extends Style {
     return this._position;
   }
   set position(value: ShadowPosition) {
-    const oldValue = this._position;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["position"] === undefined) {
-      this._dirty["position"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["position"];
+    this._session.updateSetProperty(this, prop, value);
     this._position = value;
   }
   _position: ShadowPosition;
@@ -707,16 +676,8 @@ export class ShadowStyle extends Style {
     return this._offset;
   }
   set offset(value: Axis2 | null) {
-    const oldValue = this._offset;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["offset"] === undefined) {
-      this._dirty["offset"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["offset"];
+    this._session.updateSetProperty(this, prop, value);
     this._offset = value;
   }
   _offset: Axis2 | null;
@@ -728,16 +689,8 @@ export class ShadowStyle extends Style {
     return this._blur;
   }
   set blur(value: number | null) {
-    const oldValue = this._blur;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["blur"] === undefined) {
-      this._dirty["blur"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["blur"];
+    this._session.updateSetProperty(this, prop, value);
     this._blur = value;
   }
   _blur: number | null;
@@ -749,16 +702,8 @@ export class ShadowStyle extends Style {
     return this._spread;
   }
   set spread(value: number | null) {
-    const oldValue = this._spread;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["spread"] === undefined) {
-      this._dirty["spread"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["spread"];
+    this._session.updateSetProperty(this, prop, value);
     this._spread = value;
   }
   _spread: number | null;
@@ -770,16 +715,8 @@ export class ShadowStyle extends Style {
     return this._diffusion;
   }
   set diffusion(value: number | null) {
-    const oldValue = this._diffusion;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["diffusion"] === undefined) {
-      this._dirty["diffusion"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["diffusion"];
+    this._session.updateSetProperty(this, prop, value);
     this._diffusion = value;
   }
   _diffusion: number | null;

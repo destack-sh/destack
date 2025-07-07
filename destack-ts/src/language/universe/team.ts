@@ -5,6 +5,7 @@ import type {
   IsJoinable,
   IsOwner,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -131,16 +132,8 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -152,16 +145,8 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
     return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this._slug;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["slug"] === undefined) {
-      this._dirty["slug"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["slug"];
+    this._session.updateSetProperty(this, prop, value);
     this._slug = value;
   }
   _slug: string;

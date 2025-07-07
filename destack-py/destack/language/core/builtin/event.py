@@ -22,7 +22,6 @@ if TYPE_CHECKING:
         Icon,
         IsSubject,
         Join,
-        Json,
         Metric,
         NodeDefinitionReference,
         NodeReference,
@@ -129,21 +128,25 @@ class Signal(Event, IsExtensible):
 class EditEvent(Event):
     """A recorded Edit of an Entity."""
 
-    type: "EditType" = builtin_property(100, is_repr=True)
-    node: "Entity" = builtin_property(101, is_repr=True)
-    operation: "EditOperation | None" = builtin_property(102, is_repr=True)
-    attribute: "PropertyReference | None" = builtin_property(103, is_repr=True)
-    key: "Value | None" = builtin_property(104, is_repr=True)  # for map operations
-    key_unpacked: "Json | None" = builtin_property(105, is_repr=True)
+    type: "EditType" = builtin_property(100, is_repr=True, description="The type of Edit.")
+    node: "Entity" = builtin_property(101, is_repr=True, description="The Entity being edited.")
+    operation: "EditOperation | None" = builtin_property(
+        102, is_repr=True, description="The specific Edit operation."
+    )
+    attribute: "PropertyReference | None" = builtin_property(
+        103, is_repr=True, description="The builtin or custom Property being edited."
+    )
+    key: "Value | None" = builtin_property(
+        105, is_repr=True, description="The key for map operations."
+    )
     value: "Value | None" = builtin_property(110)
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET
 
     undo: Optional["Edit"] = builtin_property(
         120,
-        description="The inverse Edit *if* it cannot be unambiguously derived from the Edit).",
+        description="The inverse Edit if it cannot be unambiguously derived from the Edit).",
     )
-    ancestors_ids: list[UUID] = builtin_property(122)
 
 
 @builtin_node(NodeType.CHANGE_EVENT, frozen=True)

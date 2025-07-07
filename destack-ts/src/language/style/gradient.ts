@@ -3,6 +3,7 @@ import type {
   Axis2,
   Graph,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -768,16 +769,8 @@ export class GradientStyle extends Style {
     return this._type;
   }
   set type(value: GradientType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: GradientType;
@@ -789,16 +782,8 @@ export class GradientStyle extends Style {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -810,16 +795,8 @@ export class GradientStyle extends Style {
     return this._angle;
   }
   set angle(value: number | null) {
-    const oldValue = this._angle;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["angle"] === undefined) {
-      this._dirty["angle"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["angle"];
+    this._session.updateSetProperty(this, prop, value);
     this._angle = value;
   }
   _angle: number | null;
@@ -831,16 +808,8 @@ export class GradientStyle extends Style {
     return this._stops;
   }
   set stops(value: Array<GradientStop>) {
-    const oldValue = this._stops;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["stops"] === undefined) {
-      this._dirty["stops"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["stops"];
+    this._session.updateSetProperty(this, prop, value);
     this._stops = value;
   }
   _stops: Array<GradientStop>;
@@ -852,16 +821,8 @@ export class GradientStyle extends Style {
     return this._centerAnchor;
   }
   set centerAnchor(value: Axis2 | null) {
-    const oldValue = this._centerAnchor;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["centerAnchor"] === undefined) {
-      this._dirty["centerAnchor"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["center_anchor"];
+    this._session.updateSetProperty(this, prop, value);
     this._centerAnchor = value;
   }
   _centerAnchor: Axis2 | null;
@@ -873,16 +834,8 @@ export class GradientStyle extends Style {
     return this._dark;
   }
   set dark(value: Gradient | null) {
-    const oldValue = this._dark;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["dark"] === undefined) {
-      this._dirty["dark"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["dark"];
+    this._session.updateSetProperty(this, prop, value);
     this._dark = value;
   }
   _dark: Gradient | null;

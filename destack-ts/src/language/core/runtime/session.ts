@@ -2,7 +2,7 @@ import type {
   Entity,
   IsSubject,
   Node,
-  NodeClass,
+  PropertyDefinition,
   QueryConnection,
   Space,
   Store,
@@ -21,6 +21,7 @@ import {
 import { toValue, Value } from "@destack/language/core/common/value";
 import { Supergraph } from "@destack/language/core/runtime/graph";
 import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";
+import { Casing, toCasing } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /**
@@ -34,7 +35,6 @@ export class Session {
   store: Store | null;
   supergraph: Supergraph;
 
-  dirty: Record<string, Entity>;
   edits: Edit[];
   changes: Change[];
 
@@ -57,7 +57,6 @@ export class Session {
     this.supergraph = new Supergraph(this);
 
     // transaction (pending)
-    this.dirty = {};
     this.edits = [];
     this.changes = [];
 
@@ -112,7 +111,6 @@ export class Session {
     }
     const edit = new Edit({ type: EditType.CREATE, node, value: toValue(node, null, true) });
     this.edits.push(edit);
-    this.dirty[node.id] = node;
     node._isNew = false;
     node._isAttached = true;
   }
@@ -124,7 +122,6 @@ export class Session {
     }
     const edit = new Edit({ type: EditType.UPSERT, node, value: toValue(node, null, true) });
     this.edits.push(edit);
-    this.dirty[node.id] = node;
     node._isNew = false;
     node._isAttached = true;
   }
@@ -134,9 +131,57 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    this._flushNode(node);
     this.edits.push(edit);
-    this.dirty[node.id] = node;
+  }
+
+  /** Set a Property on an Entity (direct SET/CLEAR operations). */
+  updateSetProperty(node: Entity, prop: PropertyDefinition, newValue: any): void {
+    if (this.closedAt) {
+      throw new Error(`${this.repr()} is closed`);
+    }
+    const propName = toCasing(prop.name, Casing.CAMEL);
+    const nodePtr = node.toRef();
+    const propPtr = prop.toRef();
+    const propType = prop.toType();
+
+    // undo
+    let undoOperation: EditOperation;
+    let oldValue: Value | null = (node as any)[propName];
+    if (oldValue == null || (prop.cardinality != TypeCardinality.SCALAR && !oldValue)) {
+      undoOperation = EditOperation.CLEAR;
+      oldValue = null;
+    } else {
+      undoOperation = EditOperation.SET;
+      oldValue = toValue(oldValue, propType);
+    }
+
+    // do
+    let operation: EditOperation;
+    if (newValue == null || (prop.cardinality != TypeCardinality.SCALAR && !newValue)) {
+      operation = EditOperation.CLEAR;
+      newValue = null;
+    } else {
+      operation = EditOperation.SET;
+      newValue = toValue(newValue, propType);
+    }
+
+    // create Edits
+    const undoEdit = new Edit({
+      type: EditType.UPDATE,
+      node: nodePtr,
+      attribute: propPtr,
+      operation: undoOperation,
+      value: oldValue,
+    });
+    const edit = new Edit({
+      type: EditType.UPDATE,
+      node: nodePtr,
+      attribute: propPtr,
+      operation: operation,
+      value: newValue,
+      undo: undoEdit,
+    });
+    this.edits.push(edit);
   }
 
   /** Move a Node to a new parent. */
@@ -144,10 +189,8 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    this._flushNode(node);
     const edit = new Edit({ type: EditType.MOVE, node, value: toValue(parent) });
     this.edits.push(edit);
-    this.dirty[node.id] = node;
   }
 
   /** Archive an Entity. */
@@ -155,11 +198,9 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    this._flushNode(node);
     const undoEdit = new Edit({ type: EditType.RESTORE, node, value: toValue(node, null, true) });
     const edit = new Edit({ type: EditType.ARCHIVE, node, undo: undoEdit });
     this.edits.push(edit);
-    this.dirty[node.id] = node;
   }
 
   /** Unarchive an Entity. */
@@ -167,10 +208,8 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    this._flushNode(node);
     const edit = new Edit({ type: EditType.UNARCHIVE, node });
     this.edits.push(edit);
-    this.dirty[node.id] = node;
   }
 
   /** Delete an Entity. */
@@ -178,11 +217,9 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    this._flushNode(node);
     const undoEdit = new Edit({ type: EditType.RESTORE, node, value: toValue(node, null, true) });
     const edit = new Edit({ type: EditType.DELETE, node, undo: undoEdit });
     this.edits.push(edit);
-    this.dirty[node.id] = node;
   }
 
   /** Restore a deleted Entity. */
@@ -190,80 +227,14 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    this._flushNode(node);
     const edit = new Edit({ type: EditType.RESTORE, node });
     this.edits.push(edit);
-    this.dirty[node.id] = node;
-  }
-
-  /** Turn a dirty Node into Edits. */
-  _flushNode(node: Entity): void {
-    if (node._isNew) {
-      node._isNew = false;
-    } else if (node._dirty != null) {
-      // turn dirty properties into Edits (basic SET/CLEAR operations)
-      const nodePtr = node.toRef();
-      for (const [propName, propOldValue] of Object.entries(node._dirty)) {
-        const prop = (node.constructor as NodeClass).__properties__[propName];
-        const propPtr = prop.toRef();
-        const propType = prop.toType();
-
-        // undo
-        let undoOperation: EditOperation;
-        let oldValue: Value | null;
-        if (propOldValue == null || (prop.cardinality != TypeCardinality.SCALAR && !propOldValue)) {
-          undoOperation = EditOperation.CLEAR;
-          oldValue = null;
-        } else {
-          undoOperation = EditOperation.SET;
-          oldValue = toValue(propOldValue, propType);
-        }
-
-        // do
-        const propNewValue = (node as any)[propName];
-        let operation: EditOperation;
-        let newValue: Value | null;
-        if (propNewValue == null || (prop.cardinality != TypeCardinality.SCALAR && !propNewValue)) {
-          operation = EditOperation.CLEAR;
-          newValue = null;
-        } else {
-          operation = EditOperation.SET;
-          newValue = toValue(propNewValue, propType);
-        }
-
-        // create Edits
-        const undoEdit = new Edit({
-          type: EditType.UPDATE,
-          node: nodePtr,
-          attribute: propPtr,
-          operation: undoOperation,
-          value: oldValue,
-        });
-        const edit = new Edit({
-          type: EditType.UPDATE,
-          node: nodePtr,
-          attribute: propPtr,
-          operation: operation,
-          value: newValue,
-          undo: undoEdit,
-        });
-        this.edits.push(edit);
-      }
-    }
   }
 
   /** Flush pending Edits and Changes. */
   flush(): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
-    }
-    // flush dirty Nodes
-    const dirtyNodes = Object.values(this.dirty);
-    if (dirtyNodes.length > 0) {
-      for (const node of dirtyNodes) {
-        this._flushNode(node);
-      }
-      this.dirty = {};
     }
     // flush Edits
     if (this.edits.length > 0) {

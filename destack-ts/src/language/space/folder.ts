@@ -12,6 +12,7 @@ import type {
   IsStarable,
   IsSubject,
   IsTaggable,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -216,16 +217,8 @@ export class Folder
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -237,16 +230,8 @@ export class Folder
     return this._type;
   }
   set type(value: FolderType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: FolderType;
@@ -258,16 +243,8 @@ export class Folder
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -279,16 +256,8 @@ export class Folder
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -300,16 +269,8 @@ export class Folder
     return this._slug;
   }
   set slug(value: string | null) {
-    const oldValue = this._slug;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["slug"] === undefined) {
-      this._dirty["slug"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["slug"];
+    this._session.updateSetProperty(this, prop, value);
     this._slug = value;
   }
   _slug: string | null;
@@ -335,16 +296,8 @@ export class Folder
     return this._mainScenePtr;
   }
   set mainScenePtr(value: NodeReference | null) {
-    const oldValue = this._mainScenePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["mainScenePtr"] === undefined) {
-      this._dirty["mainScenePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["main_scene"];
+    this._session.updateSetProperty(this, prop, value);
     this._mainScenePtr = value;
   }
   _mainScenePtr: NodeReference | null;

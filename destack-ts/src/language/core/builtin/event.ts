@@ -1,12 +1,8 @@
-import {
-  packProtoJson,
-  packProtoTimestamp,
-  unpackProtoJson,
-  unpackProtoTimestamp,
-} from "@destack/grpc";
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization, Metric } from "@destack/language/core/builtin/entity";
+import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type {
   NodeDefinitionReference,
@@ -217,16 +213,8 @@ export class CustomEventDefinition
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -243,16 +231,8 @@ export class CustomEventDefinition
     return this._baseType;
   }
   set baseType(value: NodeDefinitionReference | null) {
-    const oldValue = this._baseType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["baseType"] === undefined) {
-      this._dirty["baseType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["base_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._baseType = value;
   }
   _baseType: NodeDefinitionReference | null;
@@ -264,16 +244,8 @@ export class CustomEventDefinition
     return this._baseTraits;
   }
   set baseTraits(value: Array<NodeDefinitionReference>) {
-    const oldValue = this._baseTraits;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["baseTraits"] === undefined) {
-      this._dirty["baseTraits"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["base_traits"];
+    this._session.updateSetProperty(this, prop, value);
     this._baseTraits = value;
   }
   _baseTraits: Array<NodeDefinitionReference>;
@@ -285,16 +257,8 @@ export class CustomEventDefinition
     return this._isAbstract;
   }
   set isAbstract(value: boolean) {
-    const oldValue = this._isAbstract;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isAbstract"] === undefined) {
-      this._dirty["isAbstract"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_abstract"];
+    this._session.updateSetProperty(this, prop, value);
     this._isAbstract = value;
   }
   _isAbstract: boolean;
@@ -318,16 +282,8 @@ export class CustomEventDefinition
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -339,16 +295,8 @@ export class CustomEventDefinition
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -1221,12 +1169,12 @@ export class EditEvent extends Event {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * EditEvent.type
+   * The type of Edit.
    */
   readonly type: EditType;
 
   /**
-   * EditEvent.node
+   * The Entity being edited.
    */
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
@@ -1238,24 +1186,19 @@ export class EditEvent extends Event {
   readonly nodePtr: NodeReference;
 
   /**
-   * EditEvent.operation
+   * The specific Edit operation.
    */
   readonly operation: EditOperation | null;
 
   /**
-   * EditEvent.attribute
+   * The builtin or custom Property being edited.
    */
   readonly attribute: PropertyReference | null;
 
   /**
-   * EditEvent.key
+   * The key for map operations.
    */
   readonly key: Value | null;
-
-  /**
-   * EditEvent.keyUnpacked
-   */
-  readonly keyUnpacked: any | null;
 
   /**
    * EditEvent.value
@@ -1263,14 +1206,9 @@ export class EditEvent extends Event {
   readonly value: Value | null;
 
   /**
-   * The inverse Edit *if* it cannot be unambiguously derived from the Edit).
+   * The inverse Edit if it cannot be unambiguously derived from the Edit).
    */
   readonly undo: Edit | null;
-
-  /**
-   * EditEvent.ancestorsIds
-   */
-  readonly ancestorsIds: Array<string>;
 
   constructor(options: {
     id?: string;
@@ -1284,10 +1222,8 @@ export class EditEvent extends Event {
     operation?: EditOperation | null;
     attribute?: PropertyReference | null;
     key?: Value | null;
-    keyUnpacked?: any | null;
     value?: Value | null;
     undo?: Edit | null;
-    ancestorsIds?: Array<string>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1351,17 +1287,10 @@ export class EditEvent extends Event {
     this.attribute = _attribute;
     let _key = options.key ?? null;
     this.key = _key;
-    let _keyUnpacked = options.keyUnpacked ?? null;
-    this.keyUnpacked = _keyUnpacked;
     let _value = options.value ?? null;
     this.value = _value;
     let _undo = options.undo ?? null;
     this.undo = _undo;
-    let _ancestorsIds = options.ancestorsIds ?? null;
-    if (_ancestorsIds === null) {
-      _ancestorsIds = [];
-    }
-    this.ancestorsIds = _ancestorsIds;
 
     // identity
     if (options.id == null) {
@@ -1407,9 +1336,6 @@ export class EditEvent extends Event {
     ) {
       return false;
     }
-    if (!(this.keyUnpacked === other.keyUnpacked)) {
-      return false;
-    }
     if (
       (this.value == null) !== (other.value == null) ||
       (this.value != null && !this.value.equals(other.value))
@@ -1421,14 +1347,6 @@ export class EditEvent extends Event {
       (this.undo != null && !this.undo.equals(other.undo))
     ) {
       return false;
-    }
-    if (this.ancestorsIds.length !== other.ancestorsIds.length) {
-      return false;
-    }
-    for (let i = 0; i < this.ancestorsIds.length; i++) {
-      if (!(this.ancestorsIds[i] === other.ancestorsIds[i])) {
-        return false;
-      }
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
@@ -1453,19 +1371,11 @@ export class EditEvent extends Event {
     if (this.key !== null) {
       h = (h * 31 + this.key.hash()) & 0xffffffff;
     }
-    if (this.keyUnpacked !== null) {
-      h = (h * 31 + hashString(JSON.stringify(this.keyUnpacked))) & 0xffffffff;
-    }
     if (this.value !== null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
     }
     if (this.undo !== null) {
       h = (h * 31 + this.undo.hash()) & 0xffffffff;
-    }
-    if (this.ancestorsIds && this.ancestorsIds.length > 0) {
-      for (const _item of this.ancestorsIds) {
-        h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
-      }
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -1531,9 +1441,6 @@ export class EditEvent extends Event {
     if (this.key !== null) {
       propertyReprs.push(`key=${this.key.repr()}`);
     }
-    if (this.keyUnpacked !== null) {
-      propertyReprs.push(`keyUnpacked=${this.keyUnpacked}`);
-    }
     return `<EditEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -1567,23 +1474,13 @@ export class EditEvent extends Event {
       objectValue["103"] = object.attribute.toValue();
     }
     if (object.key != null) {
-      objectValue["104"] = object.key.toValue();
-    }
-    if (object.keyUnpacked != null) {
-      objectValue["105"] = object.keyUnpacked;
+      objectValue["105"] = object.key.toValue();
     }
     if (object.value != null) {
       objectValue["110"] = object.value.toValue();
     }
     if (object.undo != null) {
       objectValue["120"] = object.undo.toValue();
-    }
-    if (object.ancestorsIds.length > 0) {
-      const packedAncestorsIds: any[] = [];
-      for (const item of object.ancestorsIds) {
-        packedAncestorsIds.push(String(item));
-      }
-      objectValue["122"] = packedAncestorsIds;
     }
     return objectValue;
   }
@@ -1608,13 +1505,11 @@ export class EditEvent extends Event {
       attributeValue != undefined
         ? _PropertyReference.fromValue(attributeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["104"];
+    const keyValue = objectValue["105"];
     const unpackedKey =
       keyValue != undefined
         ? _Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyUnpackedValue = objectValue["105"];
-    const unpackedKeyUnpacked = keyUnpackedValue != undefined ? keyUnpackedValue : null;
     const valueValue = objectValue["110"];
     const unpackedValue =
       valueValue != undefined
@@ -1625,12 +1520,6 @@ export class EditEvent extends Event {
       undoValue != undefined
         ? _Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedAncestorsIds: any[] = [];
-    if (objectValue["122"] != undefined) {
-      for (const item of objectValue["122"]) {
-        unpackedAncestorsIds.push(String(item));
-      }
-    }
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1663,10 +1552,8 @@ export class EditEvent extends Event {
       operation: unpackedOperation,
       attribute: unpackedAttribute,
       key: unpackedKey,
-      keyUnpacked: unpackedKeyUnpacked,
       value: unpackedValue,
       undo: unpackedUndo,
-      ancestorsIds: unpackedAncestorsIds,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1720,21 +1607,11 @@ export class EditEvent extends Event {
     if (object.key != null) {
       objectProto.key = object.key.toProto();
     }
-    if (object.keyUnpacked != null) {
-      objectProto.keyUnpacked = packProtoJson(object.keyUnpacked);
-    }
     if (object.value != null) {
       objectProto.value = object.value.toProto();
     }
     if (object.undo != null) {
       objectProto.undo = object.undo.toProto();
-    }
-    if (object.ancestorsIds) {
-      const packedAncestorsIds: any[] = [];
-      for (const item of object.ancestorsIds) {
-        packedAncestorsIds.push(String(item));
-      }
-      objectProto.ancestorsIds = packedAncestorsIds;
     }
     return objectProto as EditEventProto;
   }
@@ -1752,12 +1629,6 @@ export class EditEvent extends Event {
     ] as typeof PropertyReference;
     const _Edit = STRUCT_CLASS_BY_TYPE[StructType.EDIT] as typeof Edit;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const unpackedAncestorsIds: any[] = [];
-    if (objectProto.ancestorsIds) {
-      for (const item of objectProto.ancestorsIds) {
-        unpackedAncestorsIds.push(String(item));
-      }
-    }
     return new EditEvent({
       type: Number(objectProto.type) as EditType,
       node: _NodeReference.fromProto(
@@ -1785,8 +1656,6 @@ export class EditEvent extends Event {
         objectProto.key != undefined
           ? _Value.fromProto(objectProto.key!, _session, _supergraph, _graph, _connection)
           : null,
-      keyUnpacked:
-        objectProto.keyUnpacked != undefined ? unpackProtoJson(objectProto.keyUnpacked!) : null,
       value:
         objectProto.value != undefined
           ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
@@ -1795,7 +1664,6 @@ export class EditEvent extends Event {
         objectProto.undo != undefined
           ? _Edit.fromProto(objectProto.undo!, _session, _supergraph, _graph, _connection)
           : null,
-      ancestorsIds: unpackedAncestorsIds,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(

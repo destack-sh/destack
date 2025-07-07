@@ -3,6 +3,7 @@ import type {
   Graph,
   Insets,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -502,16 +503,8 @@ export class BorderStyle extends Style {
     return this._type;
   }
   set type(value: BorderType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: BorderType;
@@ -523,16 +516,8 @@ export class BorderStyle extends Style {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -544,16 +529,8 @@ export class BorderStyle extends Style {
     return this._color;
   }
   set color(value: Color | null) {
-    const oldValue = this._color;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["color"] === undefined) {
-      this._dirty["color"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["color"];
+    this._session.updateSetProperty(this, prop, value);
     this._color = value;
   }
   _color: Color | null;
@@ -565,16 +542,8 @@ export class BorderStyle extends Style {
     return this._width;
   }
   set width(value: Insets | null) {
-    const oldValue = this._width;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["width"] === undefined) {
-      this._dirty["width"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["width"];
+    this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
   _width: Insets | null;
@@ -600,16 +569,8 @@ export class BorderStyle extends Style {
     return this._stylePtr;
   }
   set stylePtr(value: NodeReference | null) {
-    const oldValue = this._stylePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["stylePtr"] === undefined) {
-      this._dirty["stylePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["style"];
+    this._session.updateSetProperty(this, prop, value);
     this._stylePtr = value;
   }
   _stylePtr: NodeReference | null;

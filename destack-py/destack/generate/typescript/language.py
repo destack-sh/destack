@@ -320,16 +320,8 @@ get {prop_ts_name}(): {prop_type_str} {{
     return this.{internal_prop_ts_name};
 }}
 set {prop_ts_name}(value: {prop_type_str}) {{
-    const oldValue = this.{internal_prop_ts_name};
-    if (this._dirty == null) {{
-        this._dirty = {{}};
-    }}
-    if (this._dirty["{prop_ts_name}"] === undefined) {{
-        this._dirty["{prop_ts_name}"] = oldValue;
-    }}
-    if (!this._session.dirty[this.id]) {{
-        this._session.dirty[this.id] = this;
-    }}
+    const prop = (this.constructor as NodeClass).__properties__["{prop.name}"];
+    this._session.updateSetProperty(this, prop, value);
     this.{internal_prop_ts_name} = value;
 }}
 {prop_str}

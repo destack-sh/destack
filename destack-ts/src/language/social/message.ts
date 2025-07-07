@@ -8,6 +8,7 @@ import type {
   IsSpatial,
   IsSubject,
   IsTaggable,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -171,16 +172,8 @@ export class Message
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -206,16 +199,8 @@ export class Message
     return this._threadPtr;
   }
   set threadPtr(value: NodeReference | null) {
-    const oldValue = this._threadPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["threadPtr"] === undefined) {
-      this._dirty["threadPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["thread"];
+    this._session.updateSetProperty(this, prop, value);
     this._threadPtr = value;
   }
   _threadPtr: NodeReference | null;
@@ -227,16 +212,8 @@ export class Message
     return this._editedAt;
   }
   set editedAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this._editedAt;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["editedAt"] === undefined) {
-      this._dirty["editedAt"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["edited_at"];
+    this._session.updateSetProperty(this, prop, value);
     this._editedAt = value;
   }
   _editedAt: Temporal.ZonedDateTime | null;
@@ -262,16 +239,8 @@ export class Message
     return this._replyToPtr;
   }
   set replyToPtr(value: NodeReference | null) {
-    const oldValue = this._replyToPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["replyToPtr"] === undefined) {
-      this._dirty["replyToPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["reply_to"];
+    this._session.updateSetProperty(this, prop, value);
     this._replyToPtr = value;
   }
   _replyToPtr: NodeReference | null;
@@ -297,16 +266,8 @@ export class Message
     return this._forwardedFromPtr;
   }
   set forwardedFromPtr(value: NodeReference | null) {
-    const oldValue = this._forwardedFromPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["forwardedFromPtr"] === undefined) {
-      this._dirty["forwardedFromPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["forwarded_from"];
+    this._session.updateSetProperty(this, prop, value);
     this._forwardedFromPtr = value;
   }
   _forwardedFromPtr: NodeReference | null;
@@ -318,16 +279,8 @@ export class Message
     return this._text;
   }
   set text(value: Text | null) {
-    const oldValue = this._text;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["text"] === undefined) {
-      this._dirty["text"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["text"];
+    this._session.updateSetProperty(this, prop, value);
     this._text = value;
   }
   _text: Text | null;
@@ -353,16 +306,8 @@ export class Message
     return this._nodePtr;
   }
   set nodePtr(value: NodeReference | null) {
-    const oldValue = this._nodePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["nodePtr"] === undefined) {
-      this._dirty["nodePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["node"];
+    this._session.updateSetProperty(this, prop, value);
     this._nodePtr = value;
   }
   _nodePtr: NodeReference | null;

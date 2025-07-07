@@ -7,6 +7,7 @@ import type {
   IsOwner,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -165,16 +166,8 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -186,16 +179,8 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -207,16 +192,8 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -242,16 +219,8 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     return this._headPtr;
   }
   set headPtr(value: NodeReference | null) {
-    const oldValue = this._headPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["headPtr"] === undefined) {
-      this._dirty["headPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["head"];
+    this._session.updateSetProperty(this, prop, value);
     this._headPtr = value;
   }
   _headPtr: NodeReference | null;

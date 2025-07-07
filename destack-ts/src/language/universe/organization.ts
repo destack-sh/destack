@@ -5,6 +5,7 @@ import type {
   IsJoinable,
   IsOwner,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -159,16 +160,8 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this._slug;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["slug"] === undefined) {
-      this._dirty["slug"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["slug"];
+    this._session.updateSetProperty(this, prop, value);
     this._slug = value;
   }
   _slug: string;
@@ -180,16 +173,8 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return this._status;
   }
   set status(value: OrganizationStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: OrganizationStatus;
@@ -208,16 +193,8 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return this._spacePtr;
   }
   set spacePtr(value: NodeReference) {
-    const oldValue = this._spacePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["spacePtr"] === undefined) {
-      this._dirty["spacePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["space"];
+    this._session.updateSetProperty(this, prop, value);
     this._spacePtr = value;
   }
   _spacePtr: NodeReference;
@@ -236,16 +213,8 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return this._handlePtr;
   }
   set handlePtr(value: NodeReference | null) {
-    const oldValue = this._handlePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["handlePtr"] === undefined) {
-      this._dirty["handlePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["handle"];
+    this._session.updateSetProperty(this, prop, value);
     this._handlePtr = value;
   }
   _handlePtr: NodeReference | null;

@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -705,16 +706,8 @@ export class TransitionStyle extends Style {
     return this._type;
   }
   set type(value: TransitionType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: TransitionType;
@@ -726,16 +719,8 @@ export class TransitionStyle extends Style {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -747,16 +732,8 @@ export class TransitionStyle extends Style {
     return this._delay;
   }
   set delay(value: number | null) {
-    const oldValue = this._delay;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["delay"] === undefined) {
-      this._dirty["delay"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["delay"];
+    this._session.updateSetProperty(this, prop, value);
     this._delay = value;
   }
   _delay: number | null;
@@ -768,16 +745,8 @@ export class TransitionStyle extends Style {
     return this._duration;
   }
   set duration(value: number | null) {
-    const oldValue = this._duration;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["duration"] === undefined) {
-      this._dirty["duration"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["duration"];
+    this._session.updateSetProperty(this, prop, value);
     this._duration = value;
   }
   _duration: number | null;
@@ -789,16 +758,8 @@ export class TransitionStyle extends Style {
     return this._ease;
   }
   set ease(value: Array<number>) {
-    const oldValue = this._ease;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ease"] === undefined) {
-      this._dirty["ease"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["ease"];
+    this._session.updateSetProperty(this, prop, value);
     this._ease = value;
   }
   _ease: Array<number>;
@@ -810,16 +771,8 @@ export class TransitionStyle extends Style {
     return this._stiffness;
   }
   set stiffness(value: number | null) {
-    const oldValue = this._stiffness;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["stiffness"] === undefined) {
-      this._dirty["stiffness"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["stiffness"];
+    this._session.updateSetProperty(this, prop, value);
     this._stiffness = value;
   }
   _stiffness: number | null;
@@ -831,16 +784,8 @@ export class TransitionStyle extends Style {
     return this._damping;
   }
   set damping(value: number | null) {
-    const oldValue = this._damping;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["damping"] === undefined) {
-      this._dirty["damping"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["damping"];
+    this._session.updateSetProperty(this, prop, value);
     this._damping = value;
   }
   _damping: number | null;
@@ -852,16 +797,8 @@ export class TransitionStyle extends Style {
     return this._mass;
   }
   set mass(value: number | null) {
-    const oldValue = this._mass;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["mass"] === undefined) {
-      this._dirty["mass"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["mass"];
+    this._session.updateSetProperty(this, prop, value);
     this._mass = value;
   }
   _mass: number | null;
@@ -873,16 +810,8 @@ export class TransitionStyle extends Style {
     return this._bounce;
   }
   set bounce(value: number | null) {
-    const oldValue = this._bounce;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["bounce"] === undefined) {
-      this._dirty["bounce"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["bounce"];
+    this._session.updateSetProperty(this, prop, value);
     this._bounce = value;
   }
   _bounce: number | null;
@@ -894,16 +823,8 @@ export class TransitionStyle extends Style {
     return this._springType;
   }
   set springType(value: SpringType | null) {
-    const oldValue = this._springType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["springType"] === undefined) {
-      this._dirty["springType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["spring_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._springType = value;
   }
   _springType: SpringType | null;

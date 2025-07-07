@@ -6,6 +6,7 @@ import type {
   IsGlobal,
   IsOwner,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -165,16 +166,8 @@ export class User
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -186,16 +179,8 @@ export class User
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -207,16 +192,8 @@ export class User
     return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this._slug;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["slug"] === undefined) {
-      this._dirty["slug"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["slug"];
+    this._session.updateSetProperty(this, prop, value);
     this._slug = value;
   }
   _slug: string;
@@ -228,16 +205,8 @@ export class User
     return this._status;
   }
   set status(value: UserStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: UserStatus;
@@ -249,16 +218,8 @@ export class User
     return this._lastLoggedInAt;
   }
   set lastLoggedInAt(value: Temporal.ZonedDateTime | null) {
-    const oldValue = this._lastLoggedInAt;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["lastLoggedInAt"] === undefined) {
-      this._dirty["lastLoggedInAt"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["last_logged_in_at"];
+    this._session.updateSetProperty(this, prop, value);
     this._lastLoggedInAt = value;
   }
   _lastLoggedInAt: Temporal.ZonedDateTime | null;
@@ -270,16 +231,8 @@ export class User
     return this._isStaff;
   }
   set isStaff(value: boolean) {
-    const oldValue = this._isStaff;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isStaff"] === undefined) {
-      this._dirty["isStaff"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_staff"];
+    this._session.updateSetProperty(this, prop, value);
     this._isStaff = value;
   }
   _isStaff: boolean;
@@ -298,16 +251,8 @@ export class User
     return this._spacePtr;
   }
   set spacePtr(value: NodeReference) {
-    const oldValue = this._spacePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["spacePtr"] === undefined) {
-      this._dirty["spacePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["space"];
+    this._session.updateSetProperty(this, prop, value);
     this._spacePtr = value;
   }
   _spacePtr: NodeReference;
@@ -326,16 +271,8 @@ export class User
     return this._handlePtr;
   }
   set handlePtr(value: NodeReference | null) {
-    const oldValue = this._handlePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["handlePtr"] === undefined) {
-      this._dirty["handlePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["handle"];
+    this._session.updateSetProperty(this, prop, value);
     this._handlePtr = value;
   }
   _handlePtr: NodeReference | null;
@@ -354,16 +291,8 @@ export class User
     return this._cursorPtr;
   }
   set cursorPtr(value: NodeReference | null) {
-    const oldValue = this._cursorPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["cursorPtr"] === undefined) {
-      this._dirty["cursorPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["cursor"];
+    this._session.updateSetProperty(this, prop, value);
     this._cursorPtr = value;
   }
   _cursorPtr: NodeReference | null;
@@ -375,16 +304,8 @@ export class User
     return this._email;
   }
   set email(value: string | null) {
-    const oldValue = this._email;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["email"] === undefined) {
-      this._dirty["email"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["email"];
+    this._session.updateSetProperty(this, prop, value);
     this._email = value;
   }
   _email: string | null;
@@ -396,16 +317,8 @@ export class User
     return this._passwordSalt;
   }
   set passwordSalt(value: Uint8Array | null) {
-    const oldValue = this._passwordSalt;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["passwordSalt"] === undefined) {
-      this._dirty["passwordSalt"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["password_salt"];
+    this._session.updateSetProperty(this, prop, value);
     this._passwordSalt = value;
   }
   _passwordSalt: Uint8Array | null;
@@ -417,16 +330,8 @@ export class User
     return this._passwordHash;
   }
   set passwordHash(value: Uint8Array | null) {
-    const oldValue = this._passwordHash;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["passwordHash"] === undefined) {
-      this._dirty["passwordHash"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["password_hash"];
+    this._session.updateSetProperty(this, prop, value);
     this._passwordHash = value;
   }
   _passwordHash: Uint8Array | null;

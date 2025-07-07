@@ -5,6 +5,7 @@ import type {
   Dimension,
   Graph,
   IsSubject,
+  NodeClass,
   NodeDefinitionReference,
   NodeReference,
   Position,
@@ -183,16 +184,8 @@ export class NumberInputView extends InputView {
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -223,16 +216,8 @@ export class NumberInputView extends InputView {
     return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this._scriptPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scriptPtr"] === undefined) {
-      this._dirty["scriptPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
@@ -244,16 +229,8 @@ export class NumberInputView extends InputView {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -265,16 +242,8 @@ export class NumberInputView extends InputView {
     return this._position;
   }
   set position(value: Position | null) {
-    const oldValue = this._position;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["position"] === undefined) {
-      this._dirty["position"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["position"];
+    this._session.updateSetProperty(this, prop, value);
     this._position = value;
   }
   _position: Position | null;
@@ -286,16 +255,8 @@ export class NumberInputView extends InputView {
     return this._width;
   }
   set width(value: Dimension | null) {
-    const oldValue = this._width;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["width"] === undefined) {
-      this._dirty["width"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["width"];
+    this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
   _width: Dimension | null;
@@ -307,16 +268,8 @@ export class NumberInputView extends InputView {
     return this._height;
   }
   set height(value: Dimension | null) {
-    const oldValue = this._height;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["height"] === undefined) {
-      this._dirty["height"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["height"];
+    this._session.updateSetProperty(this, prop, value);
     this._height = value;
   }
   _height: Dimension | null;
@@ -328,16 +281,8 @@ export class NumberInputView extends InputView {
     return this._minWidth;
   }
   set minWidth(value: Dimension | null) {
-    const oldValue = this._minWidth;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["minWidth"] === undefined) {
-      this._dirty["minWidth"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["min_width"];
+    this._session.updateSetProperty(this, prop, value);
     this._minWidth = value;
   }
   _minWidth: Dimension | null;
@@ -349,16 +294,8 @@ export class NumberInputView extends InputView {
     return this._minHeight;
   }
   set minHeight(value: Dimension | null) {
-    const oldValue = this._minHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["minHeight"] === undefined) {
-      this._dirty["minHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["min_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._minHeight = value;
   }
   _minHeight: Dimension | null;
@@ -370,16 +307,8 @@ export class NumberInputView extends InputView {
     return this._maxWidth;
   }
   set maxWidth(value: Dimension | null) {
-    const oldValue = this._maxWidth;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["maxWidth"] === undefined) {
-      this._dirty["maxWidth"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["max_width"];
+    this._session.updateSetProperty(this, prop, value);
     this._maxWidth = value;
   }
   _maxWidth: Dimension | null;
@@ -391,16 +320,8 @@ export class NumberInputView extends InputView {
     return this._maxHeight;
   }
   set maxHeight(value: Dimension | null) {
-    const oldValue = this._maxHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["maxHeight"] === undefined) {
-      this._dirty["maxHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["max_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._maxHeight = value;
   }
   _maxHeight: Dimension | null;
@@ -412,16 +333,8 @@ export class NumberInputView extends InputView {
     return this._isVisible;
   }
   set isVisible(value: boolean | null) {
-    const oldValue = this._isVisible;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isVisible"] === undefined) {
-      this._dirty["isVisible"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_visible"];
+    this._session.updateSetProperty(this, prop, value);
     this._isVisible = value;
   }
   _isVisible: boolean | null;
@@ -433,16 +346,8 @@ export class NumberInputView extends InputView {
     return this._opacity;
   }
   set opacity(value: number | null) {
-    const oldValue = this._opacity;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["opacity"] === undefined) {
-      this._dirty["opacity"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["opacity"];
+    this._session.updateSetProperty(this, prop, value);
     this._opacity = value;
   }
   _opacity: number | null;
@@ -454,16 +359,8 @@ export class NumberInputView extends InputView {
     return this._value;
   }
   set value(value: number | null) {
-    const oldValue = this._value;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["value"] === undefined) {
-      this._dirty["value"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["value"];
+    this._session.updateSetProperty(this, prop, value);
     this._value = value;
   }
   _value: number | null;
@@ -475,16 +372,8 @@ export class NumberInputView extends InputView {
     return this._placeholder;
   }
   set placeholder(value: string | null) {
-    const oldValue = this._placeholder;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["placeholder"] === undefined) {
-      this._dirty["placeholder"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["placeholder"];
+    this._session.updateSetProperty(this, prop, value);
     this._placeholder = value;
   }
   _placeholder: string | null;

@@ -9,6 +9,7 @@ import type {
   IsSpatial,
   IsStarable,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -196,16 +197,8 @@ export class Space
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -217,16 +210,8 @@ export class Space
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -238,16 +223,8 @@ export class Space
     return this._slug;
   }
   set slug(value: string) {
-    const oldValue = this._slug;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["slug"] === undefined) {
-      this._dirty["slug"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["slug"];
+    this._session.updateSetProperty(this, prop, value);
     this._slug = value;
   }
   _slug: string;
@@ -259,16 +236,8 @@ export class Space
     return this._status;
   }
   set status(value: SpaceStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: SpaceStatus;
@@ -287,16 +256,8 @@ export class Space
     return this._handlePtr;
   }
   set handlePtr(value: NodeReference | null) {
-    const oldValue = this._handlePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["handlePtr"] === undefined) {
-      this._dirty["handlePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["handle"];
+    this._session.updateSetProperty(this, prop, value);
     this._handlePtr = value;
   }
   _handlePtr: NodeReference | null;
@@ -315,16 +276,8 @@ export class Space
     return this._systemFolderPtr;
   }
   set systemFolderPtr(value: NodeReference | null) {
-    const oldValue = this._systemFolderPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["systemFolderPtr"] === undefined) {
-      this._dirty["systemFolderPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["system_folder"];
+    this._session.updateSetProperty(this, prop, value);
     this._systemFolderPtr = value;
   }
   _systemFolderPtr: NodeReference | null;
@@ -343,16 +296,8 @@ export class Space
     return this._homeFolderPtr;
   }
   set homeFolderPtr(value: NodeReference | null) {
-    const oldValue = this._homeFolderPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["homeFolderPtr"] === undefined) {
-      this._dirty["homeFolderPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["home_folder"];
+    this._session.updateSetProperty(this, prop, value);
     this._homeFolderPtr = value;
   }
   _homeFolderPtr: NodeReference | null;
@@ -364,16 +309,8 @@ export class Space
     return this._region;
   }
   set region(value: Region) {
-    const oldValue = this._region;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["region"] === undefined) {
-      this._dirty["region"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["region"];
+    this._session.updateSetProperty(this, prop, value);
     this._region = value;
   }
   _region: Region;
@@ -385,16 +322,8 @@ export class Space
     return this._galaxyName;
   }
   set galaxyName(value: string | null) {
-    const oldValue = this._galaxyName;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["galaxyName"] === undefined) {
-      this._dirty["galaxyName"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["galaxy_name"];
+    this._session.updateSetProperty(this, prop, value);
     this._galaxyName = value;
   }
   _galaxyName: string | null;
@@ -413,16 +342,8 @@ export class Space
     return this._databasePtr;
   }
   set databasePtr(value: NodeReference | null) {
-    const oldValue = this._databasePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["databasePtr"] === undefined) {
-      this._dirty["databasePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["database"];
+    this._session.updateSetProperty(this, prop, value);
     this._databasePtr = value;
   }
   _databasePtr: NodeReference | null;

@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
+import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type {
   NodeReference,
@@ -170,16 +171,8 @@ export class CustomStructDefinition
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -196,16 +189,8 @@ export class CustomStructDefinition
     return this._prototype;
   }
   set prototype(value: CustomStruct | null) {
-    const oldValue = this._prototype;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["prototype"] === undefined) {
-      this._dirty["prototype"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["prototype"];
+    this._session.updateSetProperty(this, prop, value);
     this._prototype = value;
   }
   _prototype: CustomStruct | null;
@@ -217,16 +202,8 @@ export class CustomStructDefinition
     return this._baseType;
   }
   set baseType(value: StructDefinitionReference | null) {
-    const oldValue = this._baseType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["baseType"] === undefined) {
-      this._dirty["baseType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["base_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._baseType = value;
   }
   _baseType: StructDefinitionReference | null;
@@ -238,16 +215,8 @@ export class CustomStructDefinition
     return this._isFrozen;
   }
   set isFrozen(value: boolean) {
-    const oldValue = this._isFrozen;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isFrozen"] === undefined) {
-      this._dirty["isFrozen"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_frozen"];
+    this._session.updateSetProperty(this, prop, value);
     this._isFrozen = value;
   }
   _isFrozen: boolean;
@@ -271,16 +240,8 @@ export class CustomStructDefinition
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -292,16 +253,8 @@ export class CustomStructDefinition
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;

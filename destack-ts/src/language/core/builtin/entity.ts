@@ -95,25 +95,6 @@ export abstract class Entity extends Node {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
-  _dirty: { [K: string]: any } | null = null;
-
-  _doSet(key: string, value: any): void {
-    const prop = (this.constructor as NodeClass).__properties__[key];
-    if (prop != null && !this._isNew) {
-      const oldValue = (this as any)[key];
-      if (this._dirty == null) {
-        this._dirty = {};
-      }
-      if (this._dirty[prop.name] === undefined) {
-        this._dirty[prop.name] = oldValue;
-      }
-      if (!this._session.dirty[this.id]) {
-        this._session.dirty[this.id] = this;
-      }
-    }
-    (this as any)[key] = value;
-  }
-
   moveTo(parent: Entity): void {
     throw new Error("not implemented");
   }
@@ -370,16 +351,8 @@ export class CustomEntityDefinition
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -410,16 +383,8 @@ export class CustomEntityDefinition
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -431,16 +396,8 @@ export class CustomEntityDefinition
     return this._baseType;
   }
   set baseType(value: NodeDefinitionReference) {
-    const oldValue = this._baseType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["baseType"] === undefined) {
-      this._dirty["baseType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["base_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._baseType = value;
   }
   _baseType: NodeDefinitionReference;
@@ -452,16 +409,8 @@ export class CustomEntityDefinition
     return this._baseTraits;
   }
   set baseTraits(value: Array<NodeDefinitionReference>) {
-    const oldValue = this._baseTraits;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["baseTraits"] === undefined) {
-      this._dirty["baseTraits"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["base_traits"];
+    this._session.updateSetProperty(this, prop, value);
     this._baseTraits = value;
   }
   _baseTraits: Array<NodeDefinitionReference>;
@@ -473,16 +422,8 @@ export class CustomEntityDefinition
     return this._isAbstract;
   }
   set isAbstract(value: boolean) {
-    const oldValue = this._isAbstract;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isAbstract"] === undefined) {
-      this._dirty["isAbstract"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_abstract"];
+    this._session.updateSetProperty(this, prop, value);
     this._isAbstract = value;
   }
   _isAbstract: boolean;
@@ -508,16 +449,8 @@ export class CustomEntityDefinition
     return this._prototypePtr;
   }
   set prototypePtr(value: NodeReference | null) {
-    const oldValue = this._prototypePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["prototypePtr"] === undefined) {
-      this._dirty["prototypePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["prototype"];
+    this._session.updateSetProperty(this, prop, value);
     this._prototypePtr = value;
   }
   _prototypePtr: NodeReference | null;
@@ -555,16 +488,8 @@ export class CustomEntityDefinition
     return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this._scriptPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scriptPtr"] === undefined) {
-      this._dirty["scriptPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
@@ -576,16 +501,8 @@ export class CustomEntityDefinition
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -597,16 +514,8 @@ export class CustomEntityDefinition
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -1611,16 +1520,8 @@ export class CustomTraitDefinition
     return this._customValues;
   }
   set customValues(value: Map<string, Value>) {
-    const oldValue = this._customValues;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["customValues"] === undefined) {
-      this._dirty["customValues"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
   _customValues: Map<string, Value>;
@@ -1637,16 +1538,8 @@ export class CustomTraitDefinition
     return this._baseType;
   }
   set baseType(value: NodeDefinitionReference | null) {
-    const oldValue = this._baseType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["baseType"] === undefined) {
-      this._dirty["baseType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["base_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._baseType = value;
   }
   _baseType: NodeDefinitionReference | null;
@@ -1658,16 +1551,8 @@ export class CustomTraitDefinition
     return this._baseTraits;
   }
   set baseTraits(value: Array<NodeDefinitionReference>) {
-    const oldValue = this._baseTraits;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["baseTraits"] === undefined) {
-      this._dirty["baseTraits"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["base_traits"];
+    this._session.updateSetProperty(this, prop, value);
     this._baseTraits = value;
   }
   _baseTraits: Array<NodeDefinitionReference>;
@@ -1679,16 +1564,8 @@ export class CustomTraitDefinition
     return this._isAbstract;
   }
   set isAbstract(value: boolean) {
-    const oldValue = this._isAbstract;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["isAbstract"] === undefined) {
-      this._dirty["isAbstract"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["is_abstract"];
+    this._session.updateSetProperty(this, prop, value);
     this._isAbstract = value;
   }
   _isAbstract: boolean;
@@ -1726,16 +1603,8 @@ export class CustomTraitDefinition
     return this._scriptPtr;
   }
   set scriptPtr(value: NodeReference | null) {
-    const oldValue = this._scriptPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["scriptPtr"] === undefined) {
-      this._dirty["scriptPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
@@ -1747,16 +1616,8 @@ export class CustomTraitDefinition
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -1768,16 +1629,8 @@ export class CustomTraitDefinition
     return this._icon;
   }
   set icon(value: Icon | null) {
-    const oldValue = this._icon;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["icon"] === undefined) {
-      this._dirty["icon"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
+    this._session.updateSetProperty(this, prop, value);
     this._icon = value;
   }
   _icon: Icon | null;
@@ -3013,16 +2866,8 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -3039,16 +2884,8 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -3060,16 +2897,8 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     return this._status;
   }
   set status(value: SnapshotStatus) {
-    const oldValue = this._status;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["status"] === undefined) {
-      this._dirty["status"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
     this._status = value;
   }
   _status: SnapshotStatus;

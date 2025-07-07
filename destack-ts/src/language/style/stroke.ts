@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -1320,16 +1321,8 @@ export class StrokeStyle extends Style {
     return this._type;
   }
   set type(value: StrokeType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: StrokeType;
@@ -1341,16 +1334,8 @@ export class StrokeStyle extends Style {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -1362,16 +1347,8 @@ export class StrokeStyle extends Style {
     return this._size;
   }
   set size(value: number) {
-    const oldValue = this._size;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["size"] === undefined) {
-      this._dirty["size"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["size"];
+    this._session.updateSetProperty(this, prop, value);
     this._size = value;
   }
   _size: number;
@@ -1383,16 +1360,8 @@ export class StrokeStyle extends Style {
     return this._thinning;
   }
   set thinning(value: number) {
-    const oldValue = this._thinning;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["thinning"] === undefined) {
-      this._dirty["thinning"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["thinning"];
+    this._session.updateSetProperty(this, prop, value);
     this._thinning = value;
   }
   _thinning: number;
@@ -1404,16 +1373,8 @@ export class StrokeStyle extends Style {
     return this._smoothing;
   }
   set smoothing(value: number) {
-    const oldValue = this._smoothing;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["smoothing"] === undefined) {
-      this._dirty["smoothing"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["smoothing"];
+    this._session.updateSetProperty(this, prop, value);
     this._smoothing = value;
   }
   _smoothing: number;
@@ -1425,16 +1386,8 @@ export class StrokeStyle extends Style {
     return this._streamline;
   }
   set streamline(value: number) {
-    const oldValue = this._streamline;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["streamline"] === undefined) {
-      this._dirty["streamline"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["streamline"];
+    this._session.updateSetProperty(this, prop, value);
     this._streamline = value;
   }
   _streamline: number;
@@ -1446,16 +1399,8 @@ export class StrokeStyle extends Style {
     return this._easing;
   }
   set easing(value: Easing) {
-    const oldValue = this._easing;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["easing"] === undefined) {
-      this._dirty["easing"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["easing"];
+    this._session.updateSetProperty(this, prop, value);
     this._easing = value;
   }
   _easing: Easing;
@@ -1467,16 +1412,8 @@ export class StrokeStyle extends Style {
     return this._start;
   }
   set start(value: StrokeCap | null) {
-    const oldValue = this._start;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["start"] === undefined) {
-      this._dirty["start"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["start"];
+    this._session.updateSetProperty(this, prop, value);
     this._start = value;
   }
   _start: StrokeCap | null;
@@ -1488,16 +1425,8 @@ export class StrokeStyle extends Style {
     return this._end;
   }
   set end(value: StrokeCap | null) {
-    const oldValue = this._end;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["end"] === undefined) {
-      this._dirty["end"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["end"];
+    this._session.updateSetProperty(this, prop, value);
     this._end = value;
   }
   _end: StrokeCap | null;

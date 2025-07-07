@@ -3,6 +3,7 @@ import type {
   Graph,
   IsSubject,
   Length,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -799,16 +800,8 @@ export class FontStyle extends Style {
     return this._type;
   }
   set type(value: FontType) {
-    const oldValue = this._type;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["type"] === undefined) {
-      this._dirty["type"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
   _type: FontType;
@@ -820,16 +813,8 @@ export class FontStyle extends Style {
     return this._name;
   }
   set name(value: string) {
-    const oldValue = this._name;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["name"] === undefined) {
-      this._dirty["name"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
   _name: string;
@@ -841,16 +826,8 @@ export class FontStyle extends Style {
     return this._weight;
   }
   set weight(value: FontWeight | null) {
-    const oldValue = this._weight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["weight"] === undefined) {
-      this._dirty["weight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["weight"];
+    this._session.updateSetProperty(this, prop, value);
     this._weight = value;
   }
   _weight: FontWeight | null;
@@ -862,16 +839,8 @@ export class FontStyle extends Style {
     return this._color;
   }
   set color(value: Fill | null) {
-    const oldValue = this._color;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["color"] === undefined) {
-      this._dirty["color"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["color"];
+    this._session.updateSetProperty(this, prop, value);
     this._color = value;
   }
   _color: Fill | null;
@@ -883,16 +852,8 @@ export class FontStyle extends Style {
     return this._size;
   }
   set size(value: FontSize | null) {
-    const oldValue = this._size;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["size"] === undefined) {
-      this._dirty["size"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["size"];
+    this._session.updateSetProperty(this, prop, value);
     this._size = value;
   }
   _size: FontSize | null;
@@ -904,16 +865,8 @@ export class FontStyle extends Style {
     return this._align;
   }
   set align(value: TextAlign | null) {
-    const oldValue = this._align;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["align"] === undefined) {
-      this._dirty["align"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["align"];
+    this._session.updateSetProperty(this, prop, value);
     this._align = value;
   }
   _align: TextAlign | null;
@@ -925,16 +878,8 @@ export class FontStyle extends Style {
     return this._lineHeight;
   }
   set lineHeight(value: Length | null) {
-    const oldValue = this._lineHeight;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["lineHeight"] === undefined) {
-      this._dirty["lineHeight"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["line_height"];
+    this._session.updateSetProperty(this, prop, value);
     this._lineHeight = value;
   }
   _lineHeight: Length | null;
@@ -946,16 +891,8 @@ export class FontStyle extends Style {
     return this._letterSpacing;
   }
   set letterSpacing(value: Length | null) {
-    const oldValue = this._letterSpacing;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["letterSpacing"] === undefined) {
-      this._dirty["letterSpacing"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["letter_spacing"];
+    this._session.updateSetProperty(this, prop, value);
     this._letterSpacing = value;
   }
   _letterSpacing: Length | null;
@@ -967,16 +904,8 @@ export class FontStyle extends Style {
     return this._decoration;
   }
   set decoration(value: TextDecoration | null) {
-    const oldValue = this._decoration;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["decoration"] === undefined) {
-      this._dirty["decoration"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["decoration"];
+    this._session.updateSetProperty(this, prop, value);
     this._decoration = value;
   }
   _decoration: TextDecoration | null;
@@ -988,16 +917,8 @@ export class FontStyle extends Style {
     return this._transform;
   }
   set transform(value: TextTransform | null) {
-    const oldValue = this._transform;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["transform"] === undefined) {
-      this._dirty["transform"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["transform"];
+    this._session.updateSetProperty(this, prop, value);
     this._transform = value;
   }
   _transform: TextTransform | null;

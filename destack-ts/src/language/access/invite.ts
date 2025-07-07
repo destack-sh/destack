@@ -9,6 +9,7 @@ import type {
   IsOwner,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -2391,16 +2392,8 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     return this._ownedByPtr;
   }
   set ownedByPtr(value: NodeReference | null) {
-    const oldValue = this._ownedByPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["ownedByPtr"] === undefined) {
-      this._dirty["ownedByPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
@@ -2422,16 +2415,8 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     return this._memberPtr;
   }
   set memberPtr(value: NodeReference) {
-    const oldValue = this._memberPtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["memberPtr"] === undefined) {
-      this._dirty["memberPtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["member"];
+    this._session.updateSetProperty(this, prop, value);
     this._memberPtr = value;
   }
   _memberPtr: NodeReference;
@@ -2457,16 +2442,8 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     return this._rolePtr;
   }
   set rolePtr(value: NodeReference | null) {
-    const oldValue = this._rolePtr;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["rolePtr"] === undefined) {
-      this._dirty["rolePtr"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["role"];
+    this._session.updateSetProperty(this, prop, value);
     this._rolePtr = value;
   }
   _rolePtr: NodeReference | null;
@@ -2478,16 +2455,8 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     return this._roleType;
   }
   set roleType(value: RoleType | null) {
-    const oldValue = this._roleType;
-    if (this._dirty == null) {
-      this._dirty = {};
-    }
-    if (this._dirty["roleType"] === undefined) {
-      this._dirty["roleType"] = oldValue;
-    }
-    if (!this._session.dirty[this.id]) {
-      this._session.dirty[this.id] = this;
-    }
+    const prop = (this.constructor as NodeClass).__properties__["role_type"];
+    this._session.updateSetProperty(this, prop, value);
     this._roleType = value;
   }
   _roleType: RoleType | null;
